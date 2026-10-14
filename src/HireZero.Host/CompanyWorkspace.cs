@@ -3,11 +3,13 @@ using HireZero.Core;
 using HireZero.Roles.Developer;
 using HireZero.Roles.Marketing;
 using HireZero.Roles.Ceo;
+using HireZero.Integrations.Codex;
 
-// Explicit composition profile. No runtime preparation, discovery, legacy workers or outbound HTTP clients.
+// Explicit composition profile. Native Codex inspection is opt-in; legacy workers are never registered.
 public static class CompanyWorkspace
 {
     public const string Flag="--company-local";
+    public const string CodexFlag="--company-codex";
     public static CompanyRole[] Definitions()=>[CompanyDeveloper.Definition,CompanyMarketing.Definition,CompanyCeo.Definition];
     public static WebApplication? TryCreate(string[] args,string owner,bool localOwner,string root,ICompanyModel? fixture=null,string? fixtureUrl=null)
     {
@@ -17,7 +19,7 @@ public static class CompanyWorkspace
         if(HeldWorkspace.Requested(Environment.GetEnvironmentVariable(HeldWorkspace.Variable)))throw new InvalidOperationException("Execution hold takes precedence. Use the held profile or explicitly select company-local with a separate data root.");
         var url=fixtureUrl??"http://127.0.0.1:5065";
         var uri=new Uri(url);if(uri.Scheme!="http"||!IPAddress.TryParse(uri.Host,out var ip)||!IPAddress.IsLoopback(ip))throw new InvalidOperationException("Company mode must use a loopback listener.");
-        var builder=WebApplication.CreateBuilder(args.Where(a=>a!=Flag).ToArray());
+        var builder=WebApplication.CreateBuilder(args.Where(a=>a!=Flag&&a!=CodexFlag).ToArray());
         builder.WebHost.ConfigureKestrel(o=>{o.Configure(new ConfigurationBuilder().Build(),false);o.Limits.MaxRequestBodySize=16384;o.Listen(ip,uri.Port);});
         Directory.CreateDirectory(root);
         var database=Path.Combine(root,"workspace.sqlite");
@@ -30,7 +32,11 @@ public static class CompanyWorkspace
         var ownership=new FileStream(Path.Combine(root,"company-scheduler.lock"),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);
         try
         {
-            var model=fixture??new UnavailableCompanyModel();var store=new CompanyStore(Path.Combine(root,"workspace.sqlite"),owner,Definitions());
+            var routing=new CompanyModelRouting(Environment.GetEnvironmentVariable("HIREZERO_COMPANY_TEXT_MODEL")??"openai/gpt-6-luna",Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODING_MODEL")??"openai/gpt-6.1-sol");routing.Validate();
+            ICompanyModel model=fixture??(args.Contains(CodexFlag)?new CompanyCodexConnection(new(
+                Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_EXECUTABLE")??throw new InvalidOperationException("Pin the selected Codex executable."),
+                Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_IDENTITY")??throw new InvalidOperationException("Pin the selected Codex executable bundle identity."),Path.Combine(root,"codex-scratch")),routing):new UnavailableCompanyModel());
+            var store=new CompanyStore(Path.Combine(root,"workspace.sqlite"),owner,Definitions(),routing);
             builder.Services.AddSingleton(store);builder.Services.AddSingleton<ICompanyModel>(model);builder.Services.AddSingleton<CompanyScheduler>();
             builder.Services.AddHostedService(s=>s.GetRequiredService<CompanyScheduler>());
             var app=builder.Build();app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
@@ -51,7 +57,8 @@ public static class CompanyWorkspace
             });
             app.MapGet("/health",()=>Results.Ok(new{status="healthy",companyLocal=true,modelExecution=model.Qualified}));
             app.MapGet("/api/session",()=>Results.Ok(new{login=owner,role="owner",accessMode="local",roles=Array.Empty<string>(),agentModel="Unavailable",agentReasoning="",companyEnabled=true,executionHeld=false}));
-            app.MapGet("/api/company",()=>Results.Ok(new{capabilities=new{localManagement=true,modelExecution=model.Qualified,providerStatus=model.Status,ceoEnabled=true,meetingsEnabled=true,legacyDeveloperAvailable=false},data=store.Dashboard()}));
+            app.MapGet("/api/company",()=>Results.Ok(new{capabilities=new{localManagement=true,modelExecution=model.Qualified,providerStatus=model.Status,modelRouting=routing,ceoEnabled=true,meetingsEnabled=true,legacyDeveloperAvailable=false},data=store.Dashboard()}));
+            app.MapGet("/api/company/runtime",async(CancellationToken token)=>model is CompanyCodexConnection connection?Results.Ok(await connection.InspectAsync(token)):Results.Json(new{error="Select the explicit Codex connection profile."},statusCode:503));
             app.MapGet("/api/company/feed",(long? after,int? limit)=>Results.Ok(store.Feed(after??0,limit??100)));
             app.MapGet("/api/company/employees/{employee}/threads/{thread}",(string employee,string thread)=>Results.Ok(store.Thread(employee,thread)));
             app.MapGet("/api/company/tasks/{id}",(string id)=>Results.Ok(store.TaskDetail(id)));

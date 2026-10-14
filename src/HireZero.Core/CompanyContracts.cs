@@ -17,7 +17,8 @@ public sealed record CompanyMessage(string Id, string ThreadId, string EmployeeI
 public sealed record CompanyNotes(string Id, string Body, int Version = 1);
 public sealed record CompanyTask(string Id, string EmployeeId, string ThreadId, string Skill, string Input, string State,
     string? Reason, string RootId, string[] Evidence, string[] Dependencies, string? PlanId = null, string? MeetingId = null,
-    string? Resource = null, int Version = 1, int Generation = 1, long Watermark = 0, string? KnowledgeId = null, string? CompanyKnowledgeId = null);
+    string? Resource = null, int Version = 1, int Generation = 1, long Watermark = 0, string? KnowledgeId = null, string? CompanyKnowledgeId = null,
+    string? ModelRoute = null, string? Runtime = null);
 public sealed record CompanyArtifact(string Id, string TaskId, string EmployeeId, string Body, string Digest, string State,
     string Provenance, string? ContextId, int Version = 1);
 public sealed record CompanyHandoff(string Id, string ArtifactId, string TargetEmployeeId, string TargetThreadId, string Body, string Digest, string State = "shared", int Version = 1);
@@ -49,7 +50,18 @@ public sealed record CompanyCommand(string RequestId, string Action, string? Id 
     string? Skill = null, string[]? Evidence = null, CompanyTaskSpec[]? Tasks = null, string[]? Participants = null,
     string? ChairId = null, long Budget = 0);
 
-public sealed record CompanyModelCall(string DispatchId, CompanyContext Context, string Instructions, int MaxInputTokens, int MaxOutputTokens);
+public sealed record CompanyModelCall(string DispatchId, CompanyContext Context, string Instructions, int MaxInputTokens, int MaxOutputTokens, string? ModelRoute = null);
+// Runtime selection and task purpose are independent of employee role. A Developer conversation is ordinary text.
+public sealed record CompanyModelRouting(string TextModel="openai/gpt-6-luna",string CodingModel="openai/gpt-6.1-sol",string Runtime="codex")
+{
+    public string For(bool execution)=>execution?CodingModel:TextModel;
+    public static string Native(string route)=>route.StartsWith("openai/",StringComparison.Ordinal)?route[7..]:route;
+    public void Validate()
+    {
+        if(Runtime!="codex"||new[]{TextModel,CodingModel}.Any(s=>!s.StartsWith("openai/",StringComparison.Ordinal)||s.Length is <8 or >100||s.Any(c=>!char.IsAsciiLetterOrDigit(c)&&c is not('/' or '-' or '.'))))
+            throw new WorkspaceException("Select explicit OpenAI model routes on the Codex runtime.");
+    }
+}
 public sealed record CompanyModelReply(string Body, long? TotalTokens, string? Receipt = null);
 public sealed class CompanyTransportException(string message,long? knownUsage=null,string? receipt=null):Exception(message)
 {

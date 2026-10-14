@@ -2,6 +2,18 @@
 
 The company workspace manages departments, employee instances, private conversations, internal tasks, reviewed artifacts, CEO plans and Board Meetings in one HireZero backend. Multiple employees can share a role without sharing private history or notes. The current local profile does not execute live model work or repository changes.
 
+## Codex connection and model routing
+
+Runtime selection is separate from model routing. Ordinary tasks, Marketing work, CEO coordination, meeting turns and Developer conversations record `openai/gpt-6-luna`. Only explicit `developer-work` execution tasks record `openai/gpt-6.1-sol`; reviewed execution proposals retain that route. Older tasks without routing metadata receive it when first admitted. Configuration changes do not rewrite a recorded route. Task cards show the saved runtime and model.
+
+The launcher accepts `-TextModel` and `-CodingModel`; backend equivalents are `HIREZERO_COMPANY_TEXT_MODEL` and `HIREZERO_COMPANY_CODING_MODEL`. Requests cannot supply model/runtime authority. Supported Codex `model/list` discovery must contain both exact selected models. There is no model or provider substitution.
+
+Add `-Codex -CodexExecutable <absolute-installed-executable> -CodexIdentity <reviewed-bundle-identity>` to select the optional connection. `CompanyCodingFactory.Identity` hashes the executable and any companion .NET assembly/configuration files. Review this identity after a runtime update; it is not a credential. The owner-only `/api/company/runtime` endpoint inspects account, catalog and allowance without starting model turns. It uses native Codex sign-in, with no credential-file reading/copying, login flow or account-setting calls from HireZero.
+
+The installed runtime recognizes the existing Pro account and both requested models. Its empty ephemeral thread still reports a global instruction source after project instructions are disabled. A fresh empty Codex home reports zero instruction sources but no signed-in account. No new sign-in or persistent grant was started. The pilot remains blocked before `turn/start`.
+
+Codex exposes no compatible exact preflight token counter or hard completion-token field in its installed app-server protocol. Automatic company execution stays disabled. The separate qualification entry point allows at most four attempts, low reasoning, standard service tier, no application retries, 60-second local deadlines, restricted read-only roots, feature/memory restrictions, output character limits and complete usage checks. These are local controls, not remote token/spending ceilings or proof that cancellation stops remote generation. See the qualification report for current evidence.
+
 ## Build and open
 
 Build the locked frontend first, then the host. Do not rebuild frontend assets while a .NET build is scanning them.
