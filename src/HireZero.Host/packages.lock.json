@@ -99,19 +99,7 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
-      "hirezero.roles.ceo": {
-        "type": "Project",
-        "dependencies": {
-          "HireZero.Core": "[1.0.0, )"
-        }
-      },
       "hirezero.roles.developer": {
-        "type": "Project",
-        "dependencies": {
-          "HireZero.Core": "[1.0.0, )"
-        }
-      },
-      "hirezero.roles.marketing": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

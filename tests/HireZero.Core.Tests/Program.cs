@@ -33,8 +33,8 @@ Console.WriteLine($"PASS {count} core queue, shift, schedule, role catalog, inta
 }
 catch (Exception error)
 {
-    Console.Error.WriteLine(error is SyntheticCheckFailure ? "FAIL " + error.Message : "FAIL " + error.GetType().Name + ": " + error.Message);
-    foreach (var frame in new System.Diagnostics.StackTrace(error, true).GetFrames().Take(10))
+    Console.Error.WriteLine(error is SyntheticCheckFailure ? "FAIL " + error.Message : "FAIL " + error.GetType().Name);
+    foreach (var frame in new System.Diagnostics.StackTrace(error, true).GetFrames().Take(3))
         Console.Error.WriteLine(Path.GetFileName(frame.GetFileName()) + ":" + frame.GetFileLineNumber() + " " + frame.GetMethod()?.Name);
     Environment.ExitCode = 1;
 }

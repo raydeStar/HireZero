@@ -20,6 +20,3 @@ public interface ICodingRunner
     CodingRun? Find(string id);
     void Cancel(string id);
 }
-public interface ICodingRunLifecycle { bool Terminated(string runId); }
-// This exception is reserved for validation before a runtime process/request can be started.
-public sealed class CodingStartRefusedException(string message):WorkspaceException(message);

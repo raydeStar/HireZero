@@ -33,4 +33,3 @@ playwright-report/
 **/*.key
 **/logs/
 **/.env*
-**/company-scheduler.lock
