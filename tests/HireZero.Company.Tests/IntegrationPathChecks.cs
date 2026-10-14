@@ -60,6 +60,7 @@ static class IntegrationPathChecks
         async Task<CompanyExecutionGrant> Prepare(CompanyEmployee e,CompanyThread thread)
         {var work=Submit(e,thread,"developer-work");store.Apply(C("workspace.grant") with{Id=work.Id,ExpectedVersion=work.Version,Body=repo});return await bridge.PrepareAsync(work.Id,repo,true);}
         var grant=await Prepare(first,t1);
+        check(store.Work(grant.TaskId).ModelRoute=="openai/gpt-6.1-sol"&&grant.Route=="openai/gpt-6.1-sol","Explicit coding task and reviewed proposal record Sol 6.1.");
         check(!store.AuthorizeDispatch(grant.AttemptId),"Text dispatch cannot bypass an execution grant.");
         try{await bridge.ExecuteFixtureAsync(grant.Id);check(false,"Execution without owner review must fail.");}catch(WorkspaceException){check(!File.Exists(Path.Combine(repo,"fixture-change.txt")),"Unapproved execution starts no runtime write.");}
         grant=A<CompanyExecutionGrant>(C("execution.review") with{Id=grant.Id,ExpectedVersion=grant.Version,Digest=grant.Digest,Decision="approve"});

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Data.Sqlite;
 
+if(args.FirstOrDefault() is "--codex-inspect" or "--codex-pilot")
+{try{await CompanyCodexChecks.InspectInstalledAsync(args);}catch(Exception e) when(e is WorkspaceException or CompanyTransportException){Console.WriteLine("BLOCKED: "+e.Message);Environment.ExitCode=2;}return;}
 var count=0;
 void Check(bool condition,string text){count++;if(!condition)throw new Exception(text);}
 bool Refused(Action action){try{action();return false;}catch(WorkspaceException){return true;}}
@@ -47,6 +49,7 @@ try
     Check(store.Feed(0).Length==eventsBefore,"Failed transaction emits no feed event.");
     var model=new FakeModel();var scheduler=new CompanyScheduler(store,model);
     var t1=Submit(m1,tm1,"First employee request");var t2=Submit(m2,tm2,"Second employee request");
+    Check(t1.ModelRoute=="openai/gpt-6-luna"&&t1.Runtime=="codex","Task records the selected Codex runtime and Luna conversation route.");
     await Task.WhenAll(scheduler.TickAsync(m1.Id),scheduler.TickAsync(m2.Id));
     Check(model.MaxActive==1,"Different employees share one serialized account gate.");
     Check(model.Calls.Count==2,"Independent queues dispatch exactly once.");
@@ -62,6 +65,7 @@ try
     var other=Thread(m2);Submit(m2,other,"Unrelated conversation");await scheduler.TickAsync(m2.Id);Check(!model.Calls.Last().Context.Evidence.Any(e=>e.Id==a.Id),"Handoff excluded from unrelated recipient thread.");
     var hold=new TaskCompletionSource<CompanyModelReply>(TaskCreationOptions.RunContinuationsAsynchronously);model.Hold=hold;
     var pending=Submit(d1,td1,"Cancelable output");var running=scheduler.TickAsync(d1.Id);await model.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    Check(pending.ModelRoute=="openai/gpt-6-luna","Selecting a Developer for conversation still selects Luna.");
     pending=TaskOf(pending.Id);store.Apply(Cmd("task.cancel") with{Id=pending.Id,ExpectedVersion=pending.Version});hold.SetResult(new("LATE_RESPONSE_SENTINEL",10));await running;model.Hold=null;
     Check(TaskOf(pending.Id).State=="canceled"&&!List<CompanyArtifact>("artifacts").Any(a=>a.TaskId==pending.Id),"Canceled late response cannot publish an artifact.");
     var lock1=Submit(d1,td1,"Workspace lease one");var lock2=Submit(d2,td2,"Workspace lease two");
@@ -105,6 +109,7 @@ try
     Check(Refused(()=>new CompanyStore(path,"owner@example.invalid",CompanyWorkspace.Definitions())),"Changed migration checksum is refused.");
     await SecurityChecks.RunAsync(root,Check);
     await IntegrationPathChecks.RunAsync(root,Check);
+    await CompanyCodexChecks.RunAsync(root,Check);
     await HttpChecks(root,Check);
     Console.WriteLine("PASS "+count+" company identity, isolation, concurrency, fencing, budget, CEO, meeting and HTTP checks");
 }

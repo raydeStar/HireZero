@@ -10,6 +10,7 @@ public sealed partial class CompanyStore
     public Func<DateTimeOffset> Clock { get; init; } = () => DateTimeOffset.UtcNow;
     public const string CompanyId = "local-company";
     public CompanyRole[] Roles => _roles;
+    public CompanyModelRouting ModelRouting {get;}
     public SemaphoreSlim ProviderGate {get;}=new(1,1);
     private static readonly Dictionary<Type, string> Tables = new()
     {
@@ -26,9 +27,9 @@ public sealed partial class CompanyStore
         ["co_tasks"]="co_threads", ["co_attempts"]="co_tasks", ["co_contexts"]="co_attempts", ["co_artifacts"]="co_tasks",
         ["co_handoffs"]="co_artifacts", ["co_reservations"]="co_budgets"
     };
-    public CompanyStore(string path, string owner, CompanyRole[] roles)
+    public CompanyStore(string path, string owner, CompanyRole[] roles,CompanyModelRouting? routing=null)
     {
-        _path = path; _roles = roles;
+        _path = path; _roles = roles;ModelRouting=routing??new();ModelRouting.Validate();
         if (roles.Select(r=>r.Id).Distinct().Count()!=roles.Length) throw new InvalidOperationException("Duplicate role definition.");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         using var db = Open();

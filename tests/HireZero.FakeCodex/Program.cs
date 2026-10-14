@@ -11,6 +11,33 @@ void Stale(string? threadId,string? turnId){
  Write(new{method="error",@params=new{threadId,turnId,message="Stale error"}});
 }
 while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Parse(line);var r=doc.RootElement;var method=r.TryGetProperty("method",out var raw)?raw.GetString():null;
+ if(mode.StartsWith("company-",StringComparison.Ordinal)){
+  if(method=="initialize")Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});
+  else if(method=="account/read")Write(new{id=r.GetProperty("id").GetInt32(),result=new{account=new{type=mode=="company-apikey"?"apiKey":"chatgpt",planType="pro"},requiresOpenaiAuth=true}});
+  else if(method=="account/rateLimits/read")Write(new{id=r.GetProperty("id").GetInt32(),result=new{ordinaryUsageAllowed=mode!="company-quota"}});
+  else if(method=="model/list")Write(new{id=r.GetProperty("id").GetInt32(),result=new{data=(mode=="company-missing-model"?new[]{"gpt-6.1-sol"}:new[]{"gpt-6-luna","gpt-6.1-sol"}).Select(model=>new{id=model,model}),nextCursor=(string?)null}});
+  else if(method=="thread/start"){
+   var p=r.GetProperty("params");
+   if(p.GetProperty("model").GetString()!="gpt-6-luna"||p.GetProperty("allowProviderModelFallback").GetBoolean()||!p.GetProperty("ephemeral").GetBoolean()||p.GetProperty("environments").GetArrayLength()!=0||p.GetProperty("approvalPolicy").GetString()!="never")throw new Exception("Invalid company thread envelope");
+   Write(new{id=r.GetProperty("id").GetInt32(),result=new{thread=new{id=thread,ephemeral=true},model="gpt-6-luna",modelProvider="openai",instructionSources=mode=="company-ambient"?new[]{"fictional/global/AGENTS.md"}:Array.Empty<string>(),sandbox=new{type="readOnly",networkAccess=false}}});
+  }
+  else if(method=="turn/start"){
+   var p=r.GetProperty("params");if(p.GetProperty("model").GetString()!="gpt-6-luna"||p.GetProperty("effort").GetString()!="low"||p.GetProperty("serviceTierForTurn").GetString()!="default"||p.GetProperty("sandboxPolicy").GetProperty("type").GetString()!="readOnly"||p.GetProperty("sandboxPolicy").GetProperty("access").GetProperty("type").GetString()!="restricted")throw new Exception("Invalid company turn envelope");
+   if(Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL") is not null||Environment.GetEnvironmentVariable("OPENAI_API_KEY") is not null)throw new Exception("Ambient secret environment leaked");
+   Write(new{id=r.GetProperty("id").GetInt32(),result=new{turn=new{id=turn}}});
+   if(mode=="company-wait"){File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-ready"),"ready");continue;}
+   if(mode=="company-tool"){Write(new{id=901,method="item/commandExecution/requestApproval",@params=new{threadId=thread,turnId=turn}});continue;}
+   using var context=JsonDocument.Parse(p.GetProperty("input")[0].GetProperty("text").GetString()!);
+   var body=context.RootElement.GetProperty("notes").GetString()+"|"+context.RootElement.GetProperty("history").GetRawText();
+   if(mode=="company-nontext")Write(new{method="item/started",@params=new{threadId=thread,turnId=turn,item=new{type="fileChange"}}});
+   Write(new{method="item/agentMessage/delta",@params=new{threadId=thread,turnId=turn,delta=body}});
+   if(mode!="company-missing-usage")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=100,outputTokens=20,reasoningOutputTokens=5,totalTokens=120}}}});
+   Complete();
+  }
+  else if(method=="turn/interrupt"){Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});Complete("interrupted");return;}
+  else if(method is null&&r.TryGetProperty("id",out var denied)&&denied.GetInt32()==901){if(!r.TryGetProperty("error",out _))throw new Exception("A tool grant was created");return;}
+  continue;
+ }
  if(mode.StartsWith("scoped-",StringComparison.Ordinal)){
   var home=Environment.GetEnvironmentVariable("CODEX_HOME")??throw new Exception("Scoped home missing");
   if(Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL") is not null||File.Exists(Path.Combine(home,"auth.json")))throw new Exception("Ambient authentication or environment escaped into scoped runtime");

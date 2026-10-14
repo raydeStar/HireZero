@@ -11,3 +11,5 @@ LICENSE retains the original MIT copyright and permission notice. PROVENANCE rec
 marketing-hire, its existing users and its legacy Plow compatibility remain unchanged. No archive, redirect, deployment shutdown or spending change is part of this publication. The repository includes no GitHub Actions workflow, and no hosted test run is requested.
 
 The source and history scans are bounded evidence, not a guarantee about undetected data or a future binary distribution. Live runtime qualification remains separate from publication; creating a private source repository enables no model, coding, deployment or production-migration service.
+
+The native Codex connection checkpoint publishes source, fictional fixtures, model-routing UI and the qualification report only. Installed executable metadata is limited to version and hash. Account emails/IDs, profile paths, raw probes, generated schemas, native homes, auth stores, logs and screenshots remain outside the publication. Existing credential contents were not read or copied by HireZero. No live model turn, new native sign-in, persistent access grant, credit purchase or production execution occurred.

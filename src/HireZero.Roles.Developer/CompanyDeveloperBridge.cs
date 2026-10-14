@@ -11,7 +11,7 @@ public sealed class CompanyDeveloperBridge(CompanyStore store,ICompanyWorkspaceI
         try
         {
             var context=store.Capture(attempt.Id);var snapshot=await inspector.InspectAsync(root,token);
-            return store.ProposeExecution(new(attempt.Id,snapshot.Workspace,snapshot.Revision,snapshot.Fingerprint,CompanyJson.Digest(context),"openai/gpt-6.1-sol",allowWrite));
+            return store.ProposeExecution(new(attempt.Id,snapshot.Workspace,snapshot.Revision,snapshot.Fingerprint,CompanyJson.Digest(context),task.ModelRoute??store.ModelRouting.CodingModel,allowWrite));
         }
         catch{store.FailAttempt(attempt.Id,"execution-preparation-refused",false);throw;}
     }
@@ -50,7 +50,7 @@ public sealed class CompanyDeveloperBridge(CompanyStore store,ICompanyWorkspaceI
             if(coding is not ICodingRunLifecycle lifecycle)throw new WorkspaceException("Runtime termination cannot be verified.");
             var stopDeadline=DateTimeOffset.UtcNow.AddSeconds(8);while(!lifecycle.Terminated(run.Id)){if(DateTimeOffset.UtcNow>=stopDeadline)throw new TimeoutException("Runtime termination is unconfirmed.");await Task.Delay(20,CancellationToken.None);}
             var after=await inspector.InspectAsync(grant.Workspace,CancellationToken.None);
-            if(run.State!="completed"||run.ResolvedModel!="gpt-6.1-sol"||after.Revision!=grant.Revision||!grant.AllowWrite&&after.Fingerprint!=grant.Fingerprint)throw new WorkspaceException("Runtime outcome, route or repository changes need reconciliation.");
+            if(run.State!="completed"||run.ResolvedModel!=CompanyModelRouting.Native(grant.Route)||after.Revision!=grant.Revision||!grant.AllowWrite&&after.Fingerprint!=grant.Fingerprint)throw new WorkspaceException("Runtime outcome, route or repository changes need reconciliation.");
             var usage=run.Events.Where(e=>e.Type==BudgetLedger.CodingUsage).Select(e=>JsonDocument.Parse(e.DataJson).RootElement.GetProperty("tokens").GetInt64()).LastOrDefault(-1);
             if(usage<0||usage>5000)throw new WorkspaceException("Complete bounded coding usage was not confirmed.");
             store.Finish(grant.AttemptId,new(run.ResultJson??"No result.",usage,"codex:"+run.Id));store.RecordExecutionOutcome(grantId,store.Work(grant.TaskId).State=="awaiting_review"?"completed":"withheld");

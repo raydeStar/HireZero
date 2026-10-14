@@ -1,5 +1,27 @@
 # Scoped integration qualification
 
+## Native Codex connection checkpoint, 2026-10-14
+
+The selected runtime is now native Codex, independently of model choice: `gpt-6-luna` for ordinary employee text (including Developer conversation), Marketing, CEO and meetings; `gpt-6.1-sol` for explicitly scoped coding work. Both exact identifiers were returned by supported `model/list` using the existing signed-in account. New tasks persist provider-qualified route and runtime; execution grants persist the coding route. Owner configuration may change future routing without changing an existing task's selection. No unavailable-model fallback is allowed.
+
+The desktop's bundled runtime was selected instead of the older global npm wrapper. `--version` reports `codex-cli 0.162.0-alpha.17.2`; desktop package version is `26.1007.9446.0`. Executable SHA-256: `E98C516F1C8935789AABE9122EE7E05EC4C3EFD1BA6ACF179242E031C495B99E`. Local paths are deliberately omitted. The connector pins the executable bundle identity before each owned process start.
+
+Supported `account/read` with `refreshToken:false` reports `chatgpt` and `pro`; `account/rateLimits/read` reports `ordinaryUsageAllowed:true`, weekly usage 34%, and no reached spend control. This establishes current included-usage permission, not a dollar ceiling or a guarantee against future credit fallback. HireZero never receives or copies native credential tokens and does not start login, logout, reset, account mutation or daemon-management operations.
+
+An empty ephemeral `thread/start` returned the exact Luna model, OpenAI provider and read-only/no-network sandbox, but also reported one account-global `AGENTS.md` source despite `project_doc_max_bytes=0`, disabled skills and explicit instructions. The connector refuses any nonempty `instructionSources` before starting a model turn; source contents were not inspected. A new empty Codex home returned `account:null`, `requiresOpenaiAuth:true` and zero instruction sources. It does not automatically reuse the existing native sign-in. Creating separate persistent native sign-in state requires an explicit owner decision; no flow or grant was created.
+
+Installed generated schemas and the official configuration schema provide no hard completion-token parameter or compatible preflight token-count API. Normal `ICompanyModel.Qualified` remains false; the connector's counter explicitly refuses to invent a token count. The separate fictional qualification API uses four attempts, serialized account access, exact model discovery, fresh ephemeral threads, only each admitted employee context and selected history, low effort, standard tier, local 60-second deadlines, no application replay, a 4,000-byte context bound, 2,000-character output bound and post-hoc complete input/output/reasoning usage. The observed 5,000-per-turn and 20,000-aggregate thresholds are soft stop/reconciliation controls, not hard upstream caps. Native provider transport retries and remote cancellation are not independently controlled or qualified.
+
+No live model turn was sent. Automatic approval review rejected the executable qualification command because it could start live requests while ambient instructions and no-spend/hard-cap qualification remained unresolved. It was not retried through another path. Read-only account/catalog/thread checks and deterministic work continued.
+
+Real stdio fixtures exercise employee notes/history isolation, native auth inspection, exact route selection, missing models, API-key refusal, quota refusal, ambient-instruction refusal, tool/non-text refusal, missing usage, cancellation, four-attempt exhaustion and no replay. Existing checkout fencing and exact execution approval tests remain in place. These are protocol/fixture results, not live-model isolation evidence. Production and actual Developer execution remain disabled.
+
+Validation: 131 company checks, 420 Core checks, 642 Developer checks, both Host check groups, 54 Integration checks and all Policy groups passed. The full solution and frontend built successfully; all four Node test files passed (the loopback hook fixture required execution outside the restricted socket sandbox). Headless desktop/mobile management flow passed with a disposable browser profile. The existing Vite bundle-size advisory remains.
+
+Official references: [app-server](https://learn.chatgpt.com/docs/app-server), [configuration](https://learn.chatgpt.com/docs/config-file/config-reference), [configuration schema](https://learn.chatgpt.com/docs/config-schema.json). Supported behavior was checked against the installed runtime's generated schemas as well.
+
+## Previous OpenClaw and coding fixture checkpoint
+
 This checkpoint qualifies code contracts against actual local HTTP and stdio processes. It does not qualify an installed live model runtime. Normal company-local mode still registers the unavailable adapter and no coding factory. No credentials were read or copied, and no live model requests or production repository changes were made.
 
 ## Review and implemented boundaries
