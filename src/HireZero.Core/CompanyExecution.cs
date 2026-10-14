@@ -17,12 +17,12 @@ public sealed partial class CompanyStore
         var t=Need<CompanyTask>(db,a.TaskId);var e=Need<CompanyEmployee>(db,a.EmployeeId);
         return t.State=="running"&&t.Generation==a.TaskGeneration&&e.Generation==a.EmployeeGeneration&&e.State=="active"&&ParentValid(db,t);
     }
-    public CompanyAttempt? Claim(string employee,bool providerAvailable)
+    public CompanyAttempt? Claim(string employee,bool providerAvailable,string? taskId=null,bool execution=false)
     {
         using var db=Open();return Transaction(db,()=>
         {
             var e=Need<CompanyEmployee>(db,employee);if(e.State!="active"||All<CompanyAttempt>(db).Any(a=>a.EmployeeId==employee&&a.Phase is "claimed" or "reserved" or "dispatching"))return null;
-            var t=All<CompanyTask>(db).FirstOrDefault(t=>t.EmployeeId==employee&&(t.State=="queued"||t.State=="blocked"&&t.Reason is "provider-unavailable" or "dependencies"));
+            var t=All<CompanyTask>(db).FirstOrDefault(t=>t.EmployeeId==employee&&(taskId is null||t.Id==taskId)&&Role(e.RoleId).ExecutionSkills.Contains(t.Skill)==execution&&(t.State=="queued"||t.State=="blocked"&&(t.Reason is "provider-unavailable" or "dependencies"||execution&&t.Reason=="developer-execution-unavailable")));
             if(t is null)return null;
             var reason=!ParentValid(db,t)?"parent-paused-or-expired":t.Dependencies.Any(id=>Find<CompanyTask>(db,id)?.State!="completed")?"dependencies":!providerAvailable?"provider-unavailable":null;
             if(reason is not null)
@@ -64,9 +64,11 @@ public sealed partial class CompanyStore
     }
     public bool AuthorizeDispatch(string attemptId)
     {
-        using var db=Open();return Transaction(db,()=>
-        {
-            var a=Need<CompanyAttempt>(db,attemptId);if(a.Phase!="claimed"||!Current(db,a)||a.ContextId is null)return false;
+        using var db=Open();return Transaction(db,()=>{var a=Need<CompanyAttempt>(db,attemptId);var t=Need<CompanyTask>(db,a.TaskId);var e=Need<CompanyEmployee>(db,a.EmployeeId);return !Role(e.RoleId).ExecutionSkills.Contains(t.Skill)&&Reserve(db,a);});
+    }
+    private bool Reserve(SqliteConnection db,CompanyAttempt a)
+    {
+            if(a.Phase!="claimed"||!Current(db,a)||a.ContextId is null)return false;
             var t=Need<CompanyTask>(db,a.TaskId);if(!KnowledgeCurrent(db,Need<CompanyContext>(db,a.ContextId),t))return false;
             var root=Need<CompanyBudget>(db,t.RootId);
             var employee=Need<CompanyEmployee>(db,t.EmployeeId);
@@ -76,7 +78,6 @@ public sealed partial class CompanyStore
             foreach(var b in scopes)Save(db,b with{Reserved=b.Reserved+5000,Version=b.Version+1},b.Id,version:b.Version+1);
             Save(db,new CompanyReservation(a.Id,root.Id,5000,Scopes:scopes.Select(b=>b.Id).ToArray()),a.Id,root.Id);
             Put(db,a with{Phase="dispatching",Version=a.Version+1});return true;
-        });
     }
     public void PackHistory(string attemptId,int retained)
     {
@@ -101,6 +102,7 @@ public sealed partial class CompanyStore
         {
             var a=Need<CompanyAttempt>(db,attemptId);var t=Need<CompanyTask>(db,a.TaskId);
             if(a.Phase is "committed" or "withheld")return false;
+            a=a with{ProviderReceipt=reply.Receipt is null?null:Text(reply.Receipt,160),ReportedUsage=reply.TotalTokens};
             // A canceled in-flight response still settles actual usage, but never reaches the employee transcript.
             Release(db,a.Id,reply.TotalTokens);
             if(reply.TotalTokens is null){Put(db,a with{Phase="unknown",Error="Usage missing; reservation retained.",Version=a.Version+1});if(t.State=="running")Put(db,t with{State="unknown",Reason="usage-unknown",Version=t.Version+1});return false;}
@@ -128,6 +130,14 @@ public sealed partial class CompanyStore
             if(t.MeetingId is { } meeting){var m=Need<CompanyMeeting>(db,meeting);Put(db,m with{State=dispatched?"needs_reconciliation":"blocked",ActiveTask=null,Version=m.Version+1});}
             Event(db,"task.blocked",t.Id,t.EmployeeId,dispatched?"Provider outcome is uncertain; no automatic replay.":"Task blocked before dispatch: "+reason);return true;
         });
+    }
+    public void RejectResponse(string attemptId,CompanyTransportException error)
+    {
+        if(error.KnownUsage is null){FailAttempt(attemptId,"provider-contract-unconfirmed",true);return;}
+        using var db=Open();Transaction(db,()=>{var a=Need<CompanyAttempt>(db,attemptId);if(a.Phase is "committed" or "withheld")return false;
+            Release(db,a.Id,error.KnownUsage);Put(db,a with{Phase="withheld",ProviderReceipt=error.Receipt is null?null:Text(error.Receipt,160),ReportedUsage=error.KnownUsage,Error="Response failed the scoped contract; content withheld.",Version=a.Version+1});
+            var t=Need<CompanyTask>(db,a.TaskId);if(t.State=="running")Put(db,t with{State="failed",Reason="provider-contract-refused",Version=t.Version+1});
+            Event(db,"task.withheld",t.Id,t.EmployeeId,"Provider content was withheld; confirmed usage was accounted for.");return true;});
     }
     public void Recover()
     {
@@ -158,7 +168,6 @@ public sealed partial class CompanyStore
 
 public sealed class CompanyScheduler(CompanyStore store,ICompanyModel model) : BackgroundService
 {
-    private readonly SemaphoreSlim _principalGate=new(1,1);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string,SemaphoreSlim> _employees=new(StringComparer.Ordinal);
     private int _round;
     public async Task<bool> TickAsync(string employee,CancellationToken token=default)
@@ -175,15 +184,16 @@ public sealed class CompanyScheduler(CompanyStore store,ICompanyModel model) : B
                 while(model.CountTokens(call)>4000&&call.Context.History.Length>0)call=call with{Context=call.Context with{History=call.Context.History.Skip(1).ToArray()}};
                 if(model.CountTokens(call)>4000)throw new WorkspaceException("Required context exceeds the input bound; narrow the selected evidence.");
                 store.PackHistory(attempt.Id,call.Context.History.Length);
-                await _principalGate.WaitAsync(token);
+                await store.ProviderGate.WaitAsync(token);
                 try
                 {
                     if(!store.AuthorizeDispatch(attempt.Id))throw new WorkspaceException("Authority changed or budget reservation is unavailable.");
                     dispatched=true;using var deadline=CancellationTokenSource.CreateLinkedTokenSource(token);deadline.CancelAfter(TimeSpan.FromSeconds(60));
                     var reply=await model.CompleteAsync(call,deadline.Token).WaitAsync(deadline.Token);store.Finish(attempt.Id,reply);
                 }
-                finally{_principalGate.Release();}
+                finally{store.ProviderGate.Release();}
             }
+            catch(CompanyTransportException error){store.RejectResponse(attempt.Id,error);}
             catch(Exception error) when(error is not OutOfMemoryException)
             {store.FailAttempt(attempt.Id,dispatched?"provider-outcome-unknown":error is WorkspaceException or ModelUnavailableException?error.Message:"pre-dispatch-failed",dispatched);}
             return true;

@@ -104,11 +104,19 @@ try
     using(var db=new SqliteConnection("Data Source="+path+";Pooling=False")){db.Open();using var q=db.CreateCommand();q.CommandText="UPDATE company_schema_migrations SET checksum='modified'";q.ExecuteNonQuery();}
     Check(Refused(()=>new CompanyStore(path,"owner@example.invalid",CompanyWorkspace.Definitions())),"Changed migration checksum is refused.");
     await SecurityChecks.RunAsync(root,Check);
+    await IntegrationPathChecks.RunAsync(root,Check);
     await HttpChecks(root,Check);
     Console.WriteLine("PASS "+count+" company identity, isolation, concurrency, fencing, budget, CEO, meeting and HTTP checks");
 }
 catch(Exception e){Console.Error.WriteLine(e);Environment.ExitCode=1;}
-finally{Directory.Delete(root,true);}
+finally
+{
+    var full=Path.GetFullPath(root);var parent=Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar);
+    if(Path.GetDirectoryName(full)!=parent||!Path.GetFileName(full).StartsWith("company-checks-",StringComparison.Ordinal))throw new InvalidOperationException("Refused cleanup outside this test's temporary root.");
+    // Git's own object files can be read-only on Windows. Change only this fixture's files before removal.
+    foreach(var file in Directory.EnumerateFiles(full,"*",SearchOption.AllDirectories))File.SetAttributes(file,FileAttributes.Normal);
+    Directory.Delete(full,true);
+}
 
 static async Task HttpChecks(string root,Action<bool,string> check)
 {

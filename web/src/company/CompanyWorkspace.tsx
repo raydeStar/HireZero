@@ -5,7 +5,7 @@ import {EmployeeBrief,marketingFields} from '../roles/marketing/EmployeeBrief';
 import {PlanGuidance} from '../roles/ceo/PlanGuidance';
 import {command,type Snapshot,type Employee,type ThreadDetail,type Event,type TaskSpec,type Role} from './api';
 import './company.css';
-const reasonLabels:Record<string,string>={'provider-unavailable':'Live model execution is unavailable. Your task is saved.','dependencies':'Waiting for an owner-reviewed dependency.','usage-unknown':'Provider usage is uncertain; the reservation remains held.'};
+const reasonLabels:Record<string,string>={'developer-execution-unavailable':'Repository execution is unavailable. This task is saved for review.','provider-unavailable':'Live model execution is unavailable. Your task is saved.','dependencies':'Waiting for an owner-reviewed dependency.','usage-unknown':'Provider usage is uncertain; the reservation remains held.'};
 
 function Submit({children='Save',busy=false}:{children?:string;busy?:boolean}){return <button className="co-primary" disabled={busy} type="submit">{children}</button>;}
 export function CompanyWorkspace(){

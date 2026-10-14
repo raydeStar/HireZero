@@ -7,22 +7,25 @@ using Microsoft.Data.Sqlite;
 
 namespace HireZero.Integrations.Codex;
 
+public sealed record CodexRunnerScope(string Home,Func<bool> MayStart,string? FixtureMode=null);
+
 // Runs one coding turn through `codex app-server` (JSON-RPC over stdio): a sandbox that can write only the
 // approved folder, network only when the owner's approval included it, every interactive approval declined.
 // One run at a time; runs and their events are persisted, and a restart marks an unfinished run interrupted.
-public sealed class CodexRunner : ICodingRunner, IDisposable
+public sealed class CodexRunner : ICodingRunner,ICodingRunLifecycle, IDisposable
 {
     private readonly CodingRunStore _store;
     private readonly string _command;
+    private readonly CodexRunnerScope? _scope;
     private readonly SemaphoreSlim _one = new(1, 1);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _active = new();
     public static readonly TimeSpan MaximumRun = TimeSpan.FromMinutes(60);
 
-    public CodexRunner(CodingRunStore store, string? command = null)
+    public CodexRunner(CodingRunStore store, string? command = null,CodexRunnerScope? scope=null,bool recoverInterrupted=true)
     {
-        _store = store; _command = command ?? ResolveCommand();
-        ContentGuard.RegisterEnvironmentSecrets();
-        foreach (var run in store.Unfinished())
+        _store = store; _command = command ?? ResolveCommand();_scope=scope;
+        if(_scope is null)ContentGuard.RegisterEnvironmentSecrets();
+        foreach (var run in recoverInterrupted?store.Unfinished():[])
             store.Save(run with { State = "interrupted", Error = "The workspace restarted during this run, so it was not replayed. Ask for a fresh strategy.", UpdatedAt = Now() });
     }
 
@@ -44,7 +47,8 @@ public sealed class CodexRunner : ICodingRunner, IDisposable
     {
         if (!Directory.Exists(request.Root)) throw new WorkspaceException("The coding folder does not exist: " + request.Root);
         // Secrets this run could print (its environment, the worker's sign-in tokens) are masked wherever its output is stored.
-        ContentGuard.RegisterSecrets(request.Environment ?? new Dictionary<string, string>()); RegisterSignInSecrets(Home());
+        if(_scope is not null&&(request.ResumeThreadId is not null||request.Persistent||request.AllowNetwork||request.Environment?.Count>0||request.Model is null||Directory.Exists(Path.Combine(request.Root,".codex"))))throw new CodingStartRefusedException("Scoped coding requires a fresh ephemeral thread, exact route, no inherited environment or network, and no project runtime config.");
+        ContentGuard.RegisterSecrets(request.Environment ?? new Dictionary<string, string>()); if(_scope is null)RegisterSignInSecrets(Home());
         var run = _store.Save(new CodingRun(Guid.NewGuid().ToString("N"), "queued", request.Root, request.Model ?? "thread default", request.Effort, null, null, null, [], Now(), Now(), request.ResumeThreadId));
         var cancel = new CancellationTokenSource(MaximumRun); _active[run.Id] = cancel;
         _ = Task.Run(async () =>
@@ -57,6 +61,7 @@ public sealed class CodexRunner : ICodingRunner, IDisposable
         return run;
     }
     public CodingRun? Find(string id) => _store.Find(id);
+    public bool Terminated(string runId)=>_store.Find(runId) is not null&&!_active.ContainsKey(runId);
     static string? CommandOf(object? data) =>
         data is not null && JsonSerializer.SerializeToElement(data) is { ValueKind: JsonValueKind.Object } json && json.TryGetProperty("command", out var raw) && raw.ValueKind == JsonValueKind.String ? raw.GetString() : null;
     public void Cancel(string id) { if (_active.TryGetValue(id, out var cancel)) cancel.Cancel(); }
@@ -143,9 +148,9 @@ public sealed class CodexRunner : ICodingRunner, IDisposable
             _store.Save(run with { State = "canceled", Error = run.CreatedAt is { } && DateTimeOffset.UtcNow - DateTimeOffset.Parse(run.CreatedAt) >= MaximumRun
                 ? "The coding run exceeded " + MaximumRun.TotalMinutes + " minutes." : "Canceled by the owner.", UpdatedAt = Now() });
         }
-        catch (Exception error) when (error is InvalidOperationException or IOException or JsonException or TimeoutException or KeyNotFoundException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
+        catch (Exception error) when (error is WorkspaceException or InvalidOperationException or IOException or JsonException or TimeoutException or KeyNotFoundException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
         {
-            _store.Save(run with { State = "failed", Error = CodexStream.Safe(error.Message, 400) + (SignedIn() ? "" : " " + SignInHint), UpdatedAt = Now() });
+            _store.Save(run with { State = "failed", Error = CodexStream.Safe(error.Message, 400) + (_scope is not null||SignedIn() ? "" : " " + SignInHint), UpdatedAt = Now() });
         }
         finally
         {
@@ -162,7 +167,21 @@ public sealed class CodexRunner : ICodingRunner, IDisposable
         var start = new ProcessStartInfo(_command) { WorkingDirectory = root, RedirectStandardInput = true, RedirectStandardOutput = true,
             RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
             StandardOutputEncoding = new UTF8Encoding(false), StandardErrorEncoding = new UTF8Encoding(false), StandardInputEncoding = new UTF8Encoding(false) };
-        var home = PrepareHome();
+        string home;
+        if(_scope is null)home=PrepareHome();
+        else
+        {
+            if(!_scope.MayStart())throw new WorkspaceException("Scoped execution authority changed before process start.");
+            home=Path.GetFullPath(_scope.Home);Directory.CreateDirectory(home);
+            if(File.Exists(Path.Combine(home,"auth.json"))||Directory.Exists(Path.Combine(home,"sessions")))throw new WorkspaceException("Scoped fixture home must contain no authentication or session history.");
+            var config=Path.Combine(home,"config.toml");if(File.Exists(config)&&File.ReadAllText(config)!=GeneratedConfig)throw new WorkspaceException("Unreviewed scoped runtime configuration is refused.");
+            File.WriteAllText(config,GeneratedConfig);
+            var essential=new[]{"SystemRoot","WINDIR","ComSpec","PATHEXT","PATH"}.ToDictionary(key=>key,key=>Environment.GetEnvironmentVariable(key));
+            start.Environment.Clear();foreach(var pair in essential)if(pair.Value is not null)start.Environment[pair.Key]=pair.Value;
+            foreach(var key in new[]{"HOME","USERPROFILE","APPDATA","LOCALAPPDATA","TEMP","TMP"}){var directory=Path.Combine(home,key.ToLowerInvariant());Directory.CreateDirectory(directory);start.Environment[key]=directory;}
+            start.Environment["GIT_CONFIG_NOSYSTEM"]="1";start.Environment["GIT_CONFIG_GLOBAL"]=Path.Combine(home,"empty-git-config");
+            if(_scope.FixtureMode is not null)start.Environment["HIREZERO_FIXTURE_MODE"]=_scope.FixtureMode;
+        }
         foreach (var argument in Arguments(root, home)) start.ArgumentList.Add(argument);
         start.Environment["CODEX_HOME"] = home;
         foreach (var (key, value) in environment ?? new Dictionary<string, string>()) start.Environment[key] = value;

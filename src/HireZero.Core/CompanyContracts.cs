@@ -7,6 +7,7 @@ public sealed record CompanyRole(string Id, string Name, string Instructions, st
     public Func<string,string,string>? ValidateInput {get;init;}
     public bool WorkspaceClaims {get;init;}
     public bool CompanyOverview {get;init;}
+    public string[] ExecutionSkills {get;init;}=[];
 }
 public sealed record CompanyDepartment(string Id, string Name, string? Guide, string? Knowledge, int Version = 1);
 public sealed record CompanyEmployee(string Id, string DepartmentId, string RoleId, string Name, string Responsibility, string State = "onboarding", int Version = 1, int Generation = 1);
@@ -27,7 +28,7 @@ public sealed record CompanyContext(string Id, string EmployeeId, string RoleId,
     string CompanyKnowledge, string DepartmentKnowledge, string Notes, CompanyMessage[] History, CompanyEvidence[] Evidence,
     string Input, string? MeetingId = null,CompanyColleague[]? Colleagues=null,CompanyWorkStatus[]? CompanyWork=null);
 public sealed record CompanyAttempt(string Id, string TaskId, string EmployeeId, string Phase, int TaskGeneration,
-    int EmployeeGeneration, string? ContextId, string? Error = null, int Version = 1);
+    int EmployeeGeneration, string? ContextId, string? Error = null, int Version = 1,string? ProviderReceipt=null,long? ReportedUsage=null);
 public sealed record CompanyBudget(string Id, long Limit, long Used = 0, long Reserved = 0, int Version = 1);
 public sealed record CompanyReservation(string Id, string RootId, long Amount, string State = "reserved", long? Actual = null, int Version = 1,string[]? Scopes=null);
 public sealed record CompanyResourceClaim(string Id, string TaskId, string AttemptId, string EmployeeId, int Version = 1);
@@ -50,6 +51,11 @@ public sealed record CompanyCommand(string RequestId, string Action, string? Id 
 
 public sealed record CompanyModelCall(string DispatchId, CompanyContext Context, string Instructions, int MaxInputTokens, int MaxOutputTokens);
 public sealed record CompanyModelReply(string Body, long? TotalTokens, string? Receipt = null);
+public sealed class CompanyTransportException(string message,long? knownUsage=null,string? receipt=null):Exception(message)
+{
+    public long? KnownUsage {get;}=knownUsage;
+    public string? Receipt {get;}=receipt;
+}
 public interface ICompanyModel
 {
     bool Qualified { get; }

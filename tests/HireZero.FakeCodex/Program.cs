@@ -11,6 +11,17 @@ void Stale(string? threadId,string? turnId){
  Write(new{method="error",@params=new{threadId,turnId,message="Stale error"}});
 }
 while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Parse(line);var r=doc.RootElement;var method=r.TryGetProperty("method",out var raw)?raw.GetString():null;
+ if(mode.StartsWith("scoped-",StringComparison.Ordinal)){
+  var home=Environment.GetEnvironmentVariable("CODEX_HOME")??throw new Exception("Scoped home missing");
+  if(Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL") is not null||File.Exists(Path.Combine(home,"auth.json")))throw new Exception("Ambient authentication or environment escaped into scoped runtime");
+  File.AppendAllText(Path.Combine(home,"fixture-wire.jsonl"),line+"\n");
+  if(method=="thread/resume")throw new Exception("Scoped thread cannot resume");
+  if(method=="thread/start"&&!r.GetProperty("params").GetProperty("ephemeral").GetBoolean())throw new Exception("Scoped thread must be ephemeral");
+  if(method=="turn/start"){
+   var p=r.GetProperty("params");if(p.GetProperty("approvalPolicy").GetString()!="never"||p.GetProperty("model").GetString()!="gpt-6.1-sol")throw new Exception("Scoped route or approval policy changed");
+   var sandbox=p.GetProperty("sandboxPolicy");if(sandbox.GetProperty("type").GetString()=="workspaceWrite"&&(sandbox.GetProperty("networkAccess").GetBoolean()||sandbox.GetProperty("writableRoots").GetArrayLength()!=1||sandbox.GetProperty("writableRoots")[0].GetString()!=Directory.GetCurrentDirectory()))throw new Exception("Scoped sandbox expanded");
+  }
+ }
  if(method=="initialize")Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});
  else if(method is "thread/start" or "thread/resume"){
   if(mode=="model-name"&&method=="thread/start"&&r.GetProperty("params").GetProperty("model").GetString()!="gpt-6.1-sol")throw new Exception("The thread received a provider-qualified model instead of its native ID.");
@@ -18,7 +29,14 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
  }
  else if(method=="turn/start"){
   if(mode=="model-name"&&r.GetProperty("params").GetProperty("model").GetString()!="gpt-6.1-sol")throw new Exception("The turn received a provider-qualified model instead of its native ID.");
-  Write(new{id=r.GetProperty("id").GetInt32(),result=new{turn=new{id=turn,model=mode=="model-name"?"gpt-6.1-sol":"fixture"}}});
+  Write(new{id=r.GetProperty("id").GetInt32(),result=new{turn=new{id=turn,model=mode=="model-name"||mode.StartsWith("scoped-")?"gpt-6.1-sol":"fixture"}}});
+  if(mode is "scoped-success" or "scoped-missing-usage"){
+   if(r.GetProperty("params").GetProperty("sandboxPolicy").GetProperty("type").GetString()=="workspaceWrite")File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-change.txt"),"Fictional scoped change");
+   Write(new{method="item/agentMessage/delta",@params=new{threadId=thread,turnId=turn,delta="Fictional scoped coding result"}});
+   if(mode!="scoped-missing-usage")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{totalTokens=321}}}});
+   Complete();return;
+  }
+  if(mode=="scoped-wait"){File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("CODEX_HOME")!,"fixture-ready"),"ready");continue;}
   if(mode=="early-exit")return;
   if(mode=="hang"){File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-hang.pid"),Environment.ProcessId.ToString());continue;}
   if(mode=="approval"){Write(new{id=900,method="item/commandExecution/requestApproval",@params=new{threadId="other-thread",turnId="old-turn"}});continue;}

@@ -86,6 +86,7 @@ public sealed partial class CompanyStore
                 Event(db,"owner.message",task.Id,t.EmployeeId,"Message assigned to "+Need<CompanyEmployee>(db,t.EmployeeId).Name);return task;
             }
             case "task.create":return NewTask(db,Text(c.EmployeeId,64),Text(c.ThreadId,64),Text(c.Skill,80),Text(c.Body),c.Evidence??[],[],null,null,null);
+            case "execution.review":return ReviewExecution(db,c);
             case "budget.configure":
             {
                 var id=Text(c.Id,100);long ceiling;
@@ -177,6 +178,7 @@ public sealed partial class CompanyStore
         if(Find<CompanyBudget>(db,root) is null)Save(db,new CompanyBudget(root,5000),root);
         var d=Need<CompanyDepartment>(db,e.DepartmentId);
         var task=new CompanyTask(id,employee,thread,skill,Text(input),"queued",null,root,evidence,dependencies,plan,meeting,Watermark:All<CompanyMessage>(db).Where(m=>m.ThreadId==thread).Select(m=>m.Sequence).DefaultIfEmpty(0).Max(),KnowledgeId:d.Knowledge,CompanyKnowledgeId:All<CompanyKnowledge>(db).LastOrDefault(k=>k.DepartmentId is null&&k.State=="approved")?.Id);
+        if(Role(e.RoleId).ExecutionSkills.Contains(skill))task=task with{State="blocked",Reason="developer-execution-unavailable"};
         Put(db,task);Event(db,"task.assigned",task.Id,e.Id,"Task assigned to "+e.Name+" ("+skill+")");return task;
     }
     private void Stop(Microsoft.Data.Sqlite.SqliteConnection db,CompanyTask task,string state,string reason)

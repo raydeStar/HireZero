@@ -10,6 +10,7 @@ public sealed partial class CompanyStore
     public Func<DateTimeOffset> Clock { get; init; } = () => DateTimeOffset.UtcNow;
     public const string CompanyId = "local-company";
     public CompanyRole[] Roles => _roles;
+    public SemaphoreSlim ProviderGate {get;}=new(1,1);
     private static readonly Dictionary<Type, string> Tables = new()
     {
         [typeof(CompanyDepartment)]="co_departments", [typeof(CompanyEmployee)]="co_employees", [typeof(CompanyKnowledge)]="co_knowledge",
@@ -17,7 +18,7 @@ public sealed partial class CompanyStore
         [typeof(CompanyTask)]="co_tasks", [typeof(CompanyAttempt)]="co_attempts", [typeof(CompanyContext)]="co_contexts",
         [typeof(CompanyArtifact)]="co_artifacts", [typeof(CompanyHandoff)]="co_handoffs", [typeof(CompanyBudget)]="co_budgets",
         [typeof(CompanyReservation)]="co_reservations", [typeof(CompanyResourceClaim)]="co_resource_claims",
-        [typeof(CompanyPlan)]="co_plans", [typeof(CompanyMeeting)]="co_meetings"
+        [typeof(CompanyPlan)]="co_plans", [typeof(CompanyMeeting)]="co_meetings",[typeof(CompanyExecutionGrant)]="co_execution_grants"
     };
     private static readonly Dictionary<string, string> ParentTables = new()
     {
@@ -35,19 +36,18 @@ public sealed partial class CompanyStore
         {
             Sql(db,"CREATE TABLE IF NOT EXISTS company_schema_migrations(version INTEGER PRIMARY KEY, checksum TEXT NOT NULL)");
             var migrations=Rows(db,"SELECT version,checksum FROM company_schema_migrations",r=>(r.GetInt32(0),r.GetString(1)));
-            var schema = Schema();
-            var digest=EmployeeStore.Hash(schema);
-            if(migrations.Any(m=>m.Item1!=1 || m.Item2!=digest)) throw new WorkspaceException("Company schema is newer or its migration checksum changed. No work started.");
-            Sql(db,schema);
+            string[] schemas=[Schema(),"CREATE TABLE co_execution_grants(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id),FOREIGN KEY(company_id,parent_id) REFERENCES co_tasks(company_id,id),FOREIGN KEY(company_id,employee_id) REFERENCES co_employees(company_id,id));"];
+            if(migrations.Any(m=>m.Item1<1||m.Item1>schemas.Length||m.Item2!=EmployeeStore.Hash(schemas[m.Item1-1]))||migrations.OrderBy(m=>m.Item1).Where((m,i)=>m.Item1!=i+1).Any())throw new WorkspaceException("Company schema is newer or its migration checksum changed. No work started.");
+            for(var i=migrations.Length;i<schemas.Length;i++){Sql(db,schemas[i]);Sql(db,"INSERT INTO company_schema_migrations VALUES($0,$1)",i+1,EmployeeStore.Hash(schemas[i]));}
             Sql(db,"INSERT OR IGNORE INTO co_company VALUES($0,$1)",CompanyId,owner);
             if(Scalar(db,"SELECT owner FROM co_company WHERE id=$0",CompanyId)!=owner) throw new WorkspaceException("This company belongs to another owner.",403);
-            Sql(db,"INSERT OR IGNORE INTO company_schema_migrations VALUES(1,$0)",digest); return true;
+            return true;
         });
     }
     private static string Schema()
     {
         var statements=new List<string>{"CREATE TABLE IF NOT EXISTS co_company(id TEXT PRIMARY KEY, owner TEXT NOT NULL)"};
-        foreach(var table in Tables.Values)
+        foreach(var table in Tables.Values.Where(table=>table!="co_execution_grants"))
         {
             var parent=ParentTables.TryGetValue(table,out var target)?$",FOREIGN KEY(company_id,parent_id) REFERENCES {target}(company_id,id)":"";
             var employee=table is "co_threads" or "co_messages" or "co_tasks" or "co_attempts" or "co_artifacts" or "co_handoffs" or "co_notes" or "co_contexts"?",FOREIGN KEY(company_id,employee_id) REFERENCES co_employees(company_id,id)":"";
@@ -93,7 +93,7 @@ public sealed partial class CompanyStore
     public object Dashboard()
     {
         using var db=Open(); return Transaction(db,()=>new{departments=All<CompanyDepartment>(db),employees=All<CompanyEmployee>(db),knowledge=All<CompanyKnowledge>(db),
-            threads=All<CompanyThread>(db),tasks=All<CompanyTask>(db),artifacts=All<CompanyArtifact>(db),plans=All<CompanyPlan>(db),meetings=All<CompanyMeeting>(db),budgets=All<CompanyBudget>(db),
+            threads=All<CompanyThread>(db),tasks=All<CompanyTask>(db),artifacts=All<CompanyArtifact>(db),plans=All<CompanyPlan>(db),meetings=All<CompanyMeeting>(db),budgets=All<CompanyBudget>(db),executions=All<CompanyExecutionGrant>(db),
             roles=_roles.Select(r=>new{r.Id,r.Name,r.Skills,r.OnboardingFields}),cursor=long.Parse(Scalar(db,"SELECT COALESCE(MAX(seq),0) FROM co_events WHERE company_id=$0",CompanyId)!)});
     }
     public CompanyEvent[] Feed(long after,int limit=100)
