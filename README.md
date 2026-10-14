@@ -1,5 +1,11 @@
 # HireZero home development snapshot
 
+## Company workspace in this development branch
+
+This branch adds a local company workspace for multiple employees per department, approved onboarding knowledge, private employee conversations, internal artifact review, bounded CEO plans and Board Meeting records. Live employee execution and repository writes remain unavailable.
+
+See [Using the local company workspace](docs/COMPANY_LOCAL.md) for the separate company-only launcher, fresh data-root requirement and verification. The existing recovery and Developer workflows below retain their own startup profiles. Do not point company-local mode at an existing application database.
+
 This is HireZero's current working source, including uncommitted work and the isolated recovery changes. The original checkout was preserved. Base commit: `3ebee32710fffc40a38cd9bcf0d550c920608c24`. This ZIP has no Git history or ready-made runtime environment.
 
 The familiar React chat UI is restored. The recovery host admits only fresh local-owner messages to a text-only model and runs bounded GitHub PR discovery every 15 minutes. It does not register coding runners, publication, legacy reply recovery, loops, connector intake or scheduled mutation services. Old consent cannot authorize a new reply. Failed replies require an explicit retry.

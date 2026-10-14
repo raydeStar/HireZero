@@ -20,6 +20,7 @@ if (args.Contains("--reset-queued-work"))
     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(ResetQueuedWork.Run(dataRoot)));
     return;
 }
+if (CompanyWorkspace.TryCreate(args, ownerLogin, localOwnerEnabled, dataRoot) is { } company) { company.Run(); return; }
 if (RecoveryWorkspace.TryCreate(args, ownerLogin, localOwnerEnabled, dataRoot) is { } discovery)
 {
     discovery.Run();
@@ -48,7 +49,7 @@ builder.WebHost.UseUrls(tailnet is null ? ["http://" + localHost, "http://[::1]:
 if (tailnet is not null) builder.Services.AddSingleton(tailnet);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 16_384);
 builder.Services.AddSingleton(roles);
-builder.Services.AddEmployees(database, roles);
+
 builder.Services.AddSingleton(new RequestStore(database));
 builder.Services.AddSingleton(new BacklogStore(database));
 builder.Services.AddSingleton<IBacklogSource>(new LocalRequestBacklog(database));
@@ -126,7 +127,7 @@ app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapCoreEndpoints(ownerLogin, localOwnerEnabled);
-app.MapEmployeeEndpoints();
+
 app.MapBudgetEndpoints();
 app.MapAgentRequests();
 app.MapBacklogEndpoints();

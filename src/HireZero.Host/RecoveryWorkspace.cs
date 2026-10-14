@@ -24,7 +24,7 @@ public static class RecoveryWorkspace
         });
         var database = Path.Combine(dataRoot, "workspace.sqlite");
         var roles = new RoleCatalog(dataRoot, EmployeeRegistration.AvailableRoles(), ["developer"]);
-        builder.Services.AddEmployees(database, roles, fixtureEmployeeModel);
+
         var requests = new RequestStore(database) { OwnerLogin = owner }; var agents = new AgentStore(database);
         _ = new HireZero.Integrations.Codex.CodingRunStore(database); // Schema only; recovery registers no coding runner or coding handler.
         var discovery = new GitHubDiscovery(database, fixtureGitHub ?? new GitHubReviewClient(), new GitHubReviewStore(database));
@@ -56,7 +56,7 @@ public static class RecoveryWorkspace
         app.MapGet("/api/session", () => Results.Ok(new { login = owner, role = "owner", accessMode = "local", agentModel = model.DefaultModel,
             agentReasoning = model.Reasoning, roles = roles.HiredIds(), executionHeld = false, mutationsHeld = true, chatOnly = true }));
         app.MapGet("/api/roles", () => Results.Ok(roles.Available.Select(r => new { r.Info.Id, r.Info.Name, r.Info.Summary, hired = roles.HiredIds().Contains(r.Info.Id) })));
-        app.MapEmployeeEndpoints();
+
         app.MapGet("/api/home", () => Results.Ok(requests.Home(owner)));
         app.MapGet("/api/requests", () => Results.Ok(requests.Requests(null)));
         app.MapGet("/api/conversations", (string? q) => Results.Ok(requests.Conversations(null, q)));

@@ -62,7 +62,7 @@ public static class CoreEndpoints
             Results.Ok(roles.Available.Select(role => new { role.Info.Id, role.Info.Name, role.Info.Summary, hired = roles.HiredIds().Contains(role.Info.Id) })));
         // Hiring or firing takes effect when the workspace restarts; the role's data is kept either way.
         app.MapPut("/api/roles/{id}", (HttpContext context, RoleCatalog roles, string id, RoleChange input) => !IsOwner(context) ? Results.StatusCode(403) :
-            Results.Ok(new { hired = context.RequestServices.GetService<EmployeeTeam>() is { } team ? team.ChangeHiring(id, input.Hired) : roles.SetHired(id, input.Hired), restartRequired = true }));
+            Results.Ok(new { hired = roles.SetHired(id, input.Hired), restartRequired = true }));
 
         app.MapGet("/api/intake-order", (HttpContext context, RequestStore store) =>
             IsOwner(context) ? Results.Ok(store.IntakeOrder()) : Results.StatusCode(403));
