@@ -1,0 +1,43 @@
+/* The raven is a 32px sprite shown at whole multiples (64px, 96px) so every sprite pixel stays square.
+   Poses change in whole sprite pixels with stepped timing, like a console sprite, never by tweening. */
+.raven { display: inline-block; flex: none; width: 64px; height: 64px; line-height: 0; vertical-align: middle; }
+.raven svg { display: block; width: 100%; height: 100%; overflow: visible; }
+/* On dark surfaces a one-pixel light rim keeps the black bird from dissolving into the page. */
+:root[data-theme=dark] .raven svg { filter: drop-shadow(2px 0 0 #3a3947) drop-shadow(-2px 0 0 #3a3947) drop-shadow(0 2px 0 #3a3947) drop-shadow(0 -2px 0 #3a3947); }
+
+.raven .raven-lid { opacity: 0; }
+.raven:not(.asleep) .raven-lid { animation: raven-blink 5.2s steps(1, end) infinite; }
+.raven.asleep .raven-lid { opacity: 1; animation: none; }
+
+/* Ready: breathes, and now and then looks up. */
+.raven:is(.idle, .letter) .raven-body { animation: raven-breathe 4.4s steps(1, end) infinite; }
+.raven.idle .raven-head { animation: raven-look 11s steps(1, end) infinite; }
+/* Sign-in: head up and attentive. */
+.raven.listening .raven-head { animation: raven-listen 5s steps(1, end) infinite; }
+/* Working: nods over the page while the ellipsis fills. */
+.raven.working .raven-head { animation: raven-nod 1.6s steps(1, end) infinite; }
+.raven.working .raven-dot-1 { animation: raven-dot-1 1.8s steps(1, end) infinite; }
+.raven.working .raven-dot-2 { animation: raven-dot-2 1.8s steps(1, end) infinite; }
+.raven.working .raven-dot-3 { animation: raven-dot-3 1.8s steps(1, end) infinite; }
+/* A letter in its beak: approved work waiting to go out. One small hop, rarely. */
+.raven.letter .raven-bird { animation: raven-hop 7s steps(1, end) infinite; }
+.raven.attention .raven-alert { animation: raven-alert 2.4s steps(1, end) infinite; }
+/* Offline: asleep, head low. */
+.raven.asleep .raven-head { transform: translateY(1px); }
+.raven.asleep .raven-z-1 { animation: raven-z-1 3s steps(1, end) infinite; }
+.raven.asleep .raven-z-2 { animation: raven-z-2 3s steps(1, end) infinite; }
+
+@keyframes raven-blink { 0% { opacity: 0; } 96% { opacity: 1; } 99% { opacity: 0; } }
+@keyframes raven-breathe { 0% { transform: none; } 50% { transform: translateY(1px); } }
+@keyframes raven-look { 0% { transform: none; } 60% { transform: translate(1px, -1px); } 78% { transform: none; } }
+@keyframes raven-listen { 0% { transform: translateY(-1px); } 55% { transform: translate(1px, -2px); } 80% { transform: translateY(-1px); } }
+@keyframes raven-nod { 0% { transform: none; } 50% { transform: translate(1px, 1px); } }
+@keyframes raven-dot-1 { 0% { opacity: 0; } 25% { opacity: 1; } }
+@keyframes raven-dot-2 { 0% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes raven-dot-3 { 0% { opacity: 0; } 75% { opacity: 1; } }
+@keyframes raven-hop { 0% { transform: none; } 88% { transform: translateY(-1px); } 90% { transform: translateY(-2px); } 94% { transform: translateY(-1px); } 96% { transform: none; } }
+@keyframes raven-alert { 0% { transform: none; } 80% { transform: translateY(-1px); } 90% { transform: none; } }
+@keyframes raven-z-1 { 0% { opacity: 1; } 66% { opacity: 0; } }
+@keyframes raven-z-2 { 0% { opacity: 0; } 33% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) { .raven, .raven * { animation: none !important; } }

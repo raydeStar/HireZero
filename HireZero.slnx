@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HireZero.Core/HireZero.Core.csproj" />
+    <Project Path="src/HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
+    <Project Path="src/HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />
+    <Project Path="src/HireZero.Integrations.Codex/HireZero.Integrations.Codex.csproj" />
+    <Project Path="src/HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
+    <Project Path="src/HireZero.Integrations.AgentApps/HireZero.Integrations.AgentApps.csproj" />
+    <Project Path="src/HireZero.Integrations.AzureDevOps/HireZero.Integrations.AzureDevOps.csproj" />
+    <Project Path="src/HireZero.Roles.Developer/HireZero.Roles.Developer.csproj" />
+    <Project Path="src/HireZero.Roles.Marketing/HireZero.Roles.Marketing.csproj" />
+    <Project Path="src/HireZero.Roles.Ceo/HireZero.Roles.Ceo.csproj" />
+    <Project Path="src/HireZero.Host/HireZero.Host.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HireZero.Company.Tests/HireZero.Company.Tests.csproj" />
+    <Project Path="tests/HireZero.Host.Tests/HireZero.Host.Tests.csproj" />
+    <Project Path="tests/HireZero.Core.Tests/HireZero.Core.Tests.csproj" />
+    <Project Path="tests/HireZero.Developer.Tests/HireZero.Developer.Tests.csproj" />
+    <Project Path="tests/HireZero.Policy.Tests/HireZero.Policy.Tests.csproj" />
+    <Project Path="tests/HireZero.Integrations.Tests/HireZero.Integrations.Tests.csproj" />
+  </Folder>
+</Solution>

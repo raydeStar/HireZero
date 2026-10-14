@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
+    <ProjectReference Include="../HireZero.Roles.Developer/HireZero.Roles.Developer.csproj" />
+    <ProjectReference Include="../HireZero.Roles.Marketing/HireZero.Roles.Marketing.csproj" />
+    <ProjectReference Include="../HireZero.Roles.Ceo/HireZero.Roles.Ceo.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Codex/HireZero.Integrations.Codex.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.AgentApps/HireZero.Integrations.AgentApps.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.AzureDevOps/HireZero.Integrations.AzureDevOps.csproj" />
+    <Using Include="HireZero.Core" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "3ebee32710fffc40a38cd9bcf0d550c920608c24",
+  "snapshotKind": "Original dirty working source plus isolated recovery fixes and export-only fictional UI examples",
+  "gitHistoryIncluded": false,
+  "originalSourcePreservation": {
+    "filesChecked": 263,
+    "changed": 0
+  },
+  "validation": {
+    "cleanZipExtraction": true,
+    "extractedDotnetBuildAndHostChecks": "PASS 87",
+    "extractedFrontendInstallAndBuild": "PASS",
+    "originalCoreFixtures": "PASS 420",
+    "nodeSyntheticSuites": "PASS 3 suites (7 approval checks, 41 feedback checks, session-hook suite)",
+    "gitignoreSyntheticPaths": "PASS 9 of 9",
+    "dependencyLockfileChanged": false,
+    "mutationBoundaryReview": "Independent source review passed",
+    "liveOriginalUi": "Verified",
+    "liveChat": "Fresh message saved and displayed; no model response; gateway request refused with HTTP401 or403; model sign-in unverified",
+    "scheduledDiscovery": "Actual scheduled pass observed completing successfully; no executable work queued"
+  },
+  "secretScan": {
+    "tool": "Gitleaks",
+    "version": "8.30.1",
+    "redaction": "100%",
+    "scannerStatus": "LEAKS_DETECTED",
+    "findingCount": 3,
+    "classification": "Reviewed intentional synthetic fixtures; no real secret identified; not a detection guarantee",
+    "fixturesRestoredUnchanged": true,
+    "findings": [
+      {
+        "path": "tests/HireZero.Core.Tests/ActivityLogChecks.cs",
+        "line": 31,
+        "rule": "generic-api-key",
+        "evidence": "Fictional message constructed to test activity-log redaction; fake model data and generated temporary store."
+      },
+      {
+        "path": "tests/HireZero.Core.Tests/GuardAndSessionChecks.cs",
+        "line": 8,
+        "rule": "generic-api-key",
+        "evidence": "ContentGuard unit fixture explicitly marked fictional; assertion requires redaction before storage."
+      },
+      {
+        "path": "tests/HireZero.Developer.Tests/PullRequestWorkflowChecks.cs",
+        "line": 69,
+        "rule": "private-key",
+        "evidence": "Synthetic fixed private-key-shaped text tests PullRequestPolicy.Safe withholding; no credential source is read."
+      }
+    ]
+  },
+  "limitations": [
+    "Real chat authentication/access is unresolved; no new grants or credentials included.",
+    "New-machine owner-cell auth bootstrap and repository-scope setup remain development work.",
+    "Assigned-issue discovery remains disabled.",
+    "Frontend transitive source-map-js1.2.1 has one high advisory GHSA-68fv-2mgg-jv7q; dependency versions preserved.",
+    "Dependency licenses not individually audited; original MIT license retained.",
+    "Some original UI controls are held in recovery mode."
+  ]
+}
