@@ -6,7 +6,7 @@ using HireZero.Roles.Developer;
 public static class RecoveryWorkspace
 {
     public static WebApplication? TryCreate(string[] args, string owner, bool localOwner, string dataRoot,
-        GitHubReviewClient? fixtureGitHub = null, IModelGateway? fixtureModel = null, string? fixtureUrl = null)
+        GitHubReviewClient? fixtureGitHub = null, IModelGateway? fixtureModel = null, string? fixtureUrl = null, IEmployeeModelGateway? fixtureEmployeeModel = null)
     {
         if (Environment.GetEnvironmentVariable(DiscoveryWorkspace.Variable) is not ("1")) return null;
         if (!localOwner) throw new InvalidOperationException("Recovery requires local owner access.");
@@ -23,6 +23,8 @@ public static class RecoveryWorkspace
             else { options.Listen(IPAddress.Loopback, 5064); options.Listen(IPAddress.IPv6Loopback, 5064); }
         });
         var database = Path.Combine(dataRoot, "workspace.sqlite");
+        var roles = new RoleCatalog(dataRoot, EmployeeRegistration.AvailableRoles(), ["developer"]);
+        builder.Services.AddEmployees(database, roles, fixtureEmployeeModel);
         var requests = new RequestStore(database) { OwnerLogin = owner }; var agents = new AgentStore(database);
         _ = new HireZero.Integrations.Codex.CodingRunStore(database); // Schema only; recovery registers no coding runner or coding handler.
         var discovery = new GitHubDiscovery(database, fixtureGitHub ?? new GitHubReviewClient(), new GitHubReviewStore(database));
@@ -52,8 +54,9 @@ public static class RecoveryWorkspace
         app.MapGet("/api/runtime", () => Results.Ok(new { version = 1, ownerLogin = owner, dataRoot = Path.GetFullPath(dataRoot), tailnetAddress = (string?)null,
             tailnetNames = Array.Empty<string>(), localOwnerEnabled = true, executionHeld = true, discoveryOnly = true, chatEnabled = true, discoveryIntervalMinutes = 15 }));
         app.MapGet("/api/session", () => Results.Ok(new { login = owner, role = "owner", accessMode = "local", agentModel = model.DefaultModel,
-            agentReasoning = model.Reasoning, roles = new[] { "developer" }, executionHeld = false, mutationsHeld = true, chatOnly = true }));
-        app.MapGet("/api/roles", () => Results.Ok(new[] { new { id = "developer", name = "Developer", summary = "Read-only PR observations and owner chat.", hired = true } }));
+            agentReasoning = model.Reasoning, roles = roles.HiredIds(), executionHeld = false, mutationsHeld = true, chatOnly = true }));
+        app.MapGet("/api/roles", () => Results.Ok(roles.Available.Select(r => new { r.Info.Id, r.Info.Name, r.Info.Summary, hired = roles.HiredIds().Contains(r.Info.Id) })));
+        app.MapEmployeeEndpoints();
         app.MapGet("/api/home", () => Results.Ok(requests.Home(owner)));
         app.MapGet("/api/requests", () => Results.Ok(requests.Requests(null)));
         app.MapGet("/api/conversations", (string? q) => Results.Ok(requests.Conversations(null, q)));

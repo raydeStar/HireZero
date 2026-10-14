@@ -104,6 +104,12 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"
         }
+      },
+      "hirezero.roles.marketing": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
       }
     }
   }

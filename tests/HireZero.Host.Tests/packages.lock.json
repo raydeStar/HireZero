@@ -72,7 +72,8 @@
           "HireZero.Integrations.Jev": "[1.0.0, )",
           "HireZero.Integrations.Microsoft365": "[1.0.0, )",
           "HireZero.Integrations.OpenClaw": "[1.0.0, )",
-          "HireZero.Roles.Developer": "[1.0.0, )"
+          "HireZero.Roles.Developer": "[1.0.0, )",
+          "HireZero.Roles.Marketing": "[1.0.0, )"
         }
       },
       "hirezero.integrations.agentapps": {
@@ -113,6 +114,12 @@
         }
       },
       "hirezero.roles.developer": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.roles.marketing": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

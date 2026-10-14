@@ -8,6 +8,7 @@
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
     <ProjectReference Include="../HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
     <ProjectReference Include="../HireZero.Roles.Developer/HireZero.Roles.Developer.csproj" />
+    <ProjectReference Include="../HireZero.Roles.Marketing/HireZero.Roles.Marketing.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Codex/HireZero.Integrations.Codex.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
