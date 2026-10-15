@@ -1,0 +1,39 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from '../web/node_modules/typescript/lib/typescript.js';
+
+// Exercise the component handlers with deterministic hooks and API responses. No model or browser.
+const source=fs.readFileSync(new URL('../web/src/company/MeasuredJob.tsx',import.meta.url),'utf8');
+const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+let state=[],cursor=0,reads=[],runs=[],refreshes=0;
+const useState=value=>{const index=cursor++;if(!(index in state))state[index]=value;return [state[index],value=>{state[index]=value;}];};
+const jsx=(type,props)=>({type,props});
+const exports={};
+vm.runInNewContext(code,{exports,require:name=>name==='react'?{useState}:name==='react/jsx-runtime'?{jsx,jsxs:jsx,Fragment:'fragment'}:name==='../shell/api'?{api:async path=>{reads.push(path);return {call:{instructions:'Fictional sealed instructions',context:{input:'Fictional brief'}}};}}:{command:async(action,fields)=>{runs.push({action,fields});return {};}}});
+const task={id:'fictional-task',version:2,state:'blocked'};
+const entry={id:'fictional-attempt',version:4,job:{state:'proposed',digest:'sealed-packet',route:'openai/gpt-6-luna',runtimeIdentity:'fictional-runtime',creditAllowance:1,applicationBytes:2000,expiresAt:new Date(Date.now()+60000).toISOString(),policy:{version:'oauth-measured-v1',nativeRequests:1,applicationBytes:4096,baselineInputAllowance:4500,packetHeadroom:2500,outputTarget:1000,planningTokens:8000,localDeadlineSeconds:60,visibleCharacterStop:2000}}};
+let props={task,entry,available:true,busy:false,prepare:async()=>{},refresh:async()=>{refreshes++;}};
+function render(){cursor=0;return exports.MeasuredJob(props);}
+function nodes(node){if(!node||typeof node!=='object')return [];if(Array.isArray(node))return node.flatMap(nodes);return [node,...nodes(node.props?.children)];}
+function text(node){if(node==null||typeof node==='boolean')return '';if(Array.isArray(node))return node.map(text).join('');return typeof node==='object'?text(node.props?.children):String(node);}
+function find(type,label){const found=nodes(render()).find(n=>n.type===type&&text(n).includes(label));assert.ok(found,`${type}: ${label}`);return found;}
+const flush=async()=>{await Promise.resolve();await Promise.resolve();await Promise.resolve();};
+assert.equal(find('button','Authorize and run').props.disabled,true,'An unread packet cannot be armed');
+assert.equal(nodes(render()).find(n=>n.type==='input'&&n.props.type==='checkbox').props.disabled,true);
+assert.match(text(render()),/not upstream token caps/);
+assert.match(text(render()),/no provider-enforced per-job credit cap/);
+const details=find('details','Review exact context');const target={open:true};details.props.onToggle({target,currentTarget:target});await flush();
+assert.equal(reads[0],'/company/measured/fictional-attempt');
+assert.equal(find('button','Authorize and run').props.disabled,true,'Reading alone grants no authority');
+nodes(render()).find(n=>n.type==='input'&&n.props.type==='checkbox').props.onChange({target:{checked:true}});
+assert.equal(find('button','Authorize and run').props.disabled,false);
+find('button','Authorize and run').props.onClick();assert.equal(find('button','Authorize and run').props.disabled,true,'An active submit is not repeated');await flush();
+assert.equal(runs.length,1);assert.equal(runs[0].action,'measured.run');
+assert.deepEqual(JSON.parse(JSON.stringify(runs[0].fields)),{id:entry.id,expectedVersion:4,digest:'sealed-packet',decision:'accept-soft-limits'});
+assert.equal(refreshes,1);
+props={...props,entry:{...entry,job:{...entry.job,state:'unknown'}},available:false};
+assert.equal(nodes(render()).some(n=>n.type==='button'&&text(n).includes('Authorize and run')),false,'An unknown attempt exposes no resume button');
+state=[];props={...props,entry:undefined,available:false};
+assert.equal(nodes(render()).some(n=>n.type==='form'),false,'The default unavailable profile cannot prepare or run a native job');
+console.log('PASS measured UI: sealed packet review, explicit soft-limit acknowledgement, exact authorization, pending-submit guard and no unknown-outcome resume');

@@ -32,7 +32,7 @@ static class CompanyCodexChecks
         var connection=Connection();var info=await connection.InspectAsync();check(info.AccountType=="chatgpt"&&info.IncludedUsageAllowed&&info.Models.Contains("gpt-6-luna"),"Actual stdio inspection finds native login, included permission and exact model catalog.");
         check(!connection.Qualified,"No fixture or Codex connection silently qualifies hard token admission.");
         var underfunded=new CompanyCodexConnection(new(executable,identity,Path.Combine(root,"codex-text"),SyntheticMode:"company-success",QualificationCreditBudget:149));
-        try{await underfunded.CompletePilotAsync(Call("a",""));check(false,"Insufficient in-flight reserve must refuse.");}catch(WorkspaceException){check(true,"No turn starts without the full conservative credit exposure reservation.");}
+        try{await underfunded.CompletePilotAsync(Call("a",""));check(false,"Insufficient in-flight reserve must refuse.");}catch(WorkspaceException){check(true,"No qualification turn starts without its historical planning buffer; it is not a guaranteed charge ceiling.");}
         try{connection.CountTokens(Call("a",""));check(false,"No invented token counter.");}catch(ModelUnavailableException){check(true,"Missing tokenizer is reported explicitly.");}
         try{connection.CountInput(Call("a",""));check(false,"Observed native overhead cannot qualify normal queue admission.");}catch(ModelUnavailableException){check(true,"Native application/runtime counting remains unavailable rather than subtracting an observed offset.");}
         var sentinel=Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL");Environment.SetEnvironmentVariable("HIREZERO_PARENT_SENTINEL","PRIVATE_PARENT_VALUE");
@@ -88,7 +88,7 @@ static class CompanyCodexChecks
         if(args.Length!=3)throw new ArgumentException("Use --codex-inspect or --codex-pilot, executable and expected identity.");
         var root=Path.Combine(Path.GetTempPath(),"hirezero-codex-inspect-"+Guid.NewGuid().ToString("N"));
         var connection=new CompanyCodexConnection(new(args[1],args[2],root,QualificationCreditBudget:args[0]=="--codex-pilot"?1000:0));
-        if(args[0]=="--codex-pilot")Console.WriteLine(CompanyJson.Encode(new{approvedExistingCreditFallback=1000,reservePerTurn=CompanyCodexConnection.CreditExposureReservePerTurn,maximumTurns=4,providerEnforcedMonetaryCap=false}));
+        if(args[0]=="--codex-pilot")Console.WriteLine(CompanyJson.Encode(new{approvedExistingCreditFallback=1000,reservePerTurn=CompanyCodexConnection.QualificationPlanningCreditsPerTurn,maximumTurns=4,providerEnforcedMonetaryCap=false}));
         var info=await connection.InspectAsync();Console.WriteLine(CompanyJson.Encode(info));
         if(args[0]=="--codex-pilot")
         {

@@ -1,6 +1,6 @@
 # Scoped integration qualification
 
-See the [OAuth queue decision](OAUTH_QUEUE_DECISION.md) for the current design recommendation. The strict token caps and 150-credit reserve below originated as prototype/qualification defaults, not native API guarantees or recurring owner spending authority. The reserve arithmetic is historical and does not prove a maximum charge.
+See the [OAuth queue decision](OAUTH_QUEUE_DECISION.md) for the current design recommendation. The strict token caps and 150-credit reserve below originated as prototype/qualification defaults, not native API guarantees or recurring owner spending authority. The reserve arithmetic is historical and does not prove a maximum charge. The [measured queue checkpoint](MEASURED_QUEUE_CHECKPOINT.md) records the subsequent local queue implementation and fake-provider verification; it adds no live authorization.
 
 ## Four native Luna checks completed, 2026-10-15
 

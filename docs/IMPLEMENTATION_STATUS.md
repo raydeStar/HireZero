@@ -1,5 +1,7 @@
 # Company workspace verification checkpoint
 
+Latest local queue delivery: [measured OAuth admission checkpoint](MEASURED_QUEUE_CHECKPOINT.md), 2026-10-15. It adds explicit single-use Marketing queue admission with full usage/uncertainty handling, fake-native HTTP tests and independent review. All six regression suites and builds passed. Default/automatic native dispatch and real Developer execution remain off; one live queue test still needs fresh exact-packet and spending approval. The earlier verification below is retained as history.
+
 Verified 2026-10-14 in the isolated development checkout on `feature/employee-contexts`, following prototype checkpoint `71e2998822f145fb2e76f0ed66a6f07d5625b0a1`. The original source baseline remains `3228e0db564dbb006f23f547d7afb17cddb695d9`.
 
 ## Delivered behavior

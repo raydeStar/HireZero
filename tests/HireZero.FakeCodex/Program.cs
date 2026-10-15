@@ -46,21 +46,24 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
    if(CompanyPermissionError(p) is {} error){Write(new{id=r.GetProperty("id").GetInt32(),error=new{code=-32600,message=error}});continue;}
    if(mode=="company-protocol-validation"){Write(new{id=r.GetProperty("id").GetInt32(),result=new{valid=true}});continue;}
    companyTurnSent=true;
+   File.AppendAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-native-starts"),"start\n");
    if(mode=="company-start-refusal"){Write(new{id=r.GetProperty("id").GetInt32(),error=new{code=-32602,message="Fictional private diagnostic must not be exported"}});continue;}
    if(mode is "company-removed-access" or "company-diagnostic-suffix"){Write(new{id=r.GetProperty("id").GetInt32(),error=new{code=-32600,message="Invalid request: "+removedReadAccess+(mode=="company-diagnostic-suffix"?" PRIVATE_DIAGNOSTIC_SUFFIX":""),data="PRIVATE_ERROR_DATA"}});continue;}
    if(p.GetProperty("model").GetString()!="gpt-6-luna"||p.GetProperty("effort").GetString()!="low"||p.GetProperty("summary").GetString()!="none"||p.GetProperty("serviceTierForTurn").GetString()!="default"||p.TryGetProperty("sandboxPolicy",out _)||p.TryGetProperty("permissionProfile",out _)||p.GetProperty("permissions").GetString()!=companyProfile||p.GetProperty("environments").GetArrayLength()!=0||p.GetProperty("runtimeWorkspaceRoots").GetArrayLength()!=0)throw new Exception("Invalid company turn envelope");
    if(Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL") is not null||Environment.GetEnvironmentVariable("OPENAI_API_KEY") is not null)throw new Exception("Ambient secret environment leaked");
    Write(new{id=r.GetProperty("id").GetInt32(),result=new{turn=new{id=turn}}});
-   if(mode=="company-wait"){File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-ready"),"ready");continue;}
+   if(mode is "company-wait" or "company-measured-late" or "company-measured-partial" or "company-measured-stale-partial" or "company-measured-queued-partial"){if(mode is "company-measured-partial" or "company-measured-stale-partial")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=4800,outputTokens=20,reasoningOutputTokens=5,totalTokens=4820}}}});File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-ready"),"ready");continue;}
    if(mode=="company-tool"){Write(new{id=901,method="item/commandExecution/requestApproval",@params=new{threadId=thread,turnId=turn}});continue;}
    using var context=JsonDocument.Parse(p.GetProperty("input")[0].GetProperty("text").GetString()!);
    var body=context.RootElement.GetProperty("notes").GetString()+"|"+context.RootElement.GetProperty("history").GetRawText();
+   if(mode.StartsWith("company-measured",StringComparison.Ordinal))body="DRAFT for internal review\nFold a fictional paper crane.\nThis fictional kit contains paper and a printed folding guide.\nClaim sources: approved facts. Missing facts: price. Owner question: approve wording?";
+   if(mode=="company-measured-characters")body=new string('x',2001);
    if(mode=="company-nontext")Write(new{method="item/started",@params=new{threadId=thread,turnId=turn,item=new{type="fileChange"}}});
    Write(new{method="item/agentMessage/delta",@params=new{threadId=thread,turnId=turn,delta=body}});
-   if(mode!="company-missing-usage")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=mode=="company-observed-overrun"?6000:100,outputTokens=20,reasoningOutputTokens=5,totalTokens=mode=="company-observed-overrun"?6020:120}}}});
+   if(mode!="company-missing-usage"){var measured=mode.StartsWith("company-measured",StringComparison.Ordinal);var input=mode=="company-observed-overrun"?6000:mode=="company-measured-overrun"?9000:measured?4800:100;var output=mode=="company-measured-output"?1200:measured?150:20;var usage=new Dictionary<string,object>{{"inputTokens",input},{"outputTokens",output},{"totalTokens",input+output+(mode=="company-measured-inconsistent"?1:0)}};if(mode!="company-measured-no-reasoning")usage["reasoningOutputTokens"]=5;Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=usage}}});}
    Complete();
   }
-  else if(method=="turn/interrupt"){Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});Complete("interrupted");return;}
+  else if(method=="turn/interrupt"){if(mode=="company-measured-queued-partial")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=4800,outputTokens=20,reasoningOutputTokens=5,totalTokens=4820}}}});Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});if(mode=="company-measured-late")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=4800,outputTokens=150,reasoningOutputTokens=5,totalTokens=4950}}}});if(mode=="company-measured-partial")return;Complete(mode=="company-measured-late"?"completed":"interrupted");return;}
   else if(method is null&&r.TryGetProperty("id",out var denied)&&denied.GetInt32()==901){if(!r.TryGetProperty("error",out _))throw new Exception("A tool grant was created");return;}
   continue;
  }

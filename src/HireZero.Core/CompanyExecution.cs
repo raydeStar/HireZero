@@ -4,6 +4,8 @@ namespace HireZero.Core;
 
 public sealed partial class CompanyStore
 {
+    private static string? ReceiptId(string? value)
+    {if(value is null)return null;try{return Text(value,160);}catch(WorkspaceException){return "invalid-receipt:"+EmployeeStore.Hash(value);}}
     private static bool ProviderHeld(CompanyAttempt attempt)=>attempt.Error is "provider-termination-unconfirmed" or "provider-accounting-unconfirmed";
     public string[] ActiveEmployees(){using var db=Open();return All<CompanyEmployee>(db).Where(e=>e.State=="active").Select(e=>e.Id).ToArray();}
     private bool ParentValid(SqliteConnection db,CompanyTask t)=>
@@ -20,8 +22,11 @@ public sealed partial class CompanyStore
     }
     public CompanyAttempt? Claim(string employee,bool providerAvailable,string? taskId=null,bool execution=false)
     {
-        using var db=Open();return Transaction(db,()=>
-        {
+        using var db=Open();return Transaction(db,()=>Claim(db,employee,providerAvailable,taskId,execution));
+    }
+    private CompanyAttempt? Claim(SqliteConnection db,string employee,bool providerAvailable,string? taskId=null,bool execution=false)
+    {
+            ExpireMeasured(db);
             var e=Need<CompanyEmployee>(db,employee);if(e.State!="active"||All<CompanyAttempt>(db).Any(a=>a.EmployeeId==employee&&a.Phase is "claimed" or "reserved" or "dispatching"))return null;
             providerAvailable&=!All<CompanyAttempt>(db).Any(ProviderHeld);
             var t=All<CompanyTask>(db).FirstOrDefault(t=>t.EmployeeId==employee&&(taskId is null||t.Id==taskId)&&Role(e.RoleId).ExecutionSkills.Contains(t.Skill)==execution&&(t.State=="queued"||t.State=="blocked"&&(t.Reason is "provider-unavailable" or "dependencies"||execution&&t.Reason=="developer-execution-unavailable")));
@@ -35,12 +40,13 @@ public sealed partial class CompanyStore
             }
             t=t with{State="running",Reason=null,Version=t.Version+1};Put(db,t);
             var a=new CompanyAttempt(Id(),t.Id,e.Id,"claimed",t.Generation,e.Generation,null);Put(db,a);return a;
-        });
     }
     public CompanyContext Capture(string attemptId)
     {
-        using var db=Open();return Transaction(db,()=>
-        {
+        using var db=Open();return Transaction(db,()=>Capture(db,attemptId));
+    }
+    private CompanyContext Capture(SqliteConnection db,string attemptId)
+    {
             var a=Need<CompanyAttempt>(db,attemptId);if(a.Phase!="claimed"||!Current(db,a))throw new WorkspaceException("Attempt is no longer authorized.");
             var t=Need<CompanyTask>(db,a.TaskId);var e=Need<CompanyEmployee>(db,a.EmployeeId);var evidence=new List<CompanyEvidence>();
             foreach(var id in t.Evidence){var artifact=Need<CompanyArtifact>(db,id);if(artifact.State!="approved")throw new WorkspaceException("Evidence was revoked.");evidence.Add(new(artifact.Id,artifact.Body,artifact.Digest));}
@@ -63,25 +69,26 @@ public sealed partial class CompanyStore
                 context=context with{Colleagues=All<CompanyEmployee>(db).Select(p=>new CompanyColleague(p.Id,p.Name,p.DepartmentId,p.RoleId,p.Responsibility,p.State,All<CompanyThread>(db).FirstOrDefault(thread=>thread.EmployeeId==p.Id)?.Id)).ToArray(),CompanyWork=All<CompanyTask>(db).Select(work=>new CompanyWorkStatus(work.Id,work.EmployeeId,work.Skill,work.State)).TakeLast(30).ToArray()};
             if(!KnowledgeCurrent(db,context,t))throw new WorkspaceException("Knowledge was revoked; request fresh admission.");
             Save(db,context,context.Id,a.Id,e.Id);Put(db,a with{ContextId=context.Id,Version=a.Version+1});return context;
-        });
     }
     public bool AuthorizeDispatch(string attemptId)
     {
-        using var db=Open();return Transaction(db,()=>{var a=Need<CompanyAttempt>(db,attemptId);var t=Need<CompanyTask>(db,a.TaskId);var e=Need<CompanyEmployee>(db,a.EmployeeId);return !Role(e.RoleId).ExecutionSkills.Contains(t.Skill)&&Reserve(db,a);});
+        using var db=Open();return Transaction(db,()=>{var a=Need<CompanyAttempt>(db,attemptId);var t=Need<CompanyTask>(db,a.TaskId);var e=Need<CompanyEmployee>(db,a.EmployeeId);return a.Measured is null&&!Role(e.RoleId).ExecutionSkills.Contains(t.Skill)&&Reserve(db,a);});
     }
     private bool Reserve(SqliteConnection db,CompanyAttempt a)
     {
             if(a.Phase!="claimed"||!Current(db,a)||a.ContextId is null)return false;
             if(All<CompanyAttempt>(db).Any(ProviderHeld))return false;
+            if(a.Measured is {} job&&(job.State!="proposed"||!MeasuredCurrent(db,a)))return false;
             if(a.Admission is {} admission&&(admission.ContextDigest!=CompanyJson.Digest(Need<CompanyContext>(db,a.ContextId))||admission.Accounting.TotalTokens()>CompanyTokenLimits.Input))return false;
             var t=Need<CompanyTask>(db,a.TaskId);if(!KnowledgeCurrent(db,Need<CompanyContext>(db,a.ContextId),t))return false;
             var root=Need<CompanyBudget>(db,t.RootId);
             var employee=Need<CompanyEmployee>(db,t.EmployeeId);
             CompanyBudget[] scopes=[root,Find<CompanyBudget>(db,"company-total")??new("company-total",100000),
                 Find<CompanyBudget>(db,"department:"+employee.DepartmentId)??new("department:"+employee.DepartmentId,50000),Find<CompanyBudget>(db,"employee:"+employee.Id)??new("employee:"+employee.Id,25000)];
-            if(scopes.Any(b=>b.Used+b.Reserved+CompanyTokenLimits.Total>b.Limit))return false;
-            foreach(var b in scopes)Save(db,b with{Reserved=b.Reserved+CompanyTokenLimits.Total,Version=b.Version+1},b.Id,version:b.Version+1);
-            Save(db,new CompanyReservation(a.Id,root.Id,CompanyTokenLimits.Total,Scopes:scopes.Select(b=>b.Id).ToArray()),a.Id,root.Id);
+            var amount=a.Measured?.Policy.PlanningTokens??CompanyTokenLimits.Total;
+            if(scopes.Any(b=>b.Used+b.Reserved+amount>b.Limit))return false;
+            foreach(var b in scopes)Save(db,b with{Reserved=b.Reserved+amount,Version=b.Version+1},b.Id,version:b.Version+1);
+            Save(db,new CompanyReservation(a.Id,root.Id,amount,Scopes:scopes.Select(b=>b.Id).ToArray()),a.Id,root.Id);
             Put(db,a with{Phase="dispatching",Version=a.Version+1});return true;
     }
     public void PackHistory(string attemptId,int retained)
@@ -93,7 +100,7 @@ public sealed partial class CompanyStore
         using var db=Open();Transaction(db,()=>
         {
             var a=Need<CompanyAttempt>(db,call.DispatchId);
-            if(a.Phase!="claimed"||a.Admission is not null||!Current(db,a)||a.ContextId!=call.Context.Id||call.MaxInputTokens!=CompanyTokenLimits.Input||call.MaxOutputTokens!=CompanyTokenLimits.Output||
+            if(a.Phase!="claimed"||a.Admission is not null||a.Measured is not null||!Current(db,a)||a.ContextId!=call.Context.Id||call.MaxInputTokens!=CompanyTokenLimits.Input||call.MaxOutputTokens!=CompanyTokenLimits.Output||
                accounting.TotalTokens()>CompanyTokenLimits.Input||CompanyJson.Digest(call.Context)!=CompanyJson.Digest(Need<CompanyContext>(db,a.ContextId)))
                 throw new WorkspaceException("Input accounting does not match the current admitted request.");
             Put(db,a with{Admission=new(accounting,CompanyJson.Digest(call.Context),EmployeeStore.Hash(call.Instructions)),Version=a.Version+1});return true;
@@ -111,27 +118,29 @@ public sealed partial class CompanyStore
         Save(db,reservation with{State="settled",Actual=actual,Version=reservation.Version+1},attempt,reservation.RootId,state:"settled",version:reservation.Version+1);
         foreach(var claim in All<CompanyResourceClaim>(db).Where(r=>r.AttemptId==attempt))Sql(db,"DELETE FROM co_resource_claims WHERE company_id=$0 AND id=$1",CompanyId,claim.Id);
     }
-    public bool IsCurrent(string attemptId){using var db=Open();var a=Need<CompanyAttempt>(db,attemptId);return a.Phase=="dispatching"&&Current(db,a)&&a.ContextId is not null&&KnowledgeCurrent(db,Need<CompanyContext>(db,a.ContextId),Need<CompanyTask>(db,a.TaskId));}
+    public bool IsCurrent(string attemptId){using var db=Open();var a=Need<CompanyAttempt>(db,attemptId);return a.Phase=="dispatching"&&Current(db,a)&&a.ContextId is not null&&KnowledgeCurrent(db,Need<CompanyContext>(db,a.ContextId),Need<CompanyTask>(db,a.TaskId))&&(a.Measured is null||MeasuredCurrent(db,a));}
     public void Finish(string attemptId,CompanyModelReply reply)
     {
-        if(reply.Usage is {} complete&&!complete.Consistent(reply.TotalTokens))throw new CompanyTransportException("Observed input/output usage is inconsistent; reservation retained.");
+        if(reply.Usage is {} complete&&!complete.Consistent(reply.TotalTokens))throw new CompanyTransportException("Observed input/output usage is inconsistent; reservation retained.",reply.TotalTokens,reply.Receipt,complete,accountingViolation:true);
+        if(reply.Receipt is not null&&ReceiptId(reply.Receipt)!=reply.Receipt.Trim())throw new CompanyTransportException("Provider receipt identity is invalid; complete usage is retained.",reply.TotalTokens,ReceiptId(reply.Receipt),reply.Usage,accountingViolation:true);
         string body;try{body=Text(reply.Body,12000);}catch(WorkspaceException){throw new CompanyTransportException("Employee text is invalid; complete observed usage is retained.",reply.TotalTokens,reply.Receipt,reply.Usage);}
         using var db=Open();Transaction(db,()=>
         {
             var a=Need<CompanyAttempt>(db,attemptId);var t=Need<CompanyTask>(db,a.TaskId);
             if(a.Phase is "committed" or "withheld")return false;
-            if(a.Admission is not null&&reply.TotalTokens is not null&&reply.Usage is null)
+            if((a.Admission is not null||a.Measured is not null)&&reply.TotalTokens is not null&&reply.Usage is null)
                 throw new CompanyTransportException("Complete input/output usage is required for admitted text work.",reply.TotalTokens,reply.Receipt);
-            if(reply.Usage is {} actual&&(actual.InputTokens>CompanyTokenLimits.Input||actual.OutputTokens>CompanyTokenLimits.Output||a.Admission is {} admitted&&actual.InputTokens!=admitted.Accounting.TotalTokens()))
+            if(reply.Usage is {} actual&&(a.Measured is null&&(actual.InputTokens>CompanyTokenLimits.Input||actual.OutputTokens>CompanyTokenLimits.Output||a.Admission is {} admitted&&actual.InputTokens!=admitted.Accounting.TotalTokens())||a.Measured is {} measured&&actual.OutputTokens>measured.Policy.OutputTarget))
                 throw new CompanyTransportException("Observed input/output or runtime accounting differs from admission; content withheld.",reply.TotalTokens,reply.Receipt,actual,accountingViolation:true);
-            if(reply.TotalTokens is <0 or >CompanyTokenLimits.Total)throw new CompanyTransportException("Observed usage exceeds its reservation; reconciliation required.",reply.TotalTokens,reply.Receipt,reply.Usage,accountingViolation:true);
-            a=a with{ProviderReceipt=reply.Receipt is null?null:Text(reply.Receipt,160),ReportedUsage=reply.TotalTokens,Usage=reply.Usage};
+            if(a.Measured is {} visible&&body.Length>visible.Policy.VisibleCharacterStop)throw new CompanyTransportException("Observed visible output exceeds its soft stop; content withheld.",reply.TotalTokens,reply.Receipt,reply.Usage,accountingViolation:true);
+            if(reply.TotalTokens<0||reply.TotalTokens>(a.Measured?.Policy.PlanningTokens??CompanyTokenLimits.Total))throw new CompanyTransportException("Observed usage exceeds its reservation; reconciliation required.",reply.TotalTokens,reply.Receipt,reply.Usage,accountingViolation:true);
+            a=a with{ProviderReceipt=ReceiptId(reply.Receipt),ReportedUsage=reply.TotalTokens,Usage=reply.Usage};
             // A canceled in-flight response still settles actual usage, but never reaches the employee transcript.
             Release(db,a.Id,reply.TotalTokens);
-            if(reply.TotalTokens is null){Put(db,a with{Phase="unknown",Error=ProviderHeld(a)?a.Error:"Usage missing; reservation retained.",Version=a.Version+1});if(t.State=="running")Put(db,t with{State="unknown",Reason="usage-unknown",Version=t.Version+1});return false;}
-            if(a.Phase!="dispatching"||!Current(db,a)||a.ContextId is null||!KnowledgeCurrent(db,Need<CompanyContext>(db,a.ContextId),t))
-            {Put(db,a with{Phase="withheld",Error=ProviderHeld(a)?a.Error:"Authority changed; response withheld.",Version=a.Version+1});if(t.State=="running")Put(db,t with{State="superseded",Reason="authority-changed",Version=t.Version+1});return false;}
-            Put(db,a with{Phase="committed",Version=a.Version+1});
+            if(reply.TotalTokens is null){Put(db,a with{Phase="unknown",Measured=a.Measured is {} missing?missing with{State="unknown"}:null,Error=ProviderHeld(a)?a.Error:a.Measured is not null?"provider-accounting-unconfirmed":"Usage missing; reservation retained.",Version=a.Version+1});if(t.State=="running")Put(db,t with{State="unknown",Reason="usage-unknown",Version=t.Version+1});return false;}
+            if(a.Phase!="dispatching"||!Current(db,a)||a.ContextId is null||!KnowledgeCurrent(db,Need<CompanyContext>(db,a.ContextId),t)||a.Measured is not null&&!MeasuredCurrent(db,a))
+            {Put(db,a with{Phase="withheld",Measured=a.Measured is {} stale?stale with{State="withheld"}:null,Error=ProviderHeld(a)?a.Error:"Authority changed; response withheld.",Version=a.Version+1});if(t.State=="running")Put(db,t with{State="superseded",Reason="authority-changed",Version=t.Version+1});return false;}
+            Put(db,a with{Phase="committed",Measured=a.Measured is {} done?done with{State="completed"}:null,Version=a.Version+1});
             var artifact=new CompanyArtifact(Id(),t.Id,t.EmployeeId,body,EmployeeStore.Hash(body),"needs_review","model-output",a.ContextId);Save(db,artifact,artifact.Id,t.Id,t.EmployeeId,artifact.State);
             Message(db,Need<CompanyThread>(db,t.ThreadId),t.EmployeeId,body);
             Put(db,t with{State=t.MeetingId is null?"awaiting_review":"completed",Version=t.Version+1});
@@ -148,10 +157,11 @@ public sealed partial class CompanyStore
         using var db=Open();Transaction(db,()=>
         {
             var a=Need<CompanyAttempt>(db,id);
+            if(dispatched&&a.Measured is not null&&reason!="provider-termination-unconfirmed")reason="provider-accounting-unconfirmed";
             // Owner cancellation already moves dispatched work to unknown. Its termination
             // hold still has to be recorded before another employee can use this provider.
             if(a.Phase is not("claimed" or "reserved" or "dispatching")&&!(a.Phase=="unknown"&&dispatched&&reason is ("provider-termination-unconfirmed" or "provider-accounting-unconfirmed")))return false;
-            if(!dispatched)Release(db,id);Put(db,a with{Phase=dispatched?"unknown":"not_sent",Error=reason,Version=a.Version+1});
+            if(!dispatched)Release(db,id);Put(db,a with{Phase=dispatched?"unknown":"not_sent",Error=reason,Measured=a.Measured is {} stopped?stopped with{State=dispatched?"unknown":Clock()>=stopped.ExpiresAt?"expired":"canceled"}:null,Version=a.Version+1});
             var t=Need<CompanyTask>(db,a.TaskId);if(t.State=="running")Put(db,t with{State=dispatched?"unknown":"blocked",Reason=reason,Version=t.Version+1});
             if(t.MeetingId is { } meeting){var m=Need<CompanyMeeting>(db,meeting);Put(db,m with{State=dispatched?"needs_reconciliation":"blocked",ActiveTask=null,Version=m.Version+1});}
             Event(db,"task.blocked",t.Id,t.EmployeeId,dispatched?"Provider outcome is uncertain; no automatic replay.":"Task blocked before dispatch: "+reason);return true;
@@ -159,24 +169,30 @@ public sealed partial class CompanyStore
     }
     public void RejectResponse(string attemptId,CompanyTransportException error)
     {
-        if(error.KnownUsage is null or <0||error.Usage is {} usage&&!usage.Consistent(error.KnownUsage)){FailAttempt(attemptId,error.AccountingViolation?"provider-accounting-unconfirmed":"provider-contract-unconfirmed",true);return;}
+        if(error.KnownUsage is null or <0||error.Usage is {} usage&&!usage.Consistent(error.KnownUsage))
+        {
+            if(error.Usage is not null||error.KnownUsage is not null)
+            {using var partialDb=Open();Transaction(partialDb,()=>{var a=Need<CompanyAttempt>(partialDb,attemptId);if(a.Phase is "committed" or "withheld")return false;Put(partialDb,a with{Usage=error.Usage??a.Usage,ReportedUsage=error.KnownUsage??a.ReportedUsage,ProviderReceipt=error.Receipt is null?a.ProviderReceipt:ReceiptId(error.Receipt),Version=a.Version+1});return true;});}
+            FailAttempt(attemptId,error.AccountingViolation?"provider-accounting-unconfirmed":"provider-contract-unconfirmed",true);return;
+        }
         using var db=Open();Transaction(db,()=>{var a=Need<CompanyAttempt>(db,attemptId);if(a.Phase is "committed" or "withheld")return false;
-            var accountingViolation=error.AccountingViolation||error.KnownUsage>CompanyTokenLimits.Total||error.Usage is {} bounds&&(bounds.InputTokens>CompanyTokenLimits.Input||bounds.OutputTokens>CompanyTokenLimits.Output);
-            a=a with{ProviderReceipt=error.Receipt is null?null:Text(error.Receipt,160),ReportedUsage=error.KnownUsage,Usage=error.Usage,Error=ProviderHeld(a)?a.Error:accountingViolation?"provider-accounting-unconfirmed":a.Error};
-            if(error.KnownUsage>CompanyTokenLimits.Total)
+            var totalLimit=a.Measured?.Policy.PlanningTokens??CompanyTokenLimits.Total;
+            var accountingViolation=a.Measured is not null||error.AccountingViolation||error.KnownUsage>totalLimit||error.Usage is {} bounds&&(bounds.InputTokens>CompanyTokenLimits.Input||bounds.OutputTokens>CompanyTokenLimits.Output);
+            a=a with{ProviderReceipt=ReceiptId(error.Receipt),ReportedUsage=error.KnownUsage,Usage=error.Usage,Error=ProviderHeld(a)?a.Error:accountingViolation?"provider-accounting-unconfirmed":a.Error};
+            if(error.KnownUsage>totalLimit)
             {
-                Put(db,a with{Phase="unknown",Error=ProviderHeld(a)?a.Error:"Confirmed usage exceeds reservation; reconcile before further work.",Version=a.Version+1});
+                Put(db,a with{Phase="unknown",Measured=a.Measured is {} overJob?overJob with{State="unknown"}:null,Error=ProviderHeld(a)?a.Error:"Confirmed usage exceeds reservation; reconcile before further work.",Version=a.Version+1});
                 var over=Need<CompanyTask>(db,a.TaskId);if(over.State=="running")Put(db,over with{State="unknown",Reason="usage-over-reservation",Version=over.Version+1});
                 Event(db,"task.withheld",over.Id,over.EmployeeId,"Usage exceeded its reservation; the complete receipt and reservation are retained.");return true;
             }
-            Release(db,a.Id,error.KnownUsage);Put(db,a with{Phase="withheld",Error=ProviderHeld(a)?a.Error:"Response failed the scoped contract; content withheld.",Version=a.Version+1});
+            Release(db,a.Id,error.KnownUsage);Put(db,a with{Phase="withheld",Measured=a.Measured is {} rejected?rejected with{State="withheld"}:null,Error=ProviderHeld(a)?a.Error:"Response failed the scoped contract; content withheld.",Version=a.Version+1});
             var t=Need<CompanyTask>(db,a.TaskId);if(t.State=="running")Put(db,t with{State="failed",Reason="provider-contract-refused",Version=t.Version+1});
             Event(db,"task.withheld",t.Id,t.EmployeeId,"Provider content was withheld; confirmed usage was accounted for.");return true;});
     }
     public void Recover()
     {
         using var db=Open();var attempts=All<CompanyAttempt>(db).Where(a=>a.Phase is "claimed" or "reserved" or "dispatching").ToArray();
-        foreach(var a in attempts)FailAttempt(a.Id,"host-interrupted",a.Phase=="dispatching");
+        foreach(var a in attempts){if(a.Measured is {State:"proposed"}&&a.Phase=="claimed"&&MeasuredCurrent(db,a))continue;FailAttempt(a.Id,"host-interrupted",a.Phase=="dispatching");}
     }
     // All future execution adapters must hold this fence before writing. Unknown writes retain the claim.
     private static string CanonicalWorkspace(string workspace)
@@ -200,7 +216,7 @@ public sealed partial class CompanyStore
     }
 }
 
-public sealed class CompanyScheduler(CompanyStore store,ICompanyModel model) : BackgroundService
+public sealed partial class CompanyScheduler(CompanyStore store,ICompanyModel model) : BackgroundService
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string,SemaphoreSlim> _employees=new(StringComparer.Ordinal);
     private int _round;
@@ -237,10 +253,10 @@ public sealed class CompanyScheduler(CompanyStore store,ICompanyModel model) : B
         }
         finally{gate.Release();}
     }
-    private async Task<CompanyModelReply> CompleteCurrentAsync(CompanyModelCall call,CancellationTokenSource deadline)
+    private async Task<CompanyModelReply> CompleteCurrentAsync(CompanyModelCall call,CancellationTokenSource deadline,Func<CompanyModelCall,CancellationToken,Task<CompanyModelReply>>? complete=null)
     {
         using var stopWatching=new CancellationTokenSource();
-        var completion=model.CompleteAsync(call,deadline.Token);
+        var completion=(complete??model.CompleteAsync)(call,deadline.Token);
         async Task WatchAuthority()
         {
             try{while(!stopWatching.IsCancellationRequested){if(!store.IsCurrent(call.DispatchId)){deadline.Cancel();return;}await Task.Delay(100,stopWatching.Token);}}
@@ -250,9 +266,16 @@ public sealed class CompanyScheduler(CompanyStore store,ICompanyModel model) : B
         var watching=WatchAuthority();
         try
         {
-            try{return await completion.WaitAsync(deadline.Token);}
+            try
+            {
+                var reply=await completion.WaitAsync(deadline.Token);
+                if(deadline.IsCancellationRequested&&(complete is not null||store.IsCurrent(call.DispatchId)))store.FailAttempt(call.DispatchId,"provider-accounting-unconfirmed",true);
+                return reply;
+            }
             catch(OperationCanceledException) when(deadline.IsCancellationRequested)
             {
+                // Fence a local deadline before draining: a late ordinary reply must never become a draft.
+                if(complete is not null||store.IsCurrent(call.DispatchId))store.FailAttempt(call.DispatchId,"provider-accounting-unconfirmed",true);
                 // Keep account serialization while the adapter interrupts/drains its owned call.
                 // A complete late receipt may settle billing, but the task fence withholds content.
                 try{return await completion.WaitAsync(TimeSpan.FromSeconds(8));}

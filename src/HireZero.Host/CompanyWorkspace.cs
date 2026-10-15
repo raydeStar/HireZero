@@ -37,7 +37,7 @@ public static class CompanyWorkspace
                 Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_EXECUTABLE")??throw new InvalidOperationException("Pin the selected Codex executable."),
                 Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_IDENTITY")??throw new InvalidOperationException("Pin the selected Codex executable bundle identity."),Path.Combine(root,"codex-scratch"),
                 Home:Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_HOME")??throw new InvalidOperationException("Select the dedicated native Codex profile home.")),routing):new UnavailableCompanyModel());
-            var store=new CompanyStore(Path.Combine(root,"workspace.sqlite"),owner,Definitions(),routing);
+            var store=new CompanyStore(Path.Combine(root,"workspace.sqlite"),owner,Definitions(),routing,(model as ICompanyMeasuredModel)?.RuntimeIdentity);
             builder.Services.AddSingleton(store);builder.Services.AddSingleton<ICompanyModel>(model);builder.Services.AddSingleton<CompanyScheduler>();
             builder.Services.AddHostedService(s=>s.GetRequiredService<CompanyScheduler>());
             var app=builder.Build();app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
@@ -58,15 +58,23 @@ public static class CompanyWorkspace
             });
             app.MapGet("/health",()=>Results.Ok(new{status="healthy",companyLocal=true,modelExecution=model.Qualified}));
             app.MapGet("/api/session",()=>Results.Ok(new{login=owner,role="owner",accessMode="local",roles=Array.Empty<string>(),agentModel="Unavailable",agentReasoning="",companyEnabled=true,executionHeld=false}));
-            app.MapGet("/api/company",()=>Results.Ok(new{capabilities=new{localManagement=true,modelExecution=model.Qualified,providerStatus=model.Status,modelRouting=routing,ceoEnabled=true,meetingsEnabled=true,legacyDeveloperAvailable=false},data=store.Dashboard()}));
+            app.MapGet("/api/company",()=>Results.Ok(new{capabilities=new{localManagement=true,modelExecution=model.Qualified,measuredOneJob=model is ICompanyMeasuredModel,providerStatus=model.Status,modelRouting=routing,ceoEnabled=true,meetingsEnabled=true,legacyDeveloperAvailable=false},data=store.Dashboard()}));
             app.MapGet("/api/company/runtime",async(CancellationToken token)=>model is CompanyCodexConnection connection?Results.Ok(await connection.InspectAsync(token)):Results.Json(new{error="Select the explicit Codex connection profile."},statusCode:503));
             app.MapGet("/api/company/feed",(long? after,int? limit)=>Results.Ok(store.Feed(after??0,limit??100)));
             app.MapGet("/api/company/employees/{employee}/threads/{thread}",(string employee,string thread)=>Results.Ok(store.Thread(employee,thread)));
             app.MapGet("/api/company/tasks/{id}",(string id)=>Results.Ok(store.TaskDetail(id)));
+            app.MapGet("/api/company/measured/{id}",(string id)=>Results.Ok(store.MeasuredDetail(id)));
             app.MapGet("/api/company/operations/{id}",(string id)=>store.Operation(id) is {} result?Results.Content(result,"application/json"):Results.NotFound());
-            app.MapPost("/api/company/commands",(System.Text.Json.JsonElement body)=>
+            app.MapPost("/api/company/commands",async(System.Text.Json.JsonElement body)=>
             {
-                var command=CompanyJson.Decode<CompanyCommand>(body.GetRawText());return Results.Content(store.Apply(command),"application/json");
+                var command=CompanyJson.Decode<CompanyCommand>(body.GetRawText());
+                if(command.Action=="measured.run")
+                {
+                    if(model is not ICompanyMeasuredModel measured)throw new WorkspaceException("A pinned measured runtime is not configured.");
+                    var receipt=await app.Services.GetRequiredService<CompanyScheduler>().RunMeasuredOnceAsync(command,measured,app.Lifetime.ApplicationStopping);
+                    return Results.Content(receipt,"application/json");
+                }
+                return Results.Content(store.Apply(command),"application/json");
             });
             app.MapFallback("/api/{**path}",()=>Results.Json(new{error="This capability is unavailable in company-local mode."},statusCode:503));
             app.UseDefaultFiles();app.UseStaticFiles();app.MapFallbackToFile("index.html");return app;

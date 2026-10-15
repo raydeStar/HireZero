@@ -9,6 +9,7 @@ public sealed record CompanyRole(string Id, string Name, string Instructions, st
     public bool WorkspaceClaims {get;init;}
     public bool CompanyOverview {get;init;}
     public string[] ExecutionSkills {get;init;}=[];
+    public string[] MeasuredSkills {get;init;}=[];
 }
 public sealed record CompanyDepartment(string Id, string Name, string? Guide, string? Knowledge, int Version = 1);
 public sealed record CompanyEmployee(string Id, string DepartmentId, string RoleId, string Name, string Responsibility, string State = "onboarding", int Version = 1, int Generation = 1);
@@ -31,7 +32,7 @@ public sealed record CompanyContext(string Id, string EmployeeId, string RoleId,
     string Input, string? MeetingId = null,CompanyColleague[]? Colleagues=null,CompanyWorkStatus[]? CompanyWork=null);
 public sealed record CompanyAttempt(string Id, string TaskId, string EmployeeId, string Phase, int TaskGeneration,
     int EmployeeGeneration, string? ContextId, string? Error = null, int Version = 1,string? ProviderReceipt=null,long? ReportedUsage=null,
-    CompanyInputAdmission? Admission=null,CompanyTokenUsage? Usage=null);
+    CompanyInputAdmission? Admission=null,CompanyTokenUsage? Usage=null,CompanyMeasuredJob? Measured=null);
 public sealed record CompanyBudget(string Id, long Limit, long Used = 0, long Reserved = 0, int Version = 1);
 public sealed record CompanyReservation(string Id, string RootId, long Amount, string State = "reserved", long? Actual = null, int Version = 1,string[]? Scopes=null);
 public sealed record CompanyResourceClaim(string Id, string TaskId, string AttemptId, string EmployeeId, int Version = 1);
@@ -50,7 +51,7 @@ public sealed record CompanyCommand(string RequestId, string Action, string? Id 
     string? DepartmentId = null, string? RoleId = null, string? EmployeeId = null, string? ThreadId = null,
     string? Name = null, string? Responsibility = null, string? Body = null, string? Digest = null, string? Decision = null,
     string? Skill = null, string[]? Evidence = null, CompanyTaskSpec[]? Tasks = null, string[]? Participants = null,
-    string? ChairId = null, long Budget = 0);
+    string? ChairId = null, long Budget = 0,decimal CreditAllowance=0);
 
 public sealed record CompanyModelCall(string DispatchId, CompanyContext Context, string Instructions, int MaxInputTokens, int MaxOutputTokens, string? ModelRoute = null);
 // Runtime selection and task purpose are independent of employee role. A Developer conversation is ordinary text.
@@ -80,6 +81,11 @@ public interface ICompanyModel
     CompanyInputAccounting CountInput(CompanyModelCall call);
     int CountTokens(CompanyModelCall call)=>CountInput(call).TotalTokens();
     Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token);
+}
+public interface ICompanyMeasuredModel
+{
+    string RuntimeIdentity {get;}
+    Task<CompanyModelReply> CompleteMeasuredAsync(CompanyModelCall call,CompanyMeasuredJob job,CancellationToken token);
 }
 public sealed class UnavailableCompanyModel : ICompanyModel
 {

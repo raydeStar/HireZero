@@ -6,6 +6,8 @@ public sealed partial class CompanyStore
     {
         switch(c.Action)
         {
+            case "measured.prepare":return PrepareMeasured(db,c);
+            case "measured.run":return StartMeasured(db,c);
             case "department.create":
             {
                 var d=new CompanyDepartment(Id(),Text(c.Name,100),null,null);Save(db,d,d.Id);Event(db,"department.created",d.Id,null,"Department created: "+d.Name);return d;
@@ -188,7 +190,7 @@ public sealed partial class CompanyStore
         if(task.State is "completed" or "canceled" or "superseded")throw new WorkspaceException("The task is already terminal.");
         Put(db,task with{State=state,Reason=reason,Version=task.Version+1,Generation=task.Generation+1});
         foreach(var a in All<CompanyAttempt>(db).Where(a=>a.TaskId==task.Id&&a.Phase is "claimed" or "reserved" or "dispatching"))
-        {var phase=a.Phase=="dispatching"?"unknown":"not_sent";Put(db,a with{Phase=phase,Error=reason,Version=a.Version+1});if(phase=="not_sent")Release(db,a.Id);}
+        {var phase=a.Phase=="dispatching"?"unknown":"not_sent";Put(db,a with{Phase=phase,Error=reason,Measured=a.Measured is {} job?job with{State=phase=="unknown"?"unknown":"canceled"}:null,Version=a.Version+1});if(phase=="not_sent")Release(db,a.Id);}
         Event(db,"task."+state,task.Id,task.EmployeeId,reason);
     }
 }

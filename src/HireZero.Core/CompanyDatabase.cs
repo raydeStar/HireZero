@@ -11,6 +11,7 @@ public sealed partial class CompanyStore
     public const string CompanyId = "local-company";
     public CompanyRole[] Roles => _roles;
     public CompanyModelRouting ModelRouting {get;}
+    public string? MeasuredRuntimeIdentity {get;}
     public SemaphoreSlim ProviderGate {get;}=new(1,1);
     private static readonly Dictionary<Type, string> Tables = new()
     {
@@ -27,9 +28,9 @@ public sealed partial class CompanyStore
         ["co_tasks"]="co_threads", ["co_attempts"]="co_tasks", ["co_contexts"]="co_attempts", ["co_artifacts"]="co_tasks",
         ["co_handoffs"]="co_artifacts", ["co_reservations"]="co_budgets"
     };
-    public CompanyStore(string path, string owner, CompanyRole[] roles,CompanyModelRouting? routing=null)
+    public CompanyStore(string path, string owner, CompanyRole[] roles,CompanyModelRouting? routing=null,string? measuredRuntimeIdentity=null)
     {
-        _path = path; _roles = roles;ModelRouting=routing??new();ModelRouting.Validate();
+        _path = path; _roles = roles;ModelRouting=routing??new();ModelRouting.Validate();MeasuredRuntimeIdentity=measuredRuntimeIdentity;
         if (roles.Select(r=>r.Id).Distinct().Count()!=roles.Length) throw new InvalidOperationException("Duplicate role definition.");
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         using var db = Open();
@@ -95,7 +96,8 @@ public sealed partial class CompanyStore
     {
         using var db=Open(); return Transaction(db,()=>new{departments=All<CompanyDepartment>(db),employees=All<CompanyEmployee>(db),knowledge=All<CompanyKnowledge>(db),
             threads=All<CompanyThread>(db),tasks=All<CompanyTask>(db),artifacts=All<CompanyArtifact>(db),plans=All<CompanyPlan>(db),meetings=All<CompanyMeeting>(db),budgets=All<CompanyBudget>(db),executions=All<CompanyExecutionGrant>(db),
-            roles=_roles.Select(r=>new{r.Id,r.Name,r.Skills,r.OnboardingFields}),cursor=long.Parse(Scalar(db,"SELECT COALESCE(MAX(seq),0) FROM co_events WHERE company_id=$0",CompanyId)!)});
+            measured=All<CompanyAttempt>(db).Where(a=>a.Measured is not null).Select(a=>new{a.Id,a.TaskId,a.Version,a.Phase,a.Error,a.Usage,a.ReportedUsage,job=a.Measured}).ToArray(),
+            roles=_roles.Select(r=>new{r.Id,r.Name,r.Skills,r.OnboardingFields,r.MeasuredSkills}),cursor=long.Parse(Scalar(db,"SELECT COALESCE(MAX(seq),0) FROM co_events WHERE company_id=$0",CompanyId)!)});
     }
     public CompanyEvent[] Feed(long after,int limit=100)
     {using var db=Open();return Rows(db,"SELECT seq,payload FROM co_events WHERE company_id=$0 AND seq>$1 ORDER BY seq LIMIT $2",r=>CompanyJson.Decode<CompanyEvent>(r.GetString(1)) with{Sequence=r.GetInt64(0)},CompanyId,Math.Max(0,after),Math.Clamp(limit,1,100));}
@@ -103,17 +105,19 @@ public sealed partial class CompanyStore
     {using var db=Open();Need<CompanyEmployee>(db,employee);var t=Need<CompanyThread>(db,thread);if(t.EmployeeId!=employee)throw new WorkspaceException("Thread not found.",404);return new{thread=t,messages=All<CompanyMessage>(db).Where(m=>m.ThreadId==thread).ToArray(),notes=Find<CompanyNotes>(db,employee)??new(employee,"")};}
     public object TaskDetail(string id){using var db=Open();var attempts=All<CompanyAttempt>(db).Where(a=>a.TaskId==id).ToArray();return new{task=Need<CompanyTask>(db,id),attempts,executions=All<CompanyExecutionGrant>(db).Where(g=>g.TaskId==id).ToArray(),contexts=All<CompanyContext>(db).Where(c=>attempts.Any(a=>a.ContextId==c.Id)).Select(c=>new{c.Id,digest=CompanyJson.Digest(c),c.EmployeeId,c.RoleId,historyCount=c.History.Length,evidence=c.Evidence.Select(e=>new{e.Id,e.Digest})}).ToArray()};}
     public string? Operation(string id){using var db=Open();return Scalar(db,"SELECT result FROM co_operations WHERE company_id=$0 AND id=$1",CompanyId,id);}
-    public string Apply(CompanyCommand command)
+    public string Apply(CompanyCommand command)=>Apply(command,out _);
+    public string Apply(CompanyCommand command,out bool newlyApplied)
     {
         if(!Guid.TryParseExact(command.RequestId,"D",out _))throw new WorkspaceException("A UUID operation ID is required.",422);
         if(command.Evidence?.Any(string.IsNullOrWhiteSpace)==true||command.Participants?.Any(string.IsNullOrWhiteSpace)==true||command.Tasks?.Any(s=>s is null||s.Evidence is null||s.DependsOn is null||string.IsNullOrWhiteSpace(s.EmployeeId)||string.IsNullOrWhiteSpace(s.ThreadId)||string.IsNullOrWhiteSpace(s.Skill)||string.IsNullOrWhiteSpace(s.Input))==true)
             throw new WorkspaceException("Task and evidence fields must be complete.",422);
-        using var db=Open();return Transaction(db,()=>
+        var fresh=false;using var db=Open();var receipt=Transaction(db,()=>
         {
             var fingerprint=CompanyJson.Digest(command);var prior=Rows(db,"SELECT digest,result FROM co_operations WHERE company_id=$0 AND id=$1",r=>(r.GetString(0),r.GetString(1)),CompanyId,command.RequestId).SingleOrDefault();
             if(prior!=default){if(prior.Item1!=fingerprint)throw new WorkspaceException("Operation ID was already used for different work.");return prior.Item2;}
             var result=CompanyJson.Encode(Apply(db,command));
-            Sql(db,"INSERT INTO co_operations VALUES($0,$1,$2,$3)",CompanyId,command.RequestId,fingerprint,result);return result;
+            Sql(db,"INSERT INTO co_operations VALUES($0,$1,$2,$3)",CompanyId,command.RequestId,fingerprint,result);fresh=true;return result;
         });
+        newlyApplied=fresh;return receipt;
     }
 }
