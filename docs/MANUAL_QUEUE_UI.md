@@ -2,8 +2,8 @@
 
 The company workspace now exposes the proven measured queue as an ordinary local UI flow. Automatic native model work remains off. Opening the app, assigning a brief, preparing its packet, refreshing, and restarting do not authorize a model request.
 
-1. Open the local company workspace and choose **Open manual jobs**. An active employee whose role supports measured internal drafts is selected; otherwise hire and onboard an employee first.
-2. Choose the draft work type, fill the campaign brief and assign it. The task says **Waiting for your one-job authorization**.
+1. Open the local company chat and choose an employee from **Conversations**. Select an active employee whose role supports measured internal drafts; otherwise use **People** and **Company** to hire and onboard one first.
+2. In that employee conversation, choose the draft **Work type**, fill the campaign brief and use the upward-arrow **Assign work** button. Its inline job card says **Waiting for your one-job authorization**.
 3. Enter an intended existing-credit allowance and choose **Prepare job for review**. No native request is sent. The allowance records intent; it cannot enforce a credit cutoff on an in-flight request.
 4. Choose **Review task and context**. The review shows the requested work, approved department/company facts, notes, conversation history, selected evidence and employee instructions. IDs and a hidden digest are not a substitute for readable content. The server still binds approval to the exact saved version and packet.
 5. Explicitly acknowledge the work and the lack of guaranteed upstream token, time and credit limits, then choose **Authorize and run one job**. This is spending authorization for only that job. Included usage must be available first; the 8,000-token reserve remains a planning estimate. No purchase, recharge or API fallback is provided.

@@ -49,10 +49,20 @@ Use an absolute directory appropriate to your machine. The launcher requires an 
 
 The installed SDK used during development was 10.0.203, while the source global.json requests 10.0.302. The implementation handoff records the direct MSBuild invocation used with the existing SDK. No SDK/runtime was installed or global setting changed. Frontend dependencies retain their lockfile versions and install lifecycle scripts are disabled.
 
+## Conversation workspace
+
+The company profile now reuses the original chat shell, visual tokens, message layout and bottom composer. It opens at the company conversation; the sidebar drills into employees and their private threads. **People**, **Company**, **Plans** and **Board** retain management, onboarding, CEO proposals and Board Meeting records. The human owner retains final authority.
+
+Ordinary messages are saved through the existing company commands. The pinned native connection does not provide automatic chat replies. Eligible internal drafts still require a separate exact-packet review, acknowledgement and one-job authorization. Sending text, choosing an employee, opening history or attaching approved evidence cannot grant that authority. See [the inline draft flow](MANUAL_QUEUE_UI.md).
+
+An employee conversation shows only its own messages and tasks. Preparation, cancellation, measured usage, artifact review, repository-diff review and explicit artifact handoff sit inline with the relevant work. Private context and employee settings remain available above the conversation. Company updates link back to the relevant employee; company notes are owner-authored records. This first slice does not add a live company/CEO responder.
+
+Conversation URLs survive reload and support browser Back/Forward. Unsent composer drafts are scoped to company or exact employee/thread in this open tab; they survive navigation, but are not persisted across reload. Only a confirmed saved send clears its exact draft. A newer edit survives an older delayed reply. Private-note edits require **Save private notes** before leaving their view. No request is replayed automatically.
+
 ## First management workflow
 
-1. Create Marketing, Engineering and optionally Leadership departments.
-2. Hire the first employee in a department with a role and a concrete responsibility. That employee is the onboarding guide. Additional hires wait for approved department knowledge.
+1. Use **Company** to create Marketing, Engineering and optionally Leadership departments.
+2. Use **People** to hire the first employee in a department with a role and a concrete responsibility. That employee is the onboarding guide. Additional hires wait for approved department knowledge.
 3. Complete the department's onboarding fields, save a draft, inspect it and approve the exact version. Later employees inherit this knowledge reference; they do not inherit the guide's chats, private notes, credentials or approvals.
 4. Open an employee from the roster. Its private conversation is created on hire. Add private notes, choose a skill and assign work with selected approved evidence. Marketing drafts use a structured campaign brief.
 5. Live model work becomes visibly blocked. You can still add an owner-authored artifact to a saved task, review its exact content, share an approved artifact to a specific employee conversation and mark reviewed work complete.
@@ -88,7 +98,9 @@ There is no live route, paid inference, tool channel, publication or automatic r
 
 `tests/HireZero.Company.Tests` exercises fictional departments, several employees, context isolation, targeted handoffs, owner reviews, concurrent claims, cancellation, uncertain usage, resource fencing, CEO approval, finite meetings and loopback HTTP hygiene. It uses fresh temporary roots and deterministic providers.
 
-`tests/company-ui.test.mjs` checks lost-response reconciliation and prevention of accidental duplicate operations. `tests/company-browser-smoke.mjs` uses an already installed headless Chrome, an empty disposable browser profile and a fresh company-local host; it never opens or changes the user's browser profile. It exercises the management flow and writes desktop/mobile screenshots to ignored test-results. It requires local socket access and a free port 5065.
+`tests/company-ui.test.mjs` checks lost-response reconciliation and prevention of accidental duplicate operations. `tests/company-browser-smoke.mjs` uses an already installed headless Chrome, an empty disposable browser profile and a fresh company-local host; it never opens or changes the user's browser profile. It exercises the management flow and writes desktop/mobile screenshots to ignored test-results. It requires local socket access and a free port 5067. The tests-only host can select a separate built web root with HIREZERO_TEST_WEB_ROOT; HIREZERO_TEST_URL selects another loopback test port, leaving a running 5065 app intact.
+
+`tests/company-chat-browser-smoke.mjs` checks scoped drafts, delayed responses, employee edits, exact-thread history, URL reload/back/forward, repeated send and inline cancellation with zero provider requests. `tests/measured-browser-smoke.mjs` and `tests/task-handoff-browser-smoke.mjs` exercise inline packet review, acknowledgement, one compiled-fake turn, content approval and delayed handoff navigation. Both the frontend and the fake provider are built from this checkout.
 
 Existing Core, Developer, Host, Policy, Integration, frontend approval, execution-feedback and metadata-hook checks remain regression gates. A passing frontend build alone is not interaction evidence. Native computer-use tooling failed to initialize on this machine; browser smoke testing is a separate isolated application test, with results reported explicitly.
 

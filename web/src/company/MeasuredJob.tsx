@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useRef,useState} from 'react';
 import {api} from '../shell/api';
 import {command,type MeasuredEntry,type Work} from './api';
 
@@ -10,16 +10,17 @@ function Contents({body}:{body:string}){
 }
 const states:Record<string,string>={proposed:'Ready for your authorization',dispatched:'Running this one job',completed:'Draft saved for review',unknown:'Stopped: reconciliation required',withheld:'Output withheld',expired:'Proposal expired',canceled:'Canceled'};
 export function MeasuredJob({task,entry,available,busy,prepare,refresh}:{task:Work;entry?:MeasuredEntry;available:boolean;busy:boolean;prepare:(action:string,fields:Record<string,unknown>)=>Promise<unknown>;refresh:()=>Promise<void>}){
+  const authorizing=useRef(false),reviewRequest=useRef(0);
   const [allowance,setAllowance]=useState(''),[packet,setPacket]=useState<Packet|null>(null),[ack,setAck]=useState(false),[running,setRunning]=useState(false),[error,setError]=useState('');
   async function review(){
-    if(!entry)return;setError('');setAck(false);setPacket(null);
-    try{const next=await api<Packet>('/company/measured/'+entry.id);if(next.attempt.id!==entry.id||next.attempt.measured.digest!==entry.job.digest)throw new Error('The saved proposal changed. Refresh before reviewing it.');setPacket(next);}
+    if(!entry)return;const request=++reviewRequest.current;setError('');setAck(false);setPacket(null);
+    try{const next=await api<Packet>('/company/measured/'+entry.id);if(next.attempt.id!==entry.id||next.attempt.measured.digest!==entry.job.digest)throw new Error('The saved proposal changed. Refresh before reviewing it.');if(request===reviewRequest.current)setPacket(next);}
     catch(e){setError((e as Error).message);}
   }
   async function authorize(){
-    if(!entry||!ack||!packet||running||!available||entry.job.state!=='proposed'||Date.parse(entry.job.expiresAt)<=Date.now())return;setRunning(true);setError('');
+    if(authorizing.current||!entry||!ack||!packet||running||!available||entry.job.state!=='proposed'||Date.parse(entry.job.expiresAt)<=Date.now())return;authorizing.current=true;setRunning(true);setError('');
     try{await command('measured.run',{id:entry.id,expectedVersion:entry.version,digest:entry.job.digest,decision:'accept-soft-limits'});}
-    catch(e){setError((e as Error).message);}finally{await refresh().catch(e=>setError(e.message));setRunning(false);}
+    catch(e){setError((e as Error).message);}finally{await refresh().catch(e=>setError(e.message));authorizing.current=false;setRunning(false);}
   }
   return <section className="co-measured"><h3>Run one internal draft</h3>
     <p>Assign a brief, review the saved task and context, then authorize one job. Nothing starts automatically; a consumed request cannot be replayed.</p>

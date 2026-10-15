@@ -9,7 +9,7 @@ using Microsoft.Data.Sqlite;
 
 if(args.FirstOrDefault() is "--codex-inspect" or "--codex-pilot")
 {try{await CompanyCodexChecks.InspectInstalledAsync(args);}catch(Exception e) when(e is WorkspaceException or CompanyTransportException){Console.WriteLine("BLOCKED: "+e.Message);Environment.ExitCode=2;}return;}
-if(args.FirstOrDefault()=="--measured-browser-fixture"){await BrowserQueueFixture.RunAsync(args);return;}
+if(args.FirstOrDefault() is "--measured-browser-fixture" or "--company-browser-fixture"){await BrowserQueueFixture.RunAsync(args);return;}
 var count=0;
 void Check(bool condition,string text){count++;if(!condition)throw new Exception(text);}
 bool Refused(Action action){try{action();return false;}catch(WorkspaceException){return true;}}

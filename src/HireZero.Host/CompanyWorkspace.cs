@@ -11,7 +11,7 @@ public static class CompanyWorkspace
     public const string Flag="--company-local";
     public const string CodexFlag="--company-codex";
     public static CompanyRole[] Definitions()=>[CompanyDeveloper.Definition,CompanyMarketing.Definition,CompanyCeo.Definition];
-    public static WebApplication? TryCreate(string[] args,string owner,bool localOwner,string root,ICompanyModel? fixture=null,string? fixtureUrl=null)
+    public static WebApplication? TryCreate(string[] args,string owner,bool localOwner,string root,ICompanyModel? fixture=null,string? fixtureUrl=null,string? fixtureWebRoot=null)
     {
         if(!args.Contains(Flag))return null;
         if(!localOwner)throw new InvalidOperationException("Company local mode requires explicit local owner mode.");
@@ -19,7 +19,7 @@ public static class CompanyWorkspace
         if(HeldWorkspace.Requested(Environment.GetEnvironmentVariable(HeldWorkspace.Variable)))throw new InvalidOperationException("Execution hold takes precedence. Use the held profile or explicitly select company-local with a separate data root.");
         var url=fixtureUrl??"http://127.0.0.1:5065";
         var uri=new Uri(url);if(uri.Scheme!="http"||!IPAddress.TryParse(uri.Host,out var ip)||!IPAddress.IsLoopback(ip))throw new InvalidOperationException("Company mode must use a loopback listener.");
-        var builder=WebApplication.CreateBuilder(args.Where(a=>a!=Flag&&a!=CodexFlag).ToArray());
+        var builder=WebApplication.CreateBuilder(new WebApplicationOptions{Args=args.Where(a=>a!=Flag&&a!=CodexFlag).ToArray(),WebRootPath=fixtureUrl is not null?fixtureWebRoot:null});
         builder.WebHost.ConfigureKestrel(o=>{o.Configure(new ConfigurationBuilder().Build(),false);o.Limits.MaxRequestBodySize=16384;o.Listen(ip,uri.Port);});
         Directory.CreateDirectory(root);
         var database=Path.Combine(root,"workspace.sqlite");
@@ -47,7 +47,7 @@ public static class CompanyWorkspace
                 c.Response.Headers.CacheControl="no-store";c.Response.Headers["X-Content-Type-Options"]="nosniff";c.Response.Headers["Referrer-Policy"]="no-referrer";
                 c.Response.Headers["Content-Security-Policy"]="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'";
                 // Fixture port zero is bound by Kestrel, but Host still proves the chosen profile's authority.
-                var expected=fixtureUrl is null?uri.Authority:"127.0.0.1:5065";
+                var expected=fixtureUrl is null||uri.Port!=0?uri.Authority:"127.0.0.1:5065";
                 if(c.Connection.RemoteIpAddress is not {} remote||!IPAddress.IsLoopback(remote)||c.Request.Host.Value!=expected||c.Request.Headers.Keys.Any(k=>k.StartsWith("X-Forwarded-",StringComparison.OrdinalIgnoreCase)||k.StartsWith("Tailscale-",StringComparison.OrdinalIgnoreCase)||k.Equals("Forwarded",StringComparison.OrdinalIgnoreCase)))
                 {c.Response.StatusCode=403;return;}
                 if(c.Request.Method is not("GET" or "HEAD")&&(c.Request.Headers.Origin!="http://"+expected||c.Request.Headers["X-Dev-Request"]!="1"||!c.Request.HasJsonContentType())){c.Response.StatusCode=403;return;}
