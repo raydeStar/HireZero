@@ -28,13 +28,9 @@ The application packet has a hard 4,096-byte limit and the grant admits one nati
 
 Full measured input/output/reasoning usage is retained, including on rejected content. Known complete usage settles once; overage, inconsistent/partial usage or unconfirmed cleanup retains the required hold. Cancellation never promises an instantaneous stop to remote generation/billing. Quota/account anomalies stop continuation; another turn cannot bypass the persistent provider hold.
 
-## Proposed first live check — requires fresh approval
+## Next review scenarios - require scoped approval
 
-Select one existing active employee in **Company conversation**, using company context only. Prepare exactly this fictional message:
-
-> In one sentence, explain who approves company decisions. Do not create tasks, change plans or perform actions.
-
-Review the actual generated packet and choose an explicit intended existing-credit allowance before authorizing. The proposed approval is for one Luna, low-effort, text-only native turn and its measured receipt. It does not authorize another turn, a purchase, new sign-in, tools, repository access, automatic work or publication. Actual token/credit cost is unknown in advance and may exceed local soft targets. Earlier qualification or Marketing approvals do not authorize this check.
+The earlier trivial fictional check was canceled without dispatch. The next prepared scenarios are a Marketing application review and a Developer repository-evidence review, described in [employee review preflight](EMPLOYEE_REVIEW_PREFLIGHT.md). Their local tests use fictional inventories and visibly synthetic findings. Actual private payloads, provider destination and per-turn spending terms still need owner authorization; no live review is authorized by these documents.
 
 ## Local verification
 

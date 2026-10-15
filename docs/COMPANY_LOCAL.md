@@ -59,6 +59,8 @@ An employee conversation shows only its own messages and tasks. Preparation, can
 
 Conversation URLs survive reload and support browser Back/Forward. Unsent composer drafts are scoped to company or exact employee/thread in this open tab; they survive navigation, but are not persisted across reload. Only a confirmed saved send clears its exact draft. A newer edit survives an older delayed reply. Private-note edits require **Save private notes** before leaving their view. No request is replayed automatically.
 
+See [employee review preflight](EMPLOYEE_REVIEW_PREFLIGHT.md) for Marketing application feedback and Developer read-only repository triage, their evidence boundaries, current integration gaps and fictional end-to-end checks.
+
 ## First management workflow
 
 1. Use **Company** to create Marketing, Engineering and optionally Leadership departments.

@@ -76,6 +76,31 @@ static class ConversationChecks
             if(mode=="company-measured-late")check(a.ReportedUsage==4950&&Items<CompanyBudget>(f.Store,"budgets").Single(b=>b.Id==p.Task.RootId) is {Used:4950,Reserved:0},"A complete late reply receipt settles once without publishing canceled content.");
             if(mode=="company-measured-partial")check(a.ReportedUsage is null&&a.Usage==new CompanyTokenUsage(4800,20,5)&&Items<CompanyBudget>(f.Store,"budgets").Single(b=>b.Id==p.Task.RootId).Reserved==8000,"Partial cancellation receipts retain usage and the planning reservation.");
         }
+        await ReviewRoutingAsync(root,check);
+    }
+    private static async Task ReviewRoutingAsync(string root,Action<bool,string> check)
+    {
+        await using var f=await Fixture.Create(root,"review-routing","company-conversation-browser");var marketing=f.Seed("marketing","APP_PRIVATE");var developer=f.Seed("developer","REPO_PRIVATE");
+        const string app="APP_REVIEW_FIXTURE: Review the fictional Compass app from supplied evidence only. [APP-UI-01] Navigation has Company, People and private employee conversations. Suggest at most three product-communication improvements; label missing evidence. No tools or actions.";
+        const string repo="REPOSITORY_REVIEW_FIXTURE: Review fictional example/compass from supplied evidence only. [REPO-META-01] One explicitly scoped repository, main revision fictional-sha, one pending check. Suggest at most three updates to investigate. No fetching, coding or GitHub changes.";
+        var a=await f.Prepare(marketing,"company",app);var b=await f.Prepare(developer,"company",repo);var ac=f.Store.TextCall(a.Attempt.Id);var bc=f.Store.TextCall(b.Attempt.Id);
+        check(f.Starts==0&&ac.Context.RoleId=="marketing"&&bc.Context.RoleId=="developer"&&ac.ModelRoute=="openai/gpt-6-luna"&&bc.ModelRoute==ac.ModelRoute,"Explicit product-feedback and repository-triage selection routes to the correct employees and Luna without dispatch during preparation.");
+        check(ac.Context.Input==app&&bc.Context.Input==repo&&!CompanyJson.Encode(ac.Context).Contains("REPO_PRIVATE")&&!CompanyJson.Encode(bc.Context).Contains("APP_PRIVATE")&&!CompanyJson.Encode(ac.Context).Contains("REPOSITORY_REVIEW_FIXTURE")&&!CompanyJson.Encode(bc.Context).Contains("APP_REVIEW_FIXTURE")&&ac.Context.Notes==""&&bc.Context.Notes==""&&ac.Context.History.Length==0&&bc.Context.History.Length==0,"Two review packets contain only their exact supplied inventory and exclude other-role and private evidence.");
+        foreach(var p in new[]{a,b}){var exact=Run(p);await Task.WhenAll(f.Post(exact),f.Post(exact));await f.Refused(Run(p));}
+        check(f.Starts==2&&f.Store.Work(a.Task.Id).State=="completed"&&f.Store.Work(b.Task.Id).State=="completed","Duplicate sends start exactly two fake review turns, one per requested review.");
+        string Transcript(CompanyStore store,Prepared p)=>JsonSerializer.SerializeToElement(store.Thread(p.Task.EmployeeId,p.Task.ThreadId),CompanyJson.Options).GetProperty("messages").GetRawText();
+        check(Transcript(f.Store,a).Contains("SIMULATED MARKETING REVIEW")&&Transcript(f.Store,a).Contains("APP-UI-01")&&!Transcript(f.Store,a).Contains("SIMULATED DEVELOPER REVIEW")&&Transcript(f.Store,b).Contains("SIMULATED DEVELOPER REVIEW")&&Transcript(f.Store,b).Contains("REPO-META-01")&&!Transcript(f.Store,b).Contains("SIMULATED MARKETING REVIEW"),"Saved simulated findings retain evidence references, stay in the selected chat and are visibly labeled as synthetic.");
+        check(new[]{a,b}.All(p=>f.Store.Attempt(p.Attempt.Id).ReportedUsage==4950&&Items<CompanyBudget>(f.Store,"budgets").Single(x=>x.Id==p.Task.RootId) is {Used:4950,Reserved:0})&&Items<CompanyBudget>(f.Store,"budgets").Single(x=>x.Id=="company-total") is {Used:9900,Reserved:0},"Both review turns settle full measured usage once across their task and shared budgets.");
+        var reopened=new CompanyStore(Path.Combine(f.Root,"data","workspace.sqlite"),"owner@example.invalid",CompanyWorkspace.Definitions(),measuredRuntimeIdentity:f.Model.RuntimeIdentity);reopened.Recover();
+        check(Transcript(reopened,a).Contains("SIMULATED MARKETING REVIEW")&&Transcript(reopened,b).Contains("SIMULATED DEVELOPER REVIEW")&&f.Starts==2,"Both saved review chats can reopen without redispatch.");
+        var unsent=await f.Prepare(marketing,"company","APP_REVIEW_FIXTURE: Cancel this proposed follow-up without dispatch.");await f.Cancel(unsent);
+        check(f.Starts==2&&f.Store.Attempt(unsent.Attempt.Id).Phase=="not_sent"&&Items<CompanyBudget>(f.Store,"budgets").Single(x=>x.Id==unsent.Task.RootId) is {Used:0,Reserved:0},"Canceling a prepared review sends nothing and consumes no token reservation.");
+        var pending=await f.Prepare(developer,"company","[wait] REPOSITORY_REVIEW_FIXTURE: Wait for explicit cancellation.");var run=Run(pending);var active=f.Post(run);
+        for(var i=0;i<250&&!Directory.GetFiles(f.Root,"fixture-partial-emitted",SearchOption.AllDirectories).Any();i++)await Task.Delay(20);
+        check(Directory.GetFiles(f.Root,"fixture-partial-emitted",SearchOption.AllDirectories).Any()&&f.Store.Attempt(pending.Attempt.Id).Measured!.State=="dispatched","The pending review exercises a real emitted fake delta before cancellation.");
+        var duplicate=f.Post(run);await f.Cancel(pending);await active;await duplicate;
+        check(f.Starts==3&&f.Store.Work(pending.Task.Id).State=="canceled"&&!Transcript(f.Store,pending).Contains("UNCONFIRMED_PARTIAL_REPLY")&&Items<CompanyBudget>(f.Store,"budgets").Single(x=>x.Id==pending.Task.RootId) is {Used:0,Reserved:8000},"Cancellation withholds partial review text and retains the unknown-usage reservation; duplicate Send does not replay.");
+        reopened.Recover();check(f.Starts==3&&Items<CompanyArtifact>(f.Store,"artifacts").Length==0&&Items<CompanyPlan>(f.Store,"plans").Length==0&&Items<CompanyExecutionGrant>(f.Store,"executions").Length==0,"Review routing creates no execution grants, approved artifacts or autonomous plans, and recovery does not resume the canceled turn.");
     }
     sealed record Person(CompanyEmployee Employee,CompanyThread Thread);
     sealed class Fixture:IAsyncDisposable

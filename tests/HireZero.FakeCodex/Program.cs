@@ -60,6 +60,12 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
    var body=context.RootElement.GetProperty("notes").GetString()+"|"+context.RootElement.GetProperty("history").GetRawText();
    if(mode.StartsWith("company-measured",StringComparison.Ordinal))body="DRAFT for internal review\nFold a fictional paper crane.\nThis fictional kit contains paper and a printed folding guide.\nClaim sources: approved facts. Missing facts: price. Owner question: approve wording?";
    if(companyConversationTurn)body="Fictional conversational reply. Use only the reviewed facts. The human owner retains final authority; no actions were performed.";
+   if(mode=="company-conversation-browser")
+   {
+    var prompt=context.RootElement.GetProperty("input").GetString()!;var role=context.RootElement.GetProperty("roleId").GetString();
+    if(prompt.Contains("APP_REVIEW_FIXTURE",StringComparison.Ordinal)){if(role!="marketing")throw new Exception("Application feedback was routed to the wrong employee role");body="SIMULATED MARKETING REVIEW - synthetic fixture only. [APP-UI-01] Test suggestion: make the fictional onboarding explanation clearer. This is test output, not an actual product finding. No actions were performed.";}
+    if(prompt.Contains("REPOSITORY_REVIEW_FIXTURE",StringComparison.Ordinal)){if(role!="developer")throw new Exception("Repository review was routed to the wrong employee role");body="SIMULATED DEVELOPER REVIEW - synthetic fixture only. [REPO-META-01] Test suggestion: inspect the fictional pending check before proposing an update. This is test output, not an actual repository finding. No files or GitHub settings changed.";}
+   }
    if(mode=="company-measured-characters")body=new string('x',2001);
    if(mode=="company-nontext")Write(new{method="item/started",@params=new{threadId=thread,turnId=turn,item=new{type="fileChange"}}});
    Write(new{method="item/agentMessage/delta",@params=new{threadId=thread,turnId=turn,delta=body}});
