@@ -35,7 +35,8 @@ public static class CompanyWorkspace
             var routing=new CompanyModelRouting(Environment.GetEnvironmentVariable("HIREZERO_COMPANY_TEXT_MODEL")??"openai/gpt-6-luna",Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODING_MODEL")??"openai/gpt-6.1-sol");routing.Validate();
             ICompanyModel model=fixture??(args.Contains(CodexFlag)?new CompanyCodexConnection(new(
                 Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_EXECUTABLE")??throw new InvalidOperationException("Pin the selected Codex executable."),
-                Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_IDENTITY")??throw new InvalidOperationException("Pin the selected Codex executable bundle identity."),Path.Combine(root,"codex-scratch")),routing):new UnavailableCompanyModel());
+                Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_IDENTITY")??throw new InvalidOperationException("Pin the selected Codex executable bundle identity."),Path.Combine(root,"codex-scratch"),
+                Home:Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_HOME")??throw new InvalidOperationException("Select the dedicated native Codex profile home.")),routing):new UnavailableCompanyModel());
             var store=new CompanyStore(Path.Combine(root,"workspace.sqlite"),owner,Definitions(),routing);
             builder.Services.AddSingleton(store);builder.Services.AddSingleton<ICompanyModel>(model);builder.Services.AddSingleton<CompanyScheduler>();
             builder.Services.AddHostedService(s=>s.GetRequiredService<CompanyScheduler>());
