@@ -53,7 +53,10 @@ public sealed class CompanyDeveloperBridge(CompanyStore store,ICompanyWorkspaceI
             if(run.State!="completed"||run.ResolvedModel!=CompanyModelRouting.Native(grant.Route)||after.Revision!=grant.Revision||!grant.AllowWrite&&after.Fingerprint!=grant.Fingerprint)throw new WorkspaceException("Runtime outcome, route or repository changes need reconciliation.");
             var usage=run.Events.Where(e=>e.Type==BudgetLedger.CodingUsage).Select(e=>JsonDocument.Parse(e.DataJson).RootElement.GetProperty("tokens").GetInt64()).LastOrDefault(-1);
             if(usage<0||usage>5000)throw new WorkspaceException("Complete bounded coding usage was not confirmed.");
-            store.Finish(grant.AttemptId,new(run.ResultJson??"No result.",usage,"codex:"+run.Id));store.RecordExecutionOutcome(grantId,store.Work(grant.TaskId).State=="awaiting_review"?"completed":"withheld");
+            var review=await inspector.ReviewAsync(grant.Workspace,grant.Revision,CancellationToken.None);
+            if(review.Fingerprint!=after.Fingerprint)throw new WorkspaceException("Checkout changed while preparing the repository review.");
+            store.RecordExecutionReview(grantId,review);
+            store.Finish(grant.AttemptId,new((run.ResultJson??"No result.")+"\n\nRepository review digest: "+review.Digest,usage,"codex:"+run.Id));store.RecordExecutionOutcome(grantId,store.Work(grant.TaskId).State=="awaiting_review"?"completed":"withheld");
         }
         catch(CodingStartRefusedException){store.FailAttempt(grant.AttemptId,"coding-not-sent",false);store.RecordExecutionOutcome(grantId,"not_sent");throw;}
         catch

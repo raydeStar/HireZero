@@ -68,6 +68,11 @@ static class IntegrationPathChecks
         try{await bridge.ExecuteFixtureAsync(grant.Id);}finally{Environment.SetEnvironmentVariable("HIREZERO_PARENT_SENTINEL",previous);}
         check(store.Work(grant.TaskId).State=="awaiting_review"&&File.Exists(Path.Combine(repo,"fixture-change.txt")),"Actual stdio runner executes approved fake coding work in the temporary repository.");
         check(store.Execution(grant.Id).RunId is not null&&store.Execution(grant.Id).State=="completed","Coding receipt and single-use outcome persist.");
+        var savedReview=store.Execution(grant.Id).Review!;var changedFile=savedReview.Files.Single();
+        var codingDetail=JsonSerializer.SerializeToElement(store.TaskDetail(grant.TaskId),CompanyJson.Options);
+        var codingArtifact=List<CompanyArtifact>("artifacts").Single(a=>a.TaskId==grant.TaskId);
+        check(savedReview.BaseRevision==grant.Revision&&savedReview.Digest==CompanyJson.Digest(savedReview with{Digest=""})&&changedFile.Path=="fixture-change.txt"&&changedFile.Change=="added"&&changedFile.Patch.Contains("+Fictional scoped change"),"Approved fake coding work captures an exact durable text diff against its reviewed revision.");
+        check(codingDetail.GetProperty("executions")[0].GetProperty("review").GetProperty("digest").GetString()==savedReview.Digest&&codingArtifact.Body.Contains(savedReview.Digest)&&codingArtifact.State=="needs_review","Owner task detail exposes the saved diff, bound to an artifact that still needs review.");
         var wire=await File.ReadAllTextAsync(Path.Combine(root,"scoped-runtime",grant.AttemptId,"fixture-wire.jsonl"));check(wire.Contains("workspaceWrite")&&wire.Contains("gpt-6.1-sol")&&!wire.Contains("AMBIENT_PARENT_SENTINEL"),"Actual runtime wire enforces scope and excludes inherited private environment.");
         try{await bridge.ExecuteFixtureAsync(grant.Id);check(false,"Execution cannot replay.");}catch(WorkspaceException){check(true,"Completed grant cannot dispatch twice.");}
         var stale=await Prepare(second,t2);stale=A<CompanyExecutionGrant>(C("execution.review") with{Id=stale.Id,ExpectedVersion=stale.Version,Digest=stale.Digest,Decision="approve"});await File.AppendAllTextAsync(Path.Combine(repo,"source.txt"),"Changed after approval");
@@ -90,6 +95,17 @@ static class IntegrationPathChecks
         var currentGrant=store.Execution(waiting.Id);store.Apply(C("execution.review") with{Id=waiting.Id,ExpectedVersion=currentGrant.Version,Decision="revoke"});
         try{await active;check(false,"Revoked runtime must not complete the task.");}catch(WorkspaceException){check(store.Work(waiting.TaskId).State=="canceled"&&store.Execution(waiting.Id).State=="revoked","Owner revocation survives late runtime outcomes.");}
         var interruptedWire=await File.ReadAllTextAsync(Path.Combine(root,"scoped-runtime",waiting.AttemptId,"fixture-wire.jsonl"));check(interruptedWire.Contains("turn/interrupt"),"Revocation interrupts only the owned fake runtime through its actual protocol.");
+        repo=Path.Combine(root,"diff-only-checkout");Directory.CreateDirectory(repo);await Git("init");
+        await File.WriteAllTextAsync(Path.Combine(repo,"source.txt"),"Original fictional line\n");await File.WriteAllTextAsync(Path.Combine(repo,"removed.txt"),"Removed fictional line\n");
+        await File.WriteAllTextAsync(Path.Combine(repo,".gitattributes"),"*.txt filter=fixture diff=fixture\n");
+        await Git("add","source.txt","removed.txt",".gitattributes");await Git("commit","-m","Fictional diff baseline");
+        // Configure only after committing the baseline: inspection must never invoke project commands.
+        var marker=Path.Combine(repo,"filter-ran");await Git("config","filter.fixture.clean","echo invoked > filter-ran; cat");await Git("config","diff.fixture.command","echo invoked > filter-ran");
+        var baseline=await inspector.InspectAsync(repo,default);await File.WriteAllTextAsync(Path.Combine(repo,"source.txt"),"Changed fictional line\n");File.Delete(Path.Combine(repo,"removed.txt"));await File.WriteAllTextAsync(Path.Combine(repo,"new.txt"),"Added fictional line\n");
+        var diff=await inspector.ReviewAsync(repo,baseline.Revision,default);
+        check(diff.Files.Length==3&&diff.Files.Single(f=>f.Path=="source.txt").Patch.Contains("+Changed fictional line")&&diff.Files.Single(f=>f.Path=="removed.txt").Change=="deleted"&&diff.Files.Single(f=>f.Path=="new.txt").Change=="added"&&!File.Exists(marker),"Raw review captures modified, deleted and new files without executing project clean filters or diff drivers.");
+        await File.WriteAllBytesAsync(Path.Combine(repo,"new.txt"),[0,1,2]);
+        try{await inspector.ReviewAsync(repo,baseline.Revision,default);check(false,"Binary changes require another review path.");}catch(WorkspaceException){check(!File.Exists(marker),"Unsupported binary review fails closed without invoking project commands.");}
         using(var connection=new SqliteConnection("Data Source="+Path.Combine(root,"integration-paths.sqlite")+";Pooling=False")){connection.Open();using var q=connection.CreateCommand();q.CommandText="DROP TABLE co_execution_grants; DELETE FROM company_schema_migrations WHERE version=2";q.ExecuteNonQuery();}
         var upgraded=new CompanyStore(Path.Combine(root,"integration-paths.sqlite"),"owner@example.invalid",CompanyWorkspace.Definitions());check(JsonSerializer.SerializeToElement(upgraded.Dashboard(),CompanyJson.Options).GetProperty("employees").GetArrayLength()==2,"Version-one database upgrades transactionally without losing employees.");
     }

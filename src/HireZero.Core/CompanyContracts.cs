@@ -5,6 +5,7 @@ namespace HireZero.Core;
 public sealed record CompanyRole(string Id, string Name, string Instructions, string[] Skills, string[] OnboardingFields)
 {
     public Func<string,string,string>? ValidateInput {get;init;}
+    public Func<string,string>? InstructionsForSkill {get;init;}
     public bool WorkspaceClaims {get;init;}
     public bool CompanyOverview {get;init;}
     public string[] ExecutionSkills {get;init;}=[];

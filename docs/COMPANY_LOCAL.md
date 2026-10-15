@@ -2,6 +2,8 @@
 
 The company workspace manages departments, employee instances, private conversations, internal tasks, reviewed artifacts, CEO plans and Board Meetings in one HireZero backend. Multiple employees can share a role without sharing private history or notes. The current local profile does not execute live model work or repository changes.
 
+See [employee execution readiness](EMPLOYEE_EXECUTION_READINESS.md) for the current Marketing, Developer and CEO/meeting paths, the saved file-diff review, and the concrete gaps before live work.
+
 ## Codex connection and model routing
 
 Runtime selection is separate from model routing. Ordinary tasks, Marketing work, CEO coordination, meeting turns and Developer conversations record `openai/gpt-6-luna`. Only explicit `developer-work` execution tasks record `openai/gpt-6.1-sol`; reviewed execution proposals retain that route. Older tasks without routing metadata receive it when first admitted. Configuration changes do not rewrite a recorded route. Task cards show the saved runtime and model.
