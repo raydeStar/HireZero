@@ -1,12 +1,29 @@
 # Scoped integration qualification
 
+## Four native Luna checks completed, 2026-10-15
+
+Following action-specific owner authorization, the normal approval reviewer admitted one retry of the same four-turn qualification. All four serial `gpt-6-luna` turns completed through the pinned native runtime and tested process-local MXC connector. Each turn used a fresh ephemeral thread, exact restricted profile, no tools, no ambient instruction sources and no provider fallback. The two fictional employees returned only their own marker; their later turns returned only their own selected prior topic. Four distinct native thread/turn receipts bind the employee, context, selected model and complete usage. No further live turn was attempted.
+
+| Turn | Fictional employee | Input tokens | Output tokens | Total tokens | Selected context result |
+| --- | --- | ---: | ---: | ---: | --- |
+| 1 | Alpha | 4,355 | 14 | 4,369 | Own marker; no prior topic |
+| 2 | Beta | 4,356 | 15 | 4,371 | Own marker; no prior topic |
+| 3 | Alpha | 4,400 | 16 | 4,416 | Own marker and selected Alpha topic |
+| 4 | Beta | 4,400 | 16 | 4,416 | Own marker and selected Beta topic |
+
+Observed total usage was 17,572 tokens, with zero reported reasoning tokens. Included usage was available before and after each call, the observed credit balance did not change, and no exhaustion/spending stop was reported. This is runtime observation, not an account invoice or a guarantee about unrelated activity. No purchases, recharge, API-key fallback or new security setup occurred.
+
+The small supplied context still produced 4,355–4,400 native input tokens per turn. The qualification's per-turn total remained below its soft 5,000-token threshold and aggregate usage below 20,000, but the normal scheduler's 4,000-input bound is not established. `Qualified` remains false; exact counting/upstream limits, actual queue-to-native dispatch, review-artifact persistence and live Developer execution remain separate work. The authorized four-turn qualification is consumed, with no automatic replay or fifth call.
+
+The exact previously approved source commit `50c0a7d` was also pushed and verified on the private repository's remote main branch. The later local MXC connector and this qualification report were not included in that specifically scoped publication. Raw account/usage receipts and machine-specific paths remain outside Git.
+
 ## Explicit MXC boundary result, 2026-10-15
 
 The owner approved a non-inference, process-local MXC check. The pinned native runtime confirmed `windows.sandbox="mxc"` and the same sole scratch-readable named profile with network disabled. The permitted file read succeeded (exit 0); the fictional sibling read and scratch write failed (exit 1), returned no denied marker and created no write file. The owned loopback fixture received no connection; its client took the expected failure path (exit 3). This is observed enforcement for these fixtures, not proof of every possible escape or network destination. The test made no model turn, inference, login or account request. No saved configuration, account, service, firewall or ACL change was requested.
 
 The connector now requests exact MXC through owned-process arguments and refuses any other effective Windows mode, including an elevated fallback. Its existing scratch-only reads, disabled network, empty ambient context and tool restrictions remain in place. Focused deterministic checks cover refusal of absent, unelevated and elevated modes. Automatic workers and real Developer execution remain disabled.
 
-The subsequent live qualification command was rejected by automatic execution approval review before process creation: that reviewer could not verify detailed authorization conveyed through delegation. No model turn, account usage or credit purchase resulted from that command. The single approved source-push retry was also rejected and stopped; the tested publication commit remains local. Live success remains zero of four. Historical diagnosis below explains the prior boundary and protocol failures.
+The first subsequent live qualification command was rejected by automatic execution approval review before process creation: that reviewer could not verify detailed authorization conveyed through delegation. No model turn, account usage or credit purchase resulted from that rejected command. Its source-push retry was also rejected and stopped. The later action-specific authorization and successful retry are recorded above. Historical diagnosis below explains the prior boundary and protocol failures.
 
 ## Windows enforcement gate, 2026-10-15
 
