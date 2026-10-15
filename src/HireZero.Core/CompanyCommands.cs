@@ -6,6 +6,7 @@ public sealed partial class CompanyStore
     {
         switch(c.Action)
         {
+            case "conversation.prepare":return PrepareConversation(db,c);
             case "measured.prepare":return PrepareMeasured(db,c);
             case "measured.run":return StartMeasured(db,c);
             case "department.create":
@@ -81,9 +82,9 @@ public sealed partial class CompanyStore
             case "company.message":
             {
                 var body=Text(c.Body);if(c.EmployeeId is null){Event(db,"owner.note",Id(),null,body);return new{saved=true};}
-                var target=Need<CompanyEmployee>(db,c.EmployeeId);var t=c.ThreadId is null?All<CompanyThread>(db).FirstOrDefault(t=>t.EmployeeId==target.Id):Need<CompanyThread>(db,c.ThreadId);
+                var target=Need<CompanyEmployee>(db,c.EmployeeId);var t=c.ThreadId is null?All<CompanyThread>(db).FirstOrDefault(t=>t.EmployeeId==target.Id&&t.Scope=="employee"):Need<CompanyThread>(db,c.ThreadId);
                 if(t is null){t=new CompanyThread(Id(),target.Id,"Company conversation");Save(db,t,t.Id,employee:target.Id);}
-                if(t.EmployeeId!=c.EmployeeId)throw new WorkspaceException("Choose the target employee's thread.",404);
+                if(t.EmployeeId!=c.EmployeeId||t.Scope!="employee")throw new WorkspaceException("Choose the target employee's private thread.",404);
                 Message(db,t,"owner",body);var task=NewTask(db,t.EmployeeId,t.Id,"chat",body,c.Evidence??[],[],null,null,null);
                 Event(db,"owner.message",task.Id,t.EmployeeId,"Message assigned to "+Need<CompanyEmployee>(db,t.EmployeeId).Name);return task;
             }
@@ -110,6 +111,7 @@ public sealed partial class CompanyStore
             case "task.cancel":case "task.retry":case "task.reassign":case "task.complete":
             {
                 var task=Need<CompanyTask>(db,c.Id);Version(task.Version,c.ExpectedVersion);
+                if(task.Kind=="conversation"&&c.Action!="task.cancel")throw new WorkspaceException("A conversational turn cannot become autonomous work or be resumed. Prepare a fresh separately authorized reply.");
                 if(c.Action=="task.complete")
                 {
                     if(task.State is not("awaiting_review" or "blocked"))throw new WorkspaceException("Review work before completion.");
@@ -130,7 +132,7 @@ public sealed partial class CompanyStore
             }
             case "artifact.create":
             {
-                var task=Need<CompanyTask>(db,c.Id);Version(task.Version,c.ExpectedVersion);if(task.State is "running" or "canceled" or "superseded" or "completed")throw new WorkspaceException("This task cannot accept a manual artifact.");
+                var task=Need<CompanyTask>(db,c.Id);Version(task.Version,c.ExpectedVersion);if(task.Kind=="conversation"||task.State is "running" or "canceled" or "superseded" or "completed")throw new WorkspaceException("This task cannot accept a manual artifact.");
                 var body=Text(c.Body,12000);var a=new CompanyArtifact(Id(),task.Id,task.EmployeeId,body,EmployeeStore.Hash(body),"needs_review","owner-authored",null);Save(db,a,a.Id,a.TaskId,a.EmployeeId,a.State,a.Version);
                 Put(db,task with{State="awaiting_review",Version=task.Version+1,Reason=null});Event(db,"artifact.ready",a.Id,a.EmployeeId,"An owner-authored artifact is ready for review.");return a;
             }
@@ -147,7 +149,7 @@ public sealed partial class CompanyStore
             case "handoff.create":
             {
                 var a=Need<CompanyArtifact>(db,c.Id);Version(a.Version,c.ExpectedVersion);if(a.State!="approved"||a.Digest!=c.Digest)throw new WorkspaceException("Share the exact approved artifact.");
-                var t=Need<CompanyThread>(db,c.ThreadId);if(t.EmployeeId!=c.EmployeeId)throw new WorkspaceException("Target thread not found.",404);
+                var t=Need<CompanyThread>(db,c.ThreadId);if(t.EmployeeId!=c.EmployeeId||t.Scope!="employee")throw new WorkspaceException("Target private thread not found.",404);
                 if(Need<CompanyEmployee>(db,t.EmployeeId).State!="active")throw new WorkspaceException("Choose an active recipient.");
                 var h=new CompanyHandoff(Id(),a.Id,t.EmployeeId,t.Id,a.Body,a.Digest);Save(db,h,h.Id,a.Id,t.EmployeeId);Event(db,"handoff.shared",h.Id,t.EmployeeId,"An approved artifact was shared to an employee thread.");return h;
             }
@@ -172,10 +174,11 @@ public sealed partial class CompanyStore
     }
     private void Evidence(Microsoft.Data.Sqlite.SqliteConnection db,string[] ids)
     {if(ids.Length>12||ids.Distinct().Count()!=ids.Length)throw new WorkspaceException("Select at most 12 distinct artifacts.",422);foreach(var id in ids)if(Need<CompanyArtifact>(db,id).State!="approved")throw new WorkspaceException("Selected evidence must be approved.");}
-    private CompanyTask NewTask(Microsoft.Data.Sqlite.SqliteConnection db,string employee,string thread,string skill,string input,string[] evidence,string[] dependencies,string? root,string? plan,string? meeting)
+    private CompanyTask NewTask(Microsoft.Data.Sqlite.SqliteConnection db,string employee,string thread,string skill,string input,string[] evidence,string[] dependencies,string? root,string? plan,string? meeting,string kind="work")
     {
         var e=Need<CompanyEmployee>(db,employee);if(e.State!="active")throw new WorkspaceException("This employee must be active with approved department onboarding.");
         var t=Need<CompanyThread>(db,thread);if(t.EmployeeId!=employee)throw new WorkspaceException("Thread not found.",404);
+        if(t.Scope=="company"&&(kind!="conversation"||skill!="chat"))throw new WorkspaceException("Company conversations admit one explicitly approved conversational reply only.");
         if(!Role(e.RoleId).Skills.Contains(skill))throw new WorkspaceException("The selected role does not have this skill.",403);
         input=Role(e.RoleId).ValidateInput?.Invoke(skill,input)??input;
         if(All<CompanyTask>(db).Count(j=>j.EmployeeId==employee&&j.State is "queued" or "blocked")>=10)throw new WorkspaceException("Employee queue is full.");
@@ -184,9 +187,9 @@ public sealed partial class CompanyStore
         var d=Need<CompanyDepartment>(db,e.DepartmentId);
         var task=new CompanyTask(id,employee,thread,skill,Text(input),"queued",null,root,evidence,dependencies,plan,meeting,Watermark:All<CompanyMessage>(db).Where(m=>m.ThreadId==thread).Select(m=>m.Sequence).DefaultIfEmpty(0).Max(),KnowledgeId:d.Knowledge,CompanyKnowledgeId:All<CompanyKnowledge>(db).LastOrDefault(k=>k.DepartmentId is null&&k.State=="approved")?.Id);
         var execution=Role(e.RoleId).ExecutionSkills.Contains(skill);
-        task=task with{ModelRoute=ModelRouting.For(execution),Runtime=ModelRouting.Runtime};
+        task=task with{ModelRoute=ModelRouting.For(execution),Runtime=ModelRouting.Runtime,Kind=kind};
         if(execution)task=task with{State="blocked",Reason="developer-execution-unavailable"};
-        Put(db,task);Event(db,"task.assigned",task.Id,e.Id,"Task assigned to "+e.Name+" ("+skill+")");return task;
+        Put(db,task);Event(db,kind=="conversation"?"conversation.requested":"task.assigned",task.Id,e.Id,kind=="conversation"?"Conversation message prepared for "+e.Name+"; no reply is authorized yet.":"Task assigned to "+e.Name+" ("+skill+")");return task;
     }
     private void Stop(Microsoft.Data.Sqlite.SqliteConnection db,CompanyTask task,string state,string reason)
     {

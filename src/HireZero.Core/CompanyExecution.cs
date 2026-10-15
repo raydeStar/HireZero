@@ -25,12 +25,12 @@ public sealed partial class CompanyStore
     {
         using var db=Open();return Transaction(db,()=>Claim(db,employee,providerAvailable,taskId,execution));
     }
-    private CompanyAttempt? Claim(SqliteConnection db,string employee,bool providerAvailable,string? taskId=null,bool execution=false)
+    private CompanyAttempt? Claim(SqliteConnection db,string employee,bool providerAvailable,string? taskId=null,bool execution=false,bool conversation=false)
     {
             ExpireMeasured(db);
             var e=Need<CompanyEmployee>(db,employee);if(e.State!="active"||All<CompanyAttempt>(db).Any(a=>a.EmployeeId==employee&&a.Phase is "claimed" or "reserved" or "dispatching"))return null;
             providerAvailable&=!All<CompanyAttempt>(db).Any(ProviderHeld);
-            var t=All<CompanyTask>(db).FirstOrDefault(t=>t.EmployeeId==employee&&(taskId is null||t.Id==taskId)&&Role(e.RoleId).ExecutionSkills.Contains(t.Skill)==execution&&(t.State=="queued"||t.State=="blocked"&&(t.Reason is "provider-unavailable" or "dependencies"||t.Reason=="handoff-awaiting-approval"&&taskId is not null&&Role(e.RoleId).MeasuredSkills.Contains(t.Skill)||execution&&t.Reason=="developer-execution-unavailable")));
+            var t=All<CompanyTask>(db).FirstOrDefault(t=>t.EmployeeId==employee&&(t.Kind!="conversation"||conversation)&&(taskId is null||t.Id==taskId)&&Role(e.RoleId).ExecutionSkills.Contains(t.Skill)==execution&&(t.State=="queued"||t.State=="blocked"&&(t.Reason is "provider-unavailable" or "dependencies"||t.Reason=="handoff-awaiting-approval"&&taskId is not null&&Role(e.RoleId).MeasuredSkills.Contains(t.Skill)||execution&&t.Reason=="developer-execution-unavailable")));
             if(t is null)return null;
             if(t.ModelRoute is null||t.Runtime is null){t=t with{ModelRoute=ModelRouting.For(execution),Runtime=ModelRouting.Runtime,Version=t.Version+1};Put(db,t);}
             var reason=!ParentValid(db,t)?"parent-paused-or-expired":t.Dependencies.Any(id=>Find<CompanyTask>(db,id)?.State!="completed")?"dependencies":!providerAvailable?"provider-unavailable":null;
@@ -60,20 +60,22 @@ public sealed partial class CompanyStore
             }
             else
             {
-                foreach(var h in All<CompanyHandoff>(db).Where(h=>h.TargetEmployeeId==e.Id&&h.TargetThreadId==t.ThreadId&&h.State=="shared"&&(h.TargetTaskId is null||h.TargetTaskId==t.Id)))
+                var companyConversation=Need<CompanyThread>(db,t.ThreadId).Scope=="company";
+                foreach(var h in All<CompanyHandoff>(db).Where(h=>!companyConversation&&h.TargetEmployeeId==e.Id&&h.TargetThreadId==t.ThreadId&&h.State=="shared"&&(h.TargetTaskId is null||h.TargetTaskId==t.Id)))
                 {var artifact=Need<CompanyArtifact>(db,h.ArtifactId);if(artifact.State=="approved"&&artifact.Digest==h.Digest&&!evidence.Any(x=>x.Id==artifact.Id))evidence.Add(new(artifact.Id,artifact.Body,artifact.Digest));}
                 context=new(Id(),e.Id,e.RoleId,t.ThreadId,e.Responsibility,t.CompanyKnowledgeId is null?"":Need<CompanyKnowledge>(db,t.CompanyKnowledgeId).Body,
-                    t.KnowledgeId is null?"":Need<CompanyKnowledge>(db,t.KnowledgeId).Body,Find<CompanyNotes>(db,e.Id)?.Body??"",
-                    All<CompanyMessage>(db).Where(m=>m.ThreadId==t.ThreadId&&(m.Sequence<=t.Watermark||m.Author==e.Id)).TakeLast(16).ToArray(),[..evidence],t.Input);
+                    companyConversation||t.KnowledgeId is null?"":Need<CompanyKnowledge>(db,t.KnowledgeId).Body,companyConversation?"":Find<CompanyNotes>(db,e.Id)?.Body??"",
+                    All<CompanyMessage>(db).Where(m=>m.ThreadId==t.ThreadId&&(t.Kind=="conversation"?m.Sequence<t.Watermark:m.Sequence<=t.Watermark||m.Author==e.Id)).TakeLast(16).ToArray(),[..evidence],t.Input);
             }
-            if(t.MeetingId is null&&Role(e.RoleId).CompanyOverview)
+            if(Need<CompanyThread>(db,t.ThreadId).Scope=="company")context=context with{Scope="company",Responsibility="Provide an informational company reply under the human owner’s authority."};
+            if(t.MeetingId is null&&t.Kind!="conversation"&&Role(e.RoleId).CompanyOverview)
                 context=context with{Colleagues=All<CompanyEmployee>(db).Select(p=>new CompanyColleague(p.Id,p.Name,p.DepartmentId,p.RoleId,p.Responsibility,p.State,All<CompanyThread>(db).FirstOrDefault(thread=>thread.EmployeeId==p.Id)?.Id)).ToArray(),CompanyWork=All<CompanyTask>(db).Select(work=>new CompanyWorkStatus(work.Id,work.EmployeeId,work.Skill,work.State)).TakeLast(30).ToArray()};
             if(!KnowledgeCurrent(db,context,t))throw new WorkspaceException("Knowledge was revoked; request fresh admission.");
             Save(db,context,context.Id,a.Id,e.Id);Put(db,a with{ContextId=context.Id,Version=a.Version+1});return context;
     }
     public bool AuthorizeDispatch(string attemptId)
     {
-        using var db=Open();return Transaction(db,()=>{var a=Need<CompanyAttempt>(db,attemptId);var t=Need<CompanyTask>(db,a.TaskId);var e=Need<CompanyEmployee>(db,a.EmployeeId);return a.Measured is null&&!Role(e.RoleId).ExecutionSkills.Contains(t.Skill)&&Reserve(db,a);});
+        using var db=Open();return Transaction(db,()=>{var a=Need<CompanyAttempt>(db,attemptId);var t=Need<CompanyTask>(db,a.TaskId);var e=Need<CompanyEmployee>(db,a.EmployeeId);return t.Kind!="conversation"&&a.Measured is null&&!Role(e.RoleId).ExecutionSkills.Contains(t.Skill)&&Reserve(db,a);});
     }
     private bool Reserve(SqliteConnection db,CompanyAttempt a)
     {
@@ -142,6 +144,12 @@ public sealed partial class CompanyStore
             if(a.Phase!="dispatching"||!Current(db,a)||a.ContextId is null||!KnowledgeCurrent(db,Need<CompanyContext>(db,a.ContextId),t)||a.Measured is not null&&!MeasuredCurrent(db,a))
             {Put(db,a with{Phase="withheld",Measured=a.Measured is {} stale?stale with{State="withheld"}:null,Error=ProviderHeld(a)?a.Error:"Authority changed; response withheld.",Version=a.Version+1});if(t.State=="running")Put(db,t with{State="superseded",Reason="authority-changed",Version=t.Version+1});return false;}
             Put(db,a with{Phase="committed",Measured=a.Measured is {} done?done with{State="completed"}:null,Version=a.Version+1});
+            if(t.Kind=="conversation")
+            {
+                Message(db,Need<CompanyThread>(db,t.ThreadId),t.EmployeeId,body);
+                Put(db,t with{State="completed",Version=t.Version+1});
+                Event(db,"conversation.reply",t.Id,t.EmployeeId,"One informational reply is saved. No plan, task, tool or external action was authorized.");return true;
+            }
             var artifact=new CompanyArtifact(Id(),t.Id,t.EmployeeId,body,EmployeeStore.Hash(body),"needs_review","model-output",a.ContextId);Save(db,artifact,artifact.Id,t.Id,t.EmployeeId,artifact.State);
             Message(db,Need<CompanyThread>(db,t.ThreadId),t.EmployeeId,body);
             Put(db,t with{State=t.MeetingId is null?"awaiting_review":"completed",Version=t.Version+1});

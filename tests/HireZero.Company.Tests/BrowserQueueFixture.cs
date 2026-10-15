@@ -9,7 +9,9 @@ static class BrowserQueueFixture
         var root=Path.GetFullPath(args[1]);var parent=Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar);
         if(Path.GetDirectoryName(root)!=parent||!Path.GetFileName(root).StartsWith("hirezero-manual-ui-",StringComparison.Ordinal))throw new ArgumentException("Browser fixture requires its disposable temporary root.");
         Environment.SetEnvironmentVariable(HeldWorkspace.Variable,"0");
-        var model=args[0]=="--company-browser-fixture"?null:MeasuredQueueChecks.Model(root,"company-measured-success");
+        var mode=Environment.GetEnvironmentVariable("HIREZERO_BROWSER_SYNTHETIC_MODE")??"company-measured-success";
+        if(mode is not ("company-measured-success" or "company-conversation-browser"))throw new ArgumentException("Choose a compiled browser fixture mode.");
+        var model=args[0]=="--company-browser-fixture"?null:MeasuredQueueChecks.Model(root,mode);
         await using var app=CompanyWorkspace.TryCreate([CompanyWorkspace.Flag],"owner@example.invalid",true,Path.Combine(root,"company"),fixture:model,fixtureUrl:args.Length>=3?args[2]:"http://127.0.0.1:5065",fixtureWebRoot:args.Length==4?args[3]:null)!;
         if(model is null){Console.WriteLine("BROWSER FIXTURE: unavailable provider; zero live inference or credentials.");await app.RunAsync();return;}
         var store=app.Services.GetRequiredService<CompanyStore>();

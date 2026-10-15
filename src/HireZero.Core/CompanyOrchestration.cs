@@ -14,7 +14,7 @@ public sealed partial class CompanyStore
         {
             var spec=specs[i];var e=Need<CompanyEmployee>(db,spec.EmployeeId);var thread=Need<CompanyThread>(db,spec.ThreadId);
             if(spec.Evidence is null||spec.DependsOn is null)throw new WorkspaceException("Every proposed task requires evidence and dependency lists.",422);
-            if(e.State!="active"||thread.EmployeeId!=e.Id||!Role(e.RoleId).Skills.Contains(spec.Skill)||spec.Skill is "company-plan" or "meeting-chair" or "meeting-turn")throw new WorkspaceException("Delegation must target active employees and ordinary internal skills.");
+            if(e.State!="active"||thread.EmployeeId!=e.Id||thread.Scope!="employee"||!Role(e.RoleId).Skills.Contains(spec.Skill)||spec.Skill is "company-plan" or "meeting-chair" or "meeting-turn")throw new WorkspaceException("Delegation must target active employees and ordinary internal skills.");
             if(e.Id==ceo.Id||spec.DependsOn.Any(d=>d<0||d>=i)||spec.DependsOn.Distinct().Count()!=spec.DependsOn.Length)throw new WorkspaceException("Delegation cannot target itself or create cyclic/forward dependencies.");
             Evidence(db,spec.Evidence);Text(spec.Input);
             Role(e.RoleId).ValidateInput?.Invoke(spec.Skill,spec.Input);
@@ -83,7 +83,7 @@ public sealed partial class CompanyStore
     {
         if(m.Turns.Length>=m.Participants.Length*2){m=m with{State="outcome_proposed",Version=m.Version+1};Put(db,m);return m;}
         var order=m.Participants.Where(id=>id!=m.ChairId).Append(m.ChairId).ToArray();var employee=order[m.Turns.Length%order.Length];
-        var t=All<CompanyThread>(db).FirstOrDefault(t=>t.EmployeeId==employee&&t.Title=="Board Meeting "+m.Id);
+        var t=All<CompanyThread>(db).FirstOrDefault(t=>t.EmployeeId==employee&&t.Scope=="employee"&&t.Title=="Board Meeting "+m.Id);
         if(t is null){t=new CompanyThread(Id(),employee,"Board Meeting "+m.Id);Save(db,t,t.Id,employee:employee);}
         var final=m.Turns.Length==m.Participants.Length*2-1;
         var task=NewTask(db,employee,t.Id,"meeting-turn",final?"Synthesize decisions, dissent, open questions and proposed actions. Cite selected evidence. Do not execute actions.":"Contribute to the agenda from the shared meeting evidence. Distinguish facts, assumptions and recommendations.",m.Evidence,[],m.RootId,null,m.Id);

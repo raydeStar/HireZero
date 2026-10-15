@@ -11,7 +11,7 @@ const useState=value=>{const index=cursor++;if(!(index in state))state[index]=va
 const useRef=value=>{const index=cursor++;if(!(index in state))state[index]={current:value};return state[index];};
 const jsx=(type,props)=>({type,props});
 const exports={};
-vm.runInNewContext(code,{exports,require:name=>name==='react'?{useState,useRef}:name==='react/jsx-runtime'?{jsx,jsxs:jsx,Fragment:'fragment'}:name==='../shell/api'?{api:async path=>{reads.push(path);return {attempt:{id:'fictional-attempt',measured:{digest:responseDigest}},call:{instructions:'Fictional sealed instructions',context:{input:'Fictional brief',departmentKnowledge:'Approved fictional paper',companyKnowledge:'',notes:'',history:[],evidence:[]}}};}}:{command:async(action,fields)=>{runs.push({action,fields});return {};}}});
+vm.runInNewContext(code,{exports,require:name=>name==='react'?{useState,useRef}:name==='react/jsx-runtime'?{jsx,jsxs:jsx,Fragment:'fragment'}:name==='../shell/api'?{api:async path=>{reads.push(path);return {attempt:{id:'fictional-attempt',measured:{digest:responseDigest}},call:{instructions:'Fictional sealed instructions',context:{id:'sealed-context',employeeId:'fictional-employee',roleId:'marketing',threadId:'fictional-thread',scope:'employee',responsibility:'Sealed employee responsibility',input:'Fictional brief',departmentKnowledge:'Approved fictional paper',companyKnowledge:'',notes:'',history:[],evidence:[]}}};}}:{command:async(action,fields)=>{runs.push({action,fields});return {};}}});
 const task={id:'fictional-task',version:2,state:'blocked'};
 const entry={id:'fictional-attempt',version:4,job:{state:'proposed',digest:'sealed-packet',route:'openai/gpt-6-luna',runtimeIdentity:'fictional-runtime',creditAllowance:1,applicationBytes:2000,expiresAt:new Date(Date.now()+60000).toISOString(),policy:{version:'oauth-measured-v1',nativeRequests:1,applicationBytes:4096,baselineInputAllowance:4500,packetHeadroom:2500,outputTarget:1000,planningTokens:8000,localDeadlineSeconds:60,visibleCharacterStop:2000}}};
 let props={task,entry,available:true,busy:false,prepare:async()=>{},refresh:async()=>{refreshes++;}};
@@ -39,4 +39,10 @@ props={...props,entry:{...entry,job:{...entry.job,state:'unknown'}},available:fa
 assert.equal(nodes(render()).some(n=>n.type==='button'&&text(n).includes('Authorize and run')),false,'An unknown attempt exposes no resume button');
 state=[];props={...props,entry:undefined,available:false};
 assert.equal(nodes(render()).some(n=>n.type==='form'),false,'The default unavailable profile cannot prepare or run a native job');
+state=[];responseDigest='sealed-packet';props={...props,entry,available:true,conversational:true};
+assert.equal(find('button','Send & authorize one reply').props.disabled,true);
+find('button','Review reply and context').props.onClick();await flush();
+assert.match(text(render()),/Sealed recipient and context/);assert.match(text(render()),/fictional-employee/);assert.match(text(render()),/Complete sealed application context/);assert.match(text(render()),/Sealed employee responsibility/);
+nodes(render()).find(n=>n.type==='input'&&n.props.type==='checkbox').props.onChange({target:{checked:true}});
+const sendsBefore=runs.length,sendReply=find('button','Send & authorize one reply').props.onClick;sendReply();sendReply();await flush();assert.equal(runs.length,sendsBefore+1);
 console.log('PASS measured UI: sealed packet review, explicit soft-limit acknowledgement, exact authorization, pending-submit guard and no unknown-outcome resume');

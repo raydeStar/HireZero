@@ -1,7 +1,7 @@
 using System.Text.Json;
 var mode=Environment.GetEnvironmentVariable("HIREZERO_FIXTURE_MODE")??"success";
 const string thread="fixture-thread",turn="fixture-turn";
-var companyTurnSent=false;
+var companyTurnSent=false;var companyConversationTurn=false;
 const string companyProfile="hirezero_qualification";
 const string removedReadAccess="readOnly.access is no longer supported; use permissionProfile for restricted reads";
 void Write(object value){Console.WriteLine(JsonSerializer.Serialize(value));Console.Out.Flush();}
@@ -38,6 +38,7 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
   else if(method=="permissionProfile/list")Write(new{id=r.GetProperty("id").GetInt32(),result=new{data=new[]{new{id=companyProfile,allowed=mode!="company-disallowed-profile"}},nextCursor=(string?)null}});
   else if(method=="thread/start"){
    var p=r.GetProperty("params");
+   companyConversationTurn=p.TryGetProperty("developerInstructions",out var instructions)&&instructions.GetString()!.Contains("Conversational reply only.",StringComparison.Ordinal);
    if(p.GetProperty("model").GetString()!="gpt-6-luna"||p.GetProperty("allowProviderModelFallback").GetBoolean()||!p.GetProperty("ephemeral").GetBoolean()||p.GetProperty("environments").GetArrayLength()!=0||p.GetProperty("approvalPolicy").GetString()!="never"||p.TryGetProperty("sandbox",out _)||p.TryGetProperty("permissionProfile",out _)||p.GetProperty("permissions").GetString()!=companyProfile)throw new Exception("Invalid company thread envelope");
    Write(new{id=r.GetProperty("id").GetInt32(),result=new{thread=new{id=thread,ephemeral=true},model="gpt-6-luna",modelProvider="openai",approvalPolicy="never",activePermissionProfile=new{id=mode=="company-wrong-profile"?":read-only":companyProfile,extends=(string?)null},instructionSources=mode=="company-ambient"?new[]{"fictional/global/AGENTS.md"}:Array.Empty<string>(),sandbox=new{type="readOnly",networkAccess=false}}});
   }
@@ -46,21 +47,23 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
    if(CompanyPermissionError(p) is {} error){Write(new{id=r.GetProperty("id").GetInt32(),error=new{code=-32600,message=error}});continue;}
    if(mode=="company-protocol-validation"){Write(new{id=r.GetProperty("id").GetInt32(),result=new{valid=true}});continue;}
    companyTurnSent=true;
+   File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-last-context.json"),p.GetProperty("input")[0].GetProperty("text").GetString());
    File.AppendAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-native-starts"),"start\n");
    if(mode=="company-start-refusal"){Write(new{id=r.GetProperty("id").GetInt32(),error=new{code=-32602,message="Fictional private diagnostic must not be exported"}});continue;}
    if(mode is "company-removed-access" or "company-diagnostic-suffix"){Write(new{id=r.GetProperty("id").GetInt32(),error=new{code=-32600,message="Invalid request: "+removedReadAccess+(mode=="company-diagnostic-suffix"?" PRIVATE_DIAGNOSTIC_SUFFIX":""),data="PRIVATE_ERROR_DATA"}});continue;}
    if(p.GetProperty("model").GetString()!="gpt-6-luna"||p.GetProperty("effort").GetString()!="low"||p.GetProperty("summary").GetString()!="none"||p.GetProperty("serviceTierForTurn").GetString()!="default"||p.TryGetProperty("sandboxPolicy",out _)||p.TryGetProperty("permissionProfile",out _)||p.GetProperty("permissions").GetString()!=companyProfile||p.GetProperty("environments").GetArrayLength()!=0||p.GetProperty("runtimeWorkspaceRoots").GetArrayLength()!=0)throw new Exception("Invalid company turn envelope");
    if(Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL") is not null||Environment.GetEnvironmentVariable("OPENAI_API_KEY") is not null)throw new Exception("Ambient secret environment leaked");
    Write(new{id=r.GetProperty("id").GetInt32(),result=new{turn=new{id=turn}}});
-   if(mode is "company-wait" or "company-measured-late" or "company-measured-partial" or "company-measured-stale-partial" or "company-measured-queued-partial"){if(mode is "company-measured-partial" or "company-measured-stale-partial")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=4800,outputTokens=20,reasoningOutputTokens=5,totalTokens=4820}}}});File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-ready"),"ready");continue;}
+   if(mode=="company-conversation-browser"&&p.GetProperty("input")[0].GetProperty("text").GetString()!.Contains("[wait]",StringComparison.Ordinal)||mode is "company-wait" or "company-measured-late" or "company-measured-partial" or "company-measured-stale-partial" or "company-measured-queued-partial"){if(mode is "company-measured-partial" or "company-measured-stale-partial")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=4800,outputTokens=20,reasoningOutputTokens=5,totalTokens=4820}}}});if(mode=="company-conversation-browser"){Write(new{method="item/agentMessage/delta",@params=new{threadId=thread,turnId=turn,delta="UNCONFIRMED_PARTIAL_REPLY_SHOULD_NOT_RENDER"}});File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-partial-emitted"),"sent");}File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(),"fixture-ready"),"ready");continue;}
    if(mode=="company-tool"){Write(new{id=901,method="item/commandExecution/requestApproval",@params=new{threadId=thread,turnId=turn}});continue;}
    using var context=JsonDocument.Parse(p.GetProperty("input")[0].GetProperty("text").GetString()!);
    var body=context.RootElement.GetProperty("notes").GetString()+"|"+context.RootElement.GetProperty("history").GetRawText();
    if(mode.StartsWith("company-measured",StringComparison.Ordinal))body="DRAFT for internal review\nFold a fictional paper crane.\nThis fictional kit contains paper and a printed folding guide.\nClaim sources: approved facts. Missing facts: price. Owner question: approve wording?";
+   if(companyConversationTurn)body="Fictional conversational reply. Use only the reviewed facts. The human owner retains final authority; no actions were performed.";
    if(mode=="company-measured-characters")body=new string('x',2001);
    if(mode=="company-nontext")Write(new{method="item/started",@params=new{threadId=thread,turnId=turn,item=new{type="fileChange"}}});
    Write(new{method="item/agentMessage/delta",@params=new{threadId=thread,turnId=turn,delta=body}});
-   if(mode!="company-missing-usage"){var measured=mode.StartsWith("company-measured",StringComparison.Ordinal);var input=mode=="company-observed-overrun"?6000:mode=="company-measured-overrun"?9000:measured?4800:100;var output=mode=="company-measured-output"?1200:measured?150:20;var usage=new Dictionary<string,object>{{"inputTokens",input},{"outputTokens",output},{"totalTokens",input+output+(mode=="company-measured-inconsistent"?1:0)}};if(mode!="company-measured-no-reasoning")usage["reasoningOutputTokens"]=5;Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=usage}}});}
+   if(mode!="company-missing-usage"){var measured=mode.StartsWith("company-measured",StringComparison.Ordinal)||mode=="company-conversation-browser";var input=mode=="company-observed-overrun"?6000:mode=="company-measured-overrun"?9000:measured?4800:100;var output=mode=="company-measured-output"?1200:measured?150:20;var usage=new Dictionary<string,object>{{"inputTokens",input},{"outputTokens",output},{"totalTokens",input+output+(mode=="company-measured-inconsistent"?1:0)}};if(mode!="company-measured-no-reasoning")usage["reasoningOutputTokens"]=5;Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=usage}}});}
    Complete();
   }
   else if(method=="turn/interrupt"){if(mode=="company-measured-queued-partial")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=4800,outputTokens=20,reasoningOutputTokens=5,totalTokens=4820}}}});Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});if(mode=="company-measured-late")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=4800,outputTokens=150,reasoningOutputTokens=5,totalTokens=4950}}}});if(mode=="company-measured-partial")return;Complete(mode=="company-measured-late"?"completed":"interrupted");return;}

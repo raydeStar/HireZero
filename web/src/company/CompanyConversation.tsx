@@ -1,70 +1,86 @@
 import {Fragment,useEffect,useRef,useState} from 'react';
 import {ArrowUp,MessageSquareText} from 'lucide-react';
+import {api} from '../shell/api';
 import {EmployeeBrief,marketingFields} from '../roles/marketing/EmployeeBrief';
-import type {Employee,Event,Snapshot,ThreadDetail} from './api';
+import type {Employee,Event,Snapshot,ThreadDetail,Work} from './api';
 import {ConversationJob} from './ConversationJob';
+import {MeasuredJob} from './MeasuredJob';
 
-export type ConversationDraft={body:string;skill:string;brief:Record<string,string>;evidence:string[];recipient:string};
-const emptyDraft=():ConversationDraft=>({body:'',skill:'chat',brief:{},evidence:[],recipient:''});
+export type ConversationDraft={body:string;skill:string;brief:Record<string,string>;evidence:string[];recipient:string;delivery?:string;allowance?:string};
+const emptyDraft=():ConversationDraft=>({body:'',skill:'chat',brief:{},evidence:[],recipient:'',delivery:'reply',allowance:''});
 type Props={snapshot:Snapshot;events:Event[];employee?:Employee;company:boolean;thread:string;detail:ThreadDetail|null;busy:boolean;drafts:Map<string,ConversationDraft>;updateDraft:(scope:string,update:(current:ConversationDraft|undefined)=>ConversationDraft)=>void;run:(action:string,fields:Record<string,unknown>)=>Promise<unknown>;refresh:()=>Promise<void>;open:(employeeId:string,threadId:string)=>void;createThread:()=>Promise<void>};
 
 export function CompanyConversation({snapshot,events,employee,company,thread,detail,busy,drafts,updateDraft,run,refresh,open,createThread}:Props){
-  const scope=company?'company':(employee?.id||'missing')+':'+thread;
-  const draft=drafts.get(scope)??emptyDraft();
-  const [notice,setNotice]=useState(''),[localError,setLocalError]=useState('');
-  const sending=useRef(false),scroll=useRef<HTMLDivElement>(null),stick=useRef(true),input=useRef<HTMLTextAreaElement>(null),mounted=useRef(true);
-  const d=snapshot.data,role=d.roles.find(r=>r.id===employee?.roleId),ready=company||!!employee&&detail?.thread.id===thread&&detail.thread.employeeId===employee.id;
-  const tasks=company?[]:d.tasks.filter(t=>t.employeeId===employee?.id&&t.threadId===thread);
-  const artifacts=d.artifacts.filter(a=>tasks.some(t=>t.id===a.taskId));
-  const messages=ready&&!company?detail!.messages.filter(m=>m.author==='owner'||!artifacts.some(a=>a.body===m.body)):[];
-  const orphaned=tasks.filter(t=>!messages.some(m=>m.sequence===t.watermark));
+  const scope=company?'company':(employee?.id||'missing')+':'+thread,draft=drafts.get(scope)??emptyDraft(),d=snapshot.data;
+  const [notice,setNotice]=useState(''),[localError,setLocalError]=useState(''),[companyDetail,setCompanyDetail]=useState<ThreadDetail|null>(null);
+  const sending=useRef(false),scroll=useRef<HTMLDivElement>(null),stick=useRef(true),input=useRef<HTMLTextAreaElement>(null),mounted=useRef(true),companyRequest=useRef(0);
+  const target=company?d.employees.find(e=>e.id===draft.recipient):employee,role=d.roles.find(r=>r.id===employee?.roleId);
+  const companyThread=company?d.threads.find(t=>t.employeeId===target?.id&&t.scope==='company'):undefined;
+  const privateReady=!!employee&&detail?.thread.id===thread&&detail.thread.employeeId===employee.id&&(detail.thread.scope??'employee')==='employee';
+  const companyReady=companyDetail?.thread.id===companyThread?.id&&companyDetail?.thread.employeeId===target?.id&&companyDetail?.thread.scope==='company';
+  const shown=company?(companyReady?companyDetail:null):(privateReady?detail:null),shownThread=company?companyThread?.id:thread;
+  const tasks=d.tasks.filter(t=>t.employeeId===target?.id&&t.threadId===shownThread),artifacts=d.artifacts.filter(a=>tasks.some(t=>t.id===a.taskId));
+  const messages=shown?.messages.filter(m=>m.author==='owner'||!artifacts.some(a=>a.body===m.body))??[],orphaned=tasks.filter(t=>!messages.some(m=>m.sequence===t.watermark));
+  const eligible=!!snapshot.capabilities.conversationalReplies&&target?.state==='active'&&!!d.roles.find(r=>r.id===target.roleId)?.skills.includes('chat')&&(company||draft.skill==='chat'),reply=eligible&&draft.delivery!=='save';
+  const held=d.measured?.some(a=>['provider-accounting-unconfirmed','provider-termination-unconfirmed'].includes(a.error||''));
+  const pending=d.tasks.some(t=>t.kind==='conversation'&&t.employeeId===target?.id&&d.measured?.some(a=>a.taskId===t.id&&['proposed','dispatched'].includes(a.job.state)));
   function update(value:Partial<ConversationDraft>){updateDraft(scope,previous=>({...previous??emptyDraft(),...value}));}
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
-  useEffect(()=>{if(scroll.current&&stick.current)scroll.current.scrollTop=scroll.current.scrollHeight;},[messages.length,tasks.length,artifacts.length,events.length]);
+  useEffect(()=>{const request=++companyRequest.current;setCompanyDetail(null);if(company&&companyThread)void api<ThreadDetail>('/company/employees/'+companyThread.employeeId+'/threads/'+companyThread.id).then(next=>{if(mounted.current&&request===companyRequest.current)setCompanyDetail(next);}).catch(e=>{if(mounted.current&&request===companyRequest.current)setLocalError(e.message);});},[company,companyThread?.id,d.cursor]);
+  useEffect(()=>{if(scroll.current&&stick.current)scroll.current.scrollTop=scroll.current.scrollHeight;},[messages.length,tasks.length,artifacts.length,events.length,!!shown]);
   async function send(){
-    if(sending.current||busy||!ready||(!company&&employee?.state!=='active'))return;
+    if(sending.current||busy||(!company&&(!privateReady||employee?.state!=='active')))return;
     const sent=draft,body=!company&&sent.skill==='marketing-draft'?JSON.stringify(sent.brief):sent.body;
     if(!body.trim())return;
     if(!company&&sent.skill==='marketing-draft'&&marketingFields.some(field=>!sent.brief[field]?.trim())){setLocalError('Complete every campaign brief field.');return;}
+    if(reply&&(held||pending)){setLocalError(held?'Replies are paused for accounting or runtime reconciliation. No automatic retry is available.':'Finish or cancel this employee’s prepared reply before preparing another.');return;}
+    if(reply&&!(Number(sent.allowance)>0&&Number(sent.allowance)<=1000)){setLocalError('Enter a positive intended existing-credit allowance, at most 1,000. It is not a provider-enforced cap.');return;}
     sending.current=true;setLocalError('');setNotice('');
     try{
-      const target=company?d.employees.find(e=>e.id===sent.recipient):employee;
-      if(company&&sent.recipient&&!target){setLocalError('Choose an available employee.');return;}
-      const targetThread=company?d.threads.find(t=>t.employeeId===target?.id)?.id:thread;
-      const result=await run(company?'company.message':'message.send',company?{body,employeeId:target?.id,threadId:targetThread}:{employeeId:employee!.id,threadId:thread,body,skill:sent.skill,evidence:sent.evidence});
+      let result:unknown;
+      if(reply)result=await run('conversation.prepare',{employeeId:target!.id,threadId:company?companyThread?.id:thread,scope:company?'company':'employee',body,creditAllowance:Number(sent.allowance),evidence:company?[]:sent.evidence});
+      else if(company)result=await run('company.message',{body});
+      else result=await run('message.send',{employeeId:employee!.id,threadId:thread,body,skill:sent.skill==='chat'?undefined:sent.skill,evidence:sent.evidence});
       if(!result)return;
-      // Clear only the exact submitted draft. An in-flight completion cannot erase another edit.
       updateDraft(scope,current=>JSON.stringify(current??sent)===JSON.stringify(sent)?{...sent,body:'',brief:{}}:current??sent);
-      if(mounted.current){setNotice(company&&!target?'Owner note saved.':snapshot.capabilities.modelExecution?'Message saved to the test queue.':'Message saved. Automatic replies are unavailable; eligible drafts need your explicit job approval.');input.current?.focus();}
+      if(mounted.current){setNotice(reply?'Message prepared without a model call. Review its context, then Send & authorize one reply.':company||sent.skill==='chat'?'Message saved only. No AI reply or autonomous work was authorized.':'Work saved. Its execution requires separate approval.');input.current?.focus();}
     }finally{sending.current=false;}
   }
-  const job=(task:typeof tasks[number])=><ConversationJob key={task.id} task={task} snapshot={snapshot} busy={busy} run={run} refresh={refresh} open={open}/>;
+  const job=(task:Work)=>task.kind==='conversation'?<ReplyTurn key={task.id} task={task} snapshot={snapshot} busy={busy} run={run} refresh={refresh}/>:<ConversationJob key={task.id} task={task} snapshot={snapshot} busy={busy} run={run} refresh={refresh} open={open}/>;
   return <section className="fe-chat co-conversation" aria-label={company?'Company conversation':'Private employee conversation'}>
-    <div className="co-conversation-context">
-      <p>{company?'Your company conversation. Record an owner note, or address an employee in their private conversation. You approve work and spending.':employee?.responsibility||'Choose an employee conversation from the sidebar.'}</p>
-      <small>{snapshot.capabilities.modelExecution?'Synthetic provider for this disposable test.':snapshot.capabilities.measuredOneJob?'Native connection: manually approved internal drafts only. Ordinary chat has no live reply provider.':'Live replies unavailable. Messages and work remain saved locally.'}</small>
-      {employee&&<><div className="co-actions"><label>Conversation<select aria-label="Employee conversation" value={thread} onChange={e=>open(employee.id,e.target.value)}>{d.threads.filter(t=>t.employeeId===employee.id).map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label><button disabled={busy||employee.state==='retired'} onClick={()=>void createThread()}>New conversation</button></div>{ready&&<PrivateContext employee={employee} detail={detail!} busy={busy} run={run}/>}</>}
+    <div className="co-conversation-context"><p>{company?'Company context only. Select an employee to reply here; private employee notes, department facts and private conversations are excluded. The human owner retains final authority.':employee?.responsibility||'Choose an employee conversation from the sidebar.'}</p>
+      <small>{snapshot.capabilities.conversationalReplies?'One text-only Luna reply can be prepared, reviewed and explicitly authorized. Each turn needs its own approval; no tools, coding or autonomous follow-up.':'Live replies unavailable. Messages remain saved locally; eligible draft jobs retain separate approval.'}</small>
+      {employee&&<><div className="co-actions"><label>Conversation<select aria-label="Employee conversation" value={thread} onChange={e=>open(employee.id,e.target.value)}>{d.threads.filter(t=>t.employeeId===employee.id&&(t.scope??'employee')==='employee').map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label><button disabled={busy||employee.state==='retired'} onClick={()=>void createThread()}>New conversation</button></div>{privateReady&&<PrivateContext employee={employee} detail={detail!} busy={busy} run={run}/>}</>}
     </div>
     <div className="fe-chat-scroll" ref={scroll} onScroll={e=>{const el=e.currentTarget;stick.current=el.scrollHeight-el.scrollTop-el.clientHeight<100;}}><div className="fe-thread">
-      {company?<>
-        {!events.length&&<div className="fe-hello"><h2>What should we work on?</h2><p>Start with a company note, or open an employee conversation. Board meetings and CEO plans remain available from the rail.</p></div>}
-        {events.map(event=><article key={event.sequence} className={'fe-msg '+(event.type==='owner.note'?'user':'assistant')}><div className="fe-msg-body"><div className="fe-msg-meta"><strong>{event.type==='owner.note'?'You':'Company update'}</strong><time>{new Date(event.at).toLocaleString()}</time></div><div className="fe-msg-content"><p>{event.text}</p></div>{event.employeeId&&<button onClick={()=>{const target=d.threads.find(t=>t.employeeId===event.employeeId);if(target)open(event.employeeId!,target.id);}}>Open employee conversation</button>}</div></article>)}
-      </>:!ready?<p role="status">{employee&&thread?'Opening this conversation.':'Choose a conversation or create one for this employee.'}</p>:<>
-        {!messages.length&&!tasks.length&&<div className="fe-hello"><MessageSquareText size={24}/><h2>Conversation with {employee!.name}</h2><p>Your messages, task preparation, approvals and saved results stay together here. Sending a message does not authorize a native model request.</p></div>}
-        {messages.map(message=><Fragment key={message.id}><article className={'fe-msg '+(message.author==='owner'?'user':'assistant')}><div className="fe-msg-body"><div className="fe-msg-meta"><strong>{message.author==='owner'?'You':employee!.name}</strong></div><div className="fe-msg-content"><p>{message.body}</p></div></div></article>{tasks.filter(t=>t.watermark===message.sequence).map(job)}</Fragment>)}
-        {orphaned.map(job)}
+      {company&&<>{events.filter(e=>e.type==='owner.note').map(event=><article key={event.sequence} className="fe-msg user"><div className="fe-msg-body"><div className="fe-msg-meta"><strong>You · saved company note</strong></div><div className="fe-msg-content"><p>{event.text}</p></div></div></article>)}
+        <details className="co-company-updates"><summary>Company updates ({events.filter(e=>e.type!=='owner.note').length})</summary>{events.filter(e=>e.type!=='owner.note').map(event=><article key={event.sequence}><small>{new Date(event.at).toLocaleString()}</small><p>{event.text}</p></article>)}</details>{target&&<p className="co-muted">Company conversation with {target.name}. Only this company thread enters its reviewed reply.</p>}</>}
+      {!company&&!privateReady?<p role="status">{employee&&thread?'Opening this conversation.':'Choose a conversation or create one for this employee.'}</p>:<>
+        {!messages.length&&!tasks.length&&<div className="fe-hello"><MessageSquareText size={24}/><h2>{company?'What should we work on?':'Conversation with '+employee!.name}</h2><p>{company?'Record a company note, or select an employee and prepare one reviewed reply.':'Prepare one reply, inspect the context and authorize that turn. You can also save a message without requesting a reply.'}</p></div>}
+        {messages.map(message=><Fragment key={message.id}><article className={'fe-msg '+(message.author==='owner'?'user':'assistant')} data-message-id={message.id}><div className="fe-msg-body"><div className="fe-msg-meta"><strong>{message.author==='owner'?'You':target?.name+' · AI reply'}</strong></div><div className="fe-msg-content"><p>{message.body}</p></div>{message.author!=='owner'&&<small>Informational reply. Work and decisions still need owner approval.</small>}</div></article>{tasks.filter(t=>t.watermark===message.sequence).map(job)}</Fragment>)}{orphaned.map(job)}
       </>}
     </div></div>
-    <div className="fe-composer-wrap co-conversation-composer">
-      {localError&&<p role="alert">{localError}</p>}{notice&&<p role="status" className="co-send-status">{notice}</p>}
+    <div className="fe-composer-wrap co-conversation-composer">{localError&&<p role="alert">{localError}</p>}{notice&&<p role="status" className="co-send-status">{notice}</p>}
       <form onSubmit={e=>{e.preventDefault();void send();}}>
-        {company?<label>Address to<select value={draft.recipient} onChange={e=>update({recipient:e.target.value})}><option value="">Owner note</option>{d.employees.filter(e=>e.state==='active').map(e=><option key={e.id} value={e.id}>{e.name} · private conversation</option>)}</select></label>:<label>Work type<select value={draft.skill} disabled={!ready||busy} onChange={e=>update({skill:e.target.value})}>{role?.skills.filter(s=>s!=='meeting-turn'&&s!=='meeting-chair').map(s=><option key={s} value={s}>{s==='chat'?'Conversation':s}</option>)}</select></label>}
+        {company?<label>Reply as<select value={draft.recipient} onChange={e=>update({recipient:e.target.value})}><option value="">Save owner note only</option>{d.employees.filter(e=>e.state==='active').map(e=><option key={e.id} value={e.id}>{e.name} · company context</option>)}</select></label>:<label>Work type<select value={draft.skill} disabled={!privateReady||busy} onChange={e=>update({skill:e.target.value})}>{role?.skills.filter(s=>s!=='meeting-turn'&&s!=='meeting-chair').map(s=><option key={s} value={s}>{s==='chat'?'Conversation':s}</option>)}</select></label>}
+        {eligible&&<label>Message action<select value={draft.delivery??'reply'} onChange={e=>update({delivery:e.target.value})}><option value="reply">Prepare one reply for review</option><option value="save">Save message only</option></select></label>}
+        {reply&&<><label>Intended reply credit allowance<input type="number" min="0.01" max="1000" step="0.01" required value={draft.allowance??''} onChange={e=>update({allowance:e.target.value})}/></label><small className="co-reply-risk">Preparing sends no model request. The final Send authorizes one native turn. Token, time and credit stops are soft; the provider may exceed the intended allowance. Included usage must be available; no purchases or API fallback.</small></>}
         {!company&&draft.skill==='marketing-draft'?<details open className="co-brief-composer"><summary>Campaign brief</summary><EmployeeBrief value={draft.brief} onChange={brief=>update({brief})}/></details>:null}
         {!company&&<details className="co-evidence"><summary>Attach approved evidence ({draft.evidence.length})</summary>{d.artifacts.filter(a=>a.state==='approved').map(a=><label className="co-check" key={a.id}><input type="checkbox" checked={draft.evidence.includes(a.id)} onChange={e=>update({evidence:e.target.checked?[...draft.evidence,a.id]:draft.evidence.filter(id=>id!==a.id)})}/>{d.employees.find(e=>e.id===a.employeeId)?.name}: {a.body.slice(0,80)}</label>)}</details>}
-        <div className="fe-composer">{(company||draft.skill!=='marketing-draft')&&<textarea ref={input} aria-label={company?'Company message':'Message to '+(employee?.name||'employee')} rows={2} maxLength={4000} required value={draft.body} disabled={busy||!ready||(!company&&employee?.state!=='active')} onChange={e=>update({body:e.target.value})} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void send();}}} placeholder={company?'Message your company.':'Message '+(employee?.name||'this employee')+'.'}/>}<button className="fe-send" type="submit" aria-label={company?'Send company message':draft.skill==='chat'?'Send message':'Assign work'} disabled={busy||!ready||(!company&&employee?.state!=='active')||((company||draft.skill!=='marketing-draft')&&!draft.body.trim())}><ArrowUp size={19}/></button></div>
-      </form><p className="fe-composer-hint">Enter to send · Shift+Enter for a new line · Job execution requires a separate approval</p>
+        <div className="fe-composer">{(company||draft.skill!=='marketing-draft')&&<textarea ref={input} aria-label={company?'Company message':'Message to '+(employee?.name||'employee')} rows={2} maxLength={4000} required value={draft.body} disabled={busy||(!company&&(!privateReady||employee?.state!=='active'))} onChange={e=>update({body:e.target.value})} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void send();}}} placeholder={company?'Message your company.':'Message '+(employee?.name||'this employee')+'.'}/>}<button className="fe-send" type="submit" aria-label={reply?'Prepare reply for review':company?'Save company note':draft.skill==='chat'?'Save message':'Assign work'} title={reply?'Prepare reply for review without a model call':draft.skill==='chat'?'Save message only':'Assign work'} disabled={busy||(!company&&(!privateReady||employee?.state!=='active'))||((company||draft.skill!=='marketing-draft')&&!draft.body.trim())}><ArrowUp size={19}/></button></div>
+      </form><p className="fe-composer-hint">{reply?'Prepare → inspect context → Send & authorize one reply':'Enter to save · Shift+Enter for a new line · No reply is authorized by saving'}</p>
     </div>
   </section>;
+}
+
+function ReplyTurn({task,snapshot,busy,run,refresh}:{task:Work;snapshot:Snapshot;busy:boolean;run:Props['run'];refresh:Props['refresh']}){
+  const entry=snapshot.data.measured?.find(a=>a.taskId===task.id),thread=snapshot.data.threads.find(t=>t.id===task.threadId),employee=snapshot.data.employees.find(e=>e.id===task.employeeId);
+  const active=entry&&['proposed','dispatched'].includes(entry.job.state),contents=<MeasuredJob conversational task={task} entry={entry} available={!!snapshot.capabilities.conversationalReplies} busy={busy} prepare={run} refresh={refresh}/>;
+  return <article className="co-reply-turn" data-reply-task={task.id}><small>{employee?.name} · {thread?.scope==='company'?'Company':'Private employee'} context · one informational reply</small>{active&&<p className="co-muted">This reply uses its attached message and the saved context. Later messages are excluded until a new turn is prepared.</p>}{active?contents:<details><summary>Reply status and measured usage · {task.state}</summary>{contents}</details>}
+    {entry?.job.state==='dispatched'&&<p role="status" aria-live="polite">Reply pending. Waiting for complete text and confirmed usage; no partial answer is published.</p>}
+    {['queued','blocked','running','unknown','failed'].includes(task.state)&&<button disabled={busy} onClick={()=>void run('task.cancel',{id:task.id,expectedVersion:task.version})}>{entry?.job.state==='dispatched'?'Stop reply':'Cancel reply'}</button>}
+    {entry?.error&&<p role="alert">Reply stopped. {entry.error}. Accounting or runtime reconciliation may be required; this turn cannot be replayed.</p>}
+  </article>;
 }
 
 function PrivateContext({employee,detail,busy,run}:{employee:Employee;detail:ThreadDetail;busy:boolean;run:Props['run']}){

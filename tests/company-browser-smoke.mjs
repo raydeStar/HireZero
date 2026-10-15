@@ -41,15 +41,15 @@ try{
   await until(()=>evaluate("[...document.querySelectorAll('.co-conversations .co-list')].some(b=>b.textContent.includes('Copy fixture'))"),'second employee visible in navigation');
   await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Copy fixture')).click()");await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'employee drill-down');
   await until(()=>evaluate("!!document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]:not(:disabled)')"),'employee composer loaded');
-  await evaluate("(()=>{const input=document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'Prepare fictional copy');input.dispatchEvent(new Event('input',{bubbles:true}));})()");await evaluate("document.querySelector('button[aria-label=\"Send message\"]').click()");
-  await until(async()=>(await dashboard()).data.tasks.some(t=>t.reason==='provider-unavailable'),'honest provider blocked state');
-  await until(()=>evaluate("document.body.innerText.includes('Live model execution is unavailable. Your task is saved.')"),'blocked state visible in the UI');
+  await evaluate("(()=>{const input=document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'Prepare fictional copy');input.dispatchEvent(new Event('input',{bubbles:true}));})()");await evaluate("document.querySelector('button[aria-label=\"Save message\"]').click()");
+  await until(()=>evaluate("document.querySelector('.fe-thread').textContent.includes('Prepare fictional copy')"),'saved message');assert.equal((await dashboard()).data.tasks.length,0,'Saving a conversation message creates no autonomous work');
+  await until(()=>evaluate("document.body.innerText.includes('No AI reply or autonomous work was authorized.')"),'blocked state visible in the UI');
   assert.equal(errors.length,0,'No uncaught UI exceptions');await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
   const desktop=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/company-desktop.png'),Buffer.from(desktop.data,'base64'));
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(250);assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Mobile layout does not overflow');
   assert.equal(await evaluate("document.querySelector('.fe-topbar').getBoundingClientRect().bottom<=document.querySelector('.co-conversation-context').getBoundingClientRect().top"),true,'Mobile header and conversation context do not overlap');
   const mobile=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/company-mobile.png'),Buffer.from(mobile.data,'base64'));
-  console.log('PASS headless browser: department, first hire, knowledge approval, inherited second hire, employee drill-down, blocked provider, desktop/mobile rendering');
+  console.log('PASS headless browser: department, first hire, knowledge approval, inherited second hire, employee drill-down, saved-only conversation without a provider, desktop/mobile rendering');
   await send('Browser.close').catch(()=>{});
 }catch(e){await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/company-browser-host.log'),hostLog);throw e;}
 finally{

@@ -10,6 +10,11 @@ using Microsoft.Data.Sqlite;
 if(args.FirstOrDefault() is "--codex-inspect" or "--codex-pilot")
 {try{await CompanyCodexChecks.InspectInstalledAsync(args);}catch(Exception e) when(e is WorkspaceException or CompanyTransportException){Console.WriteLine("BLOCKED: "+e.Message);Environment.ExitCode=2;}return;}
 if(args.FirstOrDefault() is "--measured-browser-fixture" or "--company-browser-fixture"){await BrowserQueueFixture.RunAsync(args);return;}
+if(args.FirstOrDefault()=="--conversation-checks")
+{
+    var focusedRoot=Path.Combine(Path.GetTempPath(),"conversation-checks-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(focusedRoot);var focusedCount=0;
+    try{await ConversationChecks.RunAsync(focusedRoot,(condition,text)=>{focusedCount++;if(!condition)throw new Exception(text);});Console.WriteLine("PASS "+focusedCount+" conversational entry, isolation, accounting, error, cancellation and no-replay checks");}finally{Directory.Delete(focusedRoot,true);}return;
+}
 var count=0;
 void Check(bool condition,string text){count++;if(!condition)throw new Exception(text);}
 bool Refused(Action action){try{action();return false;}catch(WorkspaceException){return true;}}
@@ -126,6 +131,7 @@ try
     await CompanyCodexChecks.RunAsync(root,Check);
     await MeasuredQueueChecks.RunAsync(root,Check);
     await TaskHandoffChecks.RunAsync(root,Check);
+    await ConversationChecks.RunAsync(root,Check);
     await HttpChecks(root,Check);
     Console.WriteLine("PASS "+count+" company identity, isolation, concurrency, fencing, budget, CEO, meeting and HTTP checks");
 }

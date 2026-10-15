@@ -2,7 +2,7 @@
 
 ## Company workspace in this development branch
 
-This branch adds a local company workspace for multiple employees per department, approved onboarding knowledge, private employee conversations, internal artifact review, bounded CEO plans and Board Meeting records. Live employee execution and repository writes remain unavailable.
+This branch adds a local company workspace for multiple employees per department, approved onboarding knowledge, private employee conversations, internal artifact review, bounded CEO plans and Board Meeting records. Automatic employee execution and repository writes remain unavailable. The optional pinned native profile supports [one reviewed conversational reply](docs/CONVERSATIONAL_REPLIES.md) or an eligible internal draft, with measured usage and explicitly acknowledged soft token/cost controls.
 
 See [Using the local company workspace](docs/COMPANY_LOCAL.md) for the separate company-only launcher, fresh data-root requirement and verification. The existing recovery and Developer workflows below retain their own startup profiles. Do not point company-local mode at an existing application database.
 

@@ -14,13 +14,13 @@ public sealed record CompanyRole(string Id, string Name, string Instructions, st
 public sealed record CompanyDepartment(string Id, string Name, string? Guide, string? Knowledge, int Version = 1);
 public sealed record CompanyEmployee(string Id, string DepartmentId, string RoleId, string Name, string Responsibility, string State = "onboarding", int Version = 1, int Generation = 1);
 public sealed record CompanyKnowledge(string Id, string? DepartmentId, string Body, string Digest, string State = "draft", int Version = 1);
-public sealed record CompanyThread(string Id, string EmployeeId, string Title, int Version = 1);
+public sealed record CompanyThread(string Id, string EmployeeId, string Title, int Version = 1,string Scope="employee");
 public sealed record CompanyMessage(string Id, string ThreadId, string EmployeeId, string Author, string Body, long Sequence);
 public sealed record CompanyNotes(string Id, string Body, int Version = 1);
 public sealed record CompanyTask(string Id, string EmployeeId, string ThreadId, string Skill, string Input, string State,
     string? Reason, string RootId, string[] Evidence, string[] Dependencies, string? PlanId = null, string? MeetingId = null,
     string? Resource = null, int Version = 1, int Generation = 1, long Watermark = 0, string? KnowledgeId = null, string? CompanyKnowledgeId = null,
-    string? ModelRoute = null, string? Runtime = null);
+    string? ModelRoute = null, string? Runtime = null,string Kind="work");
 public sealed record CompanyArtifact(string Id, string TaskId, string EmployeeId, string Body, string Digest, string State,
     string Provenance, string? ContextId, int Version = 1);
 public sealed record CompanyHandoff(string Id, string ArtifactId, string TargetEmployeeId, string TargetThreadId, string Body, string Digest, string State = "shared", int Version = 1,string? TargetTaskId=null,int? ArtifactVersion=null);
@@ -29,7 +29,7 @@ public sealed record CompanyColleague(string Id,string Name,string DepartmentId,
 public sealed record CompanyWorkStatus(string Id,string EmployeeId,string Skill,string State);
 public sealed record CompanyContext(string Id, string EmployeeId, string RoleId, string ThreadId, string Responsibility,
     string CompanyKnowledge, string DepartmentKnowledge, string Notes, CompanyMessage[] History, CompanyEvidence[] Evidence,
-    string Input, string? MeetingId = null,CompanyColleague[]? Colleagues=null,CompanyWorkStatus[]? CompanyWork=null);
+    string Input, string? MeetingId = null,CompanyColleague[]? Colleagues=null,CompanyWorkStatus[]? CompanyWork=null,string Scope="employee");
 public sealed record CompanyAttempt(string Id, string TaskId, string EmployeeId, string Phase, int TaskGeneration,
     int EmployeeGeneration, string? ContextId, string? Error = null, int Version = 1,string? ProviderReceipt=null,long? ReportedUsage=null,
     CompanyInputAdmission? Admission=null,CompanyTokenUsage? Usage=null,CompanyMeasuredJob? Measured=null);
@@ -51,7 +51,7 @@ public sealed record CompanyCommand(string RequestId, string Action, string? Id 
     string? DepartmentId = null, string? RoleId = null, string? EmployeeId = null, string? ThreadId = null,
     string? Name = null, string? Responsibility = null, string? Body = null, string? Digest = null, string? Decision = null,
     string? Skill = null, string[]? Evidence = null, CompanyTaskSpec[]? Tasks = null, string[]? Participants = null,
-    string? ChairId = null, long Budget = 0,decimal CreditAllowance=0);
+    string? ChairId = null, long Budget = 0,decimal CreditAllowance=0,string? Scope=null);
 
 public sealed record CompanyModelCall(string DispatchId, CompanyContext Context, string Instructions, int MaxInputTokens, int MaxOutputTokens, string? ModelRoute = null);
 // Runtime selection and task purpose are independent of employee role. A Developer conversation is ordinary text.
