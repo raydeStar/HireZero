@@ -47,7 +47,7 @@ static class CompanyCodexChecks
         finally{Environment.SetEnvironmentVariable("HIREZERO_PARENT_SENTINEL",sentinel);}
         var modes=new[]{"company-apikey","company-quota","company-missing-model","company-ambient","company-tool","company-nontext","company-missing-usage","company-start-refusal",
             "company-broad-permissions","company-inherited-profile","company-network","company-disallowed-profile","company-wrong-profile","company-removed-access","company-diagnostic-suffix"};
-        if(OperatingSystem.IsWindows())modes=[..modes,"company-windows-disabled","company-windows-unelevated"];
+        if(OperatingSystem.IsWindows())modes=[..modes,"company-windows-disabled","company-windows-unelevated","company-windows-elevated"];
         foreach(var mode in modes)
         {
             var refused=Connection(mode);try{await refused.CompletePilotAsync(Call("a","PRIVATE_ALPHA"));check(false,mode+" must fail closed.");}
@@ -59,7 +59,7 @@ static class CompanyCodexChecks
                     "company-broad-permissions" or "company-inherited-profile" or "company-network"=>e.Message.Contains("restricted permissions are unconfirmed"),
                     "company-disallowed-profile"=>e.Message.Contains("did not allow"),
                     "company-wrong-profile"=>e.Message.Contains("thread isolation is unconfirmed"),
-                    "company-windows-disabled" or "company-windows-unelevated"=>e.Message.Contains("Windows sandbox enforcement is not configured"),
+                    "company-windows-disabled" or "company-windows-unelevated" or "company-windows-elevated"=>e.Message.Contains("Windows sandbox enforcement is not configured"),
                     _=>true};
                 check(safe,mode+" is refused without replay, fallback or private diagnostic exposure.");
             }

@@ -30,7 +30,7 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
    if(!args.Contains(expected)||!args.Contains("default_permissions=\""+companyProfile+"\""))throw new Exception("Missing process-local restricted profile");
    var filesystem=new Dictionary<string,string>{{work,"read"}};
    if(mode=="company-broad-permissions")filesystem["fictional-broader-root"]="read";
-   Write(new{id=r.GetProperty("id").GetInt32(),result=new{config=new{windows=mode=="company-windows-disabled"?null:new{sandbox=mode=="company-windows-unelevated"?"unelevated":"elevated"},default_permissions=companyProfile,permissions=new Dictionary<string,object>{{companyProfile,new{extends=mode=="company-inherited-profile"?":read-only":(string?)null,filesystem,network=new{enabled=mode=="company-network"}}}}}}});
+    Write(new{id=r.GetProperty("id").GetInt32(),result=new{config=new{windows=mode=="company-windows-disabled"?null:new{sandbox=mode=="company-windows-unelevated"?"unelevated":mode=="company-windows-elevated"?"elevated":"mxc"},default_permissions=companyProfile,permissions=new Dictionary<string,object>{{companyProfile,new{extends=mode=="company-inherited-profile"?":read-only":(string?)null,filesystem,network=new{enabled=mode=="company-network"}}}}}}});
   }
   else if(method=="permissionProfile/list")Write(new{id=r.GetProperty("id").GetInt32(),result=new{data=new[]{new{id=companyProfile,allowed=mode!="company-disallowed-profile"}},nextCursor=(string?)null}});
   else if(method=="thread/start"){

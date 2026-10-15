@@ -182,6 +182,8 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
         private static IEnumerable<string> Arguments(string work)
         {
             yield return "app-server";yield return "--stdio";yield return "--strict-config";
+            if(OperatingSystem.IsWindows())
+            {yield return "-c";yield return "windows.sandbox=\"mxc\"";}
             // The pinned native deserializer rejects legacy readOnly.access, even though the
             // generated schema permits unknown properties. Configure restricted reads by name.
             yield return "-c";yield return "permissions={"+PermissionProfile+"={filesystem={"+JsonSerializer.Serialize(work)+"=\"read\"},network={enabled=false}}}";
@@ -197,8 +199,8 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
             // An allowed named profile does not enable the Windows execution backend. With
             // no backend, command/exec can read outside the declared restricted roots.
             // This necessary configuration gate is not a substitute for behavioral qualification.
-            if(OperatingSystem.IsWindows()&&(!config.TryGetProperty("windows",out var windows)||Text(windows,"sandbox") is not("elevated" or "mxc")))
-                throw new WorkspaceException("Native Windows sandbox enforcement is not configured for restricted reads. No model turn was sent.");
+            if(OperatingSystem.IsWindows()&&(!config.TryGetProperty("windows",out var windows)||Text(windows,"sandbox")!="mxc"))
+                throw new WorkspaceException("Native Windows sandbox enforcement is not configured as explicit MXC for restricted reads. No model turn was sent.");
             if(Text(config,"default_permissions")!=PermissionProfile||!config.TryGetProperty("permissions",out var profiles)||
                !profiles.TryGetProperty(PermissionProfile,out var profile)||profile.ValueKind!=JsonValueKind.Object||
                profile.EnumerateObject().Any(p=>p.Name is not("filesystem" or "network")&&p.Value.ValueKind!=JsonValueKind.Null)||
