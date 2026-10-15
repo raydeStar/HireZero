@@ -194,6 +194,11 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
         public async Task VerifyPermissions(CancellationToken token)
         {
             var config=(await Request("config/read",new{cwd=WorkingDirectory,includeLayers=false},token)).GetProperty("config");
+            // An allowed named profile does not enable the Windows execution backend. With
+            // no backend, command/exec can read outside the declared restricted roots.
+            // This necessary configuration gate is not a substitute for behavioral qualification.
+            if(OperatingSystem.IsWindows()&&(!config.TryGetProperty("windows",out var windows)||Text(windows,"sandbox") is not("elevated" or "mxc")))
+                throw new WorkspaceException("Native Windows sandbox enforcement is not configured for restricted reads. No model turn was sent.");
             if(Text(config,"default_permissions")!=PermissionProfile||!config.TryGetProperty("permissions",out var profiles)||
                !profiles.TryGetProperty(PermissionProfile,out var profile)||profile.ValueKind!=JsonValueKind.Object||
                profile.EnumerateObject().Any(p=>p.Name is not("filesystem" or "network")&&p.Value.ValueKind!=JsonValueKind.Null)||
