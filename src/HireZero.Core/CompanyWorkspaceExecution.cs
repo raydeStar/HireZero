@@ -4,9 +4,15 @@ namespace HireZero.Core;
 
 public sealed record CompanyWorkspaceProposal(string AttemptId,string Workspace,string Revision,string Fingerprint,string ContextDigest,string Route,bool AllowWrite=false);
 public sealed record CompanyExecutionGrant(string Id,string AttemptId,string TaskId,string EmployeeId,string Workspace,string Revision,string Fingerprint,
-    string ContextDigest,string Route,bool AllowWrite,string Digest,string State,DateTimeOffset ExpiresAt,string? RunId=null,int Version=1);
+    string ContextDigest,string Route,bool AllowWrite,string Digest,string State,DateTimeOffset ExpiresAt,string? RunId=null,int Version=1,CompanyRepositoryReview? Review=null);
 public sealed record CompanyRepositorySnapshot(string Workspace,string Revision,string Fingerprint);
-public interface ICompanyWorkspaceInspector {Task<CompanyRepositorySnapshot> InspectAsync(string root,CancellationToken token);}
+public sealed record CompanyFileDiff(string Path,string Change,string Patch,string BeforeSha256,string AfterSha256);
+public sealed record CompanyRepositoryReview(string BaseRevision,string Fingerprint,CompanyFileDiff[] Files,string Digest="");
+public interface ICompanyWorkspaceInspector
+{
+    Task<CompanyRepositorySnapshot> InspectAsync(string root,CancellationToken token);
+    Task<CompanyRepositoryReview> ReviewAsync(string root,string revision,CancellationToken token)=>throw new WorkspaceException("Repository diff review is unavailable.");
+}
 public interface ICompanyCodingFactory
 {
     bool FixtureQualified {get;}
@@ -63,5 +69,19 @@ public sealed partial class CompanyStore
     {
         if(state is not("completed" or "withheld" or "unknown" or "not_sent"))throw new WorkspaceException("Unsupported execution outcome.");
         using var db=Open();Transaction(db,()=>{var g=Need<CompanyExecutionGrant>(db,id);if(g.State is "completed" or "withheld" or "unknown" or "not_sent" or "revoked")return false;Save(db,g with{State=state,Version=g.Version+1},g.Id,g.TaskId,g.EmployeeId,state,g.Version+1);return true;});
+    }
+    public void RecordExecutionReview(string id,CompanyRepositoryReview review)
+    {
+        using var db=Open();Transaction(db,()=>
+        {
+            var g=Need<CompanyExecutionGrant>(db,id);
+            if(g.State!="dispatched"||g.RunId is null||g.Review is not null||!Current(db,Need<CompanyAttempt>(db,g.AttemptId))||review.BaseRevision!=g.Revision||
+               review.Digest!=CompanyJson.Digest(review with{Digest=""})||review.Files.Length>50||
+               review.Files.Select(f=>f.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=review.Files.Length||review.Files.Sum(f=>System.Text.Encoding.UTF8.GetByteCount(f.Patch))>65536||
+               review.Files.Any(f=>Path.IsPathRooted(f.Path)||f.Change is not("added" or "modified" or "deleted")||f.BeforeSha256.Length!=64||f.AfterSha256.Length!=64||f.BeforeSha256.Concat(f.AfterSha256).Any(c=>!Uri.IsHexDigit(c))||f.Path.Replace('\\','/').Split('/').Any(p=>p is "" or "." or "..")))
+                throw new WorkspaceException("Repository review does not match the current execution scope.");
+            Save(db,g with{Review=review,Version=g.Version+1},g.Id,g.TaskId,g.EmployeeId,g.State,g.Version+1);
+            return true;
+        });
     }
 }

@@ -1,0 +1,23 @@
+# Employee execution readiness — 2026-10-15
+
+The management workflows are implemented, but live employee execution is not complete. The native text adapter still reports `Qualified=false`; its normal scheduler completion and token-counting methods remain unavailable. The four-turn qualification entry point is a separate diagnostic path, not a working employee queue. No completed native model response has been demonstrated.
+
+| Workflow | Working internal path | Remaining live gap |
+| --- | --- | --- |
+| Marketing brief → draft → review | Server validates and stores the structured brief. The scheduler now selects the draft skill's specific instructions: draft copy, claim sources, missing facts and owner questions. Output becomes an artifact requiring exact content review; an explicit handoff selects its recipient conversation. | Qualify the native boundary, then admit an approved bounded call through the actual employee queue and persist its native receipt and usage. Synthetic replies prove the handoff plumbing only. |
+| Developer task → checkout → diff → review | An owner-selected checkout/revision/fingerprint/context becomes a single-use execution proposal. The fixture bridge fences dispatch and waits for owned runtime termination. It now saves a bounded raw text diff and binds its digest into the review artifact. The owner task-detail API and task card expose the saved review. | No automatic isolated checkout provisioning, live coding factory, or owner execution controls are enabled. Native isolation, usage limits and Windows path identity still require qualification before any real repository work. |
+| CEO proposal / meeting → handoff | A structured CEO proposal is an artifact. Content review can prepare a plan; separate exact plan approval admits child tasks. Meetings have finite turns, scoped shared evidence and owner-accepted minutes; minutes dispatch no follow-up work. | The same unavailable native text adapter prevents actual employee discussion. A controlled queue-level scenario must demonstrate native outputs and targeted handoffs after qualification. |
+
+## Saved Developer review
+
+The review captures file content against the proposed Git revision, including pre-existing uncommitted changes. It does not identify which individual actor caused a change. Added, modified and deleted UTF-8 text files include raw patches and before/after SHA-256 values. Empty-file additions/deletions retain their status even when Git emits no patch. The receipt has its own digest, and the generated work artifact includes that digest. Review approval does not commit, merge or publish code.
+
+The pilot accepts at most 2,000 checkout entries, a 20 MiB checkout, 50 changed files and 64 KiB of patches. Baseline blob reads are bounded to 1 MiB. Binary changes, baseline symlinks/submodules, reparse paths, ambiguous paths and changed fingerprints are refused. Patches compare fixed raw temporary files outside the checkout, with external diffs, text conversion, system/global Git configuration, replacements, hooks and project clean filters excluded. This is a content review, not an index, rename or file-mode review. Repository identity and confinement remain separate gates.
+
+Fixture validation follows a campaign brief through its admitted draft instructions, content review and exact handoff. The existing real stdio fake-runner path now verifies a persisted diff and artifact binding; a separate temporary repository verifies additions, modifications, deletions and refusal of binary changes without running project Git filters. No live provider, real project execution or deployment is used.
+
+## Immediate Windows gate
+
+The installed Windows runtime accepted the restricted named profile, but a non-inference check could read a fictional sibling file outside the permitted root. Configuration acceptance is not enforcement evidence. No corrected model turn was sent.
+
+The smallest proposed owner-approved next step is a non-inference, process-local `windows.sandbox="mxc"` check using fictional scratch/sibling files and an owned local network fixture. Keep the named scratch-only read profile, deny writes and all network, and use no fallback. No saved configuration, account, service, firewall or ACL changes are proposed. Stop the owned process and remove only the test-owned fixture directory to roll back. Do not run legacy setup or broaden read roots to make a check pass. Only after behavioral checks pass can the already bounded fictional qualification be reconsidered; production execution remains a separate readiness decision.

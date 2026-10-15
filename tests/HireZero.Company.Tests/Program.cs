@@ -79,6 +79,18 @@ try
     Check(TaskOf(missing.Id).State=="unknown"&&List<CompanyBudget>("budgets").Single(b=>b.Id==missing.RootId).Reserved==5000,"Missing usage never counts as zero.");
     var unavailable=Submit(m1,tm1,"Unavailable provider");await new CompanyScheduler(store,new UnavailableCompanyModel()).TickAsync(m1.Id);Check(TaskOf(unavailable.Id).Reason=="provider-unavailable","Unavailable provider saves blocked work without dispatch.");
     store.Apply(Cmd("task.cancel") with{Id=unavailable.Id,ExpectedVersion=TaskOf(unavailable.Id).Version});
+    var draftThread=Thread(m1);var recipientThread=Thread(m2);
+    var brief=CompanyJson.Encode(new{objective="Explain fictional paper-crane kits",audience="Fictional hobbyists",channel="Internal landing-page draft",deliverable="One headline and body paragraph",constraints="No prices or unsupported performance claims"});
+    var draft=Apply<CompanyTask>(Cmd("task.create") with{EmployeeId=m1.Id,ThreadId=draftThread.Id,Skill="marketing-draft",Body=brief});
+    model.ReplyBody="DRAFT for internal review\nFictional paper-crane kits.\nClaim sources: approved brief.\nMissing facts: price.\nOwner review: confirm wording.";
+    try{await scheduler.TickAsync(m1.Id);}finally{model.ReplyBody=null;}
+    var draftCall=model.Calls.Last();var draftArtifact=List<CompanyArtifact>("artifacts").Single(x=>x.TaskId==draft.Id);
+    Check(draftCall.Context.Input==draft.Input&&draftCall.Instructions.Contains("Separate draft copy, claim sources, missing facts and owner review questions")&&TaskOf(draft.Id).State=="awaiting_review","Company Marketing uses its structured brief and draft-specific instructions, then waits for content review.");
+    Check(Refused(()=>store.Apply(Cmd("handoff.create") with{Id=draftArtifact.Id,ExpectedVersion=draftArtifact.Version,Digest=draftArtifact.Digest,EmployeeId=m2.Id,ThreadId=recipientThread.Id})),"An unreviewed Marketing draft cannot enter another employee's context.");
+    draftArtifact=Apply<CompanyArtifact>(Cmd("artifact.review") with{Id=draftArtifact.Id,ExpectedVersion=draftArtifact.Version,Digest=draftArtifact.Digest,Decision="approve"});
+    store.Apply(Cmd("handoff.create") with{Id=draftArtifact.Id,ExpectedVersion=draftArtifact.Version,Digest=draftArtifact.Digest,EmployeeId=m2.Id,ThreadId=recipientThread.Id});
+    Submit(m2,recipientThread,"Use the selected reviewed draft");await scheduler.TickAsync(m2.Id);
+    Check(model.Calls.Last().Context.Evidence.Any(e=>e.Id==draftArtifact.Id&&e.Digest==draftArtifact.Digest),"An exact reviewed Marketing draft reaches only its explicitly selected handoff conversation.");
     var specs=new[]{new CompanyTaskSpec(d1.Id,td1.Id,"developer-advice","Produce fictional feature facts",[],[]),new CompanyTaskSpec(m2.Id,tm2.Id,"chat","Draft from selected facts",[],[0])};
     var plan=Apply<CompanyPlan>(Cmd("plan.create") with{EmployeeId=ceo.Id,Body="Fictional launch",Tasks=specs,Budget=10000});
     Check(Refused(()=>store.Apply(Cmd("plan.approve") with{Id=plan.Id,ExpectedVersion=plan.Version,Digest="wrong"})),"Stale plan approval denied.");
