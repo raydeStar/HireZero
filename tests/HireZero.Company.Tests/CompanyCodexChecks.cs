@@ -1,5 +1,7 @@
 using HireZero.Core;
 using HireZero.Integrations.Codex;
+using System.Diagnostics;
+using System.Text.Json;
 
 static class CompanyCodexChecks
 {
@@ -7,6 +9,22 @@ static class CompanyCodexChecks
     {
         var executable=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../HireZero.FakeCodex/bin/Debug/net10.0/HireZero.FakeCodex.exe"));
         var identity=CompanyCodingFactory.Identity(executable);
+        // Regression for the exact release's custom Deserialize implementation. Its generated
+        // JSON Schema allows unknown properties and does not catch this removed legacy field.
+        var legacy=new{threadId="fictional-thread",sandboxPolicy=new{type="readOnly",networkAccess=false,access=new{type="restricted",includePlatformDefaults=false,readableRoots=new[]{root}}},input=Array.Empty<object>()};
+        var corrected=new{threadId="fictional-thread",permissions="hirezero_qualification",input=Array.Empty<object>()};
+        foreach(var (parameters,reject) in new (object,bool)[]{(legacy,true),(corrected,false),(new{threadId="fictional-thread",permissions="hirezero_qualification",sandboxPolicy=new{type="readOnly"},input=Array.Empty<object>()},true)})
+        {
+            var start=new ProcessStartInfo(executable){UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true};
+            start.Environment["HIREZERO_FIXTURE_MODE"]="company-protocol-validation";
+            using var process=Process.Start(start)!;
+            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new{id=1,method="turn/start",@params=parameters}));process.StandardInput.Close();
+            var raw=await process.StandardOutput.ReadToEndAsync().WaitAsync(TimeSpan.FromSeconds(5));await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            using var response=JsonDocument.Parse(raw);
+            var hasError=response.RootElement.TryGetProperty("error",out var error);
+            check(process.ExitCode==0&&hasError==reject&&(!reject||error.GetProperty("code").GetInt32()==-32600),"The version-specific fixture rejects removed/mixed permissions and accepts a named profile before turn admission.");
+            if(reject&&ReferenceEquals(parameters,legacy))check(error.GetProperty("message").GetString()=="Invalid request: readOnly.access is no longer supported; use permissionProfile for restricted reads","The old payload produces the exact public deserializer diagnostic.");
+        }
         CompanyCodexConnection Connection(string mode="company-success")=>new(new(executable,identity,Path.Combine(root,"codex-text"),SyntheticMode:mode,QualificationCreditBudget:1000));
         CompanyModelCall Call(string employee,string note,string? history=null)=>new(Guid.NewGuid().ToString("N"),new(Guid.NewGuid().ToString("N"),employee,"developer","thread-"+employee,"Fictional employee","Approved fictional facts","",note,
             history is null?[]:[new("message","thread-"+employee,employee,"owner",history,1)],[],"Reply briefly"),"Fictional text task",4000,1000,"openai/gpt-6-luna");
@@ -27,10 +45,21 @@ static class CompanyCodexChecks
             try{await connection.CompletePilotAsync(Call("a",""));check(false,"Fifth turn must fail.");}catch(WorkspaceException){check(true,"Qualification permits four attempts and no fifth turn.");}
         }
         finally{Environment.SetEnvironmentVariable("HIREZERO_PARENT_SENTINEL",sentinel);}
-        foreach(var mode in new[]{"company-apikey","company-quota","company-missing-model","company-ambient","company-tool","company-nontext","company-missing-usage","company-start-refusal"})
+        foreach(var mode in new[]{"company-apikey","company-quota","company-missing-model","company-ambient","company-tool","company-nontext","company-missing-usage","company-start-refusal",
+            "company-broad-permissions","company-inherited-profile","company-network","company-disallowed-profile","company-wrong-profile","company-removed-access","company-diagnostic-suffix"})
         {
             var refused=Connection(mode);try{await refused.CompletePilotAsync(Call("a","PRIVATE_ALPHA"));check(false,mode+" must fail closed.");}
-            catch(Exception e) when(e is WorkspaceException or CompanyTransportException){check(mode!="company-start-refusal"||e.Message.Contains("-32602")&&!e.Message.Contains("private diagnostic"),mode+" is refused without replay, fallback or raw server diagnostic exposure.");}
+            catch(Exception e) when(e is WorkspaceException or CompanyTransportException){
+                var safe=mode switch{
+                    "company-start-refusal"=>e.Message.Contains("-32602")&&!e.Message.Contains("private diagnostic"),
+                    "company-removed-access"=>e.Message.Contains("-32600")&&e.Message.Contains("readOnly.access is no longer supported")&&!e.Message.Contains("PRIVATE_ERROR_DATA"),
+                    "company-diagnostic-suffix"=>e.Message.Contains("-32600")&&e.Message.Contains("message/details withheld")&&!e.Message.Contains("PRIVATE_"),
+                    "company-broad-permissions" or "company-inherited-profile" or "company-network"=>e.Message.Contains("restricted permissions are unconfirmed"),
+                    "company-disallowed-profile"=>e.Message.Contains("did not allow"),
+                    "company-wrong-profile"=>e.Message.Contains("thread isolation is unconfirmed"),
+                    _=>true};
+                check(safe,mode+" is refused without replay, fallback or private diagnostic exposure.");
+            }
             try{await refused.CompletePilotAsync(Call("a",""));check(false,"Refused qualification cannot replay.");}catch(WorkspaceException){check(true,"Refusal closes that qualification instance.");}
         }
         var waiting=Connection("company-wait");using var cancel=new CancellationTokenSource();var pending=waiting.CompletePilotAsync(Call("a",""),cancel.Token);
