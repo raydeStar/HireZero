@@ -57,7 +57,7 @@ public static class CompanyWorkspace
                 catch(System.Text.Json.JsonException){c.Response.StatusCode=422;await c.Response.WriteAsJsonAsync(new{error="Invalid structured input."});}
             });
             app.MapGet("/health",()=>Results.Ok(new{status="healthy",companyLocal=true,modelExecution=model.Qualified}));
-            app.MapGet("/api/session",()=>Results.Ok(new{login=owner,role="owner",accessMode="local",roles=Array.Empty<string>(),agentModel="Unavailable",agentReasoning="",companyEnabled=true,executionHeld=false}));
+            app.MapGet("/api/session",()=>Results.Ok(new{login=owner,role="owner",accessMode="local",roles=Array.Empty<string>(),agentModel=model is ICompanyMeasuredModel?CompanyModelRouting.Native(routing.TextModel)+" (manual only)":"Unavailable",agentReasoning="",companyEnabled=true,executionHeld=false}));
             app.MapGet("/api/company",()=>Results.Ok(new{capabilities=new{localManagement=true,modelExecution=model.Qualified,measuredOneJob=model is ICompanyMeasuredModel,providerStatus=model.Status,modelRouting=routing,ceoEnabled=true,meetingsEnabled=true,legacyDeveloperAvailable=false},data=store.Dashboard()}));
             app.MapGet("/api/company/runtime",async(CancellationToken token)=>model is CompanyCodexConnection connection?Results.Ok(await connection.InspectAsync(token)):Results.Json(new{error="Select the explicit Codex connection profile."},statusCode:503));
             app.MapGet("/api/company/feed",(long? after,int? limit)=>Results.Ok(store.Feed(after??0,limit??100)));

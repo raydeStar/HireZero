@@ -1,5 +1,7 @@
 # Using the local company workspace
 
+The [manual queue UI guide](MANUAL_QUEUE_UI.md) covers assigning an internal draft, reviewing readable context, authorizing exactly one native job and reviewing the result. The local app can reopen an existing company root without replaying completed work.
+
 The company workspace manages departments, employee instances, private conversations, internal tasks, reviewed artifacts, CEO plans and Board Meetings in one HireZero backend. Multiple employees can share a role without sharing private history or notes. The current local profile does not execute live model work or repository changes.
 
 See [employee execution readiness](EMPLOYEE_EXECUTION_READINESS.md) for the current Marketing, Developer and CEO/meeting paths, the saved file-diff review, and the concrete gaps before live work.
