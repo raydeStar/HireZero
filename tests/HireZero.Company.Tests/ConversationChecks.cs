@@ -76,6 +76,13 @@ static class ConversationChecks
             if(mode=="company-measured-late")check(a.ReportedUsage==4950&&Items<CompanyBudget>(f.Store,"budgets").Single(b=>b.Id==p.Task.RootId) is {Used:4950,Reserved:0},"A complete late reply receipt settles once without publishing canceled content.");
             if(mode=="company-measured-partial")check(a.ReportedUsage is null&&a.Usage==new CompanyTokenUsage(4800,20,5)&&Items<CompanyBudget>(f.Store,"budgets").Single(b=>b.Id==p.Task.RootId).Reserved==8000,"Partial cancellation receipts retain usage and the planning reservation.");
         }
+        await using(var f=await Fixture.Create(root,"raw-utf8","company-utf8"))
+        {
+            var employee=f.Seed("developer","UNICODE");const string text="Fictional UTF-8: caf\u00e9 \u2014 \u201c\u5b89\u5168\u201d \ud83e\udd8a.";var p=await f.Prepare(employee,"company",text);await f.Post(Run(p));
+            var messages=JsonSerializer.SerializeToElement(f.Store.Thread(employee.Employee.Id,p.Task.ThreadId),CompanyJson.Options).GetProperty("messages");
+            check(messages.EnumerateArray().Single(m=>m.GetProperty("author").GetString()==employee.Employee.Id).GetProperty("body").GetString()==text,"Raw UTF-8 native wire punctuation, accents, CJK and supplementary characters survive the real stdio-to-stored-chat path.");
+            check(f.Store.TextCall(p.Attempt.Id).Context.Input==text&&f.Store.Attempt(p.Attempt.Id).ReportedUsage==120&&Items<CompanyBudget>(f.Store,"budgets").Single(b=>b.Id==p.Task.RootId) is {Used:120,Reserved:0},"Unicode round-trip preserves the exact sealed input and complete measured usage settlement.");
+        }
         await ReviewRoutingAsync(root,check);
     }
     private static async Task ReviewRoutingAsync(string root,Action<bool,string> check)

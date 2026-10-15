@@ -230,7 +230,8 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
         public string WorkingDirectory {get;}
         public Rpc(CompanyCodexOptions options,string work)
         {
-            WorkingDirectory=work;var info=new ProcessStartInfo(options.Executable){WorkingDirectory=work,UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true};
+            // app-server stdio is UTF-8, independent of the Windows console code page.
+            WorkingDirectory=work;var info=new ProcessStartInfo(options.Executable){WorkingDirectory=work,UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true,StandardInputEncoding=new UTF8Encoding(false),StandardOutputEncoding=new UTF8Encoding(false),StandardErrorEncoding=new UTF8Encoding(false)};
             var environment=info.Environment.Where(x=>new[]{"PATH","SystemRoot","WINDIR","USERPROFILE","HOMEDRIVE","HOMEPATH","APPDATA","LOCALAPPDATA","TEMP","TMP","CODEX_HOME"}.Contains(x.Key,StringComparer.OrdinalIgnoreCase)).ToArray();
             info.Environment.Clear();foreach(var (key,value) in environment)info.Environment[key]=value;
             if(options.Home is not null)info.Environment["CODEX_HOME"]=Path.GetFullPath(options.Home);

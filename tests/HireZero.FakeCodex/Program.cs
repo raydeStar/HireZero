@@ -4,7 +4,10 @@ const string thread="fixture-thread",turn="fixture-turn";
 var companyTurnSent=false;var companyConversationTurn=false;
 const string companyProfile="hirezero_qualification";
 const string removedReadAccess="readOnly.access is no longer supported; use permissionProfile for restricted reads";
-void Write(object value){Console.WriteLine(JsonSerializer.Serialize(value));Console.Out.Flush();}
+void Write(object value){
+ if(mode=="company-utf8"){var bytes=System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value,new JsonSerializerOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping})+"\n");var wire=Console.OpenStandardOutput();wire.Write(bytes);wire.Flush();}
+ else{Console.WriteLine(JsonSerializer.Serialize(value));Console.Out.Flush();}
+}
 string? CompanyPermissionError(JsonElement p) {
  if(p.TryGetProperty("sandboxPolicy",out var policy)&&policy.TryGetProperty("access",out var access)&&access.GetProperty("type").GetString()=="restricted")return "Invalid request: "+removedReadAccess;
  if(p.TryGetProperty("permissions",out _)&&p.TryGetProperty("sandboxPolicy",out _))return "`permissions` cannot be combined with `sandboxPolicy`";
@@ -66,6 +69,7 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
     if(prompt.Contains("APP_REVIEW_FIXTURE",StringComparison.Ordinal)){if(role!="marketing")throw new Exception("Application feedback was routed to the wrong employee role");body="SIMULATED MARKETING REVIEW - synthetic fixture only. [APP-UI-01] Test suggestion: make the fictional onboarding explanation clearer. This is test output, not an actual product finding. No actions were performed.";}
     if(prompt.Contains("REPOSITORY_REVIEW_FIXTURE",StringComparison.Ordinal)){if(role!="developer")throw new Exception("Repository review was routed to the wrong employee role");body="SIMULATED DEVELOPER REVIEW - synthetic fixture only. [REPO-META-01] Test suggestion: inspect the fictional pending check before proposing an update. This is test output, not an actual repository finding. No files or GitHub settings changed.";}
    }
+   if(mode=="company-utf8")body="Fictional UTF-8: caf\u00e9 \u2014 \u201c\u5b89\u5168\u201d \ud83e\udd8a.";
    if(mode=="company-measured-characters")body=new string('x',2001);
    if(mode=="company-nontext")Write(new{method="item/started",@params=new{threadId=thread,turnId=turn,item=new{type="fileChange"}}});
    Write(new{method="item/agentMessage/delta",@params=new{threadId=thread,turnId=turn,delta=body}});
