@@ -18,6 +18,11 @@ static class BrowserQueueFixture
         var fields=new{purpose="Fictional paper crane kit",audience="Adult hobbyists",positioning="Paper craft kit",voice="Clear and warm",claims="Contains paper and a printed folding guide",constraints="No prices, proof, performance claims, publishing or outreach"};
         var knowledge=Apply<CompanyKnowledge>(MeasuredQueueChecks.C("knowledge.save") with{DepartmentId=department.Id,Body=CompanyJson.Encode(fields)});
         store.Apply(MeasuredQueueChecks.C("knowledge.review") with{Id=knowledge.Id,ExpectedVersion=knowledge.Version,Digest=knowledge.Digest,Decision="approve"});
+        var engineering=Apply<CompanyDepartment>(MeasuredQueueChecks.C("department.create") with{Name="Fictional browser engineering"});
+        Apply<CompanyEmployee>(MeasuredQueueChecks.C("employee.hire") with{DepartmentId=engineering.Id,RoleId="developer",Name="Browser Developer fixture",Responsibility="Prepare isolated implementation proposals from owner-approved shared facts"});
+        var engineeringFields=CompanyWorkspace.Definitions().Single(r=>r.Id=="developer").OnboardingFields.ToDictionary(k=>k,k=>"Fictional approved "+k);
+        var engineeringKnowledge=Apply<CompanyKnowledge>(MeasuredQueueChecks.C("knowledge.save") with{DepartmentId=engineering.Id,Body=CompanyJson.Encode(engineeringFields)});
+        store.Apply(MeasuredQueueChecks.C("knowledge.review") with{Id=engineeringKnowledge.Id,ExpectedVersion=engineeringKnowledge.Version,Digest=engineeringKnowledge.Digest,Decision="approve"});
         Console.WriteLine("BROWSER FIXTURE: fake provider only; zero live inference or credentials.");
         await app.RunAsync();
     }

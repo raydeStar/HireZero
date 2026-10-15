@@ -119,6 +119,7 @@ public sealed partial class CompanyStore
                     return task;
                 }
                 if(c.Action=="task.cancel"){Stop(db,task,"canceled","Owner canceled; any late output is withheld.");return Need<CompanyTask>(db,task.Id);}
+                if(All<CompanyHandoff>(db).Any(h=>h.TargetTaskId==task.Id))throw new WorkspaceException("Create a fresh reviewed handoff instead of retrying or reassigning shared work.");
                 if(task.PlanId is not null||task.MeetingId is not null)throw new WorkspaceException("Revise the parent plan or meeting instead of changing its assigned task.");
                 if(c.Action=="task.retry"&&task.State is not("failed" or "blocked" or "unknown"))throw new WorkspaceException("Only blocked, failed or unknown work can be retried.");
                 if(task.State=="unknown"&&c.Decision!="acknowledge-uncertain")throw new WorkspaceException("Reconcile the uncertain attempt first, or explicitly acknowledge possible duplicate usage. Its reservation remains held.");
@@ -141,6 +142,8 @@ public sealed partial class CompanyStore
                 if(a.ContextId is not null&&!KnowledgeCurrent(db,Need<CompanyContext>(db,a.ContextId),task))throw new WorkspaceException("Knowledge used by this artifact was revoked.");
                 a=a with{State=c.Decision=="approve"?"approved":c.Decision=="revoke"?"revoked":"changes_requested",Version=a.Version+1};Save(db,a,a.Id,a.TaskId,a.EmployeeId,a.State,a.Version);Event(db,"artifact.reviewed",a.Id,a.EmployeeId,"Artifact review: "+a.State);return a;
             }
+            case "handoff.assign":return AssignHandoff(db,c);
+            case "handoff.revoke":return RevokeHandoff(db,c);
             case "handoff.create":
             {
                 var a=Need<CompanyArtifact>(db,c.Id);Version(a.Version,c.ExpectedVersion);if(a.State!="approved"||a.Digest!=c.Digest)throw new WorkspaceException("Share the exact approved artifact.");

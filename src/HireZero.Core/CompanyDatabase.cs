@@ -95,15 +95,15 @@ public sealed partial class CompanyStore
     public object Dashboard()
     {
         using var db=Open(); return Transaction(db,()=>new{departments=All<CompanyDepartment>(db),employees=All<CompanyEmployee>(db),knowledge=All<CompanyKnowledge>(db),
-            threads=All<CompanyThread>(db),tasks=All<CompanyTask>(db),artifacts=All<CompanyArtifact>(db),plans=All<CompanyPlan>(db),meetings=All<CompanyMeeting>(db),budgets=All<CompanyBudget>(db),executions=All<CompanyExecutionGrant>(db),
+            threads=All<CompanyThread>(db),tasks=All<CompanyTask>(db),artifacts=All<CompanyArtifact>(db),plans=All<CompanyPlan>(db),meetings=All<CompanyMeeting>(db),handoffs=All<CompanyHandoff>(db),budgets=All<CompanyBudget>(db),executions=All<CompanyExecutionGrant>(db),
             measured=All<CompanyAttempt>(db).Where(a=>a.Measured is not null).Select(a=>new{a.Id,a.TaskId,a.Version,a.Phase,a.Error,a.Usage,a.ReportedUsage,job=a.Measured}).ToArray(),
-            roles=_roles.Select(r=>new{r.Id,r.Name,r.Skills,r.OnboardingFields,r.MeasuredSkills}),cursor=long.Parse(Scalar(db,"SELECT COALESCE(MAX(seq),0) FROM co_events WHERE company_id=$0",CompanyId)!)});
+            roles=_roles.Select(r=>new{r.Id,r.Name,r.Skills,r.OnboardingFields,r.MeasuredSkills,r.ExecutionSkills}),cursor=long.Parse(Scalar(db,"SELECT COALESCE(MAX(seq),0) FROM co_events WHERE company_id=$0",CompanyId)!)});
     }
     public CompanyEvent[] Feed(long after,int limit=100)
     {using var db=Open();return Rows(db,"SELECT seq,payload FROM co_events WHERE company_id=$0 AND seq>$1 ORDER BY seq LIMIT $2",r=>CompanyJson.Decode<CompanyEvent>(r.GetString(1)) with{Sequence=r.GetInt64(0)},CompanyId,Math.Max(0,after),Math.Clamp(limit,1,100));}
     public object Thread(string employee,string thread)
     {using var db=Open();Need<CompanyEmployee>(db,employee);var t=Need<CompanyThread>(db,thread);if(t.EmployeeId!=employee)throw new WorkspaceException("Thread not found.",404);return new{thread=t,messages=All<CompanyMessage>(db).Where(m=>m.ThreadId==thread).ToArray(),notes=Find<CompanyNotes>(db,employee)??new(employee,"")};}
-    public object TaskDetail(string id){using var db=Open();var attempts=All<CompanyAttempt>(db).Where(a=>a.TaskId==id).ToArray();return new{task=Need<CompanyTask>(db,id),attempts,executions=All<CompanyExecutionGrant>(db).Where(g=>g.TaskId==id).ToArray(),contexts=All<CompanyContext>(db).Where(c=>attempts.Any(a=>a.ContextId==c.Id)).Select(c=>new{c.Id,digest=CompanyJson.Digest(c),c.EmployeeId,c.RoleId,historyCount=c.History.Length,evidence=c.Evidence.Select(e=>new{e.Id,e.Digest})}).ToArray()};}
+    public object TaskDetail(string id){using var db=Open();var attempts=All<CompanyAttempt>(db).Where(a=>a.TaskId==id).ToArray();return new{task=Need<CompanyTask>(db,id),attempts,handoffs=All<CompanyHandoff>(db).Where(h=>h.TargetTaskId==id).ToArray(),executions=All<CompanyExecutionGrant>(db).Where(g=>g.TaskId==id).ToArray(),contexts=All<CompanyContext>(db).Where(c=>attempts.Any(a=>a.ContextId==c.Id)).Select(c=>new{c.Id,digest=CompanyJson.Digest(c),c.EmployeeId,c.RoleId,historyCount=c.History.Length,evidence=c.Evidence.Select(e=>new{e.Id,e.Digest})}).ToArray()};}
     public string? Operation(string id){using var db=Open();return Scalar(db,"SELECT result FROM co_operations WHERE company_id=$0 AND id=$1",CompanyId,id);}
     public string Apply(CompanyCommand command)=>Apply(command,out _);
     public string Apply(CompanyCommand command,out bool newlyApplied)

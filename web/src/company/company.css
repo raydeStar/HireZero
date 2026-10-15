@@ -2,3 +2,5 @@
 .co-main header{height:auto;min-height:0;border:0;position:relative}.co-status{align-self:flex-start;display:inline-flex;box-sizing:border-box;max-width:100%}
 
 .co-packet{border-left:3px solid #80b9a4;padding:4px 16px;margin:16px 0}.co-packet h4{margin:16px 0 6px}.co-packet-fields{margin:0}.co-packet-fields>div{margin:8px 0}.co-packet-fields dt{text-transform:capitalize;color:#a0b4b9;font-size:12px}.co-packet-fields dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.co-measured small{display:block;overflow-wrap:anywhere}.co-measured>.co-check{margin:16px 0}
+
+.co-handoff{border-top:1px solid #405157;padding-top:12px;margin-top:14px}.co-handoff button{margin:4px 8px 4px 0}.co-handoff h4{margin:8px 0}

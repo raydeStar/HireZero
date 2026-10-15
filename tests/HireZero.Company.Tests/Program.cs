@@ -125,6 +125,7 @@ try
     await IntegrationPathChecks.RunAsync(root,Check);
     await CompanyCodexChecks.RunAsync(root,Check);
     await MeasuredQueueChecks.RunAsync(root,Check);
+    await TaskHandoffChecks.RunAsync(root,Check);
     await HttpChecks(root,Check);
     Console.WriteLine("PASS "+count+" company identity, isolation, concurrency, fencing, budget, CEO, meeting and HTTP checks");
 }

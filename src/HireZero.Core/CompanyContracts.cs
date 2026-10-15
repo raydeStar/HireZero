@@ -23,7 +23,7 @@ public sealed record CompanyTask(string Id, string EmployeeId, string ThreadId, 
     string? ModelRoute = null, string? Runtime = null);
 public sealed record CompanyArtifact(string Id, string TaskId, string EmployeeId, string Body, string Digest, string State,
     string Provenance, string? ContextId, int Version = 1);
-public sealed record CompanyHandoff(string Id, string ArtifactId, string TargetEmployeeId, string TargetThreadId, string Body, string Digest, string State = "shared", int Version = 1);
+public sealed record CompanyHandoff(string Id, string ArtifactId, string TargetEmployeeId, string TargetThreadId, string Body, string Digest, string State = "shared", int Version = 1,string? TargetTaskId=null,int? ArtifactVersion=null);
 public sealed record CompanyEvidence(string Id, string Body, string Digest);
 public sealed record CompanyColleague(string Id,string Name,string DepartmentId,string RoleId,string Responsibility,string State,string? ThreadId);
 public sealed record CompanyWorkStatus(string Id,string EmployeeId,string Skill,string State);

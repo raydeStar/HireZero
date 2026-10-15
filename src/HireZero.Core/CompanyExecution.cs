@@ -11,10 +11,11 @@ public sealed partial class CompanyStore
     private bool ParentValid(SqliteConnection db,CompanyTask t)=>
         (t.PlanId is null||Find<CompanyPlan>(db,t.PlanId) is {State:"executing"} p&&Clock()<p.Deadline)&&
         (t.MeetingId is null||Find<CompanyMeeting>(db,t.MeetingId) is {State:"in_progress"} m&&Clock()<m.Deadline);
-    private static bool KnowledgeCurrent(SqliteConnection db,CompanyContext context,CompanyTask t)=>
+    private static bool KnowledgeCurrent(SqliteConnection db,CompanyContext context,CompanyTask t,int depth=0)=>
+        depth<16&&
         (t.MeetingId is not null||(t.KnowledgeId is not null&&Find<CompanyKnowledge>(db,t.KnowledgeId)?.State=="approved"))&&
         (t.CompanyKnowledgeId is null||Find<CompanyKnowledge>(db,t.CompanyKnowledgeId)?.State=="approved")&&
-        context.Evidence.All(e=>Find<CompanyArtifact>(db,e.Id) is {State:"approved"} a&&a.Digest==e.Digest);
+        HandoffsCurrent(db,t,depth)&&context.Evidence.All(e=>Find<CompanyArtifact>(db,e.Id) is {State:"approved"} a&&a.Digest==e.Digest);
     private bool Current(SqliteConnection db,CompanyAttempt a)
     {
         var t=Need<CompanyTask>(db,a.TaskId);var e=Need<CompanyEmployee>(db,a.EmployeeId);
@@ -29,7 +30,7 @@ public sealed partial class CompanyStore
             ExpireMeasured(db);
             var e=Need<CompanyEmployee>(db,employee);if(e.State!="active"||All<CompanyAttempt>(db).Any(a=>a.EmployeeId==employee&&a.Phase is "claimed" or "reserved" or "dispatching"))return null;
             providerAvailable&=!All<CompanyAttempt>(db).Any(ProviderHeld);
-            var t=All<CompanyTask>(db).FirstOrDefault(t=>t.EmployeeId==employee&&(taskId is null||t.Id==taskId)&&Role(e.RoleId).ExecutionSkills.Contains(t.Skill)==execution&&(t.State=="queued"||t.State=="blocked"&&(t.Reason is "provider-unavailable" or "dependencies"||execution&&t.Reason=="developer-execution-unavailable")));
+            var t=All<CompanyTask>(db).FirstOrDefault(t=>t.EmployeeId==employee&&(taskId is null||t.Id==taskId)&&Role(e.RoleId).ExecutionSkills.Contains(t.Skill)==execution&&(t.State=="queued"||t.State=="blocked"&&(t.Reason is "provider-unavailable" or "dependencies"||t.Reason=="handoff-awaiting-approval"&&taskId is not null&&Role(e.RoleId).MeasuredSkills.Contains(t.Skill)||execution&&t.Reason=="developer-execution-unavailable")));
             if(t is null)return null;
             if(t.ModelRoute is null||t.Runtime is null){t=t with{ModelRoute=ModelRouting.For(execution),Runtime=ModelRouting.Runtime,Version=t.Version+1};Put(db,t);}
             var reason=!ParentValid(db,t)?"parent-paused-or-expired":t.Dependencies.Any(id=>Find<CompanyTask>(db,id)?.State!="completed")?"dependencies":!providerAvailable?"provider-unavailable":null;
@@ -59,7 +60,7 @@ public sealed partial class CompanyStore
             }
             else
             {
-                foreach(var h in All<CompanyHandoff>(db).Where(h=>h.TargetEmployeeId==e.Id&&h.TargetThreadId==t.ThreadId&&h.State=="shared"))
+                foreach(var h in All<CompanyHandoff>(db).Where(h=>h.TargetEmployeeId==e.Id&&h.TargetThreadId==t.ThreadId&&h.State=="shared"&&(h.TargetTaskId is null||h.TargetTaskId==t.Id)))
                 {var artifact=Need<CompanyArtifact>(db,h.ArtifactId);if(artifact.State=="approved"&&artifact.Digest==h.Digest&&!evidence.Any(x=>x.Id==artifact.Id))evidence.Add(new(artifact.Id,artifact.Body,artifact.Digest));}
                 context=new(Id(),e.Id,e.RoleId,t.ThreadId,e.Responsibility,t.CompanyKnowledgeId is null?"":Need<CompanyKnowledge>(db,t.CompanyKnowledgeId).Body,
                     t.KnowledgeId is null?"":Need<CompanyKnowledge>(db,t.KnowledgeId).Body,Find<CompanyNotes>(db,e.Id)?.Body??"",
