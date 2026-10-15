@@ -1,5 +1,19 @@
 # Scoped integration qualification
 
+## Dedicated OAuth qualification attempt, 2026-10-15
+
+The owner completed the official native ChatGPT sign-in for a separate Codex home. Native login status and supported account reads confirm ChatGPT Pro. An empty ephemeral Luna thread reports zero ambient instruction sources and a read-only/no-network sandbox. Authentication was not copied from the normal home. The launcher now requires the dedicated home explicitly when selecting Codex; this does not change global sign-in or configuration.
+
+A separately authorized four-turn fictional qualification used the dedicated OAuth profile, exact `gpt-6-luna`, Standard tier and low effort. Included usage permission was checked before dispatch. The first `turn/start` was refused by Codex before a turn ID was returned. No conversation completed and no provider token-usage receipt was returned; remaining attempts were not sent and the failed attempt was not replayed. The current client had withheld the raw server diagnostic, so the precise refusal code/reason was not retained. Future refusals retain method and numeric code while withholding raw message/details.
+
+Credit-balance observations before and after were unchanged, included usage remained allowed and no reached spending/quota control was reported. This is observed account metadata, not an invoice or proof about delayed/concurrent account activity. Raw observations, account-specific values, profile paths and thread/account identifiers stay outside the source publication. OAuth is an authentication method, not a guarantee against credit usage.
+
+The qualification entry point requires an explicit positive fallback budget and reserves 150 credits per attempted turn, at most 600 across four attempts. The conservative planning calculation is `(1.05M input * 2.5 + 128k output * 12.5 credits/M) * 5 HTTP attempts * 6 stream attempts = 126.75`, rounded upward. It uses published Standard Luna rates, full model limits and documented retry defaults; unbounded connection retries are explicitly disabled. This is an admission estimate conditioned on those limits/defaults, not a provider-enforced monetary cap. Allowance exhaustion, spending/quota notifications, a credit-balance change, tool/approval requests or uncertain outcomes close the qualification instance. No purchase, recharge, API-key/provider fallback or recurring run is permitted.
+
+The installed generated `SandboxPolicy` schema does not declare the `readOnly.access` restricted-root field advertised by newer documentation. This is a confirmed compatibility gap, not a confirmed cause of the refusal. Restricted-read enforcement and live turn compatibility require resolution before claiming a working live employee integration. Model isolation/history results remain synthetic: each fictional employee has distinct notes and a distinct selected history marker. Actual Developer execution and automatic company workers remain disabled.
+
+Validation: 138 deterministic company checks pass, including insufficient in-flight reservation, observed credit change, quota exhaustion, refused turn startup, sanitized diagnostics and no replay. The affected projects compile. Source documentation from the earlier checkpoint below is historical.
+
 ## Native Codex connection checkpoint, 2026-10-14
 
 The selected runtime is now native Codex, independently of model choice: `gpt-6-luna` for ordinary employee text (including Developer conversation), Marketing, CEO and meetings; `gpt-6.1-sol` for explicitly scoped coding work. Both exact identifiers were returned by supported `model/list` using the existing signed-in account. New tasks persist provider-qualified route and runtime; execution grants persist the coding route. Owner configuration may change future routing without changing an existing task's selection. No unavailable-model fallback is allowed.

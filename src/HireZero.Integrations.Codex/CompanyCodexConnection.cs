@@ -4,9 +4,11 @@ using System.Text.Json;
 
 namespace HireZero.Integrations.Codex;
 
-public sealed record CompanyCodexOptions(string Executable,string Identity,string ScratchRoot,string? Home=null,string? SyntheticMode=null);
-public sealed record CompanyCodexInspection(string? AccountType,string? Plan,bool IncludedUsageAllowed,string[] Models);
-public sealed record CompanyCodexReceipt(string EmployeeId,string ContextId,string Model,string ThreadId,string TurnId,string Body,long InputTokens,long OutputTokens,long ReasoningTokens,long TotalTokens);
+public sealed record CompanyCodexOptions(string Executable,string Identity,string ScratchRoot,string? Home=null,string? SyntheticMode=null,decimal QualificationCreditBudget=0);
+public sealed record CompanyCodexBilling(bool? IncludedUsageAllowed,bool? HasCredits,string? CreditBalance,bool? SpendControlReached,string? RateLimitReachedType,int? PrimaryUsedPercent,DateTimeOffset ObservedAt);
+public sealed record CompanyCodexInspection(string? AccountType,string? Plan,bool IncludedUsageAllowed,string[] Models,CompanyCodexBilling? Billing=null);
+public sealed record CompanyCodexReceipt(string EmployeeId,string ContextId,string Model,string ThreadId,string TurnId,string Body,long InputTokens,long OutputTokens,long ReasoningTokens,long TotalTokens,
+    CompanyCodexBilling? Before=null,CompanyCodexBilling? After=null,string? StopReason=null);
 
 // Native app-server sign-in reuse only. No credential files, bearer tokens, account changes or daemon control.
 // The normal company scheduler requires hard token admission. Codex's public turn API does not provide it.
@@ -17,6 +19,10 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
     private readonly CompanyModelRouting _routing=routing??new();
     private int _sent;
     private bool _stopped;
+    // Conservative admission reserve: (1.05M input * 2.5 + 128k output * 12.5 credits/M)
+    // * (4 HTTP retries + initial) * (5 stream retries + initial) = 126.75; rounded to 150.
+    // Published Standard Codex rates and retry defaults; not a backend monetary-cap parameter.
+    public const decimal CreditExposureReservePerTurn=150;
     public bool Qualified=>false;
     public string Status=>"Codex selected. The bounded qualification connection uses native sign-in. Automatic work remains blocked: exact input counting and upstream hard token caps are unavailable.";
     public int CountTokens(CompanyModelCall call)=>throw new ModelUnavailableException("Codex app-server has no compatible exact input counter; character counts are not token bounds.");
@@ -37,13 +43,14 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
         var list=await rpc.Request("model/list",new{limit=100,includeHidden=true},token);
         if(list.TryGetProperty("nextCursor",out var cursor)&&cursor.ValueKind!=JsonValueKind.Null)throw new WorkspaceException("Model catalog requires another page; qualification refuses incomplete discovery.");
         var models=list.GetProperty("data").EnumerateArray().Select(m=>Text(m,"model")??Text(m,"id")??"").ToArray();
-        var allowed=false;
+        var allowed=false;CompanyCodexBilling? billing=null;
         if(type=="chatgpt")
         {
-            var limits=await rpc.Request("account/rateLimits/read",new{},token);
+            var limits=await rpc.Request("account/rateLimits/read",new{supportsLunaReserve=false,excludeResetCreditDetails=true},token);
             allowed=limits.TryGetProperty("ordinaryUsageAllowed",out var ordinary)&&ordinary.ValueKind==JsonValueKind.True;
+            billing=Billing(limits);
         }
-        return new(type,plan,allowed,models);
+        return new(type,plan,allowed,models,billing);
     }
     // Caller supplies fictional data only. This is an explicit qualification entry point, never a worker fallback.
     // Four attempts maximum per connection; any uncertain outcome permanently closes this qualification instance.
@@ -60,10 +67,12 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
         try
         {
             if(_stopped||_sent>=4)throw new WorkspaceException("Qualification stopped or its four-turn allowance is exhausted.");
+            if(options.QualificationCreditBudget is <=0 or >1000||(_sent+1)*CreditExposureReservePerTurn>options.QualificationCreditBudget)
+                throw new WorkspaceException("The approved qualification credit reserve cannot cover another in-flight turn.");
             rpc=Start();
             var inspection=await Inspect(rpc,deadline.Token);
             var model=CompanyModelRouting.Native(_routing.TextModel);
-            if(inspection.AccountType!="chatgpt"||!inspection.IncludedUsageAllowed)throw new WorkspaceException("Existing ChatGPT sign-in with included usage permission is required. No API-key or paid-credit fallback.");
+            if(inspection.AccountType!="chatgpt"||!inspection.IncludedUsageAllowed||inspection.Billing is {SpendControlReached:true}||inspection.Billing?.RateLimitReachedType is not null)throw new WorkspaceException("Existing ChatGPT sign-in with included usage permission is required. No API-key or provider fallback.");
             if(!inspection.Models.Contains(model)||!inspection.Models.Contains(CompanyModelRouting.Native(_routing.CodingModel)))throw new WorkspaceException("A selected model is absent from this account's catalog; no substitution.");
             var response=await rpc.Request("thread/start",new{model,modelProvider="openai",cwd=rpc.WorkingDirectory,approvalPolicy="never",sandbox="read-only",ephemeral=true,
                 allowProviderModelFallback=false,environments=Array.Empty<object>(),runtimeWorkspaceRoots=Array.Empty<string>(),serviceName="hirezero_qualification",
@@ -88,6 +97,9 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
                 {await rpc.Deny(requestId,deadline.Token);throw new CompanyTransportException("Runtime requested a tool, approval or authentication change; qualification stopped.");}
                 if(method=="error")throw new CompanyTransportException("Codex reported an error; no replay.");
                 if(!e.TryGetProperty("params",out var p))continue;
+                if(method=="account/rateLimits/updated"&&(Flag(p,"ordinaryUsageAllowed")==false||Billing(p) is {SpendControlReached:true}||Billing(p).RateLimitReachedType is not null))
+                    throw new CompanyTransportException("Runtime reported quota or spending exhaustion; no continuation or replay.");
+                if(method=="account/updated"&&Text(p,"authMode") is {} mode&&mode!="chatgpt")throw new CompanyTransportException("Runtime account mode changed; no provider fallback.");
                 if(Text(p,"threadId")!=thread||Text(p,"turnId") is {} eventTurn&&eventTurn!=turn)continue;
                 if(method is "item/started" or "item/completed")
                 {
@@ -109,7 +121,11 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
                     var completed=p.GetProperty("turn");if(Text(completed,"id")!=turn)continue;
                     if(Text(completed,"status")!="completed"||receipt is null||output.Length==0)throw new CompanyTransportException("Completion or complete usage was not confirmed.");
                     if(receipt.TotalTokens>5000)throw new CompanyTransportException("Observed usage exceeded the soft 5,000-token threshold; reconcile before further work.");
-                    return receipt with{Body=output.ToString()};
+                    var after=Billing(await rpc.Request("account/rateLimits/read",new{supportsLunaReserve=false,excludeResetCreditDetails=true},deadline.Token));
+                    var stop=after.IncludedUsageAllowed!=true||after.SpendControlReached==true||after.RateLimitReachedType is not null?"Included usage is exhausted or unavailable.":
+                        inspection.Billing?.CreditBalance is {} beforeBalance&&after.CreditBalance is {} afterBalance&&decimal.TryParse(beforeBalance,System.Globalization.NumberStyles.Number,System.Globalization.CultureInfo.InvariantCulture,out var beforeValue)&&decimal.TryParse(afterBalance,System.Globalization.NumberStyles.Number,System.Globalization.CultureInfo.InvariantCulture,out var afterValue)&&beforeValue!=afterValue?"Observed credit balance changed; reconcile account activity before continuing.":null;
+                    if(stop is not null)_stopped=true;
+                    return receipt with{Body=output.ToString(),Before=inspection.Billing,After=after,StopReason=stop};
                 }
             }
         }
@@ -134,6 +150,14 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
         return new(options,work);
     }
     private static long Number(JsonElement j,string key)=>j.TryGetProperty(key,out var value)&&value.TryGetInt64(out var n)&&n>=0?n:throw new CompanyTransportException("Complete runtime usage is missing.");
+    private static bool? Flag(JsonElement j,string key)=>j.ValueKind==JsonValueKind.Object&&j.TryGetProperty(key,out var value)?value.ValueKind==JsonValueKind.True?true:value.ValueKind==JsonValueKind.False?false:null:null;
+    private static CompanyCodexBilling Billing(JsonElement j)
+    {
+        var limits=j.TryGetProperty("rateLimitsByLimitId",out var buckets)&&buckets.ValueKind==JsonValueKind.Object&&buckets.TryGetProperty("codex",out var codex)?codex:j.TryGetProperty("rateLimits",out var legacy)?legacy:default;
+        var credits=limits.ValueKind==JsonValueKind.Object&&limits.TryGetProperty("credits",out var c)&&c.ValueKind==JsonValueKind.Object?c:default;
+        int? used=limits.ValueKind==JsonValueKind.Object&&limits.TryGetProperty("primary",out var primary)&&primary.ValueKind==JsonValueKind.Object&&primary.TryGetProperty("usedPercent",out var percent)&&percent.TryGetInt32(out var n)?n:null;
+        return new(Flag(j,"ordinaryUsageAllowed"),Flag(credits,"hasCredits"),Text(credits,"balance"),Flag(limits,"spendControlReached"),Text(limits,"rateLimitReachedType"),used,DateTimeOffset.UtcNow);
+    }
     private static string? Text(JsonElement j,string key)=>j.ValueKind==JsonValueKind.Object&&j.TryGetProperty(key,out var value)&&value.ValueKind==JsonValueKind.String?value.GetString():null;
     private sealed class Rpc : IAsyncDisposable
     {
@@ -155,7 +179,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
         {
             yield return "app-server";yield return "--stdio";yield return "--strict-config";
             foreach(var value in new[]{"model_provider=\"openai\"","forced_login_method=\"chatgpt\"","mcp_servers={}","plugins={}","project_doc_max_bytes=0","developer_instructions=\"\"","include_environment_context=false","web_search=\"disabled\"","skills.bundled.enabled=false","skills.include_instructions=false","memories.generate_memories=false","memories.use_memories=false","tools.update_plan.enabled=false","tools.experimental_request_user_input.enabled=false"}){yield return "-c";yield return value;}
-            foreach(var feature in new[]{"shell_tool","shell_snapshot","apps","plugins","remote_plugin","memories","multi_agent","hooks","computer_use","browser_use","image_generation","view_image","request_permissions_tool","skill_search","goals","code_mode_host","workspace_dependencies","sleep_tool"}){yield return "--disable";yield return feature;}
+            foreach(var feature in new[]{"shell_tool","shell_snapshot","apps","plugins","remote_plugin","memories","multi_agent","hooks","computer_use","browser_use","image_generation","view_image","request_permissions_tool","skill_search","goals","code_mode_host","workspace_dependencies","sleep_tool","unbounded_connection_retries"}){yield return "--disable";yield return feature;}
         }
         public async Task Initialize(CancellationToken token)
         {await Request("initialize",new{clientInfo=new{name="hirezero_company",version="0.1.0"},capabilities=new{experimentalApi=true}},token);await Write(new{method="initialized",@params=new{}},token);}
@@ -167,7 +191,10 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
             {
                 var j=await ReadWire(token);
                 if(j.TryGetProperty("id",out var n)&&n.TryGetInt32(out var value)&&value==id)
-                {if(j.TryGetProperty("error",out _))throw new WorkspaceException("Codex refused the supported protocol request: "+method);return j.GetProperty("result").Clone();}
+                {if(j.TryGetProperty("error",out var error)){
+                    var code=error.TryGetProperty("code",out var rawCode)&&rawCode.TryGetInt32(out var errorCode)?errorCode.ToString(System.Globalization.CultureInfo.InvariantCulture):"unknown";
+                    throw new WorkspaceException("Codex refused the supported protocol request: "+method+" (code "+code+"). No automatic replay; server message/details withheld.");
+                }return j.GetProperty("result").Clone();}
                 if(j.TryGetProperty("id",out var serverId)){await Deny(serverId,token);throw new WorkspaceException("Codex requested an unapproved action during preflight.");}
                 if(_events.Count>=256)throw new WorkspaceException("Too many runtime events.");_events.Enqueue(j);
             }

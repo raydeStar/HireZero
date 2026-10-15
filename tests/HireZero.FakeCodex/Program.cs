@@ -1,6 +1,7 @@
 using System.Text.Json;
 var mode=Environment.GetEnvironmentVariable("HIREZERO_FIXTURE_MODE")??"success";
 const string thread="fixture-thread",turn="fixture-turn";
+var companyTurnSent=false;
 void Write(object value){Console.WriteLine(JsonSerializer.Serialize(value));Console.Out.Flush();}
 void Complete(string status="completed",string? id=turn,string? threadId=thread)=>Write(new{method="turn/completed",@params=new{threadId,turn=new{id,status,error=status=="failed"?new{message="Synthetic worker failure"}:null}}});
 void Stale(string? threadId,string? turnId){
@@ -14,7 +15,7 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
  if(mode.StartsWith("company-",StringComparison.Ordinal)){
   if(method=="initialize")Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});
   else if(method=="account/read")Write(new{id=r.GetProperty("id").GetInt32(),result=new{account=new{type=mode=="company-apikey"?"apiKey":"chatgpt",planType="pro"},requiresOpenaiAuth=true}});
-  else if(method=="account/rateLimits/read")Write(new{id=r.GetProperty("id").GetInt32(),result=new{ordinaryUsageAllowed=mode!="company-quota"}});
+  else if(method=="account/rateLimits/read")Write(new{id=r.GetProperty("id").GetInt32(),result=new{ordinaryUsageAllowed=mode!="company-quota"&&!(mode=="company-drain"&&companyTurnSent),rateLimits=new{spendControlReached=false,rateLimitReachedType=(string?)null,credits=new{hasCredits=true,balance=mode=="company-credit-change"&&companyTurnSent?"9.0":"10.0"},primary=new{usedPercent=34}}}});
   else if(method=="model/list")Write(new{id=r.GetProperty("id").GetInt32(),result=new{data=(mode=="company-missing-model"?new[]{"gpt-6.1-sol"}:new[]{"gpt-6-luna","gpt-6.1-sol"}).Select(model=>new{id=model,model}),nextCursor=(string?)null}});
   else if(method=="thread/start"){
    var p=r.GetProperty("params");
@@ -22,6 +23,8 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
    Write(new{id=r.GetProperty("id").GetInt32(),result=new{thread=new{id=thread,ephemeral=true},model="gpt-6-luna",modelProvider="openai",instructionSources=mode=="company-ambient"?new[]{"fictional/global/AGENTS.md"}:Array.Empty<string>(),sandbox=new{type="readOnly",networkAccess=false}}});
   }
   else if(method=="turn/start"){
+   companyTurnSent=true;
+   if(mode=="company-start-refusal"){Write(new{id=r.GetProperty("id").GetInt32(),error=new{code=-32602,message="Fictional private diagnostic must not be exported"}});continue;}
    var p=r.GetProperty("params");if(p.GetProperty("model").GetString()!="gpt-6-luna"||p.GetProperty("effort").GetString()!="low"||p.GetProperty("serviceTierForTurn").GetString()!="default"||p.GetProperty("sandboxPolicy").GetProperty("type").GetString()!="readOnly"||p.GetProperty("sandboxPolicy").GetProperty("access").GetProperty("type").GetString()!="restricted")throw new Exception("Invalid company turn envelope");
    if(Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL") is not null||Environment.GetEnvironmentVariable("OPENAI_API_KEY") is not null)throw new Exception("Ambient secret environment leaked");
    Write(new{id=r.GetProperty("id").GetInt32(),result=new{turn=new{id=turn}}});
