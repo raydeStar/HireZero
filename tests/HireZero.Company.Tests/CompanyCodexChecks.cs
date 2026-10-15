@@ -68,12 +68,16 @@ static class CompanyCodexChecks
             try{await refused.CompletePilotAsync(Call("a",""));check(false,"Refused qualification cannot replay.");}catch(WorkspaceException){check(true,"Refusal closes that qualification instance.");}
         }
         var waiting=Connection("company-wait");using var cancel=new CancellationTokenSource();var pending=waiting.CompletePilotAsync(Call("a",""),cancel.Token);
-        foreach(var mode in new[]{"company-drain","company-credit-change"})
+        foreach(var mode in new[]{"company-drain","company-credit-change","company-observed-overrun"})
         {
             var stopped=Connection(mode);var receipt=await stopped.CompletePilotAsync(Call("a","FICTIONAL_ALPHA"));
-            check(receipt.TotalTokens==120&&receipt.Before?.IncludedUsageAllowed==true&&receipt.After is not null&&receipt.StopReason is not null,"Actual usage and billing metadata are retained when "+mode+" stops continuation.");
+            check(receipt.TotalTokens==(mode=="company-observed-overrun"?6020:120)&&receipt.Before?.IncludedUsageAllowed==true&&receipt.After is not null&&receipt.StopReason is not null&&receipt.Body=="","Actual usage and billing metadata survive "+mode+" while content is withheld and continuation stops.");
             try{await stopped.CompletePilotAsync(Call("b",""));check(false,"Billing stop cannot continue.");}catch(WorkspaceException){check(true,"Billing/quota change blocks another request.");}
         }
+        var billingFailure=Connection("company-postbilling-refusal");
+        try{await billingFailure.CompletePilotAsync(Call("a","FICTIONAL_ALPHA"));check(false,"Missing final billing reconciliation cannot continue.");}
+        catch(CompanyTransportException error){check(error.KnownUsage==120&&error.Usage==new CompanyTokenUsage(100,20,5)&&error.Receipt is not null&&!error.Message.Contains("private billing"),"Completed native usage survives a failed account read while output is withheld and private diagnostics remain hidden.");}
+        try{await billingFailure.CompletePilotAsync(Call("b",""));check(false,"A failed account reconciliation cannot replay.");}catch(WorkspaceException){check(true,"Final account uncertainty closes the qualification instance.");}
         var readyDeadline=DateTime.UtcNow.AddSeconds(5);
         while(!Directory.GetFiles(Path.Combine(root,"codex-text"),"fixture-ready",SearchOption.AllDirectories).Any()&&DateTime.UtcNow<readyDeadline)await Task.Delay(20);
         cancel.Cancel();try{await pending;check(false,"Canceled request cannot complete.");}catch(OperationCanceledException){check(true,"Cancellation interrupts only the owned text runtime and withholds output.");}

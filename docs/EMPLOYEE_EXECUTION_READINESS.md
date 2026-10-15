@@ -4,6 +4,8 @@ The management workflows are implemented, but live employee execution is not com
 
 The local [queue accounting assessment](QUEUE_TOKEN_ACCOUNTING.md) now makes runtime overhead explicit, preserves complete usage on rejected drafts, and exercises the Marketing queue through review and cancellation with fake providers. It leaves the normal token limits and live activation gates unchanged.
 
+The [OAuth queue decision](OAUTH_QUEUE_DECISION.md) recommends an explicit measured admission contract for native text work instead of requiring unavailable strict token APIs. It is a proposed next contract; no automatic worker, additional live request or spending/security change is enabled by this decision.
+
 | Workflow | Working internal path | Remaining live gap |
 | --- | --- | --- |
 | Marketing brief → draft → review | Server validates and stores the structured brief. The scheduler now selects the draft skill's specific instructions: draft copy, claim sources, missing facts and owner questions. Output becomes an artifact requiring exact content review; an explicit handoff selects its recipient conversation. | Admit an approved bounded call through the actual employee queue and persist its native receipt and usage. The normal text adapter still lacks compatible token admission; synthetic replies prove the draft/handoff plumbing, while the separate native qualification proves only the tested text boundary. |

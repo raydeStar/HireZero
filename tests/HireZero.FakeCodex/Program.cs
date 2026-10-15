@@ -22,7 +22,10 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
  if(mode.StartsWith("company-",StringComparison.Ordinal)){
   if(method=="initialize")Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});
   else if(method=="account/read")Write(new{id=r.GetProperty("id").GetInt32(),result=new{account=new{type=mode=="company-apikey"?"apiKey":"chatgpt",planType="pro"},requiresOpenaiAuth=true}});
-  else if(method=="account/rateLimits/read")Write(new{id=r.GetProperty("id").GetInt32(),result=new{ordinaryUsageAllowed=mode!="company-quota"&&!(mode=="company-drain"&&companyTurnSent),rateLimits=new{spendControlReached=false,rateLimitReachedType=(string?)null,credits=new{hasCredits=true,balance=mode=="company-credit-change"&&companyTurnSent?"9.0":"10.0"},primary=new{usedPercent=34}}}});
+  else if(method=="account/rateLimits/read"){
+   if(mode=="company-postbilling-refusal"&&companyTurnSent)Write(new{id=r.GetProperty("id").GetInt32(),error=new{code=-32000,message="Fictional private billing diagnostic"}});
+   else Write(new{id=r.GetProperty("id").GetInt32(),result=new{ordinaryUsageAllowed=mode!="company-quota"&&!(mode=="company-drain"&&companyTurnSent),rateLimits=new{spendControlReached=false,rateLimitReachedType=(string?)null,credits=new{hasCredits=true,balance=mode=="company-credit-change"&&companyTurnSent?"9.0":"10.0"},primary=new{usedPercent=34}}}});
+  }
   else if(method=="model/list")Write(new{id=r.GetProperty("id").GetInt32(),result=new{data=(mode=="company-missing-model"?new[]{"gpt-6.1-sol"}:new[]{"gpt-6-luna","gpt-6.1-sol"}).Select(model=>new{id=model,model}),nextCursor=(string?)null}});
   else if(method=="config/read"){
    var work=Directory.GetCurrentDirectory();
@@ -54,7 +57,7 @@ while(await Console.In.ReadLineAsync() is {} line){using var doc=JsonDocument.Pa
    var body=context.RootElement.GetProperty("notes").GetString()+"|"+context.RootElement.GetProperty("history").GetRawText();
    if(mode=="company-nontext")Write(new{method="item/started",@params=new{threadId=thread,turnId=turn,item=new{type="fileChange"}}});
    Write(new{method="item/agentMessage/delta",@params=new{threadId=thread,turnId=turn,delta=body}});
-   if(mode!="company-missing-usage")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=100,outputTokens=20,reasoningOutputTokens=5,totalTokens=120}}}});
+   if(mode!="company-missing-usage")Write(new{method="thread/tokenUsage/updated",@params=new{threadId=thread,turnId=turn,tokenUsage=new{total=new{inputTokens=mode=="company-observed-overrun"?6000:100,outputTokens=20,reasoningOutputTokens=5,totalTokens=mode=="company-observed-overrun"?6020:120}}}});
    Complete();
   }
   else if(method=="turn/interrupt"){Write(new{id=r.GetProperty("id").GetInt32(),result=new{}});Complete("interrupted");return;}

@@ -11,8 +11,9 @@ public sealed record CompanyCodexReceipt(string EmployeeId,string ContextId,stri
     CompanyCodexBilling? Before=null,CompanyCodexBilling? After=null,string? StopReason=null,int? ContextUtf8Bytes=null,int? InstructionUtf8Bytes=null);
 
 // Native app-server sign-in reuse only. No credential files, bearer tokens, account changes or daemon control.
-// The normal company scheduler requires hard token admission. Codex's public turn API does not provide it.
-// This connection therefore exposes a separate, four-turn qualification API, never claims normal qualification.
+// The current strict scheduler profile requires hard token admission, an application policy
+// this native protocol cannot supply. A measured OAuth queue needs an explicit separate contract.
+// This connection currently exposes only its bounded qualification entry point.
 public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyModelRouting? routing=null) : ICompanyModel
 {
     private const string PermissionProfile="hirezero_qualification";
@@ -20,13 +21,13 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
     private readonly CompanyModelRouting _routing=routing??new();
     private int _sent;
     private bool _stopped;
-    // Conservative admission reserve: (1.05M input * 2.5 + 128k output * 12.5 credits/M)
-    // * (4 HTTP retries + initial) * (5 stream retries + initial) = 126.75; rounded to 150.
-    // Published Standard Codex rates and retry defaults; not a backend monetary-cap parameter.
+    // Historical qualification planning reserve, NOT a price estimate or proven maximum charge.
+    // The former 126.75 calculation assumed full context + output and 30 billable attempts;
+    // those assumptions do not establish actual native retry billing. See OAUTH_QUEUE_DECISION.md.
     public const decimal CreditExposureReservePerTurn=150;
     public const int QualificationContextByteLimit=4000,QualificationInstructionCharacterLimit=1000;
     public bool Qualified=>false;
-    public string Status=>"Codex selected. The bounded qualification connection uses native sign-in. Automatic work remains blocked: exact input counting and upstream hard token caps are unavailable.";
+    public string Status=>"Codex selected. Automatic workers are off. This profile currently supports scoped qualification only; a measured OAuth queue needs an explicit admission policy.";
     public int CountTokens(CompanyModelCall call)=>throw new ModelUnavailableException("Codex app-server has no compatible exact input counter; character counts are not token bounds.");
     public CompanyInputAccounting CountInput(CompanyModelCall call)=>throw new ModelUnavailableException("Codex application tokens and runtime-added input have no compatible exact preflight counter. Observed usage is not an admission bound.");
     public Task<CompanyModelReply> CompleteAsync(CompanyModelCall call,CancellationToken token)=>throw new ModelUnavailableException(Status);
@@ -66,7 +67,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
             throw new WorkspaceException("Narrow the fictional qualification context.");
         await _serial.WaitAsync(token);string? thread=null,turn=null;var started=false;
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(token);deadline.CancelAfter(TimeSpan.FromSeconds(60));
-        Rpc? rpc=null;
+        Rpc? rpc=null;CompanyCodexReceipt? completedReceipt=null;
         try
         {
             if(_stopped||_sent>=4)throw new WorkspaceException("Qualification stopped or its four-turn allowance is exhausted.");
@@ -126,23 +127,26 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
                 {
                     var completed=p.GetProperty("turn");if(Text(completed,"id")!=turn)continue;
                     if(Text(completed,"status")!="completed"||receipt is null||output.Length==0)throw new CompanyTransportException("Completion or complete usage was not confirmed.");
-                    if(receipt.TotalTokens>5000)throw new CompanyTransportException("Observed usage exceeded the soft 5,000-token threshold; reconcile before further work.");
+                    completedReceipt=receipt;
                     var after=Billing(await rpc.Request("account/rateLimits/read",new{supportsLunaReserve=false,excludeResetCreditDetails=true},deadline.Token));
-                    var stop=after.IncludedUsageAllowed!=true||after.SpendControlReached==true||after.RateLimitReachedType is not null?"Included usage is exhausted or unavailable.":
+                    var stop=receipt.TotalTokens>5000?"Observed usage exceeded the soft 5,000-token threshold; reconcile before further work.":
+                        after.IncludedUsageAllowed!=true||after.SpendControlReached==true||after.RateLimitReachedType is not null?"Included usage is exhausted or unavailable.":
                         inspection.Billing?.CreditBalance is {} beforeBalance&&after.CreditBalance is {} afterBalance&&decimal.TryParse(beforeBalance,System.Globalization.NumberStyles.Number,System.Globalization.CultureInfo.InvariantCulture,out var beforeValue)&&decimal.TryParse(afterBalance,System.Globalization.NumberStyles.Number,System.Globalization.CultureInfo.InvariantCulture,out var afterValue)&&beforeValue!=afterValue?"Observed credit balance changed; reconcile account activity before continuing.":null;
                     if(stop is not null)_stopped=true;
-                    return receipt with{Body=output.ToString(),Before=inspection.Billing,After=after,StopReason=stop,ContextUtf8Bytes=Encoding.UTF8.GetByteCount(input),InstructionUtf8Bytes=Encoding.UTF8.GetByteCount(call.Instructions)};
+                    return receipt with{Body=stop is null?output.ToString():"",Before=inspection.Billing,After=after,StopReason=stop,ContextUtf8Bytes=Encoding.UTF8.GetByteCount(input),InstructionUtf8Bytes=Encoding.UTF8.GetByteCount(call.Instructions)};
                 }
             }
         }
         catch
         {
             _stopped=true;
-            if(rpc is not null&&started&&thread is not null&&turn is not null)
+            if(completedReceipt is null&&rpc is not null&&started&&thread is not null&&turn is not null)
             {
                 using var grace=new CancellationTokenSource(TimeSpan.FromSeconds(3));
                 try{await rpc.Request("turn/interrupt",new{threadId=thread,turnId=turn},grace.Token);}catch{ }
             }
+            if(completedReceipt is {} known)
+                throw new CompanyTransportException("The native turn completed but final account reconciliation failed; observed usage is retained. No replay.",known.TotalTokens,"codex:"+known.TurnId,new(known.InputTokens,known.OutputTokens,known.ReasoningTokens));
             throw;
         }
         finally{try{if(rpc is not null)await rpc.DisposeAsync();}finally{_serial.Release();}}

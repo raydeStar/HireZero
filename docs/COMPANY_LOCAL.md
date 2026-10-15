@@ -6,6 +6,8 @@ See [employee execution readiness](EMPLOYEE_EXECUTION_READINESS.md) for the curr
 
 See [queue token accounting](QUEUE_TOKEN_ACCOUNTING.md) for complete application/runtime input admission, billing on rejected/canceled work, and the prerequisites for one queued Marketing live test.
 
+The [measured OAuth queue decision](OAUTH_QUEUE_DECISION.md) supersedes the requirement that every native queue use unavailable exact-token APIs. It proposes a scoped measured policy with truthful soft limits; no activation or additional call is authorized by that proposal.
+
 ## Codex connection and model routing
 
 Runtime selection is separate from model routing. Ordinary tasks, Marketing work, CEO coordination, meeting turns and Developer conversations record `openai/gpt-6-luna`. Only explicit `developer-work` execution tasks record `openai/gpt-6.1-sol`; reviewed execution proposals retain that route. Older tasks without routing metadata receive it when first admitted. Configuration changes do not rewrite a recorded route. Task cards show the saved runtime and model.
