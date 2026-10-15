@@ -13,14 +13,15 @@ static class IntegrationPathChecks
     public static async Task RunAsync(string root,Action<bool,string> check)
     {
         var builder=WebApplication.CreateBuilder();builder.Logging.ClearProviders();builder.WebHost.UseUrls("http://127.0.0.1:0");
-        await using var server=builder.Build();var mode="ok";var received=new List<JsonElement>();var redirectHits=0;
+        await using var server=builder.Build();var mode="ok";var received=new List<JsonElement>();var redirectHits=0;long lastReturnedUsage=0;
         server.MapPost("/v1/chat/completions",async(HttpContext c)=>
         {
             received.Add(await JsonSerializer.DeserializeAsync<JsonElement>(c.Request.Body));
             if(mode=="redirect"){c.Response.Redirect("/redirected");return;}
             if(mode=="error"){c.Response.StatusCode=503;return;}
             if(mode=="lost"){c.Abort();return;}
-            await c.Response.WriteAsJsonAsync(new{id="fixture-receipt",model=mode=="route"?"wrong-route":"fixture-text",usage=mode=="usage"?null:new{prompt_tokens=10,completion_tokens=5,total_tokens=15},
+            var messages=received.Last().GetProperty("messages");var input=mode=="input-overhead"?4355:(messages[0].GetProperty("content").GetString()!.Length+messages[1].GetProperty("content").GetString()!.Length)/4+32;lastReturnedUsage=input+5;
+            await c.Response.WriteAsJsonAsync(new{id="fixture-receipt",model=mode=="route"?"wrong-route":"fixture-text",usage=mode=="usage"?null:new{prompt_tokens=input,completion_tokens=5,total_tokens=input+5},
                 choices=new[]{new{finish_reason=mode=="tool"?"tool_calls":"stop",message=new{role="assistant",content="Fictional scoped response",tool_calls=mode=="tool"?new[]{new{id="forbidden-tool"}}:null}}}});
         });
         server.MapGet("/redirected",()=>{redirectHits++;return Results.Ok();});await server.StartAsync();
@@ -49,9 +50,9 @@ static class IntegrationPathChecks
             var person=caseIndex++%2==0?first:second;var thread=person.Id==first.Id?t1:t2;
             mode=state;var work=Submit(person,thread);await scheduler.TickAsync(person.Id);var current=store.Work(work.Id);
             check(current.State==(state=="tool"?"failed":"unknown"),"Transport "+state+" cannot produce an accepted artifact.");
-            var budget=List<CompanyBudget>("budgets").Single(b=>b.Id==work.RootId);check(state=="tool"?budget.Used==15&&budget.Reserved==0:budget.Reserved==5000,"Transport "+state+" accounts for confirmed or unknown usage conservatively.");
+            var budget=List<CompanyBudget>("budgets").Single(b=>b.Id==work.RootId);check(state=="tool"?budget.Used==lastReturnedUsage&&budget.Reserved==0:budget.Reserved==5000,"Transport "+state+" accounts for confirmed or unknown usage conservatively.");
         }
-        check(redirectHits==0&&received.Count==8,"Redirects and failures never trigger fallback or automatic HTTP retries.");await server.StopAsync();
+        check(redirectHits==0&&received.Count==8,"Redirects and failures never trigger fallback or automatic HTTP retries.");
         var repo=Path.Combine(root,"temporary-checkout");Directory.CreateDirectory(repo);var git=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Git","cmd","git.exe");
         async Task Git(params string[] args){var start=new ProcessStartInfo(git){WorkingDirectory=repo,UseShellExecute=false,CreateNoWindow=true,RedirectStandardError=true,RedirectStandardOutput=true};foreach(var arg in new[]{"-c","user.name=Fictional Fixture","-c","user.email=fixture@example.invalid","-c","commit.gpgsign=false","-c","core.hooksPath="+Path.Combine(root,"empty-hooks")}.Concat(args))start.ArgumentList.Add(arg);using var p=Process.Start(start)!;var output=p.StandardOutput.ReadToEndAsync();var error=p.StandardError.ReadToEndAsync();await p.WaitForExitAsync();await output;var text=await error;if(p.ExitCode!=0)throw new Exception("Fixture Git failed: "+text);}
         await Git("init");await File.WriteAllTextAsync(Path.Combine(repo,"source.txt"),"Fictional source");await Git("add","source.txt");await Git("commit","-m","Fictional fixture baseline");
@@ -106,9 +107,13 @@ static class IntegrationPathChecks
         check(diff.Files.Length==3&&diff.Files.Single(f=>f.Path=="source.txt").Patch.Contains("+Changed fictional line")&&diff.Files.Single(f=>f.Path=="removed.txt").Change=="deleted"&&diff.Files.Single(f=>f.Path=="new.txt").Change=="added"&&!File.Exists(marker),"Raw review captures modified, deleted and new files without executing project clean filters or diff drivers.");
         await File.WriteAllBytesAsync(Path.Combine(repo,"new.txt"),[0,1,2]);
         try{await inspector.ReviewAsync(repo,baseline.Revision,default);check(false,"Binary changes require another review path.");}catch(WorkspaceException){check(!File.Exists(marker),"Unsupported binary review fails closed without invoking project commands.");}
+        mode="input-overhead";var excess=Submit(first,t1);await scheduler.TickAsync(first.Id);
+        var excessDetail=JsonSerializer.SerializeToElement(store.TaskDetail(excess.Id),CompanyJson.Options).GetProperty("attempts")[0];
+        check(store.Work(excess.Id).State=="failed"&&List<CompanyBudget>("budgets").Single(b=>b.Id==excess.RootId) is {Used:4360,Reserved:0}&&excessDetail.GetProperty("usage").GetProperty("inputTokens").GetInt64()==4355,"Actual HTTP input beyond the complete-input bound is withheld while its full known usage and receipt persist.");
+        await server.StopAsync();
         using(var connection=new SqliteConnection("Data Source="+Path.Combine(root,"integration-paths.sqlite")+";Pooling=False")){connection.Open();using var q=connection.CreateCommand();q.CommandText="DROP TABLE co_execution_grants; DELETE FROM company_schema_migrations WHERE version=2";q.ExecuteNonQuery();}
         var upgraded=new CompanyStore(Path.Combine(root,"integration-paths.sqlite"),"owner@example.invalid",CompanyWorkspace.Definitions());check(JsonSerializer.SerializeToElement(upgraded.Dashboard(),CompanyJson.Options).GetProperty("employees").GetArrayLength()==2,"Version-one database upgrades transactionally without losing employees.");
     }
     static bool Throws(Action action){try{action();return false;}catch(WorkspaceException){return true;}}
-    sealed class Counter:ICompanyTokenCounter {public string Identity=>"synthetic-counter-v1";public int Count(string system,string user)=>(system.Length+user.Length)/4;}
+    sealed class Counter:ICompanyTokenCounter {public string Identity=>"synthetic-counter-v1";public int? RuntimeOverheadTokens=>32;public int Count(string system,string user)=>(system.Length+user.Length)/4;}
 }

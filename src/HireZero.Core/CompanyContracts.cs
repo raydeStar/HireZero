@@ -30,7 +30,8 @@ public sealed record CompanyContext(string Id, string EmployeeId, string RoleId,
     string CompanyKnowledge, string DepartmentKnowledge, string Notes, CompanyMessage[] History, CompanyEvidence[] Evidence,
     string Input, string? MeetingId = null,CompanyColleague[]? Colleagues=null,CompanyWorkStatus[]? CompanyWork=null);
 public sealed record CompanyAttempt(string Id, string TaskId, string EmployeeId, string Phase, int TaskGeneration,
-    int EmployeeGeneration, string? ContextId, string? Error = null, int Version = 1,string? ProviderReceipt=null,long? ReportedUsage=null);
+    int EmployeeGeneration, string? ContextId, string? Error = null, int Version = 1,string? ProviderReceipt=null,long? ReportedUsage=null,
+    CompanyInputAdmission? Admission=null,CompanyTokenUsage? Usage=null);
 public sealed record CompanyBudget(string Id, long Limit, long Used = 0, long Reserved = 0, int Version = 1);
 public sealed record CompanyReservation(string Id, string RootId, long Amount, string State = "reserved", long? Actual = null, int Version = 1,string[]? Scopes=null);
 public sealed record CompanyResourceClaim(string Id, string TaskId, string AttemptId, string EmployeeId, int Version = 1);
@@ -63,18 +64,21 @@ public sealed record CompanyModelRouting(string TextModel="openai/gpt-6-luna",st
             throw new WorkspaceException("Select explicit OpenAI model routes on the Codex runtime.");
     }
 }
-public sealed record CompanyModelReply(string Body, long? TotalTokens, string? Receipt = null);
-public sealed class CompanyTransportException(string message,long? knownUsage=null,string? receipt=null):Exception(message)
+public sealed record CompanyModelReply(string Body, long? TotalTokens, string? Receipt = null,CompanyTokenUsage? Usage=null);
+public sealed class CompanyTransportException(string message,long? knownUsage=null,string? receipt=null,CompanyTokenUsage? usage=null,bool accountingViolation=false):Exception(message)
 {
     public long? KnownUsage {get;}=knownUsage;
     public string? Receipt {get;}=receipt;
+    public CompanyTokenUsage? Usage {get;}=usage;
+    public bool AccountingViolation {get;}=accountingViolation;
 }
 public interface ICompanyModel
 {
     bool Qualified { get; }
     string Status { get; }
-    // A compatible exact tokenizer is required. Character counts are not token bounds.
-    int CountTokens(CompanyModelCall call);
+    // Counts all provider input, including runtime-added framing/instructions. No observed offset.
+    CompanyInputAccounting CountInput(CompanyModelCall call);
+    int CountTokens(CompanyModelCall call)=>CountInput(call).TotalTokens();
     Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token);
 }
 public sealed class UnavailableCompanyModel : ICompanyModel
@@ -82,6 +86,7 @@ public sealed class UnavailableCompanyModel : ICompanyModel
     public bool Qualified => false;
     public string Status => "Live context isolation and usage accounting have not been qualified. No model request is sent.";
     public int CountTokens(CompanyModelCall call) => throw new ModelUnavailableException(Status);
+    public CompanyInputAccounting CountInput(CompanyModelCall call) => throw new ModelUnavailableException(Status);
     public Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token) => throw new ModelUnavailableException(Status);
 }
 public static class CompanyJson

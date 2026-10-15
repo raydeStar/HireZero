@@ -8,7 +8,7 @@ public sealed record CompanyCodexOptions(string Executable,string Identity,strin
 public sealed record CompanyCodexBilling(bool? IncludedUsageAllowed,bool? HasCredits,string? CreditBalance,bool? SpendControlReached,string? RateLimitReachedType,int? PrimaryUsedPercent,DateTimeOffset ObservedAt);
 public sealed record CompanyCodexInspection(string? AccountType,string? Plan,bool IncludedUsageAllowed,string[] Models,CompanyCodexBilling? Billing=null);
 public sealed record CompanyCodexReceipt(string EmployeeId,string ContextId,string Model,string ThreadId,string TurnId,string Body,long InputTokens,long OutputTokens,long ReasoningTokens,long TotalTokens,
-    CompanyCodexBilling? Before=null,CompanyCodexBilling? After=null,string? StopReason=null);
+    CompanyCodexBilling? Before=null,CompanyCodexBilling? After=null,string? StopReason=null,int? ContextUtf8Bytes=null,int? InstructionUtf8Bytes=null);
 
 // Native app-server sign-in reuse only. No credential files, bearer tokens, account changes or daemon control.
 // The normal company scheduler requires hard token admission. Codex's public turn API does not provide it.
@@ -24,9 +24,11 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
     // * (4 HTTP retries + initial) * (5 stream retries + initial) = 126.75; rounded to 150.
     // Published Standard Codex rates and retry defaults; not a backend monetary-cap parameter.
     public const decimal CreditExposureReservePerTurn=150;
+    public const int QualificationContextByteLimit=4000,QualificationInstructionCharacterLimit=1000;
     public bool Qualified=>false;
     public string Status=>"Codex selected. The bounded qualification connection uses native sign-in. Automatic work remains blocked: exact input counting and upstream hard token caps are unavailable.";
     public int CountTokens(CompanyModelCall call)=>throw new ModelUnavailableException("Codex app-server has no compatible exact input counter; character counts are not token bounds.");
+    public CompanyInputAccounting CountInput(CompanyModelCall call)=>throw new ModelUnavailableException("Codex application tokens and runtime-added input have no compatible exact preflight counter. Observed usage is not an admission bound.");
     public Task<CompanyModelReply> CompleteAsync(CompanyModelCall call,CancellationToken token)=>throw new ModelUnavailableException(Status);
     public async Task<CompanyCodexInspection> InspectAsync(CancellationToken token=default)
     {
@@ -60,7 +62,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
     {
         var input=CompanyJson.Encode(call.Context);
         if(call.ModelRoute is not null&&call.ModelRoute!=_routing.TextModel)throw new WorkspaceException("Text dispatch cannot select the coding route.");
-        if(call.Instructions.Length>1000||Encoding.UTF8.GetByteCount(input)>4000||call.Context.Input.Length>1000||string.IsNullOrWhiteSpace(call.Context.EmployeeId)||call.Context.Id.Length==0)
+        if(call.Instructions.Length>QualificationInstructionCharacterLimit||Encoding.UTF8.GetByteCount(input)>QualificationContextByteLimit||call.Context.Input.Length>1000||string.IsNullOrWhiteSpace(call.Context.EmployeeId)||call.Context.Id.Length==0)
             throw new WorkspaceException("Narrow the fictional qualification context.");
         await _serial.WaitAsync(token);string? thread=null,turn=null;var started=false;
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(token);deadline.CancelAfter(TimeSpan.FromSeconds(60));
@@ -129,7 +131,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options,CompanyMo
                     var stop=after.IncludedUsageAllowed!=true||after.SpendControlReached==true||after.RateLimitReachedType is not null?"Included usage is exhausted or unavailable.":
                         inspection.Billing?.CreditBalance is {} beforeBalance&&after.CreditBalance is {} afterBalance&&decimal.TryParse(beforeBalance,System.Globalization.NumberStyles.Number,System.Globalization.CultureInfo.InvariantCulture,out var beforeValue)&&decimal.TryParse(afterBalance,System.Globalization.NumberStyles.Number,System.Globalization.CultureInfo.InvariantCulture,out var afterValue)&&beforeValue!=afterValue?"Observed credit balance changed; reconcile account activity before continuing.":null;
                     if(stop is not null)_stopped=true;
-                    return receipt with{Body=output.ToString(),Before=inspection.Billing,After=after,StopReason=stop};
+                    return receipt with{Body=output.ToString(),Before=inspection.Billing,After=after,StopReason=stop,ContextUtf8Bytes=Encoding.UTF8.GetByteCount(input),InstructionUtf8Bytes=Encoding.UTF8.GetByteCount(call.Instructions)};
                 }
             }
         }

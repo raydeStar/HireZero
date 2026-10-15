@@ -120,6 +120,7 @@ try
     using(var db=new SqliteConnection("Data Source="+path+";Pooling=False")){db.Open();using var q=db.CreateCommand();q.CommandText="UPDATE company_schema_migrations SET checksum='modified'";q.ExecuteNonQuery();}
     Check(Refused(()=>new CompanyStore(path,"owner@example.invalid",CompanyWorkspace.Definitions())),"Changed migration checksum is refused.");
     await SecurityChecks.RunAsync(root,Check);
+    await MarketingQueueChecks.RunAsync(root,Check);
     await IntegrationPathChecks.RunAsync(root,Check);
     await CompanyCodexChecks.RunAsync(root,Check);
     await HttpChecks(root,Check);
@@ -164,7 +165,7 @@ sealed class FakeModel : ICompanyModel
     public bool Qualified=>true;public string Status=>"Deterministic synthetic provider; no network.";
     public ConcurrentQueue<CompanyModelCall> Calls {get;}=new();public int MaxActive;private int _active;public long? Usage=100;
     public TaskCompletionSource<CompanyModelReply>? Hold;public TaskCompletionSource Entered=new(TaskCreationOptions.RunContinuationsAsynchronously);public string? ReplyBody;
-    public int CountTokens(CompanyModelCall call)=>Math.Max(1,CompanyJson.Encode(call).Length/4);
+    public CompanyInputAccounting CountInput(CompanyModelCall call)=>new(Math.Max(1,CompanyJson.Encode(call).Length/4),0,"synthetic-test-counter");
     public async Task<CompanyModelReply> CompleteAsync(CompanyModelCall call,CancellationToken token)
-    {var active=Interlocked.Increment(ref _active);MaxActive=Math.Max(MaxActive,active);Calls.Enqueue(call);try{if(Hold is not null){Entered.TrySetResult();return await Hold.Task.WaitAsync(token);}await Task.Yield();return new(ReplyBody??"Synthetic draft from "+call.Context.EmployeeId,Usage,"fictional-receipt");}finally{Interlocked.Decrement(ref _active);}}
+    {var active=Interlocked.Increment(ref _active);MaxActive=Math.Max(MaxActive,active);Calls.Enqueue(call);try{CompanyModelReply reply;if(Hold is not null){Entered.TrySetResult();reply=await Hold.Task.WaitAsync(token);}else{await Task.Yield();reply=new(ReplyBody??"Synthetic draft from "+call.Context.EmployeeId,Usage,"fictional-receipt");}if(reply.TotalTokens is {} output&&reply.Usage is null){var input=CountInput(call).TotalTokens();reply=reply with{TotalTokens=input+output,Usage=new(input,output)};}return reply;}finally{Interlocked.Decrement(ref _active);}}
 }

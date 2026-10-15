@@ -4,6 +4,8 @@ The company workspace manages departments, employee instances, private conversat
 
 See [employee execution readiness](EMPLOYEE_EXECUTION_READINESS.md) for the current Marketing, Developer and CEO/meeting paths, the saved file-diff review, and the concrete gaps before live work.
 
+See [queue token accounting](QUEUE_TOKEN_ACCOUNTING.md) for complete application/runtime input admission, billing on rejected/canceled work, and the prerequisites for one queued Marketing live test.
+
 ## Codex connection and model routing
 
 Runtime selection is separate from model routing. Ordinary tasks, Marketing work, CEO coordination, meeting turns and Developer conversations record `openai/gpt-6-luna`. Only explicit `developer-work` execution tasks record `openai/gpt-6.1-sol`; reviewed execution proposals retain that route. Older tasks without routing metadata receive it when first admitted. Configuration changes do not rewrite a recorded route. Task cards show the saved runtime and model.

@@ -34,13 +34,15 @@ static class CompanyCodexChecks
         var underfunded=new CompanyCodexConnection(new(executable,identity,Path.Combine(root,"codex-text"),SyntheticMode:"company-success",QualificationCreditBudget:149));
         try{await underfunded.CompletePilotAsync(Call("a",""));check(false,"Insufficient in-flight reserve must refuse.");}catch(WorkspaceException){check(true,"No turn starts without the full conservative credit exposure reservation.");}
         try{connection.CountTokens(Call("a",""));check(false,"No invented token counter.");}catch(ModelUnavailableException){check(true,"Missing tokenizer is reported explicitly.");}
+        try{connection.CountInput(Call("a",""));check(false,"Observed native overhead cannot qualify normal queue admission.");}catch(ModelUnavailableException){check(true,"Native application/runtime counting remains unavailable rather than subtracting an observed offset.");}
         var sentinel=Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL");Environment.SetEnvironmentVariable("HIREZERO_PARENT_SENTINEL","PRIVATE_PARENT_VALUE");
         try
         {
-            var a=await connection.CompletePilotAsync(Call("a","PRIVATE_ALPHA","ALPHA_HISTORY"));
+            var firstCall=Call("a","PRIVATE_ALPHA","ALPHA_HISTORY");var a=await connection.CompletePilotAsync(firstCall);
             var b=await connection.CompletePilotAsync(Call("b","PRIVATE_BETA","BETA_HISTORY"));
             check(a.Body.Contains("PRIVATE_ALPHA")&&!a.Body.Contains("PRIVATE_BETA")&&b.Body.Contains("PRIVATE_BETA")&&!b.Body.Contains("ALPHA_HISTORY"),"Fresh employee threads receive only their admitted notes and history.");
             check(a.ContextId!=b.ContextId&&a.EmployeeId!=b.EmployeeId&&a.Model=="gpt-6-luna"&&a.TotalTokens==120&&a.ReasoningTokens==5,"Receipts bind employee, context, exact model and complete usage.");
+            check(a.ContextUtf8Bytes==System.Text.Encoding.UTF8.GetByteCount(CompanyJson.Encode(firstCall.Context))&&a.InstructionUtf8Bytes==System.Text.Encoding.UTF8.GetByteCount(firstCall.Instructions),"Qualification records application bytes separately from provider input tokens without inventing an overhead count.");
             await connection.CompletePilotAsync(Call("a","UPDATED_ALPHA","UPDATED_HISTORY"));await connection.CompletePilotAsync(Call("b","UPDATED_BETA"));
             try{await connection.CompletePilotAsync(Call("a",""));check(false,"Fifth turn must fail.");}catch(WorkspaceException){check(true,"Qualification permits four attempts and no fifth turn.");}
         }
