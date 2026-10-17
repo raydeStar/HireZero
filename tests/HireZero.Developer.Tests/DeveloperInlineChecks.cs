@@ -740,10 +740,10 @@ public static class DeveloperInlineChecks
         GitHubHealth.SignedOut -= OnSignedOut;
         Check(GitHubHealth.SignedOutSince is null, "The next successful GitHub call clears it.");
         Check(
-            GitHubReconnect.ParseCode(
+            HireZero.Integrations.GitHub.GitHubSignIn.ParseCode(
                 "! First copy your one-time code: 1A2B-3C4D\nPress Enter to open github.com in your browser..."
             ) == "1A2B-3C4D"
-                && GitHubReconnect.ParseCode("Logged in as owner") is null,
+                && HireZero.Integrations.GitHub.GitHubSignIn.ParseCode("Logged in as owner") is null,
             "The device code is read from gh's own prompt."
         );
         Console.WriteLine($"PASS {count} GitHub ownership, scope, stale evidence, durability, and confirmation checks");

@@ -67,6 +67,18 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"
         }
+      },
+      "hirezero.tools.github": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.node": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
       }
     }
   }

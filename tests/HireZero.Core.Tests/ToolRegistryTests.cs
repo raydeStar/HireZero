@@ -152,6 +152,20 @@ public sealed class ToolRegistryTests
         Assert.Equal(("failed", "TimeoutException"), (_audit.Records.Single().Outcome, _audit.Records.Single().Detail));
     }
 
+    // The owner's click approves exactly the call the endpoint is about to make, once.
+    [Fact]
+    public async Task OwnerActionApprovalsCoverOneExactCall()
+    {
+        var owner = new OwnerActionApprovals();
+        var tools = Registry(owner).For(Manifest(new EmployeeTool(Send.Id, ToolRisk.External, "Send.")));
+        var approval = owner.Approve(Send, new Query("install"));
+        await Assert.ThrowsAsync<ToolRefusedException>(() => tools.InvokeAsync(Send, new("other"), Token, approval));
+        var fresh = owner.Approve(Send, new Query("install"));
+        Assert.Equal("sent:install", await tools.InvokeAsync(Send, new("install"), Token, fresh));
+        await Assert.ThrowsAsync<ToolRefusedException>(() => tools.InvokeAsync(Send, new("install"), Token, fresh));
+        Assert.Equal(1, _sends);
+    }
+
     [Fact]
     public void ToolsRegisterOnce()
     {

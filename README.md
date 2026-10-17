@@ -16,7 +16,7 @@ Today's employees are **Developer** (GitHub PR review and fixes), **Marketing** 
 **CEO** (plans and meetings). Where this is going is in the [roadmap](docs/ROADMAP.md).
 
 > Status: development. Automatic model execution is off by default; the company workspace offers explicitly
-> approved one-turn replies and drafts through a pinned runtime. See the [Phase 2A report](docs/PHASE2A_REPORT.md).
+> approved one-turn replies and drafts through a pinned runtime. See the [latest report](docs/PHASE2B1_REPORT.md).
 
 ## Requirements
 
@@ -94,7 +94,7 @@ Use the smallest set that covers a change. Apply formatting with `dotnet csharpi
 | `src/HireZero.Core` | Company, conversations, tasks, approvals, budgets, storage |
 | `src/HireZero.Roles.*` | Employees: Developer, Marketing, CEO |
 | `src/HireZero.Tools.*` | Tool contracts shared by roles and integrations |
-| `src/HireZero.Integrations.*` | External systems: Git, model runtimes, Microsoft 365, Azure DevOps |
+| `src/HireZero.Integrations.*` | External systems: Git and GitHub CLI, npm, model runtimes, Microsoft 365, Azure DevOps |
 | `src/HireZero.Host` | Composition roots (startup profiles) |
 | `web/` | React frontend (`company/` workspace, `roles/` employee panels, `shell/` legacy Developer UI) |
 | `runtime/` | Pinned external agent runtimes |

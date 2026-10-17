@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using HireZero.Core;
+using HireZero.Integrations.GitHub;
 using HireZero.Roles.Developer;
 
 public static class GitCloneTransportChecks
@@ -87,7 +89,7 @@ public static class GitCloneTransportChecks
             {
                 GitCloneTransportPolicy.Configure(new("git"), altered, "!gh auth git-credential");
             }
-            catch (ReviewAccessException)
+            catch (ToolFailureException)
             {
                 refused = true;
             }
@@ -99,7 +101,7 @@ public static class GitCloneTransportChecks
         {
             GitCloneTransportPolicy.Configure(new("git"), overrideArgs, "!gh auth git-credential");
         }
-        catch (ReviewAccessException)
+        catch (ToolFailureException)
         {
             overrideRefused = true;
         }

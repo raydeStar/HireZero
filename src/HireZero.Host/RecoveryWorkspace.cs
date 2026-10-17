@@ -1,4 +1,5 @@
 using HireZero.Core;
+using HireZero.Integrations.GitHub;
 using HireZero.Integrations.OpenClaw;
 using HireZero.Roles.Developer;
 
@@ -34,7 +35,9 @@ public static class RecoveryWorkspace
         _ = new HireZero.Integrations.Codex.CodingRunStore(database); // Schema only; recovery registers no coding runner or coding handler.
         var discovery = new GitHubDiscovery(
             database,
-            fixtureGitHub ?? new GitHubReviewClient(),
+            fixtureGitHub
+                // Read-only discovery: no authority verifiers, so every write tool is refused.
+                ?? new GitHubReviewClient(new GitHubCli().Register(new ToolRegistry(new MemoryToolAudit()))),
             new GitHubReviewStore(database)
         );
         var model = fixtureModel ?? new TextOnlyOpenClaw(dataRoot);

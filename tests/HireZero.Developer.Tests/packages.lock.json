@@ -195,14 +195,36 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.github": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Git": "[1.0.0, )",
+          "HireZero.Tools.GitHub": "[1.0.0, )"
+        }
+      },
       "hirezero.roles.developer": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
-          "HireZero.Tools.Git": "[1.0.0, )"
+          "HireZero.Tools.Git": "[1.0.0, )",
+          "HireZero.Tools.GitHub": "[1.0.0, )",
+          "HireZero.Tools.Node": "[1.0.0, )"
         }
       },
       "hirezero.tools.git": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.github": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.node": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

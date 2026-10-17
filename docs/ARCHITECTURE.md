@@ -8,8 +8,8 @@ This describes HireZero as it is today, including the known gaps, and points at 
 ```
 Host (composition roots, one per startup profile)
  ├── Roles            src/HireZero.Roles.{Developer,Marketing,Ceo}   web/src/roles/*
- ├── Integrations     src/HireZero.Integrations.{Git,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps,Jev}
- ├── Tool contracts   src/HireZero.Tools.{Git}        (referenced by roles and integrations)
+ ├── Integrations     src/HireZero.Integrations.{Git,GitHub,Node,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps,Jev}
+ ├── Tool contracts   src/HireZero.Tools.{Git,GitHub,Node}   (referenced by roles and integrations)
  └── Core             src/HireZero.Core
 ```
 
@@ -28,7 +28,8 @@ Known violations, scheduled for Phase 2B:
   remote parsing (`GitRemote.cs`), `git` process calls (`WorkingContext.cs`), PR fields in the work log, wiki
   message kinds, and a company routing record that accepts only OpenAI routes on the Codex runtime
   (`CompanyContracts.cs`).
-- `Roles.Developer`'s legacy services call `gh`, `git`, `npm` and HTTP APIs directly instead of through tools.
+- `Roles.Developer`'s SemaForge, Wiki and Jev adapters call HTTP APIs directly instead of through tools.
+- Core starts two processes itself: `git` in `WorkingContext` and `tailscale whois` in `TailnetAccess`.
 
 ## Startup profiles
 
@@ -86,8 +87,24 @@ Employees reach external systems through tools ([ADR 0007](adr/0007-tool-registr
 - **Audit**: every call, allowed, refused or failed, is recorded with caller, risk, input digest, authority and
   outcome. The company workspace stores them in `co_tool_calls` and serves them at `/api/company/tool-calls`.
 
-Today's tools: `git.checkout-inspect` and `git.checkout-review` (`Integrations.Git`). The legacy Developer
-profile still calls git, GitHub and other services directly; Phase 2B moves those onto tools.
+Today's tools:
+
+| Tools | Risk | Integration |
+| --- | --- | --- |
+| `git.checkout-inspect`, `git.checkout-review` | Read | `Integrations.Git` |
+| `git.read`, `github.read`, `github.sign-in-status` | Read | `Integrations.GitHub` |
+| `git.write` | Write | `Integrations.GitHub` |
+| `git.push`, `github.write`, `github.sign-in` | External | `Integrations.GitHub` |
+| `npm.install-pinned` | Write | `Integrations.Node` |
+
+Authorities in use:
+
+- `developer-workflow`: an approved PR workflow in scope, checked against its claimed approval and its own commit,
+  branch and pull request.
+- `developer-loop`: an active fix loop's Codex review request.
+- `owner-action`: the owner's click approving one exact call.
+
+The Developer's HTTP services (SemaForge, Wiki, Jev) are not on tools yet; that is Phase 2B.2.
 
 ## Model runtimes and routes
 

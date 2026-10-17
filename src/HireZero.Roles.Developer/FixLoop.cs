@@ -626,6 +626,7 @@ public sealed class FixLoopDriver(
 
     async Task RequestReviewAsync(FixLoop loop, PullRequestWorkflow delivered, CancellationToken token)
     {
+        using var authority = DeveloperAuthority.Loop(loop.Id);
         var (id, at) =
             await github.PendingCodexRequestAsync(loop.Repository, loop.Number, delivered.CommitSha!, token)
             ?? await github.RequestCodexReviewAsync(loop.Repository, loop.Number, token);

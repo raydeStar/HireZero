@@ -1,5 +1,7 @@
 using HireZero.Roles.Developer;
 using HireZero.Tools.Git;
+using HireZero.Tools.GitHub;
+using HireZero.Tools.Node;
 
 [assembly: EmployeeModule(typeof(DeveloperModule))]
 
@@ -7,6 +9,9 @@ namespace HireZero.Roles.Developer;
 
 public sealed class DeveloperModule : IEmployeeModule
 {
+    // The manifest legacy Developer services use for their toolbox.
+    public static EmployeeManifest Shared { get; } = new DeveloperModule().Manifest;
+
     public const string Work = "developer-work";
 
     public EmployeeManifest Manifest { get; } =
@@ -53,6 +58,22 @@ public sealed class DeveloperModule : IEmployeeModule
                     "Confirm the approved checkout's revision and content."
                 ),
                 new(GitTools.ReviewCheckout.Id, ToolRisk.Read, "Show the owner a file diff after reviewed execution."),
+                new(GitCommands.Read.Id, ToolRisk.Read, "Read PR checkouts: revisions, status, diffs and files."),
+                new(GitCommands.Write.Id, ToolRisk.Write, "Prepare and commit an approved fix in its own worktree."),
+                new(GitCommands.Push.Id, ToolRisk.External, "Push an approved fix to its pull request branch."),
+                new(GitHubCommands.Read.Id, ToolRisk.Read, "Read pull requests, reviews, checks and run logs."),
+                new(
+                    GitHubCommands.Write.Id,
+                    ToolRisk.External,
+                    "Merge an approved pull request or request a Codex review."
+                ),
+                new(GitHubSignInTools.Start.Id, ToolRisk.External, "Reconnect the GitHub CLI when the owner asks."),
+                new(GitHubSignInTools.Status.Id, ToolRisk.Read, "Show the state of a GitHub reconnect."),
+                new(
+                    NodeTools.InstallPinned.Id,
+                    ToolRisk.Write,
+                    "Install the pinned PostgreSQL test package when the owner asks."
+                ),
             ],
             Kpis =
             [

@@ -1,8 +1,11 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
-namespace HireZero.Roles.Developer;
+namespace HireZero.Integrations.GitHub;
 
-public static class GitCloneTransportPolicy
+// The isolated transport for automatic clones: canonical GitHub HTTPS only, no inherited configuration, proxies or
+// credential helpers other than the approved one.
+public static partial class GitCloneTransportPolicy
 {
     public static bool IsClone(string[] args)
     {
@@ -23,13 +26,14 @@ public static class GitCloneTransportPolicy
             || args[clone + 3] != "--no-recurse-submodules"
             || args[clone + 4] != "--"
         )
-            throw new ReviewAccessException(
+            throw new ToolFailureException(
+                "refused",
                 "Automatic clone arguments are outside the approved transport profile.",
                 409
             );
-        var repository = GitHubReviewPolicy.RemoteRepository(args[^2]);
-        if (repository is null || args[^2] != "https://github.com/" + repository + ".git")
-            throw new ReviewAccessException(
+        if (!CanonicalRemote().IsMatch(args[^2]))
+            throw new ToolFailureException(
+                "refused",
                 "Automatic clone accepts only the approved canonical GitHub HTTPS repository.",
                 409
             );
@@ -48,7 +52,11 @@ public static class GitCloneTransportPolicy
                 || args[index] != "-c"
                 || !permitted.Contains(args[index + 1], StringComparer.Ordinal)
             )
-                throw new ReviewAccessException("Automatic clone inherited an unsupported Git argument.", 409);
+                throw new ToolFailureException(
+                    "refused",
+                    "Automatic clone inherited an unsupported Git argument.",
+                    409
+                );
 
         // Remove environment configuration/rewrites/templates/traces/proxies without retrieving their values.
         foreach (
@@ -91,4 +99,8 @@ public static class GitCloneTransportPolicy
             start.ArgumentList.Add(setting);
         }
     }
+
+    // https://github.com/<owner>/<name>.git with GitHub's owner and repository name rules (as GitHubReviewPolicy).
+    [GeneratedRegex(@"^https://github\.com/[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}\.git$")]
+    private static partial Regex CanonicalRemote();
 }

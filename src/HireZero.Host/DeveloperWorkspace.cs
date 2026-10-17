@@ -1,8 +1,10 @@
 using HireZero.Integrations.AgentApps;
 using HireZero.Integrations.AzureDevOps;
 using HireZero.Integrations.Codex;
+using HireZero.Integrations.GitHub;
 using HireZero.Integrations.Jev;
 using HireZero.Integrations.Microsoft365;
+using HireZero.Integrations.Node;
 using HireZero.Integrations.OpenClaw;
 using HireZero.Roles.Developer;
 
@@ -157,6 +159,22 @@ public static class DeveloperWorkspace
         builder.Services.AddSingleton<SessionSteering>();
         builder.Services.AddSingleton(new DigestStore(database));
         builder.Services.AddSingleton(services => ActivatorUtilities.CreateInstance<BriefService>(services, dataRoot));
+        // Tools the Developer may call (docs/adr/0007-tool-registry.md); verifiers come from the hired roles.
+        builder.Services.AddSingleton<IToolAudit>(new MemoryToolAudit());
+        var ownerActions = new OwnerActionApprovals();
+        builder.Services.AddSingleton(ownerActions);
+        builder.Services.AddSingleton<IToolAuthorityVerifier>(ownerActions);
+        builder.Services.AddSingleton(services =>
+        {
+            var registry = new ToolRegistry(
+                services.GetRequiredService<IToolAudit>(),
+                services.GetServices<IToolAuthorityVerifier>()
+            );
+            new GitHubCli().Register(registry);
+            new GitHubSignIn().Register(registry);
+            new NpmInstaller().Register(registry);
+            return registry;
+        });
         var context = new RoleContext(dataRoot, database);
         foreach (var role in hired)
             role.AddServices(builder.Services, context);

@@ -1,8 +1,8 @@
-using System.Diagnostics;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using HireZero.Tools.Node;
 
 namespace HireZero.Roles.Developer;
 
@@ -20,10 +20,19 @@ public sealed class TrustedPostgres
     readonly string _root,
         _profiles;
     readonly GitHubReviewStore _store;
+    readonly IToolbox? _tools;
+    readonly OwnerActionApprovals? _owner;
     static readonly string Shipped = ReadShipped();
 
-    public TrustedPostgres(string dataRoot, GitHubReviewStore store)
+    public TrustedPostgres(
+        string dataRoot,
+        GitHubReviewStore store,
+        ToolRegistry? registry = null,
+        OwnerActionApprovals? owner = null
+    )
     {
+        _tools = registry?.For(DeveloperModule.Shared);
+        _owner = owner;
         _root = Path.Combine(dataRoot, "Runtime", "trusted-postgres");
         _profiles = Path.Combine(_root, "profiles");
         _store = store;
@@ -71,33 +80,33 @@ public sealed class TrustedPostgres
         );
         if (!Installed)
         {
-            var start = new ProcessStartInfo(OperatingSystem.IsWindows() ? "cmd.exe" : "npm")
+            var tools =
+                _tools
+                ?? throw new ReviewAccessException("Package installation is not available in this workspace.", 503);
+            var approvals =
+                _owner ?? throw new ReviewAccessException("Owner approvals are not available in this workspace.", 503);
+            var install = new NpmInstall(_root, PostgresPackage, PostgresVersion);
+            try
             {
-                WorkingDirectory = _root,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            };
-            foreach (
-                var arg in (OperatingSystem.IsWindows() ? new[] { "/d", "/c", "npm" } : []).Concat([
-                    "install",
-                    "--no-audit",
-                    "--no-fund",
-                    "--ignore-scripts=false",
-                    PostgresPackage + "@" + PostgresVersion,
-                ])
-            )
-                start.ArgumentList.Add(arg);
-            using var process = Process.Start(start) ?? throw new InvalidOperationException("npm could not start.");
-            var error = process.StandardError.ReadToEndAsync(token);
-            await process.StandardOutput.ReadToEndAsync(token);
-            await process.WaitForExitAsync(token);
-            if (process.ExitCode != 0 || !Installed)
+                await tools.InvokeAsync(
+                    NodeTools.InstallPinned,
+                    install,
+                    token,
+                    approvals.Approve(NodeTools.InstallPinned, install)
+                );
+            }
+            catch (ToolFailureException failure)
+            {
                 throw new ReviewAccessException(
                     "Installing PostgreSQL "
                         + PostgresVersion
                         + " failed: "
-                        + PullRequestPolicy.Safe((await error).Trim(), 400)
+                        + PullRequestPolicy.Safe(failure.Detail ?? failure.Message, 400)
+                );
+            }
+            if (!Installed)
+                throw new ReviewAccessException(
+                    "Installing PostgreSQL " + PostgresVersion + " did not produce its binaries."
                 );
         }
         return RunnerPath;

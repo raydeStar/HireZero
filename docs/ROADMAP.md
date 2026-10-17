@@ -11,7 +11,7 @@ column when a phase lands; open a new ADR when a decision changes.
 | --- | --- | --- |
 | 0 | Clean foundation | Done (see [Phase 0 report](PHASE0_REPORT.md)) |
 | 1 | One employee module contract | Done (see [Phase 1 report](PHASE1_REPORT.md)) |
-| 2 | Restore the layers: tools, integrations, one model provider | 2A done ([report](PHASE2A_REPORT.md)); 2B next |
+| 2 | Restore the layers: tools, integrations, one model provider | 2A and 2B.1 done ([2A](PHASE2A_REPORT.md), [2B.1](PHASE2B1_REPORT.md)); 2B.2 next |
 | 3 | Enterprise readiness | Planned |
 | 4 | Prove "omni": a real second and third employee | Planned |
 
@@ -82,21 +82,33 @@ model is chosen by purpose from one catalog and called through one provider cont
 - Model route catalog (`config/model-routes.json`, overridable per data root): no model id remains in source.
 - Architecture tests for tool contracts and declared tools.
 
-### 2B: Developer port and one provider (next)
+### 2B: Developer port and one provider
 
-- `Integrations.GitHub` and the remaining `Integrations.Git` operations as tools: reads (PRs, reviews, checks,
-  evidence), local writes (worktree, reset, commit) under execution grants, and external writes (push, merge,
-  review-request comments) as `External` tools with digest-bound owner approvals. Then SemaForge, Wiki, Jev and
-  Trusted Postgres, removing every process and HTTP call from `Roles.Developer`.
-- Remove role vocabulary from Core: the git calls in `WorkingContext`, remote parsing, PR fields in the work log
-  and owner tasks, wiki notices, Codex and Claude names.
-- One provider contract replacing `IModelGateway`, `ICompanyModel`, `ICompanyMeasuredModel` and `ICodingRunner`,
-  with the company reservation and settlement path as the single source of usage.
-- Port Developer's legacy services onto skills and tools, give modules their own storage migrations, merge the
-  developer panels into the company UI, then retire `IRole`, `roles.json`, the Developer, Recovery and Held
-  profiles and `web/src/shell`. Decide which legacy-only features (Microsoft 365 intake, coding-agent session
-  steering, Azure DevOps, Jev triage, tailnet multi-user access, daily brief) move into the company workspace.
-- Expose and consume tools over MCP.
+**2B.1 (done, see [Phase 2B.1 report](PHASE2B1_REPORT.md)):** every process the Developer starts goes through
+tools.
+
+- `Integrations.GitHub` runs git and gh for `git.read`, `git.write`, `git.push`, `github.read` and `github.write`. It
+  enforces the read, write and push classification itself.
+- Developer writes run under the approved workflow or fix loop in scope. Verifiers bind them to the claimed
+  approval, the workflow's own commit and branch, and its own pull request.
+- GitHub sign-in and the pinned npm install are owner-action tools.
+- Roles no longer reference `System.Diagnostics.Process`, and a test enforces it.
+
+**Remaining**, in order:
+
+1. **2B.2 Service adapters as tools:** SemaForge, Wiki (session-based), Jev and the local context sources move
+   into integrations as typed tools. The HTTP ratchet test then becomes "no role opens an HTTP client".
+2. **2B.3 Core vocabulary:** move the git calls in `WorkingContext`, remote parsing, PR fields in the work log and
+   owner tasks, wiki notices, Codex and Claude names, and `tailscale whois` out of Core.
+3. **2B.4 One provider contract** replacing `IModelGateway`, `ICompanyModel`, `ICompanyMeasuredModel` and
+   `ICodingRunner`, with the company reservation and settlement path as the single source of usage.
+4. **2B.5 Port and retire:**
+   - Every legacy feature moves into the company workspace as an optional integration
+     ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)): Microsoft 365 intake, coding-agent
+     session steering, Azure DevOps, Jev triage, tailnet multi-user access and the daily brief.
+   - The Developer panels merge into the company UI, and modules get their own storage migrations.
+   - Then `IRole`, `roles.json`, the Developer, Recovery and Held profiles and `web/src/shell` are retired.
+5. Expose and consume tools over MCP.
 
 ## Phase 3: Enterprise readiness
 

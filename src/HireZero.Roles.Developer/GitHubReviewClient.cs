@@ -1,6 +1,6 @@
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Text.Json;
+using HireZero.Tools.Git;
+using HireZero.Tools.GitHub;
 
 namespace HireZero.Roles.Developer;
 
@@ -18,8 +18,9 @@ public sealed class SensitiveContentException(string message, PullRequestPolicy.
     public string Hash { get; } = hash;
 }
 
-public partial class GitHubReviewClient
+public partial class GitHubReviewClient(ToolRegistry? registry = null)
 {
+    private readonly IToolbox? _tools = registry?.For(DeveloperModule.Shared);
     private static string NoHooks => OperatingSystem.IsWindows() ? "NUL" : "/dev/null";
     private static readonly string Executable = OperatingSystem.IsWindows()
         ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "GitHub CLI", "gh.exe")
@@ -589,18 +590,10 @@ public partial class GitHubReviewClient
             ? "deleted-user"
             : value.GetProperty("author").GetProperty("login").GetString()!;
 
-    protected virtual Task<string> CommandAsync(
-        string executable,
-        string? root,
-        string[] args,
-        string? input,
-        CancellationToken token
-    ) => RunAsync(executable, root, args, input, token);
-
-    internal Task<string> GitAsync(string root, string[] args, CancellationToken token) =>
-        CommandAsync("git", root, args, null, token);
-
-    private static async Task<string> RunAsync(
+    // Every git and gh command runs as a declared Developer tool (docs/adr/0007-tool-registry.md). Reads need no
+    // authority; writes run under the approved workflow or fix loop in scope (DeveloperAuthority). Test fixtures
+    // override this seam.
+    protected virtual async Task<string> CommandAsync(
         string executable,
         string? root,
         string[] args,
@@ -608,122 +601,52 @@ public partial class GitHubReviewClient
         CancellationToken token
     )
     {
-        token.ThrowIfCancellationRequested();
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(GitCloneTransportPolicy.IsClone(args) ? 180 : 30));
-        using var process = new Process
-        {
-            StartInfo = new ProcessStartInfo(executable)
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                RedirectStandardInput = input is not null,
-                WorkingDirectory = root ?? Environment.CurrentDirectory,
-            },
-        };
-        process.StartInfo.Environment["GH_PROMPT_DISABLED"] = "1";
-        process.StartInfo.Environment["GIT_TERMINAL_PROMPT"] = "0";
-        process.StartInfo.Environment["GCM_INTERACTIVE"] = "Never";
-        if (Path.GetFileNameWithoutExtension(executable).Equals("git", StringComparison.OrdinalIgnoreCase))
-        {
-            if (GitCloneTransportPolicy.IsClone(args))
-                GitCloneTransportPolicy.Configure(
-                    process.StartInfo,
-                    args,
-                    "!\"" + Executable.Replace('\\', '/') + "\" auth git-credential"
-                );
-            foreach (
-                var setting in new[]
-                {
-                    "core.fsmonitor=false",
-                    "core.hooksPath=" + NoHooks,
-                    "protocol.ext.allow=never",
-                    "protocol.file.allow=never",
-                }
-            )
-            {
-                process.StartInfo.ArgumentList.Add("-c");
-                process.StartInfo.ArgumentList.Add(setting);
-            }
-        }
-        foreach (var argument in args)
-            process.StartInfo.ArgumentList.Add(argument);
-        var started = false;
+        var tools =
+            _tools
+            ?? throw new ReviewAccessException("GitHub and Git tools are not configured in this workspace.", 503);
+        var github = executable != "git";
         try
         {
-            timeout.Token.ThrowIfCancellationRequested();
-            started = AgentEffectBoundary.Start(() => process.Start());
-            if (!started)
-                throw new ReviewAccessException("The local GitHub or Git operation could not start.", 503);
-            var output = ReadBoundedAsync(process.StandardOutput, timeout.Token);
-            var error = TailAsync(process.StandardError, timeout.Token);
-            if (input is not null)
-            {
-                await process.StandardInput.WriteAsync(input.AsMemory(), timeout.Token);
-                process.StandardInput.Close();
-            }
-            await Task.WhenAll(output, error, process.WaitForExitAsync(timeout.Token));
-            var result = await output;
-            var errors = await error;
-            var github = Path.GetFileNameWithoutExtension(executable).Equals("gh", StringComparison.OrdinalIgnoreCase);
-            if (process.ExitCode != 0)
-            {
-                if (
-                    Path.GetFileNameWithoutExtension(executable).Equals("git", StringComparison.OrdinalIgnoreCase)
-                    && GitCloneTransportPolicy.IsClone(args)
-                )
-                    throw new ReviewAccessException(RepositoryCheckoutResolver.CloneFailure(errors), 503);
-                if (github && GitHubHealth.LooksSignedOut(errors))
-                {
-                    GitHubHealth.MarkSignedOut(PullRequestPolicy.Safe(errors, 300));
-                    throw new GitHubSignInException(GitHubHealth.Message);
-                }
-                throw new ReviewAccessException(
-                    "The local GitHub or Git operation failed. Check the signed-in account and repository access.",
-                    503
-                );
-            }
+            string result;
             if (github)
+            {
+                var contract =
+                    GitHubCommands.Classify(args, input)
+                    ?? throw new ReviewAccessException("This GitHub operation is not supported.", 409);
+                result = await tools.InvokeAsync(contract, new(args, input), token, Authority(contract));
                 GitHubHealth.MarkOk();
+            }
+            else
+            {
+                var contract =
+                    GitCommands.Classify(args)
+                    ?? throw new ReviewAccessException("This Git operation is not supported.", 409);
+                result = await tools.InvokeAsync(contract, new(root, args), token, Authority(contract));
+            }
             return result;
         }
-        catch (Exception exception) when (exception is Win32Exception or IOException or OperationCanceledException)
+        catch (ToolFailureException failure)
         {
-            throw new ReviewAccessException("The local GitHub or Git operation is unavailable or timed out.", 503);
+            switch (failure.Kind)
+            {
+                case "signed-out":
+                    GitHubHealth.MarkSignedOut(PullRequestPolicy.Safe(failure.Detail ?? "", 300));
+                    throw new GitHubSignInException(GitHubHealth.Message);
+                case "clone-failed":
+                    throw new ReviewAccessException(RepositoryCheckoutResolver.CloneFailure(failure.Detail ?? ""), 503);
+                default:
+                    throw new ReviewAccessException(failure.Message, failure.Status);
+            }
         }
-        finally
+        catch (ToolRefusedException refused)
         {
-            if (started && !process.HasExited)
-                process.Kill(entireProcessTree: true);
+            throw new ReviewAccessException(refused.Message, 403);
         }
     }
 
-    private static async Task<string> ReadBoundedAsync(StreamReader reader, CancellationToken token)
-    {
-        var result = new System.Text.StringBuilder();
-        var buffer = new char[4096];
-        int count;
-        while ((count = await reader.ReadAsync(buffer.AsMemory(), token)) > 0)
-        {
-            if (result.Length + count > 1_000_000)
-                throw new ReviewAccessException("This GitHub response exceeds the field-test size limit.", 422);
-            result.Append(buffer, 0, count);
-        }
-        return result.ToString();
-    }
+    private static ToolAuthority? Authority(IToolContract contract) =>
+        contract.Risk == ToolRisk.Read ? null : DeveloperAuthority.Current;
 
-    // Reads all of stderr but keeps only its first 4 KB, enough to recognize the failure.
-    private static async Task<string> TailAsync(StreamReader reader, CancellationToken token)
-    {
-        var kept = new System.Text.StringBuilder();
-        var buffer = new char[4096];
-        int count;
-        while ((count = await reader.ReadAsync(buffer.AsMemory(), token)) > 0)
-            if (kept.Length < 4096)
-                kept.Append(buffer, 0, Math.Min(count, 4096 - kept.Length));
-        return kept.ToString();
-    }
+    internal Task<string> GitAsync(string root, string[] args, CancellationToken token) =>
+        CommandAsync("git", root, args, null, token);
 }

@@ -361,6 +361,19 @@ public sealed class GitHubReviewStore
         command.ExecuteNonQuery();
     }
 
+    // Whether the owner's approval for this workflow action has been claimed (consumed) by the work it authorizes.
+    public bool ApprovalClaimed(string workflowId, string action)
+    {
+        using var database = Open();
+        using var command = Command(
+            database,
+            "SELECT COUNT(*) FROM github_workflow_approvals WHERE workflow_id=$id AND action=$action AND consumed_at IS NOT NULL",
+            ("$id", workflowId),
+            ("$action", action)
+        );
+        return (long)command.ExecuteScalar()! == 1;
+    }
+
     public void ClaimApproval(PullRequestWorkflow workflow, string action, string snapshot)
     {
         if (action is not ("repair" or "publish"))

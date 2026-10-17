@@ -54,7 +54,8 @@ public sealed class PullRequestWorkflowService(
                         throw new ReviewAccessException(
                             "The conversation or consent changed. Approve a fresh proposal before further work."
                         );
-                    return action();
+                    using (DeveloperAuthority.Workflow(workflow.Id))
+                        return action();
                 }
             );
         }

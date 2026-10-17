@@ -11,6 +11,8 @@
   <ItemGroup>
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
     <ProjectReference Include="../HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
+    <ProjectReference Include="../HireZero.Tools.GitHub/HireZero.Tools.GitHub.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Node/HireZero.Tools.Node.csproj" />
     <EmbeddedResource
       Include="TrustedPostgresRunner.mjs"
       LogicalName="HireZero.Roles.Developer.TrustedPostgresRunner.mjs"

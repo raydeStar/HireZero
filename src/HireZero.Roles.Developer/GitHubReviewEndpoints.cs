@@ -10,10 +10,21 @@ public static class GitHubReviewEndpoints
         services.AddHostedService<PipelineWatchWorker>();
         services.AddSingleton(provider => new TrustedPostgres(
             Path.GetDirectoryName(Path.GetFullPath(databasePath))!,
+            provider.GetRequiredService<GitHubReviewStore>(),
+            provider.GetService<ToolRegistry>(),
+            provider.GetService<OwnerActionApprovals>()
+        ));
+        services.AddSingleton(provider => new GitHubReviewClient(provider.GetService<ToolRegistry>()));
+        services.AddSingleton<IToolAuthorityVerifier>(provider => new WorkflowAuthorityVerifier(
             provider.GetRequiredService<GitHubReviewStore>()
         ));
-        services.AddSingleton<GitHubReviewClient>();
-        services.AddSingleton<GitHubReconnect>();
+        services.AddSingleton<IToolAuthorityVerifier>(provider => new LoopAuthorityVerifier(
+            provider.GetRequiredService<GitHubReviewStore>()
+        ));
+        services.AddSingleton(provider => new GitHubReconnect(
+            provider.GetService<ToolRegistry>(),
+            provider.GetService<OwnerActionApprovals>()
+        ));
         services.AddSingleton<GitHubFixCoordinator>();
         services.AddSingleton<GitHubReviewMonitor>();
         services.AddHostedService(services => services.GetRequiredService<GitHubReviewMonitor>());
@@ -186,8 +197,14 @@ public static class GitHubReviewEndpoints
             "/pipeline-watches/{id}/cancel",
             (string id, PipelineWatchStore watches) => Results.Ok(watches.Cancel(id, DateTimeOffset.UtcNow))
         );
-        api.MapPost("/reconnect", (GitHubReconnect reconnect) => Results.Ok(reconnect.Start()));
-        api.MapGet("/reconnect", (GitHubReconnect reconnect) => Results.Ok(reconnect.Status()));
+        api.MapPost(
+            "/reconnect",
+            async (GitHubReconnect reconnect, CancellationToken token) => Results.Ok(await reconnect.StartAsync(token))
+        );
+        api.MapGet(
+            "/reconnect",
+            async (GitHubReconnect reconnect, CancellationToken token) => Results.Ok(await reconnect.StatusAsync(token))
+        );
         api.MapGet(
             "/connection",
             async (GitHubReviewClient github, CancellationToken token) =>

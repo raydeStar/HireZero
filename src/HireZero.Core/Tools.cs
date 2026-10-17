@@ -77,6 +77,16 @@ public sealed class MemoryToolAudit(int capacity = 500) : IToolAudit
 
 public sealed class ToolRefusedException(string message) : WorkspaceException(message, 403);
 
+// A tool ran but its external effect failed or is unknown. Kind is stable for callers to map ("signed-out",
+// "clone-failed", "too-large", "failed", "unavailable", "refused"); Detail is a bounded, unsanitized excerpt of the
+// tool's own error output, never shown to the owner unfiltered.
+public sealed class ToolFailureException(string kind, string message, int status = 503, string? detail = null)
+    : WorkspaceException(message, status)
+{
+    public string Kind { get; } = kind;
+    public string? Detail { get; } = detail;
+}
+
 public interface IToolbox
 {
     Task<TOutput> InvokeAsync<TInput, TOutput>(
@@ -109,6 +119,12 @@ public sealed class ToolRegistry(IToolAudit audit, IEnumerable<IToolAuthorityVer
 
     public bool Has(string toolId) => _tools.ContainsKey(toolId);
 
+    // The digest an approval for one exact call is bound to: the tool id and its serialized input.
+    public static string Digest<TInput, TOutput>(ToolContract<TInput, TOutput> contract, TInput input) =>
+        Digest(contract.Id, JsonSerializer.Serialize(input, Json));
+
+    private static string Digest(string toolId, string inputJson) => ContentGuard.Digest(toolId + "\n" + inputJson);
+
     // A toolbox limited to the tools the module's manifest declares.
     public IToolbox For(EmployeeManifest manifest, string? employeeId = null, string? taskId = null) =>
         new Toolbox(this, manifest, new(manifest.Id, employeeId, taskId));
@@ -123,13 +139,7 @@ public sealed class ToolRegistry(IToolAudit audit, IEnumerable<IToolAuthorityVer
     )
     {
         var inputJson = JsonSerializer.Serialize(input, Json);
-        var invocation = new ToolInvocation(
-            contract,
-            caller,
-            inputJson,
-            ContentGuard.Digest(contract.Id + "\n" + inputJson),
-            authority
-        );
+        var invocation = new ToolInvocation(contract, caller, inputJson, Digest(contract.Id, inputJson), authority);
         void Record(string outcome, string? detail = null) =>
             audit.Record(
                 new(
@@ -192,4 +202,26 @@ public sealed class ToolRegistry(IToolAudit audit, IEnumerable<IToolAuthorityVer
             ToolAuthority? authority = null
         ) => registry.InvokeAsync(manifest, caller, contract, input, authority, token);
     }
+}
+
+// Approvals for actions the owner starts directly, such as signing in to a service or installing a pinned package:
+// the owner-only endpoint approves the exact call it is about to make, and the tool consumes that approval once.
+public sealed class OwnerActionApprovals : IToolAuthorityVerifier
+{
+    public const string ActionKind = "owner-action";
+    private readonly ConcurrentDictionary<string, string> _pending = new(StringComparer.Ordinal);
+
+    public string Kind => ActionKind;
+
+    public ToolAuthority Approve<TInput, TOutput>(ToolContract<TInput, TOutput> contract, TInput input)
+    {
+        var id = Guid.NewGuid().ToString("N");
+        _pending[id] = ToolRegistry.Digest(contract, input);
+        return new(ActionKind, id);
+    }
+
+    public bool Authorizes(ToolInvocation invocation) =>
+        invocation.Authority is { } authority
+        && _pending.TryRemove(authority.Id, out var digest)
+        && digest == invocation.InputDigest;
 }

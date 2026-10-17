@@ -94,6 +94,46 @@ public sealed partial class ArchitectureTests
             );
     }
 
+    // The external types an assembly's code uses, read from its metadata (namespace.name).
+    private static HashSet<string> TypeReferences(Assembly assembly)
+    {
+        using var stream = File.OpenRead(assembly.Location);
+        using var pe = new System.Reflection.PortableExecutable.PEReader(stream);
+        var metadata = System.Reflection.Metadata.PEReaderExtensions.GetMetadataReader(pe);
+        return
+        [
+            .. metadata
+                .TypeReferences.Select(handle => metadata.GetTypeReference(handle))
+                .Select(type => metadata.GetString(type.Namespace) + "." + metadata.GetString(type.Name)),
+        ];
+    }
+
+    // Roles reach the world through tools (docs/adr/0007-tool-registry.md): no role starts a process.
+    [Fact]
+    public void RolesStartNoProcesses()
+    {
+        foreach (var role in Built("HireZero.Roles."))
+        {
+            var used = TypeReferences(role);
+            Assert.False(
+                used.Contains("System.Diagnostics.Process") || used.Contains("System.Diagnostics.ProcessStartInfo"),
+                role.GetName().Name + " starts a process."
+            );
+        }
+    }
+
+    // A ratchet until Phase 2B.2 moves SemaForge, Wiki and Jev onto tools: only the Developer may still open HTTP
+    // clients, and no other role may start.
+    [Fact]
+    public void OnlyTheDeveloperStillUsesHttpDirectly()
+    {
+        var offenders = Built("HireZero.Roles.")
+            .Where(role => TypeReferences(role).Contains("System.Net.Http.HttpClient"))
+            .Select(role => role.GetName().Name)
+            .ToArray();
+        Assert.True(offenders.All(name => name == "HireZero.Roles.Developer"), string.Join(", ", offenders));
+    }
+
     [Fact]
     public void EveryRoleProjectShipsOneDiscoveredModule()
     {
