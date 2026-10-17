@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 
@@ -13,14 +12,20 @@ public sealed class TailnetAccess
 {
     public IPAddress Address { get; }
     public string[] Hosts { get; }
-    private readonly string _command;
+    private readonly Func<string, Task<string?>>? _whois;
     private readonly ConcurrentDictionary<string, (DateTimeOffset At, string? Login)> _cache = new();
     public static readonly TimeSpan CacheFor = TimeSpan.FromMinutes(5);
     public Func<string, Task<string?>> Lookup { get; init; }
     public Func<DateTimeOffset> Clock { get; init; } = () => DateTimeOffset.UtcNow;
 
     // address: this computer's tailnet IPv4; names: its MagicDNS names (full and short), matched with the port.
-    public TailnetAccess(IPAddress address, IEnumerable<string> names, int port, string? command = null)
+    // whois: the raw `whois --json` answer for an address, from the Tailscale integration; none identifies nobody.
+    public TailnetAccess(
+        IPAddress address,
+        IEnumerable<string> names,
+        int port,
+        Func<string, Task<string?>>? whois = null
+    )
     {
         Address = address;
         Hosts =
@@ -31,17 +36,11 @@ public sealed class TailnetAccess
                 .Select(name => name.TrimEnd('.').ToLowerInvariant() + ":" + port)
                 .Distinct(),
         ];
-        _command =
-            command
-            ?? (
-                File.Exists(@"C:\Program Files\Tailscale\tailscale.exe")
-                    ? @"C:\Program Files\Tailscale\tailscale.exe"
-                    : "tailscale"
-            );
+        _whois = whois;
         Lookup = WhoisAsync;
     }
 
-    public static TailnetAccess? FromEnvironment(int port)
+    public static TailnetAccess? FromEnvironment(int port, Func<string, Task<string?>>? whois = null)
     {
         if (
             !IPAddress.TryParse(Environment.GetEnvironmentVariable("HIREZERO_TAILNET_ADDRESS"), out var address)
@@ -52,7 +51,7 @@ public sealed class TailnetAccess
             ',',
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
         );
-        return new(address, names, port, Environment.GetEnvironmentVariable("HIREZERO_TAILSCALE"));
+        return new(address, names, port, whois);
     }
 
     // Tailscale's CGNAT range, 100.64.0.0/10.
@@ -157,36 +156,6 @@ public sealed class TailnetAccess
         return login;
     }
 
-    private async Task<string?> RunWhoisAsync(string address)
-    {
-        var start = new ProcessStartInfo(_command)
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        foreach (var argument in new[] { "whois", "--json", address })
-            start.ArgumentList.Add(argument);
-        try
-        {
-            using var process = Process.Start(start);
-            if (process is null)
-                return null;
-            using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var output = process.StandardOutput.ReadToEndAsync(limit.Token);
-            _ = process.StandardError.ReadToEndAsync(limit.Token);
-            await process.WaitForExitAsync(limit.Token);
-            return process.ExitCode == 0 ? await output : null;
-        }
-        catch (Exception error)
-            when (error
-                    is System.ComponentModel.Win32Exception
-                        or OperationCanceledException
-                        or InvalidOperationException
-            )
-        {
-            return null;
-        }
-    }
+    private Task<string?> RunWhoisAsync(string address) =>
+        _whois is null ? Task.FromResult<string?>(null) : _whois(address);
 }

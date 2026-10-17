@@ -122,6 +122,17 @@ public sealed partial class ArchitectureTests
         }
     }
 
+    // Core holds the company and its gates; every process belongs to an integration.
+    [Fact]
+    public void CoreStartsNoProcesses()
+    {
+        var used = TypeReferences(typeof(CompanyStore).Assembly);
+        Assert.False(
+            used.Contains("System.Diagnostics.Process") || used.Contains("System.Diagnostics.ProcessStartInfo"),
+            "HireZero.Core starts a process."
+        );
+    }
+
     // Roles reach services through their integrations' tools: no role opens an HTTP client.
     [Fact]
     public void RolesOpenNoHttpClients()

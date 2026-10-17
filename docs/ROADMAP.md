@@ -11,7 +11,7 @@ column when a phase lands; open a new ADR when a decision changes.
 | --- | --- | --- |
 | 0 | Clean foundation | Done (see [Phase 0 report](PHASE0_REPORT.md)) |
 | 1 | One employee module contract | Done (see [Phase 1 report](PHASE1_REPORT.md)) |
-| 2 | Restore the layers: tools, integrations, one model provider | 2A, 2B.1, 2B.2 done ([2A](PHASE2A_REPORT.md), [2B.1](PHASE2B1_REPORT.md), [2B.2](PHASE2B2_REPORT.md)); 2B.3 next |
+| 2 | Restore the layers: tools, integrations, one model provider | 2A, 2B.1–2B.3 done ([2A](PHASE2A_REPORT.md), [2B.1](PHASE2B1_REPORT.md), [2B.2](PHASE2B2_REPORT.md), [2B.3](PHASE2B3_REPORT.md)); 2B.4 next |
 | 3 | Enterprise readiness | Planned |
 | 4 | Prove "omni": a real second and third employee | Planned |
 
@@ -104,19 +104,29 @@ tools. SemaForge, the Wiki pilot and Jev are integrations. Writes are bound to:
 
 No role opens an HTTP client, and a test enforces it.
 
+**2B.3 (done, see [Phase 2B.3 report](PHASE2B3_REPORT.md)):** Core starts no process, and a test enforces it.
+
+- The repository context moved to the Developer, read through `git.read`.
+- Tailscale identity moved to `Integrations.Tailscale`.
+- Company routing and task reasons are role-neutral; the Codex connection owns its provider and runtime constraint.
+- Employer and personal identifiers were scrubbed from test fixtures.
+
+The remaining vocabulary in Core is legacy-only: work-log PR fields, owner-task PR rules, thread-title URL rules,
+wiki notices, Codex and Claude session names, and git-host parsing for boss sharing. It moves out with those
+features in 2B.5 rather than twice.
+
 **Remaining**, in order:
 
-1. **2B.3 Core vocabulary:** move the git calls in `WorkingContext`, remote parsing, PR fields in the work log and
-   owner tasks, wiki notices, Codex and Claude names, and `tailscale whois` out of Core.
-2. **2B.4 One provider contract** replacing `IModelGateway`, `ICompanyModel`, `ICompanyMeasuredModel` and
+1. **2B.4 One provider contract** replacing `IModelGateway`, `ICompanyModel`, `ICompanyMeasuredModel` and
    `ICodingRunner`, with the company reservation and settlement path as the single source of usage.
-3. **2B.5 Port and retire:**
+2. **2B.5 Port and retire:**
    - Every legacy feature moves into the company workspace as an optional integration
-     ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)): Microsoft 365 intake, coding-agent
-     session steering, Azure DevOps, Jev triage, tailnet multi-user access and the daily brief.
+     ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core:
+     Microsoft 365 intake, coding-agent session steering, Azure DevOps, Jev triage, tailnet multi-user access and
+     the daily brief.
    - The Developer panels merge into the company UI, and modules get their own storage migrations.
    - Then `IRole`, `roles.json`, the Developer, Recovery and Held profiles and `web/src/shell` are retired.
-4. Expose and consume tools over MCP.
+3. Expose and consume tools over MCP.
 
 ## Phase 3: Enterprise readiness
 

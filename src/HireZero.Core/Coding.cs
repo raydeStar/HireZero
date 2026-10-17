@@ -1,7 +1,7 @@
 namespace HireZero.Core;
 
-// One owner-approved coding turn inside a single folder (a PR worktree). Roles depend on this contract;
-// an integration (Codex today) runs it. Network access is for dependency installs and audits only.
+// One owner-approved coding turn inside a single folder. Roles depend on this contract; a runtime integration
+// runs it. Network access is for dependency installs and audits only.
 // ResumeThreadId continues an existing thread (steering); Persistent + Name start one that shows up in the app (hand-off).
 // OutputSchemaJson null means a free-text answer. AllowWrite false runs read-only.
 public sealed record CodingRunRequest(

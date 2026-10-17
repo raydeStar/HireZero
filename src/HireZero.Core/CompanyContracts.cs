@@ -289,30 +289,48 @@ public sealed record CompanyModelCall(
     string? ModelRoute = null
 );
 
-// Runtime selection and task purpose are independent of employee role. A Developer conversation is ordinary text.
-public sealed record CompanyModelRouting(string TextModel, string CodingModel, string Runtime = "codex")
+// Runtime selection and task purpose are independent of employee role: a conversation is ordinary text work; only
+// execution skills use the coding route. Routes come from the model route catalog (docs/adr/0008-model-routes.md);
+// the runtime that dispatches them decides which providers it can serve.
+public sealed record CompanyModelRouting(string TextModel, string CodingModel, string Runtime)
 {
-    // The company routes from the model route catalog (docs/adr/0008-model-routes.md).
     public CompanyModelRouting()
-        : this(ModelRoutes.Route(ModelRoutes.CompanyText), ModelRoutes.Route(ModelRoutes.CompanyCoding)) { }
+        : this(
+            ModelRoutes.Route(ModelRoutes.CompanyText),
+            ModelRoutes.Route(ModelRoutes.CompanyCoding),
+            ModelRoutes.Runtime(ModelRoutes.CompanyText)
+        ) { }
+
+    public CompanyModelRouting(string textModel, string codingModel)
+        : this(textModel, codingModel, ModelRoutes.Runtime(ModelRoutes.CompanyText)) { }
 
     public string For(bool execution) => execution ? CodingModel : TextModel;
 
-    public static string Native(string route) =>
-        route.StartsWith("openai/", StringComparison.Ordinal) ? route[7..] : route;
+    public static string Native(string route) => ModelRoutes.Native(route);
 
+    // Routes must be explicit "provider/model" ids on a named runtime; the runtime refuses providers it cannot serve.
     public void Validate()
     {
         if (
-            Runtime != "codex"
+            string.IsNullOrWhiteSpace(Runtime)
             || new[] { TextModel, CodingModel }.Any(s =>
-                !s.StartsWith("openai/", StringComparison.Ordinal)
-                || s.Length is < 8 or > 100
+                s.Length is < 8 or > 100
+                || s.IndexOf('/') is <= 0
                 || s.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not ('/' or '-' or '.'))
             )
         )
-            throw new WorkspaceException("Select explicit OpenAI model routes on the Codex runtime.");
+            throw new WorkspaceException("Select explicit provider/model routes on a named runtime.");
     }
+}
+
+// Why a task is blocked, as stored with the task.
+public static class CompanyReasons
+{
+    public const string ExecutionUnavailable = "execution-unavailable";
+
+    // Tasks saved before the reason was made role-neutral carry the older name.
+    public static bool IsExecutionUnavailable(string? reason) =>
+        reason is ExecutionUnavailable or "developer-execution-unavailable";
 }
 
 public sealed record CompanyModelReply(

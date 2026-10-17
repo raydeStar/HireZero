@@ -32,6 +32,8 @@ public sealed class DeveloperRole : IRole
         services.AddSingleton<IOwnerTaskContributor, DeveloperOwnerTasks>();
         services.AddSingleton<IConversationActivity, ConversationCodingActivity>();
         services.AddSingleton<ITaskThreadSignal, PullRequestTaskSignal>();
+        // The checkout comes first, then PR fixes and open PRs.
+        services.AddSingleton<IProjectContextContributor, RepositoryContext>();
         services.AddSingleton<IProjectContextContributor, DeveloperProjectContext>();
         services.AddSingleton<IWorkLogSource, GitHubWorkLog>();
         services.AddSingleton<IAgentTaskHandler, DiagnosePullRequestHandler>();

@@ -67,7 +67,8 @@ public static class AccessChecks
                 "Revoking someone who was let in keeps them out."
             );
             check(
-                desk.Knock("morgan@northwind.example", "Morgan") is null && store.Find("morgan@northwind.example") is null,
+                desk.Knock("morgan@northwind.example", "Morgan") is null
+                    && store.Find("morgan@northwind.example") is null,
                 "The owner never knocks."
             );
             try

@@ -116,9 +116,7 @@ public static class PeopleChecks
                 "By default only the company organization (from the owner's login domain) is shared with a boss."
             );
             var working = new WorkingContext(sessions, new DigestStore(db), new IntakeStore(db), [], sharing: sharing)
-            {
-                Git = (_, _) => Task.FromResult(""),
-            };
+            { };
             check(
                 working.SharedWithBoss().Select(project => project.Name).SequenceEqual(["QuoteDesk"]),
                 "Personal repositories never reach a boss."

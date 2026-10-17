@@ -569,7 +569,7 @@ public sealed partial class CompanyStore
         var execution = Role(e.RoleId).ExecutionSkills.Contains(skill);
         task = task with { ModelRoute = ModelRouting.For(execution), Runtime = ModelRouting.Runtime, Kind = kind };
         if (execution)
-            task = task with { State = "blocked", Reason = "developer-execution-unavailable" };
+            task = task with { State = "blocked", Reason = CompanyReasons.ExecutionUnavailable };
         Put(db, task);
         Event(
             db,

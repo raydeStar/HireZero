@@ -8,7 +8,7 @@ This describes HireZero as it is today, including the known gaps, and points at 
 ```
 Host (composition roots, one per startup profile)
  ├── Roles            src/HireZero.Roles.{Developer,Marketing,Ceo}   web/src/roles/*
- ├── Integrations     src/HireZero.Integrations.{Git,GitHub,Node,SemaForge,Wiki,Jev,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps}
+ ├── Integrations     src/HireZero.Integrations.{Git,GitHub,Node,SemaForge,Wiki,Jev,Tailscale,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps}
  ├── Tool contracts   src/HireZero.Tools.{Git,GitHub,Node,SemaForge,Wiki,Jev}   (referenced by roles and integrations)
  └── Core             src/HireZero.Core
 ```
@@ -22,13 +22,11 @@ Architecture tests (`tests/HireZero.Host.Tests/ArchitectureTests.cs`) enforce th
 role project ships one discovered module, that every declared tool has a contract with the same risk, and that the
 company profile and shared company UI name no role.
 
-Known violations, scheduled for Phase 2B:
+Core starts no process and roles open no HTTP client; architecture tests check both, in assembly metadata.
 
-- Core contains Developer vocabulary and behaviour: the coding-runner contract (`Coding.cs`), GitHub/Azure DevOps
-  remote parsing (`GitRemote.cs`), `git` process calls (`WorkingContext.cs`), PR fields in the work log, wiki
-  message kinds, and a company routing record that accepts only OpenAI routes on the Codex runtime
-  (`CompanyContracts.cs`).
-- Core starts two processes itself: `git` in `WorkingContext` and `tailscale whois` in `TailnetAccess`.
+Known remaining vocabulary in Core, all in legacy-only features that move out in Phase 2B.5: work-log PR fields,
+owner-task PR classification, thread-title URL rules, wiki notice kinds, Codex and Claude session names, and
+GitHub/Azure DevOps remote parsing used for boss sharing (`GitRemote.cs`).
 
 ## Startup profiles
 
@@ -114,7 +112,9 @@ Authorities in use:
 - `owner-request`: the owner's HTTP request, valid only while that request is in flight.
 - `owner-action`: the owner's click, approving one exact call.
 
-Roles neither start processes nor open HTTP clients; architecture tests check both in the assemblies' metadata.
+Roles neither start processes nor open HTTP clients, and Core starts none; architecture tests check this in the
+assemblies' metadata. Platform infrastructure that is not an employee capability, such as identifying tailnet callers
+(`Integrations.Tailscale`), is an integration behind a Core port rather than a tool.
 
 ## Model runtimes and routes
 

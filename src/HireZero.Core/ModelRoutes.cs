@@ -13,7 +13,11 @@ public static partial class ModelRoutes
     public const string AssistantDefault = "assistant.default";
     public const string OverrideVariable = "HIREZERO_MODEL_ROUTES";
 
-    private sealed record Catalog(Dictionary<string, string> Routes, Dictionary<string, string> Names);
+    private sealed record Catalog(
+        Dictionary<string, string> Routes,
+        Dictionary<string, string> Names,
+        Dictionary<string, string> Runtimes
+    );
 
     private static readonly Lazy<Catalog> Current = new(Load);
 
@@ -22,6 +26,12 @@ public static partial class ModelRoutes
         Current.Value.Routes.TryGetValue(purpose, out var route)
             ? route
             : throw new InvalidOperationException("No model route is configured for '" + purpose + "'.");
+
+    // The runtime that serves a purpose's route (for example "codex").
+    public static string Runtime(string purpose) =>
+        Current.Value.Runtimes.TryGetValue(purpose, out var runtime)
+            ? runtime
+            : throw new InvalidOperationException("No runtime is configured for '" + purpose + "'.");
 
     // The display name for a model id, or the id itself.
     public static string Name(string model) => Current.Value.Names.TryGetValue(model, out var name) ? name : model;
@@ -47,6 +57,8 @@ public static partial class ModelRoutes
                 catalog.Routes[purpose] = route;
             foreach (var (model, name) in overrides.Names)
                 catalog.Names[model] = name;
+            foreach (var (purpose, runtime) in overrides.Runtimes)
+                catalog.Runtimes[purpose] = runtime;
         }
         return catalog;
     }
@@ -61,7 +73,7 @@ public static partial class ModelRoutes
                         .EnumerateObject()
                         .ToDictionary(p => p.Name, p => p.Value.GetString() ?? "", StringComparer.Ordinal)
                     : new(StringComparer.Ordinal);
-            var catalog = new Catalog(Read("routes"), Read("names"));
+            var catalog = new Catalog(Read("routes"), Read("names"), Read("runtimes"));
             foreach (var (purpose, route) in catalog.Routes)
                 if (!Purpose().IsMatch(purpose) || !RouteFormat().IsMatch(route))
                     throw new InvalidOperationException("Invalid model route '" + purpose + "': '" + route + "'.");

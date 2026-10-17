@@ -10,6 +10,10 @@
     "developer.review": "openai/gpt-6.1-sol",
     "developer.build": "openai/gpt-6.1-sol"
   },
+  "runtimes": {
+    "company.text": "codex",
+    "company.coding": "codex"
+  },
   "names": {
     "openai/gpt-6-luna": "Luna",
     "openai/gpt-6.1-sol": "Sol 6.1",

@@ -129,6 +129,12 @@
           "HireZero.Tools.SemaForge": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.tailscale": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.wiki": {
         "type": "Project",
         "dependencies": {

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -26,14 +25,15 @@ public sealed record ProjectRef(
 
 public sealed record ContextSection(string Title, string Body);
 
-// Roles add what they know about a project (the developer role: PR fixes and open PRs).
+// Roles add what they know about a project (the developer role: its checkout, PR fixes and open PRs).
 public interface IProjectContextContributor
 {
     Task<ContextSection[]> ContributeAsync(ProjectRef project, Audience audience, CancellationToken token);
 }
 
 // Assembles what HireZero knows about the projects a message mentions, from the owner's own records:
-// coding sessions and their digests, the repository's recent history, role contributions, inbox subjects and memory.
+// coding sessions and their digests, role contributions (such as the repository's recent history), inbox subjects
+// and memory.
 // No model is involved; every piece is cleaned, bounded and handed to a prompt only as fenced data.
 public sealed class WorkingContext(
     SessionStore sessions,
@@ -47,7 +47,6 @@ public sealed class WorkingContext(
     public static readonly TimeSpan Window = TimeSpan.FromDays(21);
     public const int MaxLength = 9000;
     public Func<DateTimeOffset> Clock { get; init; } = () => DateTimeOffset.UtcNow;
-    public Func<string, string[], Task<string>> Git { get; init; } = RunGitAsync;
 
     public ProjectRef[] Projects()
     {
@@ -261,38 +260,6 @@ public sealed class WorkingContext(
             sections.Add(new("Coding sessions (most recent first)", lines.ToString()));
         }
 
-        if (project.Root is { } root && Directory.Exists(root))
-        {
-            try
-            {
-                var branch = (await Git(root, ["rev-parse", "--abbrev-ref", "HEAD"])).Trim();
-                var log = await Git(
-                    root,
-                    ["log", "--since=21.days", "-n", "15", "--date=short", "--pretty=format:%ad %h %s"]
-                );
-                var dirty = (await Git(root, ["status", "--porcelain=v1"]))
-                    .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                    .Length;
-                sections.Add(
-                    new(
-                        "Repository (local checkout)",
-                        "Current branch: "
-                            + branch
-                            + (dirty > 0 ? $"; {dirty} uncommitted change(s)" : "; clean")
-                            + "\nRecent commits:\n"
-                            + (log.Trim().Length == 0 ? "none in three weeks" : log.Trim())
-                    )
-                );
-            }
-            catch (Exception error)
-                when (error
-                        is InvalidOperationException
-                            or System.ComponentModel.Win32Exception
-                            or IOException
-                            or OperationCanceledException
-                ) { }
-        }
-
         foreach (var contributor in contributors)
         {
             try
@@ -436,30 +403,5 @@ public sealed class WorkingContext(
             : span.TotalHours < 24 ? $"{(int)span.TotalHours} hours ago"
             : span.TotalDays < 2 ? "yesterday"
             : $"{(int)span.TotalDays} days ago";
-    }
-
-    static async Task<string> RunGitAsync(string root, string[] arguments)
-    {
-        var start = new ProcessStartInfo("git")
-        {
-            WorkingDirectory = root,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            StandardOutputEncoding = new UTF8Encoding(false),
-        };
-        start.Environment["GIT_TERMINAL_PROMPT"] = "0";
-        foreach (var argument in arguments)
-            start.ArgumentList.Add(argument);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("git could not start.");
-        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var output = process.StandardOutput.ReadToEndAsync(limit.Token);
-        _ = process.StandardError.ReadToEndAsync(limit.Token);
-        await process.WaitForExitAsync(limit.Token);
-        if (process.ExitCode != 0)
-            throw new InvalidOperationException("git failed.");
-        var text = await output;
-        return text.Length > 6000 ? text[..6000] : text;
     }
 }

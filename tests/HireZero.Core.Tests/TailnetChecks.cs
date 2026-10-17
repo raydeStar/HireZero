@@ -30,11 +30,7 @@ public static class TailnetChecks
 
         var lookups = new List<string>();
         var now = DateTimeOffset.UtcNow;
-        var access = new TailnetAccess(
-            IPAddress.Parse("100.64.0.11"),
-            ["host-1.tail0000.ts.net.", "host-1"],
-            5064
-        )
+        var access = new TailnetAccess(IPAddress.Parse("100.64.0.11"), ["host-1.tail0000.ts.net.", "host-1"], 5064)
         {
             Clock = () => now,
             Lookup = address =>

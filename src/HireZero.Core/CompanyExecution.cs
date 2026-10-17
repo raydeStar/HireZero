@@ -95,7 +95,7 @@ public sealed partial class CompanyStore
                             || t.Reason == "handoff-awaiting-approval"
                                 && taskId is not null
                                 && Role(e.RoleId).MeasuredSkills.Contains(t.Skill)
-                            || execution && t.Reason == "developer-execution-unavailable"
+                            || execution && CompanyReasons.IsExecutionUnavailable(t.Reason)
                         )
                 )
             );

@@ -7,6 +7,7 @@ using HireZero.Integrations.Microsoft365;
 using HireZero.Integrations.Node;
 using HireZero.Integrations.OpenClaw;
 using HireZero.Integrations.SemaForge;
+using HireZero.Integrations.Tailscale;
 using HireZero.Integrations.Wiki;
 using HireZero.Roles.Developer;
 
@@ -32,7 +33,10 @@ public static class DeveloperWorkspace
         var builder = WebApplication.CreateBuilder(args);
         // [::1] too: Microsoft sign-in returns to http://localhost, which browsers may resolve to IPv6 first.
         // Optional direct tailnet listener (HIREZERO_TAILNET_ADDRESS); callers there are identified by tailscale whois.
-        var tailnet = TailnetAccess.FromEnvironment(5064);
+        var tailnet = TailnetAccess.FromEnvironment(
+            5064,
+            new TailscaleCli(Environment.GetEnvironmentVariable("HIREZERO_TAILSCALE")).WhoisJsonAsync
+        );
         builder.Services.AddSingleton(
             new WorkspaceRuntime(
                 ownerLogin,

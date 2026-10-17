@@ -161,7 +161,7 @@ static class TaskHandoffChecks
         var task = CompanyJson.Decode<CompanyTask>(json.GetProperty("task").GetRawText());
         check(
             task.State == "blocked"
-                && task.Reason == "developer-execution-unavailable"
+                && task.Reason == CompanyReasons.ExecutionUnavailable
                 && task.Resource is null
                 && Items<CompanyExecutionGrant>("executions").Length == 0
                 && handoff.TargetTaskId == task.Id

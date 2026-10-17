@@ -5,6 +5,8 @@ import { MeasuredJob } from "./MeasuredJob";
 import { ArtifactHandoff } from "./ArtifactHandoff";
 const reasonLabels: Record<string, string> = {
   "handoff-awaiting-approval": "Assigned from an approved handoff. Separate execution approval is required.",
+  "execution-unavailable": "Repository execution is unavailable. This task is saved for review.",
+  // Tasks saved before the reason was made role-neutral.
   "developer-execution-unavailable": "Repository execution is unavailable. This task is saved for review.",
   "provider-unavailable": "Live model execution is unavailable. Your task is saved.",
   dependencies: "Waiting for an owner-reviewed dependency.",

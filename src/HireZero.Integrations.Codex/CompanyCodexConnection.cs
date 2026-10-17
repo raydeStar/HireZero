@@ -59,7 +59,20 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
 {
     private const string PermissionProfile = "hirezero_qualification";
     private readonly SemaphoreSlim _serial = new(1, 1);
-    private readonly CompanyModelRouting _routing = routing ?? new();
+    private readonly CompanyModelRouting _routing = Servable(routing ?? new());
+
+    // This connection serves OpenAI routes on the Codex runtime only.
+    private static CompanyModelRouting Servable(CompanyModelRouting routing)
+    {
+        routing.Validate();
+        if (
+            routing.Runtime != "codex"
+            || new[] { routing.TextModel, routing.CodingModel }.Any(r => ModelRoutes.Provider(r) != "openai")
+        )
+            throw new WorkspaceException("Select explicit OpenAI model routes on the Codex runtime.");
+        return routing;
+    }
+
     private int _sent;
     private bool _stopped;
     private readonly HashSet<string> _measuredAttempts = new(StringComparer.Ordinal);

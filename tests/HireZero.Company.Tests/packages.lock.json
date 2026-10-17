@@ -203,6 +203,7 @@
           "HireZero.Integrations.Node": "[1.0.0, )",
           "HireZero.Integrations.OpenClaw": "[1.0.0, )",
           "HireZero.Integrations.SemaForge": "[1.0.0, )",
+          "HireZero.Integrations.Tailscale": "[1.0.0, )",
           "HireZero.Integrations.Wiki": "[1.0.0, )",
           "HireZero.Roles.Ceo": "[1.0.0, )",
           "HireZero.Roles.Developer": "[1.0.0, )",
@@ -274,6 +275,12 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.SemaForge": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.tailscale": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.integrations.wiki": {

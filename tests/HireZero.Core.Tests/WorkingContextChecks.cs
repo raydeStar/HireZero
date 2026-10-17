@@ -12,7 +12,14 @@ public static class WorkingContextChecks
             Seen.Add(audience);
             return Task.FromResult<ContextSection[]>(
                 audience == Audience.Owner
-                    ? [new("Open PRs on GitHub", "- #213 Patch Next.js by owner")]
+                    ?
+                    [
+                        new(
+                            "Repository (local checkout)",
+                            "Recent commits:\n2026-10-05 b1ca9c9 Patch Next.js to 16.3.6"
+                        ),
+                        new("Open PRs on GitHub", "- #213 Patch Next.js by owner"),
+                    ]
                     : [new("Pull requests", "1 open PR(s)")]
             );
         }
@@ -110,23 +117,7 @@ public static class WorkingContextChecks
                 )
             );
             var contributor = new Contributor();
-            var gitCalls = new List<string>();
-            var working = new WorkingContext(sessions, digests, intake, [contributor])
-            {
-                Clock = () => now,
-                Git = (folder, arguments) =>
-                {
-                    gitCalls.Add(folder + "|" + arguments[0]);
-                    return Task.FromResult(
-                        arguments[0] switch
-                        {
-                            "rev-parse" => "main\n",
-                            "log" => "2026-10-05 b1ca9c9 Patch Next.js to 16.3.6",
-                            _ => "",
-                        }
-                    );
-                },
-            };
+            var working = new WorkingContext(sessions, digests, intake, [contributor]) { Clock = () => now };
 
             var projects = working.Projects();
             check(
@@ -159,7 +150,6 @@ public static class WorkingContextChecks
                     && text.StartsWith("<<untrusted working context"),
                 "The owner's context covers the project's sessions, digests, commits, PRs and inbox mentions, fenced as data, and nothing from other projects."
             );
-            check(gitCalls.All(call => call.StartsWith(repo + "|")), "Git runs only in the project's own checkout.");
 
             var visitor = await working.ForAsync("status of quotedesk", Audience.Visitor, default);
             check(
