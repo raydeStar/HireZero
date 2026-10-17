@@ -1,97 +1,104 @@
-# HireZero home development snapshot
+# HireZero
 
-## Company workspace in this development branch
+Scaffold a company out of AI employees. Each employee is a module you hire, onboard with approved company
+knowledge, talk to privately, assign work and review. Departments can hold several employees of the same kind
+without sharing private history. A CEO employee proposes plans and chairs board meetings; you stay the owner.
 
-This branch adds a local company workspace for multiple employees per department, approved onboarding knowledge, private employee conversations, internal artifact review, bounded CEO plans and Board Meeting records. Automatic employee execution and repository writes remain unavailable. The optional pinned native profile supports [one reviewed conversational reply](docs/CONVERSATIONAL_REPLIES.md) or an eligible internal draft, with measured usage and explicitly acknowledged soft token/cost controls.
+- **You stay in charge.** Anything consequential (push, merge, send, publish, spend) waits for your explicit
+  approval, bound to the exact version you reviewed. Uncertain outcomes are never replayed automatically.
+- **Bounded by design.** Model calls run through single-use grants with token budgets reserved up front; usage that
+  cannot be confirmed keeps its reservation held until you reconcile it.
+- **Modular.** Employees (`src/HireZero.Roles.*`) reach the outside world only through integrations
+  (`src/HireZero.Integrations.*`); the core knows nothing about any particular role.
 
-See [Using the local company workspace](docs/COMPANY_LOCAL.md) for the separate company-only launcher, fresh data-root requirement and verification. The existing recovery and Developer workflows below retain their own startup profiles. Do not point company-local mode at an existing application database.
+Today's employees are **Developer** (GitHub PR review and fixes), **Marketing** (briefs and versioned drafts) and
+**CEO** (plans and meetings). Where this is going is in the [roadmap](docs/ROADMAP.md).
 
-This is HireZero's current working source, including uncommitted work and the isolated recovery changes. The original checkout was preserved. Base commit: `3ebee32710fffc40a38cd9bcf0d550c920608c24`. This ZIP has no Git history or ready-made runtime environment.
+> Status: development. Automatic model execution is off by default; the company workspace offers explicitly
+> approved one-turn replies and drafts through a pinned runtime. See [Phase 0 report](docs/PHASE0_REPORT.md).
 
-The familiar React chat UI is restored. The recovery host admits only fresh local-owner messages to a text-only model and runs bounded GitHub PR discovery every 15 minutes. It does not register coding runners, publication, legacy reply recovery, loops, connector intake or scheduled mutation services. Old consent cannot authorize a new reply. Failed replies require an explicit retry.
+## Requirements
 
-## Prerequisites
+- Windows with PowerShell 7 (the launchers are Windows-only for now).
+- .NET SDK 10 (any 10.0 feature band) and Node.js 22+ with npm.
+- Optional, for live model replies: your own model sign-in and the pinned agent runtime (OpenClaw needs Node 24.16+,
+  installed per data root by `tools/Install-OpenClawRuntime.ps1`). No credentials or runtimes ship with this repo.
+- At least 10 GiB free disk space before building.
 
-- Windows and PowerShell 7.
-- .NET SDK 10; `global.json` requests 10.0.302 with latest-feature roll-forward. Validation used 10.0.401.
-- Node.js 22 with npm for the frontend.
-- GitHub CLI, separately signed in to the account you intend to use at home, if you want GitHub discovery.
-- For real chat, a separately installed compatible OpenClaw runtime and your own model sign-in. No runtime, authentication, subscriptions or credentials are included. Existing-machine runtime compatibility is experimental; see the limitations below.
-- At least 10 GiB free before building.
-
-## Build and start safely
-
-Extract the ZIP, enter its `HireZero` folder, then run:
+## Build and run
 
 ```powershell
-npm ci --prefix web
+npm ci --prefix web --ignore-scripts
 npm run build --prefix web
-dotnet build src/HireZero.Host/HireZero.Host.csproj
-./tools/Start-Home.ps1
+dotnet build HireZero.slnx
+./tools/Start-CompanyLocal.ps1 -DataRoot <new absolute directory>
 ```
 
-Open <http://127.0.0.1:5064/>. The home launcher uses `%USERPROFILE%\.hirezero-home`, creates local application state there, and selects `-DiscoveryOnly`, which now serves the original UI with text-only chat and read-only discovery. It also keeps the global execution hold set. Use this launcher for recovery development. The upstream default launcher selects the broader application and is not the safe recovery route.
+Open <http://127.0.0.1:5065/>. The company workspace needs a fresh data root and refuses an existing legacy
+database. Stop it with Ctrl+C.
 
-You can select another fresh directory explicitly:
+### Startup profiles
+
+The host has one profile per composition root, selected explicitly ([architecture](docs/ARCHITECTURE.md)):
+
+| Profile | Start with | What it serves |
+| --- | --- | --- |
+| Company | `tools/Start-CompanyLocal.ps1 -DataRoot <dir>` | The multi-employee company workspace on port 5065 |
+| Developer | `tools/Start-HireZero.ps1` | The original single-agent Developer workspace on port 5064 (retired in Phase 1) |
+| Recovery | `tools/Start-Home.ps1` | Developer UI with text-only chat and read-only PR discovery |
+| Held | `HIREZERO_EXECUTION_HOLD=1` | Read-only status while execution is held for verification |
+
+### Pinned agent runtime
+
+`runtime/openclaw/package.json` and its lockfile pin the OpenClaw runtime (currently 2026.10.4). Install it into a
+data root with:
 
 ```powershell
-./tools/Start-Home.ps1 -DataRoot "$env:USERPROFILE/.hirezero-home-dev"
-./tools/Stop-HireZero.ps1 -DataRoot "$env:USERPROFILE/.hirezero-home-dev"
+./tools/Install-OpenClawRuntime.ps1 -DataRoot <data root> -NodePath <node 24.16+ executable>
+./tools/OpenClawSignIn.ps1 -Owner -DataRoot <data root>
 ```
 
-The launcher refuses to reuse a listener with a different launch profile. No company repository configuration is bundled. A fresh data root has no configured discovery repositories. Repository registration through the recovery UI is currently held, so configuring the intended local scope remains development work; it will not scan every repository visible to your GitHub account.
+The host refuses to start an OpenClaw runtime whose version differs from the pin
+([ADR 0004](docs/adr/0004-pinned-agent-runtimes.md)). Complete any sign-in yourself in the browser; never paste
+credentials into chat or copy auth files between machines.
 
-## Fresh model sign-in
+## Checks
 
-Use your own account at home. Never copy workplace auth files, tokens, application databases or runtime-state folders into this checkout or home data root.
-
-The existing sign-in helper is:
+All checks are synthetic: no live model, GitHub or GPU calls.
 
 ```powershell
-./tools/OpenClawSignIn.ps1 -Owner -DataRoot "$env:USERPROFILE/.hirezero-home"
+dotnet test --solution HireZero.slnx                       # all .NET tests (xUnit v3 on Microsoft.Testing.Platform)
+dotnet test --project tests/HireZero.Core.Tests            # one project
+dotnet csharpier check .                                   # C# formatting (dotnet tool restore once)
+npm run typecheck --prefix web
+npm run format:check --prefix web
+node --test tests/*.test.mjs                               # frontend and hook unit tests
+node tests/company-browser-smoke.mjs                       # headless Chrome smoke tests (build first)
+pwsh tests/launcher.test.ps1                               # launcher tests (mocked processes)
 ```
 
-It requires an already prepared owner cell and the OpenClaw runtime at `<data root>/Runtime/node/node.exe` and `<data root>/Runtime/openclaw/node_modules/openclaw/openclaw.mjs`. The helper opens the provider's device-code sign-in; complete it yourself in the browser. Do not paste credentials into chat.
+Use the smallest set that covers a change. Apply formatting with `dotnet csharpier format .` and
+`npm run format --prefix web`.
 
-The isolated recovery host deliberately does not prepare credentials or grant access. Bootstrapping a new owner cell and aligning its authentication with the isolated text gateway remain unresolved for a fresh machine. Do not use the broader execution mode merely to bypass this limitation.
+## Repository layout
 
-## Validation and known limitations
+| Path | Contents |
+| --- | --- |
+| `src/HireZero.Core` | Company, conversations, tasks, approvals, budgets, storage |
+| `src/HireZero.Roles.*` | Employees: Developer, Marketing, CEO |
+| `src/HireZero.Integrations.*` | External systems: model runtimes, GitHub-adjacent tools, Microsoft 365, Azure DevOps |
+| `src/HireZero.Host` | Composition roots (startup profiles) |
+| `web/` | React frontend (`company/` workspace, `roles/` employee panels, `shell/` legacy Developer UI) |
+| `runtime/` | Pinned external agent runtimes |
+| `tests/` | xUnit projects, Node and browser smoke tests, fixtures |
+| `tools/` | Launchers, runtime installer, sign-in helpers |
+| `docs/` | [Roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), [decisions](docs/adr/), [history](docs/history/) |
 
-Synthetic host checks cover the held startup, reset backup/history, stale approvals, restored UI assets, fresh-message-only model input, held mutation routes, explicit failed-turn retry, new-root schema initialization, recurring cadence, deduplication and no GitHub writes/log reads. Run them with:
+## Contributing
 
-```powershell
-dotnet run --project tests/HireZero.Host.Tests
-node --test tests/approval-ui.test.mjs tests/execution-feedback.test.mjs tests/session-hook.test.mjs
-```
+Read [AGENTS.md](AGENTS.md) first. Never commit credentials, private or employer data; fixtures are fictional.
+Publication history and the original secret-scan review are in [docs/history](docs/history/).
 
-The actual existing-machine UI and recurring discovery were verified. A benign live message was saved and displayed, but no model answer came back: the local text-gateway request was refused with HTTP 401 or 403. The original error labeled this as owner sign-in refusal; that was too broad because the gateway also has access checks. The source now distinguishes a gateway refusal and leaves model sign-in unverified. No OAuth grant, credential change or approval bypass was performed. Real chat success is not claimed.
+## License
 
-Discovery considers only the configured account's explicitly registered repositories, at most 12 repositories, 8 owner-authored open PRs per repository and 24 evidence packets. It shows observations, last/next scan and failures, retains the last successful findings on failure, deduplicates findings, and queues no repair work. Assigned-issue discovery remains disabled. The 15-minute timer checks once per minute, and source calls can take up to three minutes, so the next timestamp is the earliest due time.
-
-Normal legacy source is retained for further development, but its services and approvals are not activated by the recovery launcher. Some original UI controls still reference held capabilities and receive a refusal. SemaForge and other optional local services are not included or started.
-
-## Package contents and exclusions
-
-Included: app source, frontend source, synthetic tests, dependency manifests/lockfiles, launch/sign-in helper source, license, this guide and the upstream README. `SOURCE-MANIFEST.json` lists every payload file with size and SHA-256; `PACKAGE-VALIDATION.json` records checks.
-
-Excluded: `.git`, other repositories, credentials/auth, `.env*`, machine configuration, SQLite/databases, saved chats/tasks, cached PR observations, logs/receipts/backups, compiled binaries, `bin`, `obj`, `wwwroot`, `node_modules`, runtime caches, generated frontend output and private working notes. Dependency manifests remain because builds need them. Original documentation beyond the upstream README is omitted from this source-only snapshot.
-
-MIT; see `LICENSE`. This is a development snapshot with known chat-auth limitations, not a validated full-execution release.
-
-## Before putting this on GitHub
-
-The ZIP omits Git history. Initialize a new local repository only when you are ready, then review what Git would include:
-
-```powershell
-git init
-git status --short
-git check-ignore .env .data/example.sqlite web/node_modules/example src/HireZero.Host/bin/example.dll
-```
-
-Start with a private repository for further development. Review the staged file list and diff, repeat a redacted secret scan, and explicitly approve publication before pushing. No repository was created or pushed during this export. The original checkout and its existing Git history remain on the source machine; the base commit above records provenance for this snapshot, but it is not a substitute for that history.
-
-The strengthened `.gitignore` covers local auth/runtime/state, databases, logs, environment files, dependency and build output. Ignore rules do not protect already tracked files or detect every secret. Configurable enterprise integration code is retained; actual credentials, current employer payloads, cached PR observations and live tasks are excluded. Original synthetic test fixtures are retained unchanged, including their sample labels and intentionally secret-shaped literals; they are not exported runtime data.
-
-Gitleaks 8.30.1 with 100% redaction reports three reviewed synthetic findings: `tests/HireZero.Core.Tests/ActivityLogChecks.cs:31` and `tests/HireZero.Core.Tests/GuardAndSessionChecks.cs:8` (`generic-api-key`), and `tests/HireZero.Developer.Tests/PullRequestWorkflowChecks.cs:69` (`private-key`). These construct fictional content to test redaction and publication guards. No fixture was removed or weakened to suppress the scanner. No real secret was identified in the source payload; this is a bounded review, not a guarantee that detection is complete.
-
-The original `LICENSE` declares MIT and is retained. Dependency manifests are retained; their licenses were not individually audited. Installing the locked frontend packages reported one high-severity advisory in the transitive `source-map-js` dependency: [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q). Vite also reported its existing bundle-size warning. Neither dependencies nor the lockfile were automatically changed during packaging. Review the advisory and applicable code/data ownership before later publication.
+MIT. See [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md).
