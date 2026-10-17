@@ -85,6 +85,7 @@ public sealed class TextOnlyOpenClaw(string dataRoot) : IModelGateway, IDisposab
         var node = Path.Combine(dataRoot, "Runtime", "node", "node.exe");
         var entry = Path.Combine(dataRoot, "Runtime", "openclaw", "node_modules", "openclaw", "openclaw.mjs");
         if (!File.Exists(node) || !File.Exists(entry)) throw new ModelUnavailableException("The existing OpenClaw runtime is missing.");
+        OpenClawRuntime.EnsurePinned(entry);
         var state = Path.Combine(dataRoot, "RecoveryChat", Guid.NewGuid().ToString("N"));
         var workspace = Path.Combine(state, "workspace"); Directory.CreateDirectory(workspace);
         var config = Path.Combine(state, "openclaw.json");

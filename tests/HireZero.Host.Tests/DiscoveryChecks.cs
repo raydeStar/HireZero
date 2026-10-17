@@ -46,27 +46,6 @@ public static class DiscoveryChecks
         coding.Save(new("running", "running", root, "fictional", "high", null, null, null, [], now, now));
         try { ResetQueuedWork.Run(root); throw new Exception("Live run reset accepted"); } catch (InvalidOperationException) { checks++; }
         coding.Save(new("running", "canceled", root, "fictional", "high", null, null, null, [], now, now));
-        var previous = Environment.GetEnvironmentVariable(DiscoveryWorkspace.Variable);
-        try
-        {
-            Environment.SetEnvironmentVariable(DiscoveryWorkspace.Variable, "1");
-            await using var app = DiscoveryWorkspace.TryCreate(["--urls=http://0.0.0.0:0"], "owner@example.invalid", true, root, github, "http://127.0.0.1:0")!;
-            Check(app.Services.GetService<IModelGateway>() is null && app.Services.GetService<ICodingRunner>() is null && app.Services.GetService<IHttpClientFactory>() is null, "Discovery has no execution or other connector providers.");
-            Check(!app.Services.GetServices<IHostedService>().Any(service => service is BackgroundService), "Discovery has no recovery or execution workers.");
-            await app.StartAsync(); var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
-            using var client = new HttpClient { BaseAddress = new Uri(address) }; client.DefaultRequestHeaders.Host = "127.0.0.1:5064";
-            Check((await client.GetStringAsync("/")).Contains("A fresh look"), "Discovery page is usable.");
-            var runtime = await client.GetFromJsonAsync<JsonElement>("/api/runtime"); Check(runtime.GetProperty("executionHeld").GetBoolean() && runtime.GetProperty("discoveryOnly").GetBoolean(), "Execution hold remains explicit.");
-            using (var scan = await client.PostAsync("/api/discovery/scan", null)) Check(scan.IsSuccessStatusCode, "Only explicit discovery dispatch is accepted.");
-            foreach (var target in new[] { "/api/intake", "/api/mcp", "/api/requests/fixture/allow-agent", "/api/github/workflows/fixture/confirm", "/api/github/workflows/fixture/publish", "/api/github/loops/fixture/resume" })
-                using (var reply = await client.PostAsync(target, null)) Check(reply.StatusCode == HttpStatusCode.ServiceUnavailable, "Held mutation cannot dispatch.");
-            using (var forwarded = new HttpRequestMessage(HttpMethod.Get, "/api/runtime"))
-            { forwarded.Headers.Add("X-Forwarded-Host", "fictional.invalid"); using var reply = await client.SendAsync(forwarded); Check(reply.StatusCode == HttpStatusCode.Forbidden, "Forwarded identities cannot enter discovery."); }
-            using (var foreign = new HttpRequestMessage(HttpMethod.Post, "/api/discovery/scan"))
-            { foreign.Headers.Add("Origin", "https://fictional.invalid"); using var reply = await client.SendAsync(foreign); Check(reply.StatusCode == HttpStatusCode.Forbidden, "Cross-origin observation is refused."); }
-            await app.StopAsync();
-        }
-        finally { Environment.SetEnvironmentVariable(DiscoveryWorkspace.Variable, previous); }
-        Console.WriteLine("PASS " + checks + " discovery isolation, fresh queue, backup, consent and observation checks");
+        Console.WriteLine("PASS " + checks + " fresh queue, backup, consent and observation checks");
     }
 }

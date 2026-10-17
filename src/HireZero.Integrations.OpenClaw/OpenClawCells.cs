@@ -121,6 +121,7 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
     {
         var cell = _cells.GetOrAdd(login, CreateCell);
         if (!File.Exists(_node) || !File.Exists(_entry)) throw new ModelUnavailableException("OpenClaw runtime is not installed.");
+        OpenClawRuntime.EnsurePinned(_entry);
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); limit.CancelAfter(timeout);
         var start = new ProcessStartInfo(_node) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = cell.Directory };
         start.ArgumentList.Add(_entry);
@@ -244,6 +245,7 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
             .Select(item => new { path = "agents.defaults." + item.Name, value = item.Value }));
         operations.AddRange(desired.RootElement.GetProperty("models").GetProperty("providers").GetProperty("openai").EnumerateObject()
             .Select(item => new { path = "models.providers.openai."+item.Name, value = item.Value }));
+        OpenClawRuntime.EnsurePinned(_entry);
         var start = new ProcessStartInfo(_node)
         {
             UseShellExecute = false, CreateNoWindow = true,
@@ -335,6 +337,7 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
         if (await IsReadyAsync(cell, cancellationToken)) return;
         if (!File.Exists(_node) || !File.Exists(_entry))
             throw new ModelUnavailableException("OpenClaw runtime is not installed.");
+        OpenClawRuntime.EnsurePinned(_entry);
         if (cell.Process is { HasExited: false })
             throw new ModelUnavailableException("OpenClaw is starting or is not healthy.");
         var start = new ProcessStartInfo(_node)

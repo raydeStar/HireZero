@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 static class MeasuredQueueChecks
 {
     public static readonly string Fake=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../HireZero.FakeCodex/bin/Debug/net10.0/HireZero.FakeCodex.exe"));
-    public static string Brief=>File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../../docs/ONE_JOB_MARKETING_BRIEF.json")));
+    public static string Brief=>File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../../tests/fixtures/one-job-marketing-brief.json")));
     public static CompanyCodexConnection Model(string root,string mode)=>new(new(Fake,CompanyCodingFactory.Identity(Fake),Path.Combine(root,"native-scratch"),SyntheticMode:mode));
     public static CompanyCommand C(string action)=>new(Guid.NewGuid().ToString("D"),action);
     public static T[] Items<T>(CompanyStore store,string key)=>CompanyJson.Decode<T[]>(JsonSerializer.SerializeToElement(store.Dashboard(),CompanyJson.Options).GetProperty(key).GetRawText());

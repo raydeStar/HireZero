@@ -1,4 +1,3 @@
-using System.Net;
 using HireZero.Core;
 
 // A separate composition root: held startup never constructs normal providers, stores or workers.
@@ -21,31 +20,16 @@ public static class HeldWorkspace
         const string localHost = "127.0.0.1:5064";
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = fixtureContentRoot });
         // The optional fixture address is only a local test seam; normal held startup binds the existing loopback port.
-        if (fixtureUrl is not null && (!Uri.TryCreate(fixtureUrl, UriKind.Absolute, out var uri) || uri.Scheme != "http" ||
-            !IPAddress.TryParse(uri.Host, out var address) || !IPAddress.IsLoopback(address)))
-            throw new InvalidOperationException("A held fixture must use an HTTP loopback address.");
-        builder.WebHost.ConfigureKestrel(options =>
-        {
-            // Replace the default endpoint loader: args/appsettings/environment cannot add or reload a public listener.
-            options.Configure(new ConfigurationBuilder().Build(), reloadOnChange: false);
-            options.Limits.MaxRequestBodySize = 16_384;
-            if (fixtureUrl is not null) { var fixture = new Uri(fixtureUrl); options.Listen(IPAddress.Parse(fixture.Host), fixture.Port); }
-            else { options.Listen(IPAddress.Loopback, 5064); options.Listen(IPAddress.IPv6Loopback, 5064); }
-        });
+        var fixture = fixtureUrl is null ? null : LocalHosting.LoopbackUri(fixtureUrl, "A held fixture must use an HTTP loopback address.");
+        builder.ListenLoopbackOnly(fixture, 5064, 16_384);
         var runtime = new WorkspaceRuntime(owner, Path.GetFullPath(dataRoot), null, [], localOwner) { ExecutionHeld = true };
         var app = builder.Build();
         app.UseWorkspaceCorrelation();
         app.Use(async (context, next) =>
         {
-            context.Response.Headers.CacheControl = "no-store";
-            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-            context.Response.Headers["Referrer-Policy"] = "no-referrer";
-            context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'";
+            LocalHosting.ApplySecurityHeaders(context);
             // Held status is local only; even a forwarded, invited identity cannot reach normal dispatch.
-            if (context.Connection.RemoteIpAddress is not { } remote || !IPAddress.IsLoopback(remote) ||
-                context.Request.Host.Value != localHost || context.Request.Headers.Keys.Any(key =>
-                    key.StartsWith("X-Forwarded-", StringComparison.OrdinalIgnoreCase) || key.StartsWith("Tailscale-", StringComparison.OrdinalIgnoreCase) || key.Equals("Forwarded", StringComparison.OrdinalIgnoreCase)))
-            { context.Response.StatusCode = 403; return; }
+            if (!LocalHosting.IsDirectLocalRequest(context, localHost)) { context.Response.StatusCode = 403; return; }
             var path = context.Request.Path.Value?.TrimEnd('/') ?? "";
             if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase))
             {

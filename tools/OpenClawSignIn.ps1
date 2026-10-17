@@ -17,6 +17,9 @@ $node = Join-Path (Join-Path $runtime 'node') 'node.exe'
 $entry = Join-Path (Join-Path (Join-Path (Join-Path $runtime 'openclaw') 'node_modules') 'openclaw') 'openclaw.mjs'
 if (-not (Test-Path -LiteralPath $config -PathType Leaf)) { throw 'The agent cell is not prepared. Start the workspace for -Owner, or invite this person first.' }
 if (-not (Test-Path -LiteralPath $node -PathType Leaf) -or -not (Test-Path -LiteralPath $entry -PathType Leaf)) { throw 'The OpenClaw runtime is not installed.' }
+$pinned = (Get-Content -Raw -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime/openclaw/package.json') | ConvertFrom-Json).dependencies.openclaw
+$installed = (Get-Content -Raw -LiteralPath (Join-Path (Split-Path -Parent $entry) 'package.json') | ConvertFrom-Json).version
+if ($installed -ne $pinned) { throw "The installed OpenClaw runtime is $installed, but this checkout is pinned to $pinned. Run tools/Install-OpenClawRuntime.ps1 first." }
 
 $env:OPENCLAW_STATE_DIR = $cell
 $env:OPENCLAW_CONFIG_PATH = $config

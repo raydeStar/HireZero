@@ -35,7 +35,7 @@ try{
   const starts=async()=>{const files=await fs.readdir(temporary,{recursive:true});let count=0;for(const file of files.filter(p=>p.endsWith('fixture-native-starts')))count+=(await fs.readFile(path.join(temporary,file),'utf8')).trim().split('\n').filter(Boolean).length;return count;};
   await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Browser draft fixture')).click()");await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'manual jobs employee');
   await field('Work type','marketing-draft');
-  const brief=JSON.parse(await fs.readFile(path.join(repo,'docs/ONE_JOB_MARKETING_BRIEF.json'),'utf8'));
+  const brief=JSON.parse(await fs.readFile(path.join(repo,'tests/fixtures/one-job-marketing-brief.json'),'utf8'));
   for(const [key,value] of Object.entries(brief))await field(key,value);
   await evaluate("document.querySelector('button[aria-label=\"Assign work\"]').click()");await until(async()=>(await dashboard()).data.tasks.length===1,'brief saved');
   await until(()=>evaluate("document.body.innerText.includes('Waiting for your one-job authorization.')"),'manual queue waiting state');

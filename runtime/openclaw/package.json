@@ -1,0 +1,11 @@
+{
+  "name": "hirezero-openclaw-runtime",
+  "private": true,
+  "description": "Pinned OpenClaw runtime for HireZero. Install with tools/Install-OpenClawRuntime.ps1; see docs/adr/0004-pinned-agent-runtimes.md.",
+  "engines": {
+    "node": ">=24.16.0 <25 || >=26.1.0"
+  },
+  "dependencies": {
+    "openclaw": "2026.10.4"
+  }
+}

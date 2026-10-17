@@ -1,27 +1,17 @@
-using System.Net;
 using HireZero.Core;
 using HireZero.Integrations.OpenClaw;
 using HireZero.Roles.Developer;
 
 public static class RecoveryWorkspace
 {
+    public const string Variable = "HIREZERO_DISCOVERY_ONLY";
     public static WebApplication? TryCreate(string[] args, string owner, bool localOwner, string dataRoot,
         GitHubReviewClient? fixtureGitHub = null, IModelGateway? fixtureModel = null, string? fixtureUrl = null, IEmployeeModelGateway? fixtureEmployeeModel = null)
     {
-        if (Environment.GetEnvironmentVariable(DiscoveryWorkspace.Variable) is not ("1")) return null;
+        if (Environment.GetEnvironmentVariable(RecoveryWorkspace.Variable) is not ("1")) return null;
         if (!localOwner) throw new InvalidOperationException("Recovery requires local owner access.");
         var builder = WebApplication.CreateBuilder(args);
-        builder.WebHost.ConfigureKestrel(options =>
-        {
-            options.Configure(new ConfigurationBuilder().Build(), reloadOnChange: false); options.Limits.MaxRequestBodySize = 16_384;
-            if (fixtureUrl is not null)
-            {
-                var fixture = new Uri(fixtureUrl);
-                if (fixture.Scheme != "http" || !IPAddress.TryParse(fixture.Host, out var address) || !IPAddress.IsLoopback(address)) throw new InvalidOperationException("Fixture must be loopback.");
-                options.Listen(address, fixture.Port);
-            }
-            else { options.Listen(IPAddress.Loopback, 5064); options.Listen(IPAddress.IPv6Loopback, 5064); }
-        });
+        builder.ListenLoopbackOnly(fixtureUrl is null ? null : LocalHosting.LoopbackUri(fixtureUrl, "Fixture must be loopback."), 5064, 16_384);
         var database = Path.Combine(dataRoot, "workspace.sqlite");
         var roles = new RoleCatalog(dataRoot, EmployeeRegistration.AvailableRoles(), ["developer"]);
 
@@ -40,10 +30,8 @@ public static class RecoveryWorkspace
         app.UseWorkspaceCorrelation();
         app.Use(async (context, next) =>
         {
-            context.Response.Headers.CacheControl = "no-store";
-            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-            if (context.Connection.RemoteIpAddress is not { } remote || !IPAddress.IsLoopback(remote) || context.Request.Host.Value != "127.0.0.1:5064" ||
-                context.Request.Headers.Keys.Any(key => key.StartsWith("X-Forwarded-", StringComparison.OrdinalIgnoreCase) || key.StartsWith("Tailscale-", StringComparison.OrdinalIgnoreCase) || key.Equals("Forwarded", StringComparison.OrdinalIgnoreCase)) ||
+            LocalHosting.ApplySecurityHeaders(context);
+            if (!LocalHosting.IsDirectLocalRequest(context, "127.0.0.1:5064") ||
                 context.Request.Headers.Origin is { Count: > 0 } origins && origins.ToString() != "http://127.0.0.1:5064")
             { context.Response.StatusCode = 403; return; }
             context.Items["login"] = owner; context.Items["role"] = "owner";

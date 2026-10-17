@@ -24,10 +24,10 @@ public static class RecoveryChecks
         var historical = requests.AddMessage(old.Id, owner, "Old context stays private", "old-message"); requests.ArchiveRequest(old.Id);
         reviews.Add(new ReviewRepository("repo", 1, 10, "owner/example", "", "fictional"));
         var github = new SyntheticGitHub(); var model = new FixtureModel();
-        var previous = Environment.GetEnvironmentVariable(DiscoveryWorkspace.Variable);
+        var previous = Environment.GetEnvironmentVariable(RecoveryWorkspace.Variable);
         try
         {
-            Environment.SetEnvironmentVariable(DiscoveryWorkspace.Variable, "1");
+            Environment.SetEnvironmentVariable(RecoveryWorkspace.Variable, "1");
             await using var app = RecoveryWorkspace.TryCreate(["--contentRoot=" + root], owner, true, root, github, model, "http://127.0.0.1:0")!;
             Check(app.Services.GetService<ICodingRunner>() is null && app.Services.GetService<OpenClawCells>() is null, "Recovery has no coding or legacy model runtime.");
             await app.StartAsync();
@@ -72,7 +72,7 @@ public static class RecoveryChecks
             Check(config.RootElement.GetProperty("tools").GetProperty("deny")[0].GetString() == "*" && !config.RootElement.GetProperty("cron").GetProperty("enabled").GetBoolean() && !config.RootElement.GetProperty("hooks").GetProperty("enabled").GetBoolean(), "Text gateway disables tools, cron and hooks.");
             await app.StopAsync();
         }
-        finally { Environment.SetEnvironmentVariable(DiscoveryWorkspace.Variable, previous); }
+        finally { Environment.SetEnvironmentVariable(RecoveryWorkspace.Variable, previous); }
         Console.WriteLine("PASS " + checks + " original UI, fresh chat, historical refusal, held mutations and recurring discovery checks");
     }
 
