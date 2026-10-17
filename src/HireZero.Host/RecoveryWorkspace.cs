@@ -13,8 +13,7 @@ public static class RecoveryWorkspace
         string dataRoot,
         GitHubReviewClient? fixtureGitHub = null,
         IModelGateway? fixtureModel = null,
-        string? fixtureUrl = null,
-        IEmployeeModelGateway? fixtureEmployeeModel = null
+        string? fixtureUrl = null
     )
     {
         if (Environment.GetEnvironmentVariable(RecoveryWorkspace.Variable) is not ("1"))
@@ -28,7 +27,7 @@ public static class RecoveryWorkspace
             16_384
         );
         var database = Path.Combine(dataRoot, "workspace.sqlite");
-        var roles = new RoleCatalog(dataRoot, EmployeeRegistration.AvailableRoles(), ["developer"]);
+        var roles = new RoleCatalog(dataRoot, HostEmployees.LegacyRoles(), ["developer"]);
 
         var requests = new RequestStore(database) { OwnerLogin = owner };
         var agents = new AgentStore(database);

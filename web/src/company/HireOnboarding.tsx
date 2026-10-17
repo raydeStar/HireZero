@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../shell/api";
 import { command, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
-import { marketingOnboarding } from "../roles/marketing/onboarding";
-import { developerOnboarding } from "../roles/developer/onboarding";
-import { ceoOnboarding } from "../roles/ceo/onboarding";
 
 type Draft = {
   role: string;
@@ -19,12 +16,9 @@ type Draft = {
   pending?: { action: string; requestId: string };
 };
 const key = "hirezero-hire-draft-v1";
-const suggestions: Record<
-  string,
-  { department: string; name: string; responsibility: string; help: Record<string, string>; boundaries: string }
-> = { marketing: marketingOnboarding, developer: developerOnboarding, ceo: ceoOnboarding };
-function fresh(role = "marketing"): Draft {
-  const defaults = suggestions[role];
+const suggestion = (snapshot: Snapshot, role: string) => snapshot.data.roles.find((r) => r.id === role)?.onboarding;
+function fresh(snapshot: Snapshot, role = snapshot.data.roles[0]?.id ?? ""): Draft {
+  const defaults = suggestion(snapshot, role);
   return {
     role,
     name: defaults?.name || "",
@@ -41,7 +35,7 @@ function suggestedDepartment(snapshot: Snapshot, role: string) {
   const candidates = snapshot.data.departments.filter(
     (d) =>
       snapshot.data.employees.find((e) => e.id === d.guide)?.roleId === role ||
-      d.name === suggestions[role]?.department,
+      d.name === suggestion(snapshot, role)?.department,
   );
   return candidates.length === 1 ? candidates[0].id : candidates.length > 1 ? "" : "new";
 }
@@ -49,11 +43,12 @@ function readDraft(snapshot: Snapshot): Draft {
   try {
     const stored = JSON.parse(sessionStorage.getItem(key) || "null");
     if (stored && typeof stored.role === "string" && typeof stored.values === "object" && stored.values !== null)
-      return { ...fresh(stored.role), ...stored };
+      return { ...fresh(snapshot, stored.role), ...stored };
   } catch {
     /* Draft storage is optional. */
   }
-  return { ...fresh(), departmentId: suggestedDepartment(snapshot, "marketing") };
+  const draft = fresh(snapshot);
+  return { ...draft, departmentId: suggestedDepartment(snapshot, draft.role) };
 }
 function valuesOf(knowledge?: Knowledge): Record<string, string> {
   try {
@@ -105,7 +100,7 @@ export function HireOnboarding({
   const guide = data.employees.find((e) => e.id === department?.guide),
     role = data.roles.find((r) => r.id === (guide?.roleId || draft.role));
   const fields = role?.onboardingFields || [],
-    defaults = suggestions[role?.id || draft.role];
+    defaults = role?.onboarding;
   const thread = data.threads.find((t) => t.employeeId === person?.id && (t.scope ?? "employee") === "employee");
   useEffect(() => {
     if (!resumeId || current.current.pending) return;
@@ -119,7 +114,7 @@ export function HireOnboarding({
       .filter((k) => k.departmentId === employee.departmentId && k.state === "draft")
       .at(-1);
     change({
-      ...fresh(employee.roleId),
+      ...fresh(snapshot, employee.roleId),
       employeeId: employee.id,
       name: employee.name,
       departmentId: employee.departmentId,
@@ -341,7 +336,10 @@ export function HireOnboarding({
                 value={draft.role}
                 disabled={profilePinned}
                 onChange={(e) =>
-                  change({ ...fresh(e.target.value), departmentId: suggestedDepartment(snapshot, e.target.value) })
+                  change({
+                    ...fresh(snapshot, e.target.value),
+                    departmentId: suggestedDepartment(snapshot, e.target.value),
+                  })
                 }
               >
                 {data.roles.map((r) => (
@@ -535,7 +533,7 @@ export function HireOnboarding({
           </p>
           <button
             disabled={disabled}
-            onClick={() => change({ ...fresh(draft.role), departmentId: department?.id || "new" })}
+            onClick={() => change({ ...fresh(snapshot, draft.role), departmentId: department?.id || "new" })}
           >
             Hire another employee
           </button>
@@ -568,7 +566,7 @@ export function HireOnboarding({
             </button>
             <button
               disabled={disabled}
-              onClick={() => change({ ...fresh(draft.role), departmentId: department?.id || "" })}
+              onClick={() => change({ ...fresh(snapshot, draft.role), departmentId: department?.id || "" })}
             >
               Hire another employee
             </button>

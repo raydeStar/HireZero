@@ -21,7 +21,7 @@ public static class DeveloperWorkspace
         var database = Path.Combine(dataRoot, "workspace.sqlite");
 
         // Every role this build knows about; the catalog decides which are hired.
-        IRole[] available = EmployeeRegistration.AvailableRoles();
+        IRole[] available = HostEmployees.LegacyRoles();
         var roles = new RoleCatalog(dataRoot, available, defaultHired: ["developer"]);
         var hired = roles.Hired();
 

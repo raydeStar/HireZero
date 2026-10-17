@@ -1,8 +1,5 @@
 using HireZero.Core;
 using HireZero.Integrations.Codex;
-using HireZero.Roles.Ceo;
-using HireZero.Roles.Developer;
-using HireZero.Roles.Marketing;
 
 // Explicit composition profile. Native Codex inspection is opt-in; legacy workers are never registered.
 public static class CompanyWorkspace
@@ -10,8 +7,7 @@ public static class CompanyWorkspace
     public const string Flag = "--company-local";
     public const string CodexFlag = "--company-codex";
 
-    public static CompanyRole[] Definitions() =>
-        [CompanyDeveloper.Definition, CompanyMarketing.Definition, CompanyCeo.Definition];
+    public static CompanyRole[] Definitions() => [.. HostEmployees.Modules.Select(CompanyRole.From)];
 
     public static WebApplication? TryCreate(
         string[] args,

@@ -83,7 +83,7 @@ public sealed partial class CompanyStore
                 ];
                 if (
                     migrations.Any(m =>
-                        m.Item1 < 1 || m.Item1 > schemas.Length || m.Item2 != EmployeeStore.Hash(schemas[m.Item1 - 1])
+                        m.Item1 < 1 || m.Item1 > schemas.Length || m.Item2 != ContentGuard.Digest(schemas[m.Item1 - 1])
                     ) || migrations.OrderBy(m => m.Item1).Where((m, i) => m.Item1 != i + 1).Any()
                 )
                     throw new WorkspaceException(
@@ -96,7 +96,7 @@ public sealed partial class CompanyStore
                         db,
                         "INSERT INTO company_schema_migrations VALUES($0,$1)",
                         i + 1,
-                        EmployeeStore.Hash(schemas[i])
+                        ContentGuard.Digest(schemas[i])
                     );
                 }
                 Sql(db, "INSERT OR IGNORE INTO co_company VALUES($0,$1)", CompanyId, owner);
@@ -269,7 +269,7 @@ public sealed partial class CompanyStore
 
     private static string Id() => Guid.NewGuid().ToString("N");
 
-    private static string Text(string? text, int max = 4000) => EmployeeStore.Text(text, max);
+    private static string Text(string? text, int max = 4000) => ContentGuard.Bounded(text, max);
 
     private static void Version(int actual, int expected)
     {
@@ -336,6 +336,25 @@ public sealed partial class CompanyStore
                         r.OnboardingFields,
                         r.MeasuredSkills,
                         r.ExecutionSkills,
+                        summary = r.Manifest?.Summary,
+                        onboarding = r.Manifest is { Onboarding: var o }
+                            ? new
+                            {
+                                department = o.Department,
+                                name = o.DefaultName,
+                                responsibility = o.Responsibility,
+                                help = o.Fields.ToDictionary(f => f.Id, f => f.Help),
+                                boundaries = o.Boundaries,
+                            }
+                            : null,
+                        tools = r.Manifest?.Tools.Select(t => new
+                        {
+                            t.Id,
+                            risk = t.Risk.ToString().ToLowerInvariant(),
+                            t.Purpose,
+                        }),
+                        kpis = r.Manifest?.Kpis,
+                        uiSlots = r.Manifest?.UiSlots ?? [],
                     }),
                     cursor = long.Parse(
                         Scalar(db, "SELECT COALESCE(MAX(seq),0) FROM co_events WHERE company_id=$0", CompanyId)!

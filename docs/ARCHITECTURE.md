@@ -16,6 +16,9 @@ The rule ([ADR 0001](adr/0001-three-layers.md)): Core knows no role or vendor; r
 integrations; integrations know no role. Project references already follow it: roles and integrations reference
 only Core, and only Host references everything.
 
+Architecture tests (`tests/HireZero.Host.Tests/ArchitectureTests.cs`) enforce the assembly references, that every
+role project ships one discovered module, and that the company profile and shared company UI name no role.
+
 Known violations, scheduled for Phase 2:
 
 - Core contains Developer vocabulary and behaviour: the coding-runner contract (`Coding.cs`), GitHub/Azure DevOps
@@ -42,14 +45,24 @@ Developer profile can additionally listen on a tailnet address and identify call
 
 ## Employees
 
-Three employee definitions coexist today; Phase 1 replaces them with one module contract
-([ADR 0002](adr/0002-employee-module-contract.md)):
+Each kind of employee is one `IEmployeeModule` (`Core/EmployeeModules.cs`) in its own `src/HireZero.Roles.*`
+assembly ([ADR 0002](adr/0002-employee-module-contract.md)). Its manifest declares identity, instructions, skills
+and their modes, tools, KPIs, onboarding copy, capabilities and UI slots. Host references every role project with a
+wildcard and `EmployeeModuleCatalog.Discover` finds the modules at startup
+([ADR 0006](adr/0006-compiled-in-module-discovery.md)).
 
-- `CompanyRole` (`Core/CompanyContracts.cs`): used by the company workspace. Id, instructions, skill names,
-  onboarding fields, measured and execution skills.
-- `IRole` (`Core/Roles.cs`): used by the Developer profile. Registers services and endpoints for a hired role.
-- `EmployeeDefinition` / `IEmployeeSkill` (`Core/Employees.cs`): wired by `EmployeeRegistration.AddEmployees` but
-  not called at runtime.
+- The company workspace projects each module into its internal `CompanyRole` (`CompanyRole.From`) and serves the
+  manifest's hiring copy, tools, KPIs and UI slots to the web.
+- Platform skills that the company orchestrates (`chat`, `meeting-turn`, `meeting-chair`, `company-plan`) are
+  named by `PlatformSkills`; all other skills are opaque to Core.
+- `IRole` (`Core/Roles.cs`) remains only for the legacy Developer and Recovery profiles; a module exposes it as
+  `LegacyRole`. It is removed with those profiles in Phase 2.
+
+On the web, `web/src/roles/company.ts` collects every `web/src/roles/<id>/company.tsx` and renders a contribution
+only where the module's manifest declares the slot (`skill-input:<skill>` for structured input editors, named
+panels such as `plan-guidance`).
+
+How to add one: [ADDING_AN_EMPLOYEE.md](ADDING_AN_EMPLOYEE.md).
 
 ## Safety model
 
@@ -78,8 +91,9 @@ alter them ad hoc. Small JSON files in the data root hold role hiring, access, b
 
 React 19 + Vite, built into the Host's `wwwroot`. `web/src/main.tsx` renders the company workspace
 (`web/src/company`) when the session reports company mode, otherwise the legacy Developer shell
-(`web/src/shell`). Employee-specific panels live under `web/src/roles`; only the Developer panels are registered
-today. Phase 1 merges everything into the company workspace.
+(`web/src/shell`). Employee UI lives under `web/src/roles/<id>`: `company.tsx` contributes to the company
+workspace through manifest-declared slots, and the Developer folder also holds the legacy shell's panels
+(registered in `web/src/roles/index.ts`). Phase 2 merges the remaining Developer panels into the company workspace.
 
 ## Tests
 

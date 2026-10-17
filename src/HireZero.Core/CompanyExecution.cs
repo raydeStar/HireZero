@@ -14,7 +14,7 @@ public sealed partial class CompanyStore
         }
         catch (WorkspaceException)
         {
-            return "invalid-receipt:" + EmployeeStore.Hash(value);
+            return "invalid-receipt:" + ContentGuard.Digest(value);
         }
     }
 
@@ -369,7 +369,7 @@ public sealed partial class CompanyStore
                         Admission = new(
                             accounting,
                             CompanyJson.Digest(call.Context),
-                            EmployeeStore.Hash(call.Instructions)
+                            ContentGuard.Digest(call.Instructions)
                         ),
                         Version = a.Version + 1,
                     }
@@ -604,7 +604,7 @@ public sealed partial class CompanyStore
                     t.Id,
                     t.EmployeeId,
                     body,
-                    EmployeeStore.Hash(body),
+                    ContentGuard.Digest(body),
                     "needs_review",
                     "model-output",
                     a.ContextId
@@ -874,7 +874,7 @@ public sealed partial class CompanyStore
     public CompanyResourceClaim AcquireWorkspace(string attemptId, string workspace)
     {
         var path = CanonicalWorkspace(workspace);
-        var resource = EmployeeStore.Hash(path);
+        var resource = ContentGuard.Digest(path);
         using var db = Open();
         return Transaction(
             db,

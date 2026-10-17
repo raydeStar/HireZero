@@ -108,7 +108,7 @@ public sealed partial class CompanyStore
                     prior?.Id ?? Id(),
                     d?.Id,
                     body,
-                    EmployeeStore.Hash(body),
+                    ContentGuard.Digest(body),
                     "draft",
                     (prior?.Version ?? 0) + 1
                 );
@@ -205,7 +205,18 @@ public sealed partial class CompanyStore
                 if (t.EmployeeId != c.EmployeeId || t.Scope != "employee")
                     throw new WorkspaceException("Choose the target employee's private thread.", 404);
                 Message(db, t, "owner", body);
-                var task = NewTask(db, t.EmployeeId, t.Id, "chat", body, c.Evidence ?? [], [], null, null, null);
+                var task = NewTask(
+                    db,
+                    t.EmployeeId,
+                    t.Id,
+                    PlatformSkills.Chat,
+                    body,
+                    c.Evidence ?? [],
+                    [],
+                    null,
+                    null,
+                    null
+                );
                 Event(
                     db,
                     "owner.message",
@@ -372,7 +383,7 @@ public sealed partial class CompanyStore
                     task.Id,
                     task.EmployeeId,
                     body,
-                    EmployeeStore.Hash(body),
+                    ContentGuard.Digest(body),
                     "needs_review",
                     "owner-authored",
                     null
@@ -517,7 +528,7 @@ public sealed partial class CompanyStore
         var t = Need<CompanyThread>(db, thread);
         if (t.EmployeeId != employee)
             throw new WorkspaceException("Thread not found.", 404);
-        if (t.Scope == "company" && (kind != "conversation" || skill != "chat"))
+        if (t.Scope == "company" && (kind != "conversation" || skill != PlatformSkills.Chat))
             throw new WorkspaceException(
                 "Company conversations admit one explicitly approved conversational reply only."
             );

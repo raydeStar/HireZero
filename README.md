@@ -9,13 +9,14 @@ without sharing private history. A CEO employee proposes plans and chairs board 
 - **Bounded by design.** Model calls run through single-use grants with token budgets reserved up front; usage that
   cannot be confirmed keeps its reservation held until you reconcile it.
 - **Modular.** Employees (`src/HireZero.Roles.*`) reach the outside world only through integrations
-  (`src/HireZero.Integrations.*`); the core knows nothing about any particular role.
+  (`src/HireZero.Integrations.*`); the core knows nothing about any particular role. Adding an employee is a new
+  project with one manifest ([how-to](docs/ADDING_AN_EMPLOYEE.md)).
 
 Today's employees are **Developer** (GitHub PR review and fixes), **Marketing** (briefs and versioned drafts) and
 **CEO** (plans and meetings). Where this is going is in the [roadmap](docs/ROADMAP.md).
 
 > Status: development. Automatic model execution is off by default; the company workspace offers explicitly
-> approved one-turn replies and drafts through a pinned runtime. See [Phase 0 report](docs/PHASE0_REPORT.md).
+> approved one-turn replies and drafts through a pinned runtime. See the [Phase 1 report](docs/PHASE1_REPORT.md).
 
 ## Requirements
 

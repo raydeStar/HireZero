@@ -7,7 +7,7 @@ public sealed partial class CompanyStore
     private CompanyPlan CreatePlan(SqliteConnection db, CompanyCommand c)
     {
         var ceo = Need<CompanyEmployee>(db, c.EmployeeId);
-        if (!Role(ceo.RoleId).Skills.Contains("company-plan") || ceo.State != "active")
+        if (!Role(ceo.RoleId).Skills.Contains(PlatformSkills.CompanyPlan) || ceo.State != "active")
             throw new WorkspaceException("Select an active employee qualified to propose company plans.");
         var specs = c.Tasks ?? [];
         if (specs.Length is < 1 or > 4 || c.Budget is < 5000 or > 40000)
@@ -27,7 +27,7 @@ public sealed partial class CompanyStore
                 || thread.EmployeeId != e.Id
                 || thread.Scope != "employee"
                 || !Role(e.RoleId).Skills.Contains(spec.Skill)
-                || spec.Skill is "company-plan" or "meeting-chair" or "meeting-turn"
+                || spec.Skill is PlatformSkills.CompanyPlan or PlatformSkills.MeetingChair or PlatformSkills.MeetingTurn
             )
                 throw new WorkspaceException("Delegation must target active employees and ordinary internal skills.");
             if (
@@ -41,7 +41,7 @@ public sealed partial class CompanyStore
             Role(e.RoleId).ValidateInput?.Invoke(spec.Skill, spec.Input);
             if (
                 !fingerprints.Add(
-                    e.Id + ":" + spec.Skill + ":" + EmployeeStore.Hash(spec.Input.Trim().ToLowerInvariant())
+                    e.Id + ":" + spec.Skill + ":" + ContentGuard.Digest(spec.Input.Trim().ToLowerInvariant())
                 )
             )
                 throw new WorkspaceException("Duplicate delegated tasks are not allowed.");
@@ -135,11 +135,11 @@ public sealed partial class CompanyStore
         foreach (var id in participants)
         {
             var e = Need<CompanyEmployee>(db, id);
-            if (e.State != "active" || !Role(e.RoleId).Skills.Contains("meeting-turn"))
+            if (e.State != "active" || !Role(e.RoleId).Skills.Contains(PlatformSkills.MeetingTurn))
                 throw new WorkspaceException("All participants must be active meeting contributors.");
         }
         var chair = Need<CompanyEmployee>(db, c.ChairId);
-        if (!Role(chair.RoleId).Skills.Contains("meeting-chair"))
+        if (!Role(chair.RoleId).Skills.Contains(PlatformSkills.MeetingChair))
             throw new WorkspaceException("Choose a qualified meeting chair.");
         Evidence(db, c.Evidence ?? []);
         var idNew = Id();
@@ -217,7 +217,7 @@ public sealed partial class CompanyStore
                 m = m with
                 {
                     Outcome = body,
-                    OutcomeDigest = EmployeeStore.Hash(body),
+                    OutcomeDigest = ContentGuard.Digest(body),
                     State = "awaiting_owner",
                     Version = m.Version + 1,
                 };
@@ -264,7 +264,7 @@ public sealed partial class CompanyStore
             db,
             employee,
             t.Id,
-            "meeting-turn",
+            PlatformSkills.MeetingTurn,
             final
                 ? "Synthesize decisions, dissent, open questions and proposed actions. Cite selected evidence. Do not execute actions."
                 : "Contribute to the agenda from the shared meeting evidence. Distinguish facts, assumptions and recommendations.",

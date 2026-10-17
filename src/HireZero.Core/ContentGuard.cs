@@ -15,6 +15,20 @@ public sealed record Guarded(string Text, string[] Flags)
 // Flagged text is still data; it is wrapped as such and never triggers automatic action.
 public static class ContentGuard
 {
+    // Lowercase hex SHA-256 of the UTF-8 text; the digest every exact-version review is bound to.
+    public static string Digest(string value) =>
+        Convert
+            .ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(value)))
+            .ToLowerInvariant();
+
+    // Trimmed text that is non-empty, within the limit and free of credential-like content; otherwise refused.
+    public static string Bounded(string? value, int limit)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length > limit || Clean(value, limit).Flags.Length > 0)
+            throw new WorkspaceException("Use bounded text without credential-like content.", 400);
+        return value.Trim();
+    }
+
     public const string Hidden = "hidden-characters",
         Redacted = "redacted",
         Injection = "possible-injection";

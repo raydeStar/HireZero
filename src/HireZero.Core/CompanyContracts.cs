@@ -2,6 +2,8 @@ using System.Text.Json;
 
 namespace HireZero.Core;
 
+// The company workspace's view of an employee module. Built by Core from the module's manifest; roles never author
+// it directly (docs/adr/0002-employee-module-contract.md).
 public sealed record CompanyRole(
     string Id,
     string Name,
@@ -16,6 +18,28 @@ public sealed record CompanyRole(
     public bool CompanyOverview { get; init; }
     public string[] ExecutionSkills { get; init; } = [];
     public string[] MeasuredSkills { get; init; } = [];
+    public EmployeeManifest? Manifest { get; init; }
+
+    public static CompanyRole From(IEmployeeModule module)
+    {
+        var manifest = module.Manifest;
+        return new(
+            manifest.Id,
+            manifest.Name,
+            manifest.Instructions,
+            manifest.SkillIds(),
+            [.. manifest.Onboarding.Fields.Select(f => f.Id)]
+        )
+        {
+            ValidateInput = module.ValidateInput,
+            InstructionsForSkill = module.InstructionsFor,
+            WorkspaceClaims = manifest.Capabilities.WorkspaceClaims,
+            CompanyOverview = manifest.Capabilities.CompanyOverview,
+            ExecutionSkills = manifest.SkillIds(SkillMode.Execution),
+            MeasuredSkills = manifest.SkillIds(SkillMode.Measured),
+            Manifest = manifest,
+        };
+    }
 }
 
 public sealed record CompanyDepartment(string Id, string Name, string? Guide, string? Knowledge, int Version = 1);
@@ -359,5 +383,5 @@ public static class CompanyJson
     public static T Decode<T>(string value) =>
         JsonSerializer.Deserialize<T>(value, Options) ?? throw new WorkspaceException("Invalid stored company record.");
 
-    public static string Digest<T>(T value) => EmployeeStore.Hash(Encode(value));
+    public static string Digest<T>(T value) => ContentGuard.Digest(Encode(value));
 }

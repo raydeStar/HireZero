@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../shell/api";
 import { BrandMark } from "../components/BrandMark";
-import { PlanGuidance } from "../roles/ceo/PlanGuidance";
+import { panels } from "../roles/company";
 import { command, type Snapshot, type Employee, type ThreadDetail, type Event, type TaskSpec } from "./api";
 import { CompanyConversation, type ConversationDraft } from "./CompanyConversation";
 import { MessageSquareText, Users, Building2, ClipboardList, MessagesSquare } from "lucide-react";
@@ -82,7 +82,7 @@ export function CompanyWorkspace() {
   const [resumeHire, setResumeHire] = useState("");
   const [evidence, setEvidence] = useState<string[]>([]);
   const [newName, setNewName] = useState(""),
-    [role, setRole] = useState("marketing"),
+    [role, setRole] = useState(""),
     [department, setDepartment] = useState(""),
     [responsibility, setResponsibility] = useState("");
   const [departmentName, setDepartmentName] = useState(""),
@@ -522,7 +522,7 @@ export function CompanyWorkspace() {
                     onSubmit={form(async () => {
                       await run("employee.hire", {
                         name: newName,
-                        roleId: role,
+                        roleId: role || d.roles[0]?.id,
                         departmentId: department,
                         responsibility,
                       });
@@ -536,7 +536,7 @@ export function CompanyWorkspace() {
                     </label>
                     <label>
                       Role
-                      <select value={role} onChange={(e) => setRole(e.target.value)}>
+                      <select value={role || d.roles[0]?.id} onChange={(e) => setRole(e.target.value)}>
                         {d.roles.map((r) => (
                           <option value={r.id} key={r.id}>
                             {r.name}
@@ -574,7 +574,9 @@ export function CompanyWorkspace() {
             <div className="co-columns">
               <section>
                 <h2>CEO delegation</h2>
-                <PlanGuidance />
+                {panels(d.roles, "plan-guidance").map(({ roleId, Panel }) => (
+                  <Panel key={roleId} />
+                ))}
                 {ceos.length === 0 ? (
                   <p>Hire and onboard a CEO to propose company work.</p>
                 ) : (

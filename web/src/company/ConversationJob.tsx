@@ -194,7 +194,7 @@ export function ConversationJob({
             <small>
               {a.provenance} · {a.state}
             </small>
-            {employee.roleId === "ceo" && a.state === "approved" && (
+            {employeeRole?.skills.includes("company-plan") && a.state === "approved" && (
               <button
                 onClick={() =>
                   void run("plan.from-artifact", { id: a.id, expectedVersion: a.version, digest: a.digest })

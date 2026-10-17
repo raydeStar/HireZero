@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HireZero.Roles.Marketing;
 
+// Marketing in the legacy Developer profile: listed and hireable, with no services of its own.
 public sealed class MarketingRole : IRole
 {
     public RoleInfo Info { get; } =
@@ -20,17 +21,10 @@ public sealed class MarketingRole : IRole
         Instructions
         + " Draft the requested asset from the versioned brief. Separate draft copy, claim sources, missing facts and owner review questions. "
         + "Return plain text, clearly marked draft for internal review. Never invent proof, prices, performance or customer claims.";
-    public EmployeeDefinition Employee =>
-        new(
-            Info,
-            Instructions,
-            [new EmployeeChatSkill(Instructions), new MarketingDraftSkill()],
-            new MarketingBriefPolicy()
-        );
 
     public void AddServices(IServiceCollection services, RoleContext context) { }
 
-    public void MapEndpoints(WebApplication app) { } // The shared employee endpoints enforce identity, ownership and exact-version review.
+    public void MapEndpoints(WebApplication app) { }
 }
 
 public sealed record MarketingBrief(
@@ -41,7 +35,7 @@ public sealed record MarketingBrief(
     string Constraints
 );
 
-public sealed class MarketingBriefPolicy : IEmployeeDocumentPolicy
+public sealed class MarketingBriefPolicy
 {
     public string Validate(string body)
     {
@@ -61,32 +55,13 @@ public sealed class MarketingBriefPolicy : IEmployeeDocumentPolicy
         }
         return JsonSerializer.Serialize(
             new MarketingBrief(
-                EmployeeStore.Text(brief.Objective, 1000),
-                EmployeeStore.Text(brief.Audience, 1000),
-                EmployeeStore.Text(brief.Channel, 120),
-                EmployeeStore.Text(brief.Deliverable, 1000),
-                EmployeeStore.Text(brief.Constraints, 1000)
+                ContentGuard.Bounded(brief.Objective, 1000),
+                ContentGuard.Bounded(brief.Audience, 1000),
+                ContentGuard.Bounded(brief.Channel, 120),
+                ContentGuard.Bounded(brief.Deliverable, 1000),
+                ContentGuard.Bounded(brief.Constraints, 1000)
             ),
             new JsonSerializerOptions(JsonSerializerDefaults.Web)
         );
-    }
-}
-
-public sealed class MarketingDraftSkill : IEmployeeSkill
-{
-    public string Kind => "marketing-draft";
-
-    public async Task<EmployeeResult> RunAsync(
-        EmployeeContext context,
-        string input,
-        IEmployeeModelGateway gateway,
-        CancellationToken token
-    )
-    {
-        if (context.Document is null)
-            throw new WorkspaceException("Save the campaign brief first.");
-        new MarketingBriefPolicy().Validate(context.Document.Body);
-        var answer = await gateway.CompleteAsync(new(MarketingRole.DraftInstructions, context, input), token);
-        return new(EmployeeStore.Text(answer, 12000), "marketing-draft");
     }
 }

@@ -172,7 +172,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
             || job.CreditAllowance is <= 0 or > 1000
             || job.Route != call.ModelRoute
             || job.ContextDigest != CompanyJson.Digest(call.Context)
-            || job.InstructionsDigest != EmployeeStore.Hash(call.Instructions)
+            || job.InstructionsDigest != ContentGuard.Digest(call.Instructions)
         )
             throw new WorkspaceException("The exact consumed measured authorization is required.");
         var receipt = await CompleteNativeAsync(call, job, token);

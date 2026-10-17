@@ -10,8 +10,8 @@ column when a phase lands; open a new ADR when a decision changes.
 | Phase | Theme | Status |
 | --- | --- | --- |
 | 0 | Clean foundation | Done (see [Phase 0 report](PHASE0_REPORT.md)) |
-| 1 | One employee module contract | Next |
-| 2 | Restore the layers: tools, integrations, one model provider | Planned |
+| 1 | One employee module contract | Done (see [Phase 1 report](PHASE1_REPORT.md)) |
+| 2 | Restore the layers: tools, integrations, one model provider | Next |
 | 3 | Enterprise readiness | Planned |
 | 4 | Prove "omni": a real second and third employee | Planned |
 
@@ -43,24 +43,28 @@ UIs. Each depends on the Phase 1 contract; doing them first would orphan working
 
 ## Phase 1: One employee module contract
 
-Today there are three overlapping ways to define an employee (`IRole`, `EmployeeDefinition`, `CompanyRole`).
-Replace them with one contract, `IEmployeeModule`, described by a manifest:
+Replace the three overlapping employee definitions (`IRole`, `EmployeeDefinition`, `CompanyRole`) with one
+contract, `IEmployeeModule`, described by a manifest ([ADR 0002](adr/0002-employee-module-contract.md)), and find
+modules without editing the platform ([ADR 0006](adr/0006-compiled-in-module-discovery.md)).
 
-- Identity: id, display name, contract version, module version.
-- Skills: typed input/output records instead of string kinds matched with `if`.
-- Required tools: named capabilities such as `github.pr.read` or `analytics.query`, each with a risk level.
-- KPIs: what the employee reports on its scorecard.
-- Onboarding fields: what the owner must supply when hiring.
-- UI slots: panels the company UI renders for this employee.
-- Storage: a module-owned schema with versioned migrations.
+Delivered (see [Phase 1 report](PHASE1_REPORT.md)):
 
-Modules are discovered (assembly scan or plugin folder), so hiring a new kind of employee needs no Host edits.
-Port Developer, Marketing and CEO onto the contract, then retire `IRole`/`roles.json`, the dead
-`EmployeeTeam` path and the legacy single-agent host. Merge the developer panels into the company UI and delete
-the legacy `web/src/shell` UI.
+- The contract and manifest: identity and versions, instructions, skills with modes, structured input validation,
+  tools with risk levels, KPIs, onboarding copy, capabilities, UI slots and display order.
+- Compiled-in discovery: a wildcard project reference plus `[assembly: EmployeeModule]`, validated at startup.
+- Developer, Marketing and CEO ported; the company workspace builds its roles from manifests; the unused
+  `EmployeeDefinition` path is deleted.
+- Hiring copy is served from manifests, and employee UI plugs into named slots through
+  `web/src/roles/<id>/company.tsx`, picked up automatically.
+- Architecture tests for the layering and module rules.
 
-Exit criteria: adding an employee is a new `src/HireZero.Roles.*` project plus a `web/src/roles/*` folder;
-an architecture test enforces it.
+Exit criteria met: adding an employee is a new `src/HireZero.Roles.*` project plus an optional `web/src/roles/*`
+folder, with no Host, Core or shared web edits ([how-to](ADDING_AN_EMPLOYEE.md)).
+
+Moved to Phase 2, because each needs Developer's git and GitHub work to run through integration tools first:
+porting Developer's legacy services (PR review, fix loop, wiki drafts, preparation, Trusted Postgres) onto
+skills; module-owned storage migrations; merging the developer panels into the company UI; and retiring `IRole`,
+`roles.json`, the Developer, Recovery and Held profiles and `web/src/shell`.
 
 ## Phase 2: Restore the layers
 
@@ -72,6 +76,10 @@ an architecture test enforces it.
   `ICodingRunner`; routing per employee and skill from configuration; measured, bounded usage as middleware.
   No model id in source.
 - Expose and consume tools over MCP.
+- Port Developer's legacy services onto skills and tools, give modules their own storage migrations, merge the
+  developer panels into the company UI, then retire `IRole`, `roles.json`, the Developer, Recovery and Held
+  profiles and `web/src/shell`. Decide which legacy-only features (Microsoft 365 intake, coding-agent session
+  steering, Azure DevOps, Jev triage, tailnet multi-user access, daily brief) move into the company workspace.
 - Architecture tests enforce: Core references no role or integration; integrations reference no role.
 
 ## Phase 3: Enterprise readiness

@@ -110,7 +110,7 @@ public sealed partial class CompanyStore
         if (command.Scope is not ("company" or "employee"))
             throw new WorkspaceException("Choose company or private employee conversation context.", 422);
         var employee = Need<CompanyEmployee>(db, command.EmployeeId);
-        if (employee.State != "active" || !Role(employee.RoleId).Skills.Contains("chat"))
+        if (employee.State != "active" || !Role(employee.RoleId).Skills.Contains(PlatformSkills.Chat))
             throw new WorkspaceException("Select an active conversational employee.");
         CompanyThread thread;
         if (command.Scope == "company" && command.ThreadId is null)
@@ -134,7 +134,7 @@ public sealed partial class CompanyStore
             db,
             employee.Id,
             thread.Id,
-            "chat",
+            PlatformSkills.Chat,
             body,
             command.Evidence ?? [],
             [],
@@ -169,7 +169,9 @@ public sealed partial class CompanyStore
         if (
             !(
                 Role(employee.RoleId).MeasuredSkills.Contains(task.Skill)
-                || task.Kind == "conversation" && task.Skill == "chat" && Role(employee.RoleId).Skills.Contains("chat")
+                || task.Kind == "conversation"
+                    && task.Skill == PlatformSkills.Chat
+                    && Role(employee.RoleId).Skills.Contains(PlatformSkills.Chat)
             )
             || task.PlanId is not null
             || task.MeetingId is not null
@@ -213,7 +215,7 @@ public sealed partial class CompanyStore
             "proposed",
             "",
             CompanyJson.Digest(call.Context),
-            EmployeeStore.Hash(call.Instructions),
+            ContentGuard.Digest(call.Instructions),
             call.ModelRoute!,
             MeasuredRuntimeIdentity,
             command.CreditAllowance,
@@ -254,7 +256,7 @@ public sealed partial class CompanyStore
         var call = TextCall(db, attempt);
         return job.Digest == MeasuredDigest(attempt, job)
             && job.ContextDigest == CompanyJson.Digest(call.Context)
-            && job.InstructionsDigest == EmployeeStore.Hash(call.Instructions)
+            && job.InstructionsDigest == ContentGuard.Digest(call.Instructions)
             && job.ApplicationBytes == ApplicationBytes(call)
             && job.ApplicationBytes <= job.Policy.ApplicationBytes
             && KnowledgeCurrent(db, call.Context, Need<CompanyTask>(db, attempt.TaskId));

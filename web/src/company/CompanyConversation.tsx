@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowUp, MessageSquareText } from "lucide-react";
 import { api } from "../shell/api";
-import { EmployeeBrief, marketingFields } from "../roles/marketing/EmployeeBrief";
+import { skillInput } from "../roles/company";
 import type { Employee, Event, Snapshot, ThreadDetail, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
 import { MeasuredJob } from "./MeasuredJob";
@@ -68,7 +68,8 @@ export function CompanyConversation({
     mounted = useRef(true),
     companyRequest = useRef(0);
   const target = company ? d.employees.find((e) => e.id === draft.recipient) : employee,
-    role = d.roles.find((r) => r.id === employee?.roleId);
+    role = d.roles.find((r) => r.id === employee?.roleId),
+    structured = company ? undefined : skillInput(role, draft.skill);
   const companyThread = company
     ? d.threads.find((t) => t.employeeId === target?.id && t.scope === "company")
     : undefined;
@@ -130,10 +131,11 @@ export function CompanyConversation({
   async function send() {
     if (sending.current || busy || (!company && (!privateReady || employee?.state !== "active"))) return;
     const sent = draft,
-      body = !company && sent.skill === "marketing-draft" ? JSON.stringify(sent.brief) : sent.body;
+      sentInput = company ? undefined : skillInput(role, sent.skill),
+      body = sentInput ? JSON.stringify(sent.brief) : sent.body;
     if (!body.trim()) return;
-    if (!company && sent.skill === "marketing-draft" && marketingFields.some((field) => !sent.brief[field]?.trim())) {
-      setLocalError("Complete every campaign brief field.");
+    if (sentInput && sentInput.fields.some((field) => !sent.brief[field]?.trim())) {
+      setLocalError("Complete every " + sentInput.label.toLowerCase() + " field.");
       return;
     }
     if (reply && (held || pending)) {
@@ -415,10 +417,10 @@ export function CompanyConversation({
               </small>
             </>
           )}
-          {!company && draft.skill === "marketing-draft" ? (
+          {structured ? (
             <details open className="co-brief-composer">
-              <summary>Campaign brief</summary>
-              <EmployeeBrief value={draft.brief} onChange={(brief) => update({ brief })} />
+              <summary>{structured.label}</summary>
+              <structured.Editor value={draft.brief} onChange={(brief) => update({ brief })} />
             </details>
           ) : null}
           {!company && (
@@ -445,7 +447,7 @@ export function CompanyConversation({
             </details>
           )}
           <div className="fe-composer">
-            {(company || draft.skill !== "marketing-draft") && (
+            {!structured && (
               <textarea
                 ref={input}
                 aria-label={company ? "Company message" : "Message to " + (employee?.name || "employee")}
@@ -486,7 +488,7 @@ export function CompanyConversation({
               disabled={
                 busy ||
                 (!company && (!privateReady || employee?.state !== "active")) ||
-                ((company || draft.skill !== "marketing-draft") && !draft.body.trim())
+                (!structured && !draft.body.trim())
               }
             >
               <ArrowUp size={19} />

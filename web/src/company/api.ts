@@ -75,6 +75,14 @@ export type Meeting = {
   outcomeDigest: string | null;
 };
 export type Event = { sequence: number; type: string; id: string; employeeId: string | null; text: string; at: string };
+// Hiring copy from the employee module's manifest (docs/adr/0002-employee-module-contract.md).
+export type RoleOnboarding = {
+  department: string;
+  name: string;
+  responsibility: string;
+  help: Record<string, string>;
+  boundaries: string;
+};
 export type Role = {
   id: string;
   name: string;
@@ -82,6 +90,11 @@ export type Role = {
   onboardingFields: string[];
   measuredSkills?: string[];
   executionSkills?: string[];
+  summary?: string | null;
+  onboarding?: RoleOnboarding | null;
+  tools?: { id: string; risk: "read" | "write" | "external" | "spend"; purpose: string }[] | null;
+  kpis?: { id: string; name: string; unit: string; description: string }[] | null;
+  uiSlots?: string[];
 };
 export type MeasuredEntry = {
   id: string;
