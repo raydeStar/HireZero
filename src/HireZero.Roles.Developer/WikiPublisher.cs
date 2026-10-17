@@ -18,6 +18,7 @@ public sealed class WikiPublisher(WikiDraftStore store, RequestStore requests, W
             var draft = store.Reserve(id, version);
             if (draft is null)
                 return prior;
+            using var authority = DeveloperAuthority.WikiDraft(id);
             try
             {
                 var receipt = await adapter.SubmitAsync(
@@ -85,6 +86,7 @@ public sealed class WikiPublisher(WikiDraftStore store, RequestStore requests, W
         try
         {
             draft = store.Find(draft.Id)!;
+            using var authority = DeveloperAuthority.WikiDraft(draft.Id);
             if (draft.Status is "publishing" or "uncertain")
             {
                 if (!WikiDraftPolicy.CanSubmit(draft))

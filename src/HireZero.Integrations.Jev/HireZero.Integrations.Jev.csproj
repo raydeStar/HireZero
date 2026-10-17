@@ -10,6 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Jev/HireZero.Tools.Jev.csproj" />
     <Using Include="HireZero.Core" />
   </ItemGroup>
 </Project>

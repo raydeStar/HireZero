@@ -47,7 +47,7 @@ public static class LegacyConsentChecks
                 var service = new PullRequestWorkflowService(
                     store,
                     github,
-                    new GitHubFixCoordinator(store, github, sema),
+                    new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema)),
                     reviewer,
                     requests
                 );
@@ -100,7 +100,7 @@ public static class LegacyConsentChecks
                 service = new PullRequestWorkflowService(
                     store,
                     github,
-                    new GitHubFixCoordinator(store, github, sema),
+                    new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema)),
                     reviewer,
                     requests
                 );

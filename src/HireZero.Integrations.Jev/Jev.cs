@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using HireZero.Tools.Jev;
 
 namespace HireZero.Integrations.Jev;
 
@@ -140,6 +141,38 @@ public static class JevServices
             )
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton<JevClient>();
+        services.AddSingleton<IToolProvider, JevToolProvider>();
         return services.AddSingleton<IIntakeClassifier, JevIntakeClassifier>();
+    }
+}
+
+// The jev.* tools. The key stays in this integration; callers send only the request body.
+public sealed class JevToolProvider(IHttpClientFactory clients) : IToolProvider
+{
+    public void Register(ToolRegistry registry)
+    {
+        registry.Register(JevTools.Status, (_, _) => Task.FromResult(new JevStatus(JevClient.Key() is not null)));
+        registry.Register(JevTools.Classify, ClassifyAsync);
+    }
+
+    private async Task<ServiceReply> ClassifyAsync(JevRequest request, CancellationToken token)
+    {
+        if (JevClient.Key() is not { } key)
+            throw new ToolFailureException("unconfigured", "Jev needs its server-side API key.", 503);
+        try
+        {
+            using var client = clients.CreateClient("jev");
+            using var message = new HttpRequestMessage(HttpMethod.Post, "v1/systemone");
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+            message.Content = new StringContent(request.Json, System.Text.Encoding.UTF8, "application/json");
+            using var response = await client.SendAsync(message, token);
+            return new((int)response.StatusCode, await response.Content.ReadAsStringAsync(token));
+        }
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException)
+        {
+            if (token.IsCancellationRequested)
+                token.ThrowIfCancellationRequested();
+            throw new ToolFailureException("unavailable", "Jev is unavailable. No work was changed.");
+        }
     }
 }

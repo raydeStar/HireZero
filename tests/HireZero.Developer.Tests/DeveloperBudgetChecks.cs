@@ -96,7 +96,7 @@ public static class DeveloperBudgetChecks
             var service = new PullRequestWorkflowService(
                 store,
                 github,
-                new GitHubFixCoordinator(store, github, new SyntheticSema()),
+                new GitHubFixCoordinator(store, github, TestTools.Sema(store, new SyntheticSema())),
                 new SyntheticRuleReviewer(),
                 requests,
                 runner,

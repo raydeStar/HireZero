@@ -6,6 +6,8 @@ using HireZero.Integrations.Jev;
 using HireZero.Integrations.Microsoft365;
 using HireZero.Integrations.Node;
 using HireZero.Integrations.OpenClaw;
+using HireZero.Integrations.SemaForge;
+using HireZero.Integrations.Wiki;
 using HireZero.Roles.Developer;
 
 // The developer profile: the original single-agent workspace with roles hired through roles.json. It is retired once
@@ -160,21 +162,12 @@ public static class DeveloperWorkspace
         builder.Services.AddSingleton(new DigestStore(database));
         builder.Services.AddSingleton(services => ActivatorUtilities.CreateInstance<BriefService>(services, dataRoot));
         // Tools the Developer may call (docs/adr/0007-tool-registry.md); verifiers come from the hired roles.
-        builder.Services.AddSingleton<IToolAudit>(new MemoryToolAudit());
-        var ownerActions = new OwnerActionApprovals();
-        builder.Services.AddSingleton(ownerActions);
-        builder.Services.AddSingleton<IToolAuthorityVerifier>(ownerActions);
-        builder.Services.AddSingleton(services =>
-        {
-            var registry = new ToolRegistry(
-                services.GetRequiredService<IToolAudit>(),
-                services.GetServices<IToolAuthorityVerifier>()
-            );
-            new GitHubCli().Register(registry);
-            new GitHubSignIn().Register(registry);
-            new NpmInstaller().Register(registry);
-            return registry;
-        });
+        builder.Services.AddToolRegistry();
+        builder.Services.AddSingleton(IToolProvider.From(registry => new GitHubCli().Register(registry)));
+        builder.Services.AddSingleton(IToolProvider.From(registry => new GitHubSignIn().Register(registry)));
+        builder.Services.AddSingleton(IToolProvider.From(registry => new NpmInstaller().Register(registry)));
+        builder.Services.AddSemaForge();
+        builder.Services.AddWiki();
         var context = new RoleContext(dataRoot, database);
         foreach (var role in hired)
             role.AddServices(builder.Services, context);
@@ -187,6 +180,7 @@ public static class DeveloperWorkspace
         app.Lifetime.ApplicationStopping.Register(() => (model as IDisposable)?.Dispose());
         app.UseWorkspaceCorrelation();
         app.UseWorkspaceAccess(ownerLogin, localOwnerEnabled, localHost);
+        app.UseOwnerRequestAuthority();
         app.UseRateLimiter();
         app.UseDefaultFiles();
         app.UseStaticFiles();

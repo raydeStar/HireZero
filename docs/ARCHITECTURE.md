@@ -8,8 +8,8 @@ This describes HireZero as it is today, including the known gaps, and points at 
 ```
 Host (composition roots, one per startup profile)
  ├── Roles            src/HireZero.Roles.{Developer,Marketing,Ceo}   web/src/roles/*
- ├── Integrations     src/HireZero.Integrations.{Git,GitHub,Node,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps,Jev}
- ├── Tool contracts   src/HireZero.Tools.{Git,GitHub,Node}   (referenced by roles and integrations)
+ ├── Integrations     src/HireZero.Integrations.{Git,GitHub,Node,SemaForge,Wiki,Jev,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps}
+ ├── Tool contracts   src/HireZero.Tools.{Git,GitHub,Node,SemaForge,Wiki,Jev}   (referenced by roles and integrations)
  └── Core             src/HireZero.Core
 ```
 
@@ -28,7 +28,6 @@ Known violations, scheduled for Phase 2B:
   remote parsing (`GitRemote.cs`), `git` process calls (`WorkingContext.cs`), PR fields in the work log, wiki
   message kinds, and a company routing record that accepts only OpenAI routes on the Codex runtime
   (`CompanyContracts.cs`).
-- `Roles.Developer`'s SemaForge, Wiki and Jev adapters call HTTP APIs directly instead of through tools.
 - Core starts two processes itself: `git` in `WorkingContext` and `tailscale whois` in `TailnetAccess`.
 
 ## Startup profiles
@@ -96,15 +95,26 @@ Today's tools:
 | `git.write` | Write | `Integrations.GitHub` |
 | `git.push`, `github.write`, `github.sign-in` | External | `Integrations.GitHub` |
 | `npm.install-pinned` | Write | `Integrations.Node` |
+| `semaforge.read` / `semaforge.write` | Read / Write | `Integrations.SemaForge` |
+| `wiki.read`, `wiki.origin` / `wiki.contribute` / `wiki.publish` | Read / Write / External | `Integrations.Wiki` |
+| `jev.classify`, `jev.status` | Read (classification text leaves to the configured classifier) | `Integrations.Jev` |
+
+Integrations contribute tools through `IToolProvider`. `AddToolRegistry()` composes the providers, the
+verifiers and the audit.
 
 Authorities in use:
 
-- `developer-workflow`: an approved PR workflow in scope, checked against its claimed approval and its own commit,
-  branch and pull request.
+- `developer-workflow`: an approved PR workflow in scope. It is checked against the workflow's claimed approval
+  and its own commit, branch and pull request.
 - `developer-loop`: an active fix loop's Codex review request.
-- `owner-action`: the owner's click approving one exact call.
+- `developer-fix-cancel`: a fix cancelling its own SemaForge runs. This is always allowed, because cancelling only
+  stops work.
+- `developer-wiki-draft`: a reserved draft submitting its own proposal, or approving its own revision while
+  publishing.
+- `owner-request`: the owner's HTTP request, valid only while that request is in flight.
+- `owner-action`: the owner's click, approving one exact call.
 
-The Developer's HTTP services (SemaForge, Wiki, Jev) are not on tools yet; that is Phase 2B.2.
+Roles neither start processes nor open HTTP clients; architecture tests check both in the assemblies' metadata.
 
 ## Model runtimes and routes
 

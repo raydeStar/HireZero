@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Tool contracts only (docs/adr/0007-tool-registry.md): records and descriptors, no implementation. -->
+  <ItemGroup>
+    <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <Using Include="HireZero.Core" />
+  </ItemGroup>
+</Project>

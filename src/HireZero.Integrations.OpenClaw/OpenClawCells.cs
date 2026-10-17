@@ -405,6 +405,9 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
             File.WriteAllText(configPath, configuration);
             return;
         }
+        // Without the pinned runtime there is nothing to configure yet; the gateway start refuses with the reason.
+        if (!File.Exists(_node) || OpenClawRuntime.InstalledVersion(_entry) != OpenClawRuntime.PinnedVersion)
+            return;
         // A wholesale rewrite loses saved provider metadata and triggers OpenClaw's clobber recovery.
         // Use its supported batch setter to preserve authentication while enforcing this cell's boundaries.
         using var desired = JsonDocument.Parse(configuration);
@@ -428,7 +431,6 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
                 .EnumerateObject()
                 .Select(item => new { path = "models.providers.openai." + item.Name, value = item.Value })
         );
-        OpenClawRuntime.EnsurePinned(_entry);
         var start = new ProcessStartInfo(_node)
         {
             UseShellExecute = false,

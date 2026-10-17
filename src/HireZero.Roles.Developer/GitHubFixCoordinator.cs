@@ -1,5 +1,5 @@
-using System.Net.Http.Json;
 using System.Text.Json;
+using HireZero.Tools.SemaForge;
 
 namespace HireZero.Roles.Developer;
 
@@ -8,7 +8,7 @@ namespace HireZero.Roles.Developer;
 public sealed class GitHubFixCoordinator(
     GitHubReviewStore store,
     GitHubReviewClient github,
-    IHttpClientFactory clients,
+    ToolRegistry? tools = null,
     ICodingRunner? coding = null,
     BudgetLedger? budgets = null
 )
@@ -710,10 +710,13 @@ public sealed class GitHubFixCoordinator(
             return fix;
         }
         fix = await RecoverAsync(fix, token);
-        if (fix.BuilderId is not null)
-            await SemaAsync(HttpMethod.Post, "/api/automation/runs/" + fix.BuilderId + "/cancel", new { }, token);
-        if (fix.ScoutId is not null)
-            await SemaAsync(HttpMethod.Post, "/api/automation/runs/" + fix.ScoutId + "/cancel", new { }, token);
+        using (DeveloperAuthority.FixCancel(fix))
+        {
+            if (fix.BuilderId is not null)
+                await SemaAsync(HttpMethod.Post, "/api/automation/runs/" + fix.BuilderId + "/cancel", new { }, token);
+            if (fix.ScoutId is not null)
+                await SemaAsync(HttpMethod.Post, "/api/automation/runs/" + fix.ScoutId + "/cancel", new { }, token);
+        }
         fix = fix with { Status = "canceled" };
         store.Save(fix);
         return fix;
@@ -845,32 +848,54 @@ public sealed class GitHubFixCoordinator(
         );
     }
 
+    private readonly IToolbox? _tools = tools?.For(DeveloperModule.Shared);
+    private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
+
+    // Every SemaForge request runs as a semaforge.* tool; writes carry the workflow or owner request in scope.
     private async Task<JsonElement> SemaAsync(HttpMethod method, string path, object? input, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        var toolbox = _tools ?? throw new ReviewAccessException("SemaForge is not configured in this workspace.", 503);
+        var call = new ServiceCall(
+            method.Method,
+            path,
+            input is null ? null : JsonSerializer.Serialize(input, WebJson)
+        );
+        var contract =
+            SemaForgeTools.Classify(call)
+            ?? throw new ReviewAccessException("This SemaForge request is not supported.", 409);
+        ServiceReply reply;
         try
         {
-            using var client = clients.CreateClient("semaforge");
-            LocalSources.AddSemaForgeKey(client);
-            using var request = new HttpRequestMessage(method, path);
-            if (input is not null)
-                request.Content = JsonContent.Create(input);
-            using var response = await AgentEffectBoundary.Start(() => client.SendAsync(request, token));
-            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-                throw new ReviewAccessException(
-                    "SemaForge rejected stale or changed scope. Refresh the proposal before confirming local work.",
-                    409
-                );
-            if (!response.IsSuccessStatusCode)
-                throw new ReviewAccessException(
-                    "SemaForge did not confirm this operation. Inspect its local task and run before retrying.",
-                    502
-                );
-            using var document = await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: token);
-            return document?.RootElement.Clone()
-                ?? throw new ReviewAccessException("SemaForge returned an unrecognized result.", 502);
+            reply = await toolbox.InvokeAsync(contract, call, token, DeveloperAuthority.ForService(contract));
         }
-        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException)
+        catch (ToolRefusedException refused)
+        {
+            throw new ReviewAccessException(refused.Message, 403);
+        }
+        catch (ToolFailureException)
+        {
+            throw new ReviewAccessException(
+                "SemaForge is unavailable or the handoff is uncertain. Reconcile locally before retrying.",
+                503
+            );
+        }
+        if (reply.Status == 409)
+            throw new ReviewAccessException(
+                "SemaForge rejected stale or changed scope. Refresh the proposal before confirming local work.",
+                409
+            );
+        if (!reply.Success)
+            throw new ReviewAccessException(
+                "SemaForge did not confirm this operation. Inspect its local task and run before retrying.",
+                502
+            );
+        try
+        {
+            using var document = JsonDocument.Parse(reply.Body);
+            return document.RootElement.Clone();
+        }
+        catch (JsonException)
         {
             throw new ReviewAccessException(
                 "SemaForge is unavailable or the handoff is uncertain. Reconcile locally before retrying.",

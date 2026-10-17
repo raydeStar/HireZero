@@ -10,9 +10,14 @@
     <Project Path="src/HireZero.Integrations.Git/HireZero.Integrations.Git.csproj" />
     <Project Path="src/HireZero.Integrations.GitHub/HireZero.Integrations.GitHub.csproj" />
     <Project Path="src/HireZero.Integrations.Node/HireZero.Integrations.Node.csproj" />
+    <Project Path="src/HireZero.Integrations.SemaForge/HireZero.Integrations.SemaForge.csproj" />
+    <Project Path="src/HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
     <Project Path="src/HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
     <Project Path="src/HireZero.Tools.GitHub/HireZero.Tools.GitHub.csproj" />
+    <Project Path="src/HireZero.Tools.Jev/HireZero.Tools.Jev.csproj" />
     <Project Path="src/HireZero.Tools.Node/HireZero.Tools.Node.csproj" />
+    <Project Path="src/HireZero.Tools.SemaForge/HireZero.Tools.SemaForge.csproj" />
+    <Project Path="src/HireZero.Tools.Wiki/HireZero.Tools.Wiki.csproj" />
     <Project Path="src/HireZero.Roles.Developer/HireZero.Roles.Developer.csproj" />
     <Project Path="src/HireZero.Roles.Marketing/HireZero.Roles.Marketing.csproj" />
     <Project Path="src/HireZero.Roles.Ceo/HireZero.Roles.Ceo.csproj" />

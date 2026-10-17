@@ -50,4 +50,18 @@ public sealed class OpenClawRuntimeTests : IDisposable
         var refusal = Assert.Throws<ModelUnavailableException>(() => OpenClawRuntime.EnsurePinned(entry));
         Assert.Contains(OpenClawRuntime.PinnedVersion, refusal.Message);
     }
+
+    private sealed class NoClients : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => throw new InvalidOperationException("No HTTP in this test.");
+    }
+
+    // A data root whose owner cell already exists must still start when no runtime is installed: chat reports the
+    // missing runtime later instead of the host crashing at startup.
+    [Fact]
+    public void PreparingAnExistingCellWithoutTheRuntimeDoesNotThrow()
+    {
+        new OpenClawCells(_root, new NoClients()).Prepare(IModelGateway.OwnerCell);
+        new OpenClawCells(_root, new NoClients()).Prepare(IModelGateway.OwnerCell);
+    }
 }

@@ -1,6 +1,7 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
+using HireZero.Tools.Jev;
+using HireZero.Tools.SemaForge;
+using HireZero.Tools.Wiki;
 
 namespace HireZero.Roles.Developer;
 
@@ -8,39 +9,44 @@ public sealed record SourceView(string Status, JsonElement? Packet);
 
 public sealed record ContextView(SourceView SemaForge, SourceView Wiki);
 
-public sealed class LocalSources(IHttpClientFactory clients, RequestStore store, WikiDraftStore wikiDrafts)
+public sealed class LocalSources(RequestStore store, WikiDraftStore wikiDrafts, ToolRegistry? registry = null)
 {
+    private readonly IToolbox? _tools = registry?.For(DeveloperModule.Shared);
     private static readonly char[] SplitCharacters = [' ', '\t', '\n', '\r', '.', ',', ':', ';', '-', '/'];
 
     public async Task<object> AvailabilityAsync(CancellationToken cancellationToken)
     {
-        var sema = ProbeAsync("semaforge", "/health", cancellationToken);
-        var wiki =
-            Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1"
-                ? ProbeAsync("wiki", "/healthz", cancellationToken)
-                : Task.FromResult("disabled");
+        var sema = ProbeAsync(() => Service(SemaForgeTools.Read, new ServiceCall("GET", "/health"), cancellationToken));
+        var wiki = WikiProposalAdapter.Enabled
+            ? ProbeAsync(() => Service(WikiTools.Read, new WikiCall("context", "GET", "/healthz"), cancellationToken))
+            : Task.FromResult("disabled");
         await Task.WhenAll(sema, wiki);
         return new
         {
             semaForge = await sema,
-            jev = JevConfiguration.Key() is null ? "missing-key" : "configured",
+            jev = await JevConfiguredAsync(cancellationToken) ? "configured" : "missing-key",
             wiki = await wiki,
         };
     }
 
-    private async Task<string> ProbeAsync(string name, string path, CancellationToken cancellationToken)
+    private async Task<bool> JevConfiguredAsync(CancellationToken token) =>
+        _tools is not null && (await _tools.InvokeAsync(JevTools.Status, new(false), token)).Configured;
+
+    private async Task<ServiceReply> Service<T>(ToolContract<T, ServiceReply> contract, T call, CancellationToken token)
+    {
+        var tools = _tools ?? throw new ToolFailureException("unavailable", "Local sources are not configured.");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(3));
+        return await tools.InvokeAsync(contract, call, timeout.Token);
+    }
+
+    private static async Task<string> ProbeAsync(Func<Task<ServiceReply>> probe)
     {
         try
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(3));
-            using var client = clients.CreateClient(name);
-            if (name == "semaforge")
-                AddSemaForgeKey(client);
-            using var response = await client.GetAsync(path, timeout.Token);
-            return response.IsSuccessStatusCode ? "online" : "unavailable";
+            return (await probe()).Success ? "online" : "unavailable";
         }
-        catch (Exception error) when (error is HttpRequestException or TaskCanceledException)
+        catch (Exception error) when (error is ToolFailureException or OperationCanceledException)
         {
             return "unavailable";
         }
@@ -48,8 +54,7 @@ public sealed class LocalSources(IHttpClientFactory clients, RequestStore store,
 
     public async Task<TriageView> SuggestAsync(WorkRequest item, CancellationToken cancellationToken)
     {
-        var key = JevConfiguration.Key();
-        if (key is null)
+        if (!await JevConfiguredAsync(cancellationToken))
             return TriageDecision.Unavailable(
                 "Jev needs its server-side API key. Reconnect and restart the local workspace."
             );
@@ -86,42 +91,39 @@ public sealed class LocalSources(IHttpClientFactory clients, RequestStore store,
 
         try
         {
-            using var client = clients.CreateClient("jev");
-            using var request = new HttpRequestMessage(HttpMethod.Post, "v1/systemone");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-            request.Content = JsonContent.Create(
-                new
-                {
-                    model = "jev-latest",
-                    state = new
-                    {
-                        project = item.Project,
-                        title = item.Title,
-                        body = item.Description[..Math.Min(700, item.Description.Length)],
-                    },
-                    questions,
-                }
+            var reply = await _tools!.InvokeAsync(
+                JevTools.Classify,
+                new(
+                    JsonSerializer.Serialize(
+                        new
+                        {
+                            model = "jev-latest",
+                            state = new
+                            {
+                                project = item.Project,
+                                title = item.Title,
+                                body = item.Description[..Math.Min(700, item.Description.Length)],
+                            },
+                            questions,
+                        }
+                    )
+                ),
+                cancellationToken
             );
-            using var response = await client.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            if (!reply.Success)
                 return TriageDecision.Unavailable(
-                    response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden
+                    reply.Status is 401 or 403
                         ? "Jev rejected the configured key. Reconnect its server-side credential."
-                    : response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
-                        ? "Jev is rate-limited. Review manually or try later."
+                    : reply.Status == 429 ? "Jev is rate-limited. Review manually or try later."
                     : "Jev did not confirm a classification."
                 );
-            using var document = await response.Content.ReadFromJsonAsync<JsonDocument>(
-                cancellationToken: cancellationToken
+            using var document = JsonDocument.Parse(reply.Body);
+            return TriageDecision.Parse(
+                document.RootElement,
+                candidates.Select(candidate => candidate.Request.Id).ToArray()
             );
-            return document is null
-                ? TriageDecision.Unavailable("Jev returned no classification.")
-                : TriageDecision.Parse(
-                    document.RootElement,
-                    candidates.Select(candidate => candidate.Request.Id).ToArray()
-                );
         }
-        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException)
+        catch (Exception error) when (error is ToolFailureException or JsonException)
         {
             return TriageDecision.Unavailable("Jev is unavailable. No work was changed.");
         }
@@ -132,10 +134,9 @@ public sealed class LocalSources(IHttpClientFactory clients, RequestStore store,
         var semaForge = item.SemaForgeId is null
             ? new SourceView("not-linked", null)
             : await SemaForgeContextAsync(item.SemaForgeId, cancellationToken);
-        var wiki =
-            Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1"
-                ? await WikiContextAsync(item.Project, cancellationToken)
-                : new SourceView("disabled-synthetic-pilot", null);
+        var wiki = WikiProposalAdapter.Enabled
+            ? await WikiContextAsync(item.Project, cancellationToken)
+            : new SourceView("disabled-synthetic-pilot", null);
         return new(semaForge, wiki);
     }
 
@@ -143,21 +144,21 @@ public sealed class LocalSources(IHttpClientFactory clients, RequestStore store,
     {
         try
         {
-            using var client = clients.CreateClient("semaforge");
-            AddSemaForgeKey(client);
-            using var response = await client.PostAsJsonAsync(
-                "/api/work-intelligence/context-packet",
-                new { workItemIds = new[] { workItemId } },
+            var reply = await _tools!.InvokeAsync(
+                SemaForgeTools.Read,
+                new ServiceCall(
+                    "POST",
+                    "/api/work-intelligence/context-packet",
+                    JsonSerializer.Serialize(new { workItemIds = new[] { workItemId } })
+                ),
                 cancellationToken
             );
-            if (!response.IsSuccessStatusCode)
+            if (!reply.Success)
                 return new("unavailable", null);
-            using var document = await response.Content.ReadFromJsonAsync<JsonDocument>(
-                cancellationToken: cancellationToken
-            );
-            return new(document is null ? "unavailable" : "ready", document?.RootElement.Clone());
+            using var document = JsonDocument.Parse(reply.Body);
+            return new("ready", document.RootElement.Clone());
         }
-        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException)
+        catch (Exception error) when (error is ToolFailureException or JsonException or NullReferenceException)
         {
             return new("unavailable", null);
         }
@@ -172,23 +173,26 @@ public sealed class LocalSources(IHttpClientFactory clients, RequestStore store,
             project = destination.WikiProjectId;
         try
         {
-            using var client = clients.CreateClient("wiki");
-            using var signin = new HttpRequestMessage(HttpMethod.Post, "/api/pilot/session?role=agent");
-            signin.Headers.Add("X-Wiki-Pilot", "local-demo");
-            using var session = await client.SendAsync(signin, cancellationToken);
-            if (!session.IsSuccessStatusCode)
-                return new("unavailable", null);
-            using var response = await client.GetAsync(
-                "/api/agent/brief?project=" + Uri.EscapeDataString(project) + "&limit=8&bodyBudget=3000",
+            var tools = _tools ?? throw new ToolFailureException("unavailable", "Wiki is not configured.");
+            var session = await tools.InvokeAsync(
+                WikiTools.Read,
+                new WikiCall("context", "POST", "/api/pilot/session?role=agent"),
                 cancellationToken
             );
-            if (!response.IsSuccessStatusCode)
+            if (!session.Success)
                 return new("unavailable", null);
-            using var document = await response.Content.ReadFromJsonAsync<JsonDocument>(
-                cancellationToken: cancellationToken
+            var reply = await tools.InvokeAsync(
+                WikiTools.Read,
+                new WikiCall(
+                    "context",
+                    "GET",
+                    "/api/agent/brief?project=" + Uri.EscapeDataString(project) + "&limit=8&bodyBudget=3000"
+                ),
+                cancellationToken
             );
-            if (document is null)
+            if (!reply.Success)
                 return new("unavailable", null);
+            using var document = JsonDocument.Parse(reply.Body);
             var fresh =
                 document.RootElement.TryGetProperty("recheckBy", out var recheckBy)
                 && recheckBy.TryGetDateTimeOffset(out var nextCheck)
@@ -199,17 +203,10 @@ public sealed class LocalSources(IHttpClientFactory clients, RequestStore store,
                 : "incomplete";
             return new(status, document.RootElement.Clone());
         }
-        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException)
+        catch (Exception error) when (error is ToolFailureException or JsonException)
         {
             return new("unavailable", null);
         }
-    }
-
-    public static void AddSemaForgeKey(HttpClient client)
-    {
-        var apiKey = Environment.GetEnvironmentVariable("HIREZERO_SEMAFORGE_API_KEY");
-        if (!string.IsNullOrEmpty(apiKey))
-            client.DefaultRequestHeaders.Add("X-SemaForge-Api-Key", apiKey);
     }
 
     private static int Overlap(string left, string right)

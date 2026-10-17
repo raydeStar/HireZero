@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using HireZero.Tools.SemaForge;
 using static HireZero.Core.WorkspaceAccess;
 
 namespace HireZero.Roles.Developer;
@@ -37,34 +38,7 @@ public sealed class DeveloperRole : IRole
         // Order matters: GitHub requests first, then the developer's conversational reply.
         services.AddSingleton<IConversationResponder, RepositoryChatResponder>();
         services.AddSingleton<IConversationResponder, DeveloperConversationResponder>();
-        services.AddHttpClient("semaforge", client => client.BaseAddress = new Uri("http://127.0.0.1:5058"));
-        services
-            .AddHttpClient(
-                "jev",
-                client =>
-                {
-                    client.BaseAddress = new Uri("https://api.typesafe.ai/");
-                    client.Timeout = TimeSpan.FromSeconds(30);
-                }
-            )
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
-        services
-            .AddHttpClient(
-                "wiki",
-                client =>
-                {
-                    client.BaseAddress = WikiProposalAdapter.Origin();
-                    client.Timeout = TimeSpan.FromSeconds(5);
-                }
-            )
-            .ConfigurePrimaryHttpMessageHandler(() =>
-                new HttpClientHandler
-                {
-                    UseCookies = true,
-                    CookieContainer = new CookieContainer(),
-                    AllowAutoRedirect = false,
-                }
-            );
+        // SemaForge, Jev and the Wiki are integrations; the Developer reaches them only through their tools.
     }
 
     public void Start(IServiceProvider services) => services.GetRequiredService<WikiDraftStore>().RecoverInterrupted();
@@ -218,13 +192,7 @@ public sealed class DeveloperRole : IRole
         // Records a task in SemaForge (optional; execution approval is separate).
         app.MapPost(
             "/api/requests/{id}/approve",
-            async (
-                HttpContext context,
-                RequestStore requests,
-                IHttpClientFactory clients,
-                string id,
-                CancellationToken token
-            ) =>
+            async (HttpContext context, RequestStore requests, string id, CancellationToken token) =>
             {
                 if (!IsOwner(context))
                     return Results.StatusCode(403);
@@ -237,29 +205,36 @@ public sealed class DeveloperRole : IRole
                     );
                 try
                 {
-                    using var client = clients.CreateClient("semaforge");
-                    LocalSources.AddSemaForgeKey(client);
-                    using var response = await client.PostAsJsonAsync(
-                        "/api/work-intelligence/work-items",
-                        new
-                        {
-                            title = item.Title,
-                            nextAction = item.Description,
-                            project = item.Project,
-                            state = "hot",
-                        },
-                        token
+                    var tools =
+                        context.RequestServices.GetService<ToolRegistry>()?.For(DeveloperModule.Shared)
+                        ?? throw new ToolFailureException("unavailable", "SemaForge is not configured.");
+                    var reply = await tools.InvokeAsync(
+                        SemaForgeTools.Write,
+                        new ServiceCall(
+                            "POST",
+                            "/api/work-intelligence/work-items",
+                            JsonSerializer.Serialize(
+                                new
+                                {
+                                    title = item.Title,
+                                    nextAction = item.Description,
+                                    project = item.Project,
+                                    state = "hot",
+                                },
+                                new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                            )
+                        ),
+                        token,
+                        OwnerRequests.Current
                     );
-                    if (!response.IsSuccessStatusCode)
+                    if (!reply.Success)
                         return Results.Json(
                             new { error = "SemaForge did not confirm the task. Reconcile before retrying." },
                             statusCode: 502
                         );
-                    using var content = await response.Content.ReadFromJsonAsync<JsonDocument>(
-                        cancellationToken: token
-                    );
+                    using var content = JsonDocument.Parse(reply.Body);
                     if (
-                        content?.RootElement.TryGetProperty("id", out var idElement) != true
+                        content.RootElement.TryGetProperty("id", out var idElement) != true
                         || idElement.GetString() is not { Length: > 0 } semaId
                     )
                         return Results.Json(
@@ -269,7 +244,7 @@ public sealed class DeveloperRole : IRole
                     requests.FinishPromotion(id, semaId);
                     return Results.Ok(requests.FindRequest(id));
                 }
-                catch (HttpRequestException)
+                catch (Exception error) when (error is ToolFailureException or ToolRefusedException or JsonException)
                 {
                     return Results.Json(
                         new { error = "SemaForge is unavailable. Reconcile before retrying." },

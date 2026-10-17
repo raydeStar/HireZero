@@ -1,6 +1,5 @@
-using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
+using HireZero.Tools.Wiki;
 
 namespace HireZero.Roles.Developer;
 
@@ -10,40 +9,43 @@ public sealed class WikiAdapterException(int status, bool uncertain = false) : E
     public bool Uncertain { get; } = uncertain;
 }
 
-public sealed class WikiProposalAdapter(IHttpClientFactory clients)
+// Wiki proposals and publication through the wiki.* tools (docs/adr/0007-tool-registry.md). Contribution runs as the
+// agent, publication as the owner role; both only for synthetic pilot projects.
+public sealed class WikiProposalAdapter(ToolRegistry? registry = null)
 {
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly IToolbox? _tools = registry?.For(DeveloperModule.Shared);
     public static bool Enabled => Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1";
 
-    public static Uri Origin()
+    // One signed-in Wiki session: every request runs as the matching wiki.* tool.
+    private sealed class Session(IToolbox tools, string name, CancellationToken token)
     {
-        var url = Environment.GetEnvironmentVariable("HIREZERO_WIKI_URL") ?? "http://127.0.0.1:5094";
-        if (
-            !Uri.TryCreate(url, UriKind.Absolute, out var origin)
-            || origin.Scheme != "http"
-            || !origin.IsLoopback
-            || !string.IsNullOrEmpty(origin.UserInfo)
-            || origin.AbsolutePath != "/"
-            || !string.IsNullOrEmpty(origin.Query)
-            || !string.IsNullOrEmpty(origin.Fragment)
-        )
-            throw new InvalidOperationException("The Wiki pilot must use an HTTP loopback origin.");
-        return origin;
+        public async Task<ServiceReply> SendAsync(string method, string path, object? body = null, string? csrf = null)
+        {
+            var call = new WikiCall(
+                name,
+                method,
+                path,
+                body is null ? null : JsonSerializer.Serialize(body, Json),
+                csrf
+            );
+            var contract = WikiTools.Classify(call) ?? throw new WikiAdapterException(409);
+            return await tools.InvokeAsync(contract, call, token, DeveloperAuthority.ForService(contract));
+        }
+
+        public Task<ServiceReply> GetAsync(string path) => SendAsync("GET", path);
     }
 
     public async Task<WikiTarget[]> TargetsAsync(WikiProject project, CancellationToken cancellationToken) =>
-        await SessionAsync(
-            project,
-            async client => await ReadTargetsAsync(client, project, cancellationToken),
-            cancellationToken
-        );
+        await SessionAsync(project, async session => await ReadTargetsAsync(session, project), cancellationToken);
 
     public async Task<WikiReceipt> SubmitAsync(WikiDraft draft, bool retry, CancellationToken cancellationToken) =>
         await SessionAsync(
             draft.Destination,
-            async client =>
+            async session =>
             {
-                var targets = await ReadTargetsAsync(client, draft.Destination, cancellationToken);
+                var targets = await ReadTargetsAsync(session, draft.Destination);
                 if (!retry && draft.Before is { } before)
                 {
                     var current = targets.FirstOrDefault(item => item.EntryId == before.EntryId);
@@ -56,15 +58,13 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
                     && targets.Any(item => item.KnowledgeKey == draft.Content.KnowledgeKey)
                 )
                     throw new WikiAdapterException(409);
-                using var session = await client.GetAsync("api/session", cancellationToken);
-                using var sessionJson = await ReadAsync(session, cancellationToken);
+                using var sessionJson = Read(await session.GetAsync("api/session"));
                 var csrf = sessionJson.RootElement.GetProperty("csrf").GetString();
                 if (string.IsNullOrWhiteSpace(csrf))
                     throw new WikiAdapterException(503);
-                using var request = new HttpRequestMessage(HttpMethod.Post, "api/proposals");
-                request.Headers.Add("X-CSRF-TOKEN", csrf);
-                request.Headers.Add("Origin", Origin().GetLeftPart(UriPartial.Authority));
-                request.Content = JsonContent.Create(
+                var response = await session.SendAsync(
+                    "POST",
+                    "api/proposals",
                     new
                     {
                         area = "engineering",
@@ -75,16 +75,16 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
                         draft.Content.Body,
                         draft.Content.Reason,
                         source = draft.Content.SourceNote,
-                        idempotencyKey = $"developer-workspace:{draft.Id}:{draft.Version}",
+                        idempotencyKey = IdempotencyKey(draft),
                         operation = draft.Before is null ? "Create" : "Replace",
                         evidence = "Reported",
                         expectedVersion = draft.Before?.Version ?? 0,
                         environment = draft.Before?.Environment ?? "all",
                         region = draft.Before?.Region ?? "all",
-                    }
+                    },
+                    csrf
                 );
-                using var response = await client.SendAsync(request, cancellationToken);
-                using var json = await ReadAsync(response, cancellationToken, posting: true);
+                using var json = Read(response, posting: true);
                 var value = json.RootElement;
                 if (
                     value.ValueKind != JsonValueKind.Object
@@ -101,6 +101,9 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
             cancellationToken
         );
 
+    // The key the Wiki deduplicates a proposal by, and the publication authority binds to.
+    public static string IdempotencyKey(WikiDraft draft) => $"developer-workspace:{draft.Id}:{draft.Version}";
+
     public async Task ApproveAutomaticAsync(WikiDraft draft, WikiReceipt receipt, CancellationToken cancellationToken)
     {
         if (receipt.State == "Approved")
@@ -109,10 +112,9 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
             throw new WikiAdapterException(409);
         await SessionAsync(
             draft.Destination,
-            async client =>
+            async session =>
             {
-                using var response = await client.GetAsync("api/review", cancellationToken);
-                using var candidates = await ReadAsync(response, cancellationToken);
+                using var candidates = Read(await session.GetAsync("api/review"));
                 var found = candidates
                     .RootElement.EnumerateArray()
                     .FirstOrDefault(item =>
@@ -135,12 +137,10 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
                     || revision.GetProperty("expectedVersion").GetInt32() != (draft.Before?.Version ?? 0)
                 )
                     throw new WikiAdapterException(409);
-                using var session = await client.GetAsync("api/session", cancellationToken);
-                using var identity = await ReadAsync(session, cancellationToken);
-                using var request = new HttpRequestMessage(HttpMethod.Post, "api/review/" + receipt.RevisionId);
-                request.Headers.Add("X-CSRF-TOKEN", identity.RootElement.GetProperty("csrf").GetString());
-                request.Headers.Add("Origin", Origin().GetLeftPart(UriPartial.Authority));
-                request.Content = JsonContent.Create(
+                using var identity = Read(await session.GetAsync("api/session"));
+                var approved = await session.SendAsync(
+                    "POST",
+                    "api/review/" + receipt.RevisionId,
                     new
                     {
                         contentHash = revision.GetProperty("contentHash").GetString(),
@@ -149,10 +149,10 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
                         approve = true,
                         conflictsReviewed = false,
                         note = "Automatic publication under the developer workspace owner's policy; no human review step.",
-                    }
+                    },
+                    identity.RootElement.GetProperty("csrf").GetString()
                 );
-                using var approved = await client.SendAsync(request, cancellationToken);
-                using var result = await ReadAsync(approved, cancellationToken, posting: true);
+                using var result = Read(approved, posting: true);
                 if (
                     result.RootElement.GetProperty("id").GetString() != receipt.RevisionId
                     || result.RootElement.GetProperty("state").GetString() != "Approved"
@@ -167,39 +167,37 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
 
     private async Task<T> SessionAsync<T>(
         WikiProject project,
-        Func<HttpClient, Task<T>> action,
+        Func<Session, Task<T>> action,
         CancellationToken cancellationToken,
         bool publication = false
     )
     {
         if (!Enabled || !project.Synthetic || !project.WikiProjectId.StartsWith("synthetic-", StringComparison.Ordinal))
             throw new WikiAdapterException(409);
+        var tools = _tools ?? throw new WikiAdapterException(409);
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            using var client = clients.CreateClient(publication ? "wiki-publication" : "wiki-contribution");
-            using var status = await client.GetAsync("api/identity-mode", cancellationToken);
-            using var mode = await ReadAsync(status, cancellationToken);
+            var session = new Session(tools, publication ? "publication" : "contribution", cancellationToken);
+            using var mode = Read(await session.GetAsync("api/identity-mode"));
             if (!mode.RootElement.TryGetProperty("localPilot", out var pilot) || pilot.ValueKind != JsonValueKind.True)
                 throw new WikiAdapterException(409);
-            using var signin = new HttpRequestMessage(
-                HttpMethod.Post,
-                "api/pilot/session?role=" + (publication ? "owner" : "agent")
-            );
-            signin.Headers.Add("X-Wiki-Pilot", "local-demo");
-            using var signed = await client.SendAsync(signin, cancellationToken);
-            if (!signed.IsSuccessStatusCode)
+            var signed = await session.SendAsync("POST", "api/pilot/session?role=" + (publication ? "owner" : "agent"));
+            if (!signed.Success)
                 throw new WikiAdapterException(503);
-            return await action(client);
+            return await action(session);
+        }
+        // A refused call never reached the Wiki, so its outcome is certain.
+        catch (ToolRefusedException)
+        {
+            throw new WikiAdapterException(409);
+        }
+        catch (ToolFailureException failure) when (failure.Kind == "refused")
+        {
+            throw new WikiAdapterException(409);
         }
         catch (Exception error)
-            when (error
-                    is HttpRequestException
-                        or TaskCanceledException
-                        or JsonException
-                        or InvalidOperationException
-                        or KeyNotFoundException
-            )
+            when (error is ToolFailureException or JsonException or InvalidOperationException or KeyNotFoundException)
         {
             throw new WikiAdapterException(503, true);
         }
@@ -209,17 +207,11 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
         }
     }
 
-    private static async Task<WikiTarget[]> ReadTargetsAsync(
-        HttpClient client,
-        WikiProject project,
-        CancellationToken cancellationToken
-    )
+    private static async Task<WikiTarget[]> ReadTargetsAsync(Session session, WikiProject project)
     {
-        using var response = await client.GetAsync(
-            "api/knowledge?project=" + Uri.EscapeDataString(project.WikiProjectId),
-            cancellationToken
+        using var json = Read(
+            await session.GetAsync("api/knowledge?project=" + Uri.EscapeDataString(project.WikiProjectId))
         );
-        using var json = await ReadAsync(response, cancellationToken);
         if (json.RootElement.ValueKind != JsonValueKind.Array)
             throw new WikiAdapterException(503);
         var result = new List<WikiTarget>();
@@ -272,33 +264,14 @@ public sealed class WikiProposalAdapter(IHttpClientFactory clients)
         return [.. result];
     }
 
-    private static async Task<JsonDocument> ReadAsync(
-        HttpResponseMessage response,
-        CancellationToken cancellationToken,
-        bool posting = false
-    )
+    // The reply as JSON; failures map to blocked (4xx validation) or uncertain (a failed post).
+    private static JsonDocument Read(ServiceReply reply, bool posting = false)
     {
-        if (!response.IsSuccessStatusCode)
+        if (!reply.Success)
             throw new WikiAdapterException(
-                response.StatusCode
-                    is HttpStatusCode.BadRequest
-                        or HttpStatusCode.Conflict
-                        or HttpStatusCode.UnprocessableEntity
-                    ? 409
-                    : 503,
-                posting && (int)response.StatusCode >= 500
+                reply.Status is 400 or 409 or 422 ? 409 : 503,
+                posting && reply.Status >= 500
             );
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var buffer = new MemoryStream();
-        var bytes = new byte[8192];
-        int count;
-        while ((count = await stream.ReadAsync(bytes, cancellationToken)) != 0)
-        {
-            if (buffer.Length + count > 2 * 1024 * 1024)
-                throw new WikiAdapterException(503, posting);
-            buffer.Write(bytes, 0, count);
-        }
-        buffer.Position = 0;
-        return await JsonDocument.ParseAsync(buffer, cancellationToken: cancellationToken);
+        return JsonDocument.Parse(reply.Body);
     }
 }

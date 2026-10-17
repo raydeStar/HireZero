@@ -13,6 +13,9 @@
     <ProjectReference Include="../HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
     <ProjectReference Include="../HireZero.Tools.GitHub/HireZero.Tools.GitHub.csproj" />
     <ProjectReference Include="../HireZero.Tools.Node/HireZero.Tools.Node.csproj" />
+    <ProjectReference Include="../HireZero.Tools.SemaForge/HireZero.Tools.SemaForge.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Wiki/HireZero.Tools.Wiki.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Jev/HireZero.Tools.Jev.csproj" />
     <EmbeddedResource
       Include="TrustedPostgresRunner.mjs"
       LogicalName="HireZero.Roles.Developer.TrustedPostgresRunner.mjs"

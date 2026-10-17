@@ -166,6 +166,23 @@ public sealed class ToolRegistryTests
         Assert.Equal(1, _sends);
     }
 
+    // An owner request authorizes only while it is in flight, and only in its own flow.
+    [Fact]
+    public async Task OwnerRequestsAuthorizeOnlyWhileInFlight()
+    {
+        var owner = new OwnerRequests();
+        var tools = Registry(owner).For(Manifest(new EmployeeTool(Send.Id, ToolRisk.External, "Send.")));
+        ToolAuthority? captured;
+        using (owner.Begin("request-1"))
+        {
+            captured = OwnerRequests.Current;
+            Assert.Equal("sent:a", await tools.InvokeAsync(Send, new("a"), Token, OwnerRequests.Current));
+        }
+        Assert.Null(OwnerRequests.Current);
+        await Assert.ThrowsAsync<ToolRefusedException>(() => tools.InvokeAsync(Send, new("b"), Token, captured));
+        Assert.Equal(1, _sends);
+    }
+
     [Fact]
     public void ToolsRegisterOnce()
     {

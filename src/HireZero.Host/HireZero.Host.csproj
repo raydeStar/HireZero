@@ -9,6 +9,8 @@
     <ProjectReference Include="../HireZero.Integrations.Git/HireZero.Integrations.Git.csproj" />
     <ProjectReference Include="../HireZero.Integrations.GitHub/HireZero.Integrations.GitHub.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Node/HireZero.Integrations.Node.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.SemaForge/HireZero.Integrations.SemaForge.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
     <ProjectReference Include="../HireZero.Integrations.AgentApps/HireZero.Integrations.AgentApps.csproj" />
     <ProjectReference Include="../HireZero.Integrations.AzureDevOps/HireZero.Integrations.AzureDevOps.csproj" />

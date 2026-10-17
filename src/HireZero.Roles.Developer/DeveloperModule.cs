@@ -1,7 +1,10 @@
 using HireZero.Roles.Developer;
 using HireZero.Tools.Git;
 using HireZero.Tools.GitHub;
+using HireZero.Tools.Jev;
 using HireZero.Tools.Node;
+using HireZero.Tools.SemaForge;
+using HireZero.Tools.Wiki;
 
 [assembly: EmployeeModule(typeof(DeveloperModule))]
 
@@ -74,6 +77,22 @@ public sealed class DeveloperModule : IEmployeeModule
                     ToolRisk.Write,
                     "Install the pinned PostgreSQL test package when the owner asks."
                 ),
+                new(SemaForgeTools.Read.Id, ToolRisk.Read, "Read SemaForge tasks, runs and context packets."),
+                new(
+                    SemaForgeTools.Write.Id,
+                    ToolRisk.Write,
+                    "Record tasks and scope, approve or cancel approved SemaForge runs."
+                ),
+                new(WikiTools.Read.Id, ToolRisk.Read, "Read Wiki knowledge and agent briefs."),
+                new(WikiTools.Origin.Id, ToolRisk.Read, "Show the owner where the Wiki pilot runs."),
+                new(WikiTools.Contribute.Id, ToolRisk.Write, "Propose an owner-approved knowledge draft to the Wiki."),
+                new(
+                    WikiTools.Publish.Id,
+                    ToolRisk.External,
+                    "Publish a proposed draft under the owner's automatic policy."
+                ),
+                new(JevTools.Classify.Id, ToolRisk.Read, "Classify a request with the owner's configured Jev key."),
+                new(JevTools.Status.Id, ToolRisk.Read, "Check whether Jev is configured."),
             ],
             Kpis =
             [

@@ -176,7 +176,17 @@ public sealed class ToolRegistry(IToolAudit audit, IEnumerable<IToolAuthorityVer
             if (authority is null)
                 throw Refuse("'" + contract.Id + "' needs owner authority for this exact call.");
             var verifier = _verifiers.FirstOrDefault(v => v.Kind == authority.Kind);
-            if (verifier is null || !verifier.Authorizes(invocation))
+            bool authorized;
+            try
+            {
+                authorized = verifier is not null && verifier.Authorizes(invocation);
+            }
+            catch (Exception error) when (error is not OperationCanceledException)
+            {
+                // A verifier that cannot decide refuses.
+                authorized = false;
+            }
+            if (!authorized)
                 throw Refuse("The supplied authority does not cover this exact '" + contract.Id + "' call.");
         }
         try
@@ -224,4 +234,103 @@ public sealed class OwnerActionApprovals : IToolAuthorityVerifier
         invocation.Authority is { } authority
         && _pending.TryRemove(authority.Id, out var digest)
         && digest == invocation.InputDigest;
+}
+
+// One HTTP exchange with a service an integration owns (base address, credentials and transport stay in the
+// integration). Integrations classify the call by method and path and refuse anything outside their tool.
+public sealed record ServiceCall(string Method, string Path, string? JsonBody = null);
+
+public sealed record ServiceReply(int Status, string Body)
+{
+    public bool Success => Status is >= 200 and < 300;
+}
+
+// An integration's contribution to the registry. Hosts and tests compose the same providers with AddToolRegistry.
+public interface IToolProvider
+{
+    void Register(ToolRegistry registry);
+
+    static IToolProvider From(Action<ToolRegistry> register) => new DelegateProvider(register);
+
+    private sealed class DelegateProvider(Action<ToolRegistry> register) : IToolProvider
+    {
+        public void Register(ToolRegistry registry) => register(registry);
+    }
+}
+
+// Owner requests in flight. Middleware opens a scope for each request an owner makes; deterministic code that the
+// request runs may write under it, but a task that outlives the request loses it.
+public sealed class OwnerRequests : IToolAuthorityVerifier
+{
+    public const string RequestKind = "owner-request";
+    private static readonly AsyncLocal<ToolAuthority?> Ambient = new();
+    private readonly ConcurrentDictionary<string, bool> _active = new(StringComparer.Ordinal);
+
+    public string Kind => RequestKind;
+
+    public static ToolAuthority? Current => Ambient.Value;
+
+    public IDisposable Begin(string requestId)
+    {
+        var id = requestId + ":" + Guid.NewGuid().ToString("N");
+        var previous = Ambient.Value;
+        _active[id] = true;
+        Ambient.Value = new(RequestKind, id);
+        return new Scope(() =>
+        {
+            _active.TryRemove(id, out _);
+            Ambient.Value = previous;
+        });
+    }
+
+    public bool Authorizes(ToolInvocation invocation) =>
+        invocation.Authority is { } authority && Current?.Id == authority.Id && _active.ContainsKey(authority.Id);
+
+    private sealed class Scope(Action release) : IDisposable
+    {
+        public void Dispose() => release();
+    }
+}
+
+public static class ToolComposition
+{
+    // The registry built from every registered IToolProvider, IToolAuthorityVerifier and the IToolAudit (memory by
+    // default). Owner requests and owner actions are always available as authorities.
+    public static IServiceCollection AddToolRegistry(this IServiceCollection services)
+    {
+        services.AddSingleton<OwnerRequests>();
+        services.AddSingleton<IToolAuthorityVerifier>(provider => provider.GetRequiredService<OwnerRequests>());
+        services.AddSingleton<OwnerActionApprovals>();
+        services.AddSingleton<IToolAuthorityVerifier>(provider => provider.GetRequiredService<OwnerActionApprovals>());
+        services.AddSingleton<MemoryToolAudit>();
+        services.AddSingleton(provider =>
+        {
+            var registry = new ToolRegistry(
+                provider.GetService<IToolAudit>() ?? provider.GetRequiredService<MemoryToolAudit>(),
+                provider.GetServices<IToolAuthorityVerifier>()
+            );
+            foreach (var contributor in provider.GetServices<IToolProvider>())
+                contributor.Register(registry);
+            return registry;
+        });
+        return services;
+    }
+
+    // Opens an owner-request authority scope around every request whose caller is the owner.
+    public static void UseOwnerRequestAuthority(this WebApplication app)
+    {
+        var requests = app.Services.GetRequiredService<OwnerRequests>();
+        app.Use(
+            async (context, next) =>
+            {
+                if ((string?)context.Items["role"] != "owner")
+                {
+                    await next();
+                    return;
+                }
+                using (requests.Begin(context.TraceIdentifier))
+                    await next();
+            }
+        );
+    }
 }

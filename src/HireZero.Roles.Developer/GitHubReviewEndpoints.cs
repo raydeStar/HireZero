@@ -21,6 +21,9 @@ public static class GitHubReviewEndpoints
         services.AddSingleton<IToolAuthorityVerifier>(provider => new LoopAuthorityVerifier(
             provider.GetRequiredService<GitHubReviewStore>()
         ));
+        services.AddSingleton<IToolAuthorityVerifier>(provider => new FixCancelVerifier(
+            provider.GetRequiredService<GitHubReviewStore>()
+        ));
         services.AddSingleton(provider => new GitHubReconnect(
             provider.GetService<ToolRegistry>(),
             provider.GetService<OwnerActionApprovals>()

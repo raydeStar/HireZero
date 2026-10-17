@@ -122,16 +122,18 @@ public sealed partial class ArchitectureTests
         }
     }
 
-    // A ratchet until Phase 2B.2 moves SemaForge, Wiki and Jev onto tools: only the Developer may still open HTTP
-    // clients, and no other role may start.
+    // Roles reach services through their integrations' tools: no role opens an HTTP client.
     [Fact]
-    public void OnlyTheDeveloperStillUsesHttpDirectly()
+    public void RolesOpenNoHttpClients()
     {
-        var offenders = Built("HireZero.Roles.")
-            .Where(role => TypeReferences(role).Contains("System.Net.Http.HttpClient"))
-            .Select(role => role.GetName().Name)
-            .ToArray();
-        Assert.True(offenders.All(name => name == "HireZero.Roles.Developer"), string.Join(", ", offenders));
+        foreach (var role in Built("HireZero.Roles."))
+        {
+            var used = TypeReferences(role);
+            Assert.False(
+                used.Contains("System.Net.Http.HttpClient") || used.Contains("System.Net.Http.IHttpClientFactory"),
+                role.GetName().Name + " opens an HTTP client."
+            );
+        }
     }
 
     [Fact]

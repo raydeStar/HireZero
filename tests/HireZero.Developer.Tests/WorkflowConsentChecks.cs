@@ -92,7 +92,7 @@ public static class WorkflowConsentChecks
                 var service = new PullRequestWorkflowService(
                     store,
                     github,
-                    new GitHubFixCoordinator(store, github, sema),
+                    new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema)),
                     scenario == "during-review" ? blocking : reviewer,
                     requests
                 );
@@ -156,7 +156,7 @@ public static class WorkflowConsentChecks
                     service = new PullRequestWorkflowService(
                         store,
                         github,
-                        new GitHubFixCoordinator(store, github, sema),
+                        new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema)),
                         reviewer,
                         requests
                     );

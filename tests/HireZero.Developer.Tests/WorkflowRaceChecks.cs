@@ -70,7 +70,7 @@ public static class WorkflowRaceChecks
                 var service = new PullRequestWorkflowService(
                     store,
                     github,
-                    new GitHubFixCoordinator(store, github, sema),
+                    new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema)),
                     reviewer,
                     requests
                 );

@@ -210,7 +210,7 @@ public static class DirectCodingChecks
                 var github = new SyntheticGitHub();
                 var sema = new SyntheticSema();
                 var runner = new FakeRunner { Next = Run("queued") };
-                var coordinator = new GitHubFixCoordinator(store, github, sema, runner);
+                var coordinator = new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema), runner);
                 var repository = store.Add(new ReviewRepository("repo", 1, 10, "owner/example", root, "source"));
                 var fix = await coordinator.PrepareAsync(repository, 42, new string('a', 40), ["thread"], default);
                 var proposal = JsonSerializer
@@ -264,7 +264,7 @@ public static class DirectCodingChecks
                 var service = new PullRequestWorkflowService(
                     store,
                     github,
-                    new GitHubFixCoordinator(store, github, sema),
+                    new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema)),
                     new SyntheticRuleReviewer(),
                     requests,
                     runner

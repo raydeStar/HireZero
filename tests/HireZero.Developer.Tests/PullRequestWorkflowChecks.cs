@@ -519,7 +519,7 @@ public static class PullRequestWorkflowChecks
             var github = new SyntheticGitHub();
             var sema = new SyntheticSema();
             var reviewer = new SyntheticRuleReviewer();
-            var coordinator = new GitHubFixCoordinator(store, github, sema);
+            var coordinator = new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema));
             var service = new PullRequestWorkflowService(store, github, coordinator, reviewer, requests);
             var repository = store.Add(new ReviewRepository("repo", 1, 10, "owner/example", fixture, "source"));
             store.SetAutomatic(repository.Id, true);
@@ -718,7 +718,7 @@ public static class PullRequestWorkflowChecks
             var store = new GitHubReviewStore(db);
             var github = new SyntheticGitHub();
             var sema = new SyntheticSema { DeepScout = true, ChildCreated = false };
-            var coordinator = new GitHubFixCoordinator(store, github, sema);
+            var coordinator = new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema));
             var service = new PullRequestWorkflowService(
                 store,
                 github,
@@ -868,12 +868,14 @@ public static class PullRequestWorkflowChecks
     {
         var root = Path.Combine(Path.GetTempPath(), "workspace-review-offline-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        // These calls stand in for the owner's requests to the fix endpoints.
+        using var owner = TestTools.Owner.Begin("legacy-offline-owner");
         try
         {
             var store = new GitHubReviewStore(Path.Combine(root, "test.sqlite"));
             var github = new SyntheticGitHub();
             var sema = new SyntheticSema();
-            var coordinator = new GitHubFixCoordinator(store, github, sema);
+            var coordinator = new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema));
             var repository = store.Add(new ReviewRepository("repo", 1, 10, "owner/example", root, "source"));
             var fix = await coordinator.PrepareAsync(repository, 42, new string('a', 40), ["thread"], default);
             await coordinator.ApproveAsync(repository, fix, "hash", 1, default);
@@ -908,7 +910,7 @@ public static class PullRequestWorkflowChecks
                     behavior == "failed" ? "The requested operation requires an element of type Number." : null,
             };
             var reviewer = new SyntheticRuleReviewer { Clear = behavior != "rules" };
-            var coordinator = new GitHubFixCoordinator(store, github, sema);
+            var coordinator = new GitHubFixCoordinator(store, github, TestTools.Sema(store, sema));
             var service = new PullRequestWorkflowService(store, github, coordinator, reviewer, requests);
             var request = requests.CreateRequest(
                 "local-owner@workspace.invalid",

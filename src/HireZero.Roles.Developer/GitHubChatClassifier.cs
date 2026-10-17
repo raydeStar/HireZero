@@ -1,6 +1,5 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
+using HireZero.Tools.Jev;
 
 namespace HireZero.Roles.Developer;
 
@@ -47,8 +46,10 @@ public sealed record GitHubChatRoute(string Status, string? Action, double? Conf
         : "";
 }
 
-public sealed class GitHubChatClassifier(IHttpClientFactory clients)
+public sealed class GitHubChatClassifier(ToolRegistry? registry = null)
 {
+    private readonly IToolbox? _tools = registry?.For(DeveloperModule.Shared);
+
     public static object Questions() =>
         new
         {
@@ -76,35 +77,32 @@ public sealed class GitHubChatClassifier(IHttpClientFactory clients)
 
     public async Task<GitHubChatRoute> ClassifyAsync(string state, CancellationToken token)
     {
-        var key = JevConfiguration.Key();
-        if (key is null)
+        if (_tools is null || !(await _tools.InvokeAsync(JevTools.Status, new(false), token)).Configured)
             return GitHubChatRoute.Unavailable("Jev’s server-side credential is unavailable.");
         try
         {
-            using var client = clients.CreateClient("jev");
-            using var request = new HttpRequestMessage(HttpMethod.Post, "v1/systemone");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-            request.Content = JsonContent.Create(
-                new
-                {
-                    model = "jev-latest",
-                    state = JsonSerializer.Deserialize<JsonElement>(state),
-                    questions = Questions(),
-                }
+            var reply = await _tools.InvokeAsync(
+                JevTools.Classify,
+                new(
+                    JsonSerializer.Serialize(
+                        new
+                        {
+                            model = "jev-latest",
+                            state = JsonSerializer.Deserialize<JsonElement>(state),
+                            questions = Questions(),
+                        }
+                    )
+                ),
+                token
             );
-            using var response = await client.SendAsync(request, token);
-            if (!response.IsSuccessStatusCode)
+            if (!reply.Success)
                 return GitHubChatRoute.Unavailable(
-                    response.StatusCode == System.Net.HttpStatusCode.TooManyRequests
-                        ? "Jev is rate-limited."
-                        : "Jev did not confirm a classification."
+                    reply.Status == 429 ? "Jev is rate-limited." : "Jev did not confirm a classification."
                 );
-            using var document = await response.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: token);
-            return document is null
-                ? GitHubChatRoute.Unavailable("Jev returned no chat route.")
-                : GitHubChatRoute.Parse(document.RootElement);
+            using var document = JsonDocument.Parse(reply.Body);
+            return GitHubChatRoute.Parse(document.RootElement);
         }
-        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException)
+        catch (Exception error) when (error is ToolFailureException or JsonException)
         {
             if (token.IsCancellationRequested)
                 token.ThrowIfCancellationRequested();

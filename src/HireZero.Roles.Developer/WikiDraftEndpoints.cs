@@ -1,4 +1,4 @@
-using System.Net;
+using HireZero.Tools.Wiki;
 
 namespace HireZero.Roles.Developer;
 
@@ -7,27 +7,12 @@ public static class WikiDraftEndpoints
     public static void AddWikiDrafts(this IServiceCollection services, string path)
     {
         services.AddSingleton(new WikiDraftStore(path));
-        services.AddSingleton<WikiProposalAdapter>();
         services.AddSingleton<WikiPublisher>();
         services.AddHostedService<WikiPublicationMonitor>();
-        foreach (var name in new[] { "wiki-contribution", "wiki-publication" })
-            services
-                .AddHttpClient(
-                    name,
-                    client =>
-                    {
-                        client.BaseAddress = WikiProposalAdapter.Origin();
-                        client.Timeout = TimeSpan.FromSeconds(15);
-                    }
-                )
-                .ConfigurePrimaryHttpMessageHandler(() =>
-                    new HttpClientHandler
-                    {
-                        UseCookies = true,
-                        CookieContainer = new CookieContainer(),
-                        AllowAutoRedirect = false,
-                    }
-                );
+        services.AddSingleton<IToolAuthorityVerifier>(provider => new WikiDraftAuthorityVerifier(
+            provider.GetRequiredService<WikiDraftStore>()
+        ));
+        services.AddSingleton(provider => new WikiProposalAdapter(provider.GetService<ToolRegistry>()));
     }
 
     public static void MapWikiDrafts(this WebApplication app)
@@ -39,7 +24,15 @@ public static class WikiDraftEndpoints
         );
         api.MapGet(
             "/connection",
-            () => Results.Ok(new { url = WikiProposalAdapter.Origin().GetLeftPart(UriPartial.Authority) })
+            async (HttpContext context, CancellationToken token) =>
+                context.RequestServices.GetService<ToolRegistry>() is not { } tools
+                    ? Results.Ok(new { url = (string?)null })
+                    : Results.Ok(
+                        new
+                        {
+                            url = await tools.For(DeveloperModule.Shared).InvokeAsync(WikiTools.Origin, new(), token),
+                        }
+                    )
         );
         api.MapGet("/projects", (WikiDraftStore store) => Results.Ok(store.Projects()));
         api.MapPut(
