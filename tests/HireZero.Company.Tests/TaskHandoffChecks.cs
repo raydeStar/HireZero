@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using HireZero.Core;
 using HireZero.Integrations.Codex;
+using HireZero.Integrations.Git;
 using HireZero.Roles.Developer;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -254,7 +255,11 @@ static class TaskHandoffChecks
             Path.Combine(root, "handoff-runtime"),
             CompanyCodingFactory.Identity(fake)
         );
-        var bridge = new CompanyDeveloperBridge(store, new CompanyWorkspaceInspector(git), factory);
+        var bridge = new CompanyDeveloperBridge(
+            store,
+            ToolFixtures.Developer(store, new GitCheckoutInspector(git)),
+            factory
+        );
         var grant = await bridge.PrepareAsync(task.Id, checkout, true);
         var context = store.ExecutionContext(grant.Id);
         var packed = CompanyJson.Encode(context);

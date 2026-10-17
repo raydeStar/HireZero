@@ -9,6 +9,11 @@
     <Using Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource
+      Include="../../config/model-routes.json"
+      LogicalName="HireZero.Core.model-routes.json"
+      Link="model-routes.json"
+    />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.3" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
   </ItemGroup>

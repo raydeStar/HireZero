@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using HireZero.Core;
 using HireZero.Integrations.Codex;
+using HireZero.Integrations.Git;
 using HireZero.Integrations.OpenClaw;
 using HireZero.Roles.Developer;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -280,7 +281,7 @@ static class IntegrationPathChecks
         await File.WriteAllTextAsync(Path.Combine(repo, "source.txt"), "Fictional source");
         await Git("add", "source.txt");
         await Git("commit", "-m", "Fictional fixture baseline");
-        var inspector = new CompanyWorkspaceInspector(git);
+        var inspector = new GitCheckoutInspector(git);
         var fake = Path.GetFullPath(
             Path.Combine(
                 AppContext.BaseDirectory,
@@ -294,7 +295,7 @@ static class IntegrationPathChecks
             Path.Combine(root, "scoped-runtime"),
             identity
         );
-        var bridge = new CompanyDeveloperBridge(store, inspector, factory);
+        var bridge = new CompanyDeveloperBridge(store, ToolFixtures.Developer(store, inspector), factory);
         async Task<CompanyExecutionGrant> Prepare(CompanyEmployee e, CompanyThread thread)
         {
             var work = Submit(e, thread, "developer-work");
@@ -305,6 +306,12 @@ static class IntegrationPathChecks
         check(
             store.Work(grant.TaskId).ModelRoute == "openai/gpt-6.1-sol" && grant.Route == "openai/gpt-6.1-sol",
             "Explicit coding task and reviewed proposal record Sol 6.1."
+        );
+        check(
+            store.ToolCalls().FirstOrDefault()
+                is { ToolId: "git.checkout-inspect", Outcome: "completed", ModuleId: "developer" } call
+                && call.InputDigest.Length == 64,
+            "Checkout inspection runs through the declared Git tool and is audited in the company store."
         );
         check(!store.AuthorizeDispatch(grant.AttemptId), "Text dispatch cannot bypass an execution grant.");
         try
@@ -420,7 +427,7 @@ static class IntegrationPathChecks
         );
         var uncertainBridge = new CompanyDeveloperBridge(
             store,
-            inspector,
+            ToolFixtures.Developer(store, inspector),
             new CompanyCodingFactory(
                 Path.Combine(root, "coding.sqlite"),
                 fake,
@@ -499,7 +506,7 @@ static class IntegrationPathChecks
         );
         var waitingBridge = new CompanyDeveloperBridge(
             store,
-            inspector,
+            ToolFixtures.Developer(store, inspector),
             new CompanyCodingFactory(
                 Path.Combine(root, "coding.sqlite"),
                 fake,
@@ -597,7 +604,8 @@ static class IntegrationPathChecks
         {
             connection.Open();
             using var q = connection.CreateCommand();
-            q.CommandText = "DROP TABLE co_execution_grants; DELETE FROM company_schema_migrations WHERE version=2";
+            q.CommandText =
+                "DROP TABLE co_execution_grants; DROP TABLE IF EXISTS co_tool_calls; DELETE FROM company_schema_migrations WHERE version>=2";
             q.ExecuteNonQuery();
         }
         var upgraded = new CompanyStore(

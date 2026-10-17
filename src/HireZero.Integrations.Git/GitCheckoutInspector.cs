@@ -3,9 +3,11 @@ using System.Security.Cryptography;
 using System.Text;
 using HireZero.Core;
 
-namespace HireZero.Integrations.Codex;
+namespace HireZero.Integrations.Git;
 
-public sealed class CompanyWorkspaceInspector(string gitExecutable) : ICompanyWorkspaceInspector
+// Read-only Git inspection of a local checkout: explicit executable, sanitized environment, no hooks, fsmonitor or
+// network, bounded hashing. Exposed as the git.checkout-* tools.
+public sealed class GitCheckoutInspector(string gitExecutable)
 {
     public async Task<CompanyRepositoryReview> ReviewAsync(string root, string revision, CancellationToken token)
     {

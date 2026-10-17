@@ -16,7 +16,7 @@ Today's employees are **Developer** (GitHub PR review and fixes), **Marketing** 
 **CEO** (plans and meetings). Where this is going is in the [roadmap](docs/ROADMAP.md).
 
 > Status: development. Automatic model execution is off by default; the company workspace offers explicitly
-> approved one-turn replies and drafts through a pinned runtime. See the [Phase 1 report](docs/PHASE1_REPORT.md).
+> approved one-turn replies and drafts through a pinned runtime. See the [Phase 2A report](docs/PHASE2A_REPORT.md).
 
 ## Requirements
 
@@ -63,6 +63,12 @@ The host refuses to start an OpenClaw runtime whose version differs from the pin
 ([ADR 0004](docs/adr/0004-pinned-agent-runtimes.md)). Complete any sign-in yourself in the browser; never paste
 credentials into chat or copy auth files between machines.
 
+### Model routes
+
+Every model HireZero uses is chosen by purpose in `config/model-routes.json` (for example `company.text`). To use
+different models for one data root, point `HIREZERO_MODEL_ROUTES` at your own JSON file with the routes you want
+to change ([ADR 0008](docs/adr/0008-model-routes.md)). Changing a route changes spend: review it like code.
+
 ## Checks
 
 All checks are synthetic: no live model, GitHub or GPU calls.
@@ -87,10 +93,12 @@ Use the smallest set that covers a change. Apply formatting with `dotnet csharpi
 | --- | --- |
 | `src/HireZero.Core` | Company, conversations, tasks, approvals, budgets, storage |
 | `src/HireZero.Roles.*` | Employees: Developer, Marketing, CEO |
-| `src/HireZero.Integrations.*` | External systems: model runtimes, GitHub-adjacent tools, Microsoft 365, Azure DevOps |
+| `src/HireZero.Tools.*` | Tool contracts shared by roles and integrations |
+| `src/HireZero.Integrations.*` | External systems: Git, model runtimes, Microsoft 365, Azure DevOps |
 | `src/HireZero.Host` | Composition roots (startup profiles) |
 | `web/` | React frontend (`company/` workspace, `roles/` employee panels, `shell/` legacy Developer UI) |
 | `runtime/` | Pinned external agent runtimes |
+| `config/` | Model route catalog |
 | `tests/` | xUnit projects, Node and browser smoke tests, fixtures |
 | `tools/` | Launchers, runtime installer, sign-in helpers |
 | `docs/` | [Roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), [decisions](docs/adr/), [history](docs/history/) |

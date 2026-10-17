@@ -7,6 +7,8 @@
     <Project Path="src/HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
     <Project Path="src/HireZero.Integrations.AgentApps/HireZero.Integrations.AgentApps.csproj" />
     <Project Path="src/HireZero.Integrations.AzureDevOps/HireZero.Integrations.AzureDevOps.csproj" />
+    <Project Path="src/HireZero.Integrations.Git/HireZero.Integrations.Git.csproj" />
+    <Project Path="src/HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
     <Project Path="src/HireZero.Roles.Developer/HireZero.Roles.Developer.csproj" />
     <Project Path="src/HireZero.Roles.Marketing/HireZero.Roles.Marketing.csproj" />
     <Project Path="src/HireZero.Roles.Ceo/HireZero.Roles.Ceo.csproj" />

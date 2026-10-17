@@ -7,25 +7,28 @@ This describes HireZero as it is today, including the known gaps, and points at 
 
 ```
 Host (composition roots, one per startup profile)
- ├── Roles          src/HireZero.Roles.{Developer,Marketing,Ceo}   web/src/roles/*
- ├── Integrations   src/HireZero.Integrations.{OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps,Jev}
- └── Core           src/HireZero.Core
+ ├── Roles            src/HireZero.Roles.{Developer,Marketing,Ceo}   web/src/roles/*
+ ├── Integrations     src/HireZero.Integrations.{Git,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps,Jev}
+ ├── Tool contracts   src/HireZero.Tools.{Git}        (referenced by roles and integrations)
+ └── Core             src/HireZero.Core
 ```
 
 The rule ([ADR 0001](adr/0001-three-layers.md)): Core knows no role or vendor; roles reach the world only through
-integrations; integrations know no role. Project references already follow it: roles and integrations reference
-only Core, and only Host references everything.
+tools that integrations provide ([ADR 0007](adr/0007-tool-registry.md)); integrations know no role. Tool contracts
+(`src/HireZero.Tools.*`) sit between them. Project references follow it: roles reference Core and tool contracts,
+integrations reference Core, tool contracts and (for AgentApps) Codex, and only Host references everything.
 
 Architecture tests (`tests/HireZero.Host.Tests/ArchitectureTests.cs`) enforce the assembly references, that every
-role project ships one discovered module, and that the company profile and shared company UI name no role.
+role project ships one discovered module, that every declared tool has a contract with the same risk, and that the
+company profile and shared company UI name no role.
 
-Known violations, scheduled for Phase 2:
+Known violations, scheduled for Phase 2B:
 
 - Core contains Developer vocabulary and behaviour: the coding-runner contract (`Coding.cs`), GitHub/Azure DevOps
   remote parsing (`GitRemote.cs`), `git` process calls (`WorkingContext.cs`), PR fields in the work log, wiki
-  message kinds, and a model routing record that hard-codes OpenAI routes on the Codex runtime
+  message kinds, and a company routing record that accepts only OpenAI routes on the Codex runtime
   (`CompanyContracts.cs`).
-- `Roles.Developer` calls `gh`, `git`, `npm` and HTTP APIs directly instead of through integration projects.
+- `Roles.Developer`'s legacy services call `gh`, `git`, `npm` and HTTP APIs directly instead of through tools.
 
 ## Startup profiles
 
@@ -70,16 +73,35 @@ See [ADR 0003](adr/0003-owner-approval-safety-model.md). In short: exact-version
 consequential, single-use execution grants, budget reservations that stay held when usage is unknown, and no
 automatic replay of uncertain outcomes.
 
-## Model runtimes
+## Tools
 
+Employees reach external systems through tools ([ADR 0007](adr/0007-tool-registry.md)).
+
+- **Contracts** (`ToolContract<TInput, TOutput>`) live in `src/HireZero.Tools.*`: ids, risk levels and records,
+  no implementation. Roles and integrations reference them; they reference only Core.
+- **Integrations** register handlers in the `ToolRegistry` (for example `GitToolRegistration.AddGitTools`).
+- **Roles** call `IToolbox.InvokeAsync`, obtained with `ToolRegistry.For(manifest)`. The call is refused unless
+  the manifest declares the tool with the contract's risk; `Write`, `External` and `Spend` tools need an authority
+  that a registered `IToolAuthorityVerifier` accepts for that exact input.
+- **Audit**: every call, allowed, refused or failed, is recorded with caller, risk, input digest, authority and
+  outcome. The company workspace stores them in `co_tool_calls` and serves them at `/api/company/tool-calls`.
+
+Today's tools: `git.checkout-inspect` and `git.checkout-review` (`Integrations.Git`). The legacy Developer
+profile still calls git, GitHub and other services directly; Phase 2B moves those onto tools.
+
+## Model runtimes and routes
+
+- **Routes**: `config/model-routes.json` maps purposes (`company.text`, `developer.escalation`, ...) to model ids
+  and display names. It is embedded in Core and read through `ModelRoutes`; `HIREZERO_MODEL_ROUTES` can name an
+  owner-maintained override file. No model id appears in source ([ADR 0008](adr/0008-model-routes.md)).
 - **OpenClaw** (`Integrations.OpenClaw`): a local gateway exposing chat completions; used by the Developer and
   Recovery profiles. Its version is pinned in `runtime/openclaw` and verified before any process starts
   ([ADR 0004](adr/0004-pinned-agent-runtimes.md)).
 - **Codex** (`Integrations.Codex`): app-server over stdio; used by the company workspace for measured one-turn work
   and by Developer coding runs. The executable is pinned by a reviewed bundle identity hash.
 
-Four overlapping model contracts exist (`IModelGateway`, `ICompanyModel`, `IEmployeeModelGateway`,
-`ICodingRunner`); Phase 2 replaces them with one provider abstraction.
+Several overlapping model contracts remain (`IModelGateway`, `ICompanyModel`, `ICompanyMeasuredModel`,
+`ICodingRunner`); Phase 2B replaces them with one provider contract.
 
 ## Storage
 

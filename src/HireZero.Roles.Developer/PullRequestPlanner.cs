@@ -60,25 +60,29 @@ public static class PullRequestPlanner
             }
             return strategy;
         }
-        AgentActivity.Note("Triage: Luna is drafting a diagnosis.");
-        var triage = await Diagnose("openai/gpt-6-luna", null);
+        var triageModel = ModelRoutes.Route(DeveloperRoutes.Triage);
+        var escalation = ModelRoutes.Route(DeveloperRoutes.Escalation);
+        AgentActivity.Note("Triage: " + ModelRoutes.Name(triageModel) + " is drafting a diagnosis.");
+        var triage = await Diagnose(triageModel, null);
         if (triage is null)
             return null;
         var model = PullRequestPolicy.Model(triage);
         AgentActivity.Note(
-            model.Contains("astra")
-                ? "Validation: Astra is reviewing a complex finding."
-                : "Validation: Sol 6.1 is checking the findings and the smallest fix."
+            model == escalation
+                ? "Validation: " + ModelRoutes.Name(model) + " is reviewing a complex finding."
+                : "Validation: " + ModelRoutes.Name(model) + " is checking the findings and the smallest fix."
         );
         var validated = await Diagnose(model, triage);
-        if (
-            validated is not null
-            && model != "openai/gpt-6-astra"
-            && PullRequestPolicy.Model(validated) == "openai/gpt-6-astra"
-        )
+        if (validated is not null && model != escalation && PullRequestPolicy.Model(validated) == escalation)
         {
-            model = "openai/gpt-6-astra";
-            AgentActivity.Note("Escalation: Sol handed the finding to Astra.");
+            AgentActivity.Note(
+                "Escalation: "
+                    + ModelRoutes.Name(model)
+                    + " handed the finding to "
+                    + ModelRoutes.Name(escalation)
+                    + "."
+            );
+            model = escalation;
             validated = await Diagnose(model, validated);
         }
         return validated is null ? null : (validated, model);

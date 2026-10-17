@@ -18,8 +18,9 @@ example.
 </Project>
 ```
 
-Reference only Core. Reaching an external system goes through an integration's tools (Phase 2); the architecture
-tests fail if a role references an integration or another role. Add the project to `HireZero.slnx` so IDEs show it;
+Reference Core, plus the `src/HireZero.Tools.*` contract projects for any tools the employee uses. Reaching an
+external system goes through those tools ([ADR 0007](adr/0007-tool-registry.md)); the architecture tests fail if a
+role references an integration or another role. Add the project to `HireZero.slnx` so IDEs show it;
 the host already builds it through its wildcard reference.
 
 ## 2. Write the module
@@ -66,6 +67,14 @@ Optional members:
 - `ValidateInput(skill, input)`: validate and normalize structured input (see `MarketingBriefPolicy`). Throw
   `WorkspaceException` to refuse.
 - `InstructionsFor(skill)`: per-skill instructions.
+
+Tools: declare every tool the employee calls, with the risk level of its contract (each declared tool must exist as
+a contract in a `src/HireZero.Tools.*` project, implemented by an integration; the architecture tests check), then
+call it through the
+toolbox the host gives you (`IToolbox.InvokeAsync(GitTools.InspectCheckout, new(root), token)`). Undeclared tools
+are refused, `Write`, `External` and `Spend` tools need an owner authority for the exact call, and every call is
+audited. Model choices go in `config/model-routes.json` under a purpose of your own (for example
+`support.reply`), never as model ids in code.
 
 Skill modes decide which gates apply: `Text` for ordinary internal work, `Measured` for the one-job queue with exact
 packet review, `Execution` for work that needs an execution grant (requires `Capabilities.WorkspaceClaims`).

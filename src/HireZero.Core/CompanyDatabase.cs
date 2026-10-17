@@ -80,6 +80,7 @@ public sealed partial class CompanyStore
                 [
                     Schema(),
                     "CREATE TABLE co_execution_grants(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id),FOREIGN KEY(company_id,parent_id) REFERENCES co_tasks(company_id,id),FOREIGN KEY(company_id,employee_id) REFERENCES co_employees(company_id,id));",
+                    ToolCallSchema,
                 ];
                 if (
                     migrations.Any(m =>

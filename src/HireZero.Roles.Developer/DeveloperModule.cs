@@ -1,4 +1,5 @@
 using HireZero.Roles.Developer;
+using HireZero.Tools.Git;
 
 [assembly: EmployeeModule(typeof(DeveloperModule))]
 
@@ -46,12 +47,12 @@ public sealed class DeveloperModule : IEmployeeModule
         {
             Tools =
             [
-                new("workspace.checkout-read", ToolRisk.Read, "Inspect the approved checkout's revision and files."),
                 new(
-                    "workspace.checkout-write",
-                    ToolRisk.Write,
-                    "Apply a reviewed change inside the approved checkout."
+                    GitTools.InspectCheckout.Id,
+                    ToolRisk.Read,
+                    "Confirm the approved checkout's revision and content."
                 ),
+                new(GitTools.ReviewCheckout.Id, ToolRisk.Read, "Show the owner a file diff after reviewed execution."),
             ],
             Kpis =
             [

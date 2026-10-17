@@ -14,7 +14,7 @@ namespace HireZero.Integrations.OpenClaw;
 public sealed class OpenClawCells : IDisposable, IModelGateway
 {
     private const string OwnerCell = IModelGateway.OwnerCell;
-    public const string Model = "openai/gpt-6-luna";
+    public static string Model => ModelRoutes.Route(ModelRoutes.AssistantDefault);
     public string DefaultModel => Model;
     private const string ReasoningEffort = "high";
     public string Reasoning => ReasoningEffort;
@@ -40,15 +40,6 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
 
     public void Prepare(string login) => _cells.GetOrAdd(login, CreateCell);
 
-    private static string Friendly(string model) =>
-        model switch
-        {
-            "openai/gpt-6-luna" => "Luna",
-            "openai/gpt-6.1-sol" => "Sol 6.1",
-            "openai/gpt-6-astra" => "Astra",
-            _ => model,
-        };
-
     public void Stop(string login)
     {
         if (!_cells.TryGetValue(login, out var cell) || cell.Process is not { HasExited: false } process)
@@ -69,7 +60,7 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
     {
         var cell = _cells.GetOrAdd(login, CreateCell);
         await cell.Gate.WaitAsync(cancellationToken);
-        var name = Friendly(model ?? Model);
+        var name = ModelRoutes.Name(model ?? Model);
         var started = DateTimeOffset.UtcNow;
         try
         {
@@ -362,7 +353,8 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
                         baseUrl = "https://chatgpt.com/backend-api/codex",
                         api = "openai-chatgpt-responses",
                         auth = "oauth",
-                        models = new[] { "gpt-6-luna", "gpt-6.1-sol", "gpt-6-astra" }
+                        models = OpenAiModels()
+                            .Select(ModelRoutes.Native)
                             .Select(id => new
                             {
                                 id,
@@ -394,12 +386,7 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
                     thinkingDefault = ReasoningEffort,
                     workspace,
                     heartbeat = new { every = "0m" },
-                    models = new Dictionary<string, object>
-                    {
-                        [Model] = new { },
-                        ["openai/gpt-6.1-sol"] = new { },
-                        ["openai/gpt-6-astra"] = new { },
-                    },
+                    models = OpenAiModels().ToDictionary(model => model, _ => (object)new { }),
                 },
             },
             commands = new { restart = false },
@@ -686,4 +673,7 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
         public SemaphoreSlim StartGate { get; } = new(1, 1);
         public Process? Process { get; set; }
     }
+
+    // The catalog's OpenAI models: the only provider this gateway's sign-in serves.
+    private static string[] OpenAiModels() => [.. ModelRoutes.Models.Where(m => ModelRoutes.Provider(m) == "openai")];
 }

@@ -1,0 +1,18 @@
+{
+  "$comment": "Every model HireZero uses, by purpose. Changing a route changes spend: review it like code. A data root can override routes with HIREZERO_MODEL_ROUTES (docs/adr/0008-model-routes.md).",
+  "routes": {
+    "company.text": "openai/gpt-6-luna",
+    "company.coding": "openai/gpt-6.1-sol",
+    "assistant.default": "openai/gpt-6-luna",
+    "developer.triage": "openai/gpt-6-luna",
+    "developer.validation": "openai/gpt-6.1-sol",
+    "developer.escalation": "openai/gpt-6-astra",
+    "developer.review": "openai/gpt-6.1-sol",
+    "developer.build": "openai/gpt-6.1-sol"
+  },
+  "names": {
+    "openai/gpt-6-luna": "Luna",
+    "openai/gpt-6.1-sol": "Sol 6.1",
+    "openai/gpt-6-astra": "Astra"
+  }
+}

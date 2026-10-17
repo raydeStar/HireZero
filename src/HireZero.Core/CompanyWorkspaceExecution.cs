@@ -42,13 +42,6 @@ public sealed record CompanyRepositoryReview(
     string Digest = ""
 );
 
-public interface ICompanyWorkspaceInspector
-{
-    Task<CompanyRepositorySnapshot> InspectAsync(string root, CancellationToken token);
-    Task<CompanyRepositoryReview> ReviewAsync(string root, string revision, CancellationToken token) =>
-        throw new WorkspaceException("Repository diff review is unavailable.");
-}
-
 public interface ICompanyCodingFactory
 {
     bool FixtureQualified { get; }

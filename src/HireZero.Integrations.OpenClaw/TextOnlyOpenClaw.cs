@@ -92,8 +92,8 @@ public sealed class TextOnlyOpenClaw(string dataRoot) : IModelGateway, IDisposab
                         {
                             new
                             {
-                                id = "gpt-6-luna",
-                                name = "gpt-6-luna",
+                                id = ModelRoutes.Native(OpenClawCells.Model),
+                                name = ModelRoutes.Native(OpenClawCells.Model),
                                 api = "openai-chatgpt-responses",
                                 reasoning = true,
                                 input = new[] { "text" },

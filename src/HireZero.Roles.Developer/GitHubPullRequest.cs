@@ -170,7 +170,7 @@ public sealed record PullRequestWorkflow(
 
 public static partial class PullRequestPolicy
 {
-    public const string BuilderModel = "gpt-6.1-sol";
+    public static string BuilderModel => ModelRoutes.Native(ModelRoutes.Route(DeveloperRoutes.Build));
 
     [GeneratedRegex(
         @"https://github\.com/([A-Za-z0-9-]+/[A-Za-z0-9_.-]+)/pull/([0-9]+)(?:\b|/)",
@@ -311,7 +311,9 @@ public static partial class PullRequestPolicy
     public static bool Sha(string? value) => value is { Length: 40 } && value.All(Uri.IsHexDigit);
 
     public static string Model(FixStrategy triage) =>
-        triage.Ambiguous || triage.CrossSystem ? "openai/gpt-6-astra" : "openai/gpt-6.1-sol";
+        ModelRoutes.Route(
+            triage.Ambiguous || triage.CrossSystem ? DeveloperRoutes.Escalation : DeveloperRoutes.Validation
+        );
 
     public static FixStrategy? ParseStrategy(string json)
     {

@@ -1,13 +1,15 @@
 using System.Text.Json;
+using HireZero.Tools.Git;
 
 namespace HireZero.Roles.Developer;
 
-public sealed class CompanyDeveloperBridge(
-    CompanyStore store,
-    ICompanyWorkspaceInspector inspector,
-    ICompanyCodingFactory factory
-)
+// Reviewed company execution for the Developer. Checkout inspection goes through the declared git.checkout-* tools
+// (docs/adr/0007-tool-registry.md); coding runs only under an owner-approved execution grant.
+public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, ICompanyCodingFactory factory)
 {
+    private Task<CompanyRepositorySnapshot> InspectAsync(string root, CancellationToken token) =>
+        tools.InvokeAsync(GitTools.InspectCheckout, new(root), token);
+
     public async Task<CompanyExecutionGrant> PrepareAsync(
         string taskId,
         string root,
@@ -24,7 +26,7 @@ public sealed class CompanyDeveloperBridge(
         try
         {
             var context = store.Capture(attempt.Id);
-            var snapshot = await inspector.InspectAsync(root, token);
+            var snapshot = await InspectAsync(root, token);
             return store.ProposeExecution(
                 new(
                     attempt.Id,
@@ -54,7 +56,7 @@ public sealed class CompanyDeveloperBridge(
             var grant = store.Execution(grantId);
             if (!store.ExecutionCurrent(grantId) || grant.State != "approved")
                 throw new WorkspaceException("Exact owner execution approval is required.");
-            var snapshot = await inspector.InspectAsync(grant.Workspace, token);
+            var snapshot = await InspectAsync(grant.Workspace, token);
             if (snapshot.Revision != grant.Revision || snapshot.Fingerprint != grant.Fingerprint)
                 throw new WorkspaceException("Repository changed after review; propose fresh work.");
             store.AcquireWorkspace(grant.AttemptId, grant.Workspace);
@@ -70,10 +72,7 @@ public sealed class CompanyDeveloperBridge(
                     return false;
                 try
                 {
-                    var current = inspector
-                        .InspectAsync(grant.Workspace, CancellationToken.None)
-                        .GetAwaiter()
-                        .GetResult();
+                    var current = InspectAsync(grant.Workspace, CancellationToken.None).GetAwaiter().GetResult();
                     return current.Revision == grant.Revision && current.Fingerprint == grant.Fingerprint;
                 }
                 catch
@@ -118,7 +117,7 @@ public sealed class CompanyDeveloperBridge(
                         throw new TimeoutException("Runtime termination is unconfirmed.");
                     await Task.Delay(20, CancellationToken.None);
                 }
-                var after = await inspector.InspectAsync(grant.Workspace, CancellationToken.None);
+                var after = await InspectAsync(grant.Workspace, CancellationToken.None);
                 if (
                     run.State != "completed"
                     || run.ResolvedModel != CompanyModelRouting.Native(grant.Route)
@@ -132,7 +131,11 @@ public sealed class CompanyDeveloperBridge(
                     .LastOrDefault(-1);
                 if (usage < 0 || usage > 5000)
                     throw new WorkspaceException("Complete bounded coding usage was not confirmed.");
-                var review = await inspector.ReviewAsync(grant.Workspace, grant.Revision, CancellationToken.None);
+                var review = await tools.InvokeAsync(
+                    GitTools.ReviewCheckout,
+                    new(grant.Workspace, grant.Revision),
+                    CancellationToken.None
+                );
                 if (review.Fingerprint != after.Fingerprint)
                     throw new WorkspaceException("Checkout changed while preparing the repository review.");
                 store.RecordExecutionReview(grantId, review);

@@ -201,7 +201,7 @@ public sealed class DeveloperPrompts(IModelGateway gateway) : IPullRequestReason
                 + "Ambiguity means clear=false. No credentials, raw private context or claims of executed work. Up to five concise concerns.",
             JsonSerializer.Serialize(new { approvedStrategy = strategy, diff = PullRequestPolicy.Safe(diff, 45000) }),
             token,
-            "openai/gpt-6.1-sol",
+            ModelRoutes.Route(DeveloperRoutes.Review),
             900
         );
 }

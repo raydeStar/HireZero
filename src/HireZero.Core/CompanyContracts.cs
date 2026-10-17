@@ -290,12 +290,12 @@ public sealed record CompanyModelCall(
 );
 
 // Runtime selection and task purpose are independent of employee role. A Developer conversation is ordinary text.
-public sealed record CompanyModelRouting(
-    string TextModel = "openai/gpt-6-luna",
-    string CodingModel = "openai/gpt-6.1-sol",
-    string Runtime = "codex"
-)
+public sealed record CompanyModelRouting(string TextModel, string CodingModel, string Runtime = "codex")
 {
+    // The company routes from the model route catalog (docs/adr/0008-model-routes.md).
+    public CompanyModelRouting()
+        : this(ModelRoutes.Route(ModelRoutes.CompanyText), ModelRoutes.Route(ModelRoutes.CompanyCoding)) { }
+
     public string For(bool execution) => execution ? CodingModel : TextModel;
 
     public static string Native(string route) =>

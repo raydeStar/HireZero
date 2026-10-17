@@ -198,6 +198,13 @@
       "hirezero.roles.developer": {
         "type": "Project",
         "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Git": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.git": {
+        "type": "Project",
+        "dependencies": {
           "HireZero.Core": "[1.0.0, )"
         }
       }

@@ -32,6 +32,42 @@ public sealed partial class ArchitectureTests
         var core = typeof(CompanyStore).Assembly;
         Assert.Empty(References(core, "HireZero.Roles."));
         Assert.Empty(References(core, "HireZero.Integrations."));
+        Assert.Empty(References(core, "HireZero.Tools."));
+    }
+
+    // Other HireZero assemblies an assembly references, besides Core.
+    private static string[] Platform(Assembly assembly) =>
+        [.. References(assembly, "HireZero.").Where(name => name != "HireZero.Core")];
+
+    // Tool contract assemblies hold descriptors and records only, so they may depend on Core alone.
+    [Fact]
+    public void ToolContractsReferenceOnlyCore()
+    {
+        var contracts = Built("HireZero.Tools.");
+        Assert.NotEmpty(contracts);
+        foreach (var contract in contracts)
+            Assert.True(Platform(contract).Length == 0, contract.GetName().Name + " references more than Core.");
+    }
+
+    // A tool a manifest declares must exist as a contract with the same risk.
+    [Fact]
+    public void DeclaredToolsMatchTheirContracts()
+    {
+        var contracts = Built("HireZero.Tools.")
+            .SelectMany(a => a.GetTypes())
+            .SelectMany(t => t.GetFields(BindingFlags.Public | BindingFlags.Static))
+            .Select(f => f.GetValue(null))
+            .OfType<IToolContract>()
+            .ToDictionary(c => c.Id);
+        foreach (var module in EmployeeModuleCatalog.Discover())
+        foreach (var tool in module.Manifest.Tools)
+        {
+            Assert.True(
+                contracts.TryGetValue(tool.Id, out var contract),
+                module.Manifest.Id + " declares unknown tool " + tool.Id
+            );
+            Assert.Equal(contract.Risk, tool.Risk);
+        }
     }
 
     [Fact]
@@ -47,19 +83,15 @@ public sealed partial class ArchitectureTests
     }
 
     [Fact]
-    public void RolesReferenceOnlyCore()
+    public void RolesReferenceOnlyCoreAndToolContracts()
     {
         var roles = Built("HireZero.Roles.");
         Assert.NotEmpty(roles);
         foreach (var role in roles)
-        {
-            var name = role.GetName().Name;
-            Assert.True(References(role, "HireZero.Roles.").Length == 0, name + " references another role.");
             Assert.True(
-                References(role, "HireZero.Integrations.").Length == 0,
-                name + " references an integration directly."
+                Platform(role).All(name => name.StartsWith("HireZero.Tools.", StringComparison.Ordinal)),
+                role.GetName().Name + " references a role or integration: " + string.Join(", ", Platform(role))
             );
-        }
     }
 
     [Fact]
