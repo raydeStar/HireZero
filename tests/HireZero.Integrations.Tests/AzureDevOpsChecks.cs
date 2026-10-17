@@ -33,7 +33,7 @@ public static class AzureDevOpsChecks
                     mergeStatus = merge,
                     sourceRefName = "refs/heads/fix/" + id,
                     targetRefName = "refs/heads/dev",
-                    createdBy = new { displayName = authorId == "me" ? "Mark Hall" : "Pat Lee", id = authorId },
+                    createdBy = new { displayName = authorId == "me" ? "Morgan Lee" : "Pat Lee", id = authorId },
                     creationDate = "2026-10-01T10:00:00Z",
                     closedDate = closed,
                     reviewers = (votes ?? []).Select(vote => new { vote }),
@@ -60,7 +60,7 @@ public static class AzureDevOpsChecks
                 );
             string body;
             if (url.Contains("/connectionData"))
-                body = """{"authenticatedUser":{"id":"me","providerDisplayName":"Mark Hall"}}""";
+                body = """{"authenticatedUser":{"id":"me","providerDisplayName":"Morgan Lee"}}""";
             else if (url.Contains("/policy/evaluations"))
                 body = url.Contains("%2F7")
                     ? """{"value":[{"status":"rejected","configuration":{"isBlocking":true,"type":{"displayName":"Build"}}},{"status":"approved","configuration":{"isBlocking":true,"type":{"displayName":"Minimum number of reviewers"}}},{"status":"rejected","configuration":{"isBlocking":false,"type":{"displayName":"Optional scan"}}}]}"""
@@ -99,14 +99,14 @@ public static class AzureDevOpsChecks
     public static async Task RunAsync(Action<bool, string> check)
     {
         check(
-            GitRemote.Parse("https://north@dev.azure.com/north/north%20DevOps%20Platform/_git/Northwind.Portal")
+            GitRemote.Parse("https://north@dev.azure.com/north/North%20DevOps%20Platform/_git/Northwind.MyNorthwind")
                 is {
                     Host: GitOrigin.AzureDevOps,
                     Organization: "north",
-                    Project: "north DevOps Platform",
-                    Name: "Northwind.Portal"
+                    Project: "North DevOps Platform",
+                    Name: "Northwind.MyNorthwind"
                 } origin
-                && origin.Slug == "north DevOps Platform/Northwind.Portal",
+                && origin.Slug == "North DevOps Platform/Northwind.MyNorthwind",
             "Azure DevOps remotes give organization, decoded project and repository, without the user name."
         );
         check(
@@ -183,7 +183,7 @@ public static class AzureDevOpsChecks
         }
 
         var project = new ProjectRef(
-            "Northwind.api/Northwind.api",
+            "northwind.api/northwind.api",
             "Northwind.API",
             "Northwind.API/Northwind.API",
             null,
@@ -200,7 +200,7 @@ public static class AzureDevOpsChecks
             )
         );
         check(
-            owner.Contains("!7 Bound AssetChat batches by Mark Hall")
+            owner.Contains("!7 Bound AssetChat batches by Morgan Lee")
                 && owner.Contains("waiting for the author")
                 && owner.Contains("!8 Draft idea")
                 && owner.Contains("merge conflicts")

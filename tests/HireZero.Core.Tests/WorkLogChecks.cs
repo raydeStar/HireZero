@@ -150,7 +150,7 @@ public static class WorkLogChecks
             {
                 Clock = () => now,
             };
-            var sharing = new SharingPolicy(root, "morgan@northwind.example", "Mark Hall");
+            var sharing = new SharingPolicy(root, "morgan@northwind.example", "Morgan Lee");
             var worklog = new WorkLogService([new Prs(), new Prs(fail: true)], sharing, brief, sessions)
             {
                 Clock = () => now,
@@ -159,7 +159,7 @@ public static class WorkLogChecks
             var day = await worklog.DayAsync("2026-10-05", zone, default);
             var text = string.Join("\n", day.Entries.Select(entry => entry.Text));
             check(
-                day.OwnerName == "Mark Hall" && day.Totals == new WorkLogTotals(2, 2, 1, 1),
+                day.OwnerName == "Morgan Lee" && day.Totals == new WorkLogTotals(2, 2, 1, 1),
                 "At a glance: projects touched, coding sessions, PRs opened and shipped, from shared work only."
             );
             check(
@@ -224,7 +224,7 @@ public static class WorkLogChecks
                     && WorkLogText.Excerpt(new string('a', 900))!.Length == 321,
                 "The description excerpt is the first paragraph, short, and dropped when it reads like instructions."
             );
-            sharing.Save(new(["Northwind"], ["QuoteDesk"], null));
+            sharing.Save(new(["northwind"], ["QuoteDesk"], null));
             var cached = await worklog.DayAsync("2026-10-05", zone, default);
             check(cached.Totals.Projects == 2, "Today's log is reused for a few minutes.");
             var fresh = await new WorkLogService([new Prs()], sharing, brief, sessions) { Clock = () => now }.DayAsync(
@@ -233,7 +233,7 @@ public static class WorkLogChecks
                 default
             );
             check(
-                fresh.Totals == new WorkLogTotals(1, 0, 1, 0) && fresh.OwnerName == "Mark Hall",
+                fresh.Totals == new WorkLogTotals(1, 0, 1, 0) && fresh.OwnerName == "Morgan Lee",
                 "Hiding a project removes it from the log; the default name stays."
             );
         }

@@ -45,7 +45,7 @@ public static class TailnetChecks
         };
         check(
             access.KnownHost("host-1.tail0000.ts.net:5064")
-                && access.KnownHost("host-1:5064")
+                && access.KnownHost("HOST-1:5064")
                 && access.KnownHost("100.64.0.11:5064")
                 && !access.KnownHost("evil.example:5064")
                 && !access.KnownHost("host-1.tail0000.ts.net"),

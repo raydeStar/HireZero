@@ -138,7 +138,7 @@ public static class WorkingContextChecks
             );
             check(
                 working.Match("what's the latest on quotedesk?").Single().Name == "PartnerQuoteDesk"
-                    && working.Match("how is Partner going").Length == 1
+                    && working.Match("how is PartnerQuote going").Length == 1
                     && working.Match("lunch plans").Length == 0,
                 "A project is recognized by a run of words in its name, not by unrelated text."
             );

@@ -112,7 +112,7 @@ public static class PeopleChecks
 
             var sharing = new SharingPolicy(root, "owner@northwind.example");
             check(
-                sharing.Settings().BossOrganizations.SequenceEqual(["Northwind"]),
+                sharing.Settings().BossOrganizations.SequenceEqual(["northwind"]),
                 "By default only the company organization (from the owner's login domain) is shared with a boss."
             );
             var working = new WorkingContext(sessions, new DigestStore(db), new IntakeStore(db), [], sharing: sharing)
@@ -185,9 +185,9 @@ public static class PeopleChecks
                 "Once the owner allows it, the agent answers the visitor in their own cell."
             );
 
-            requests.SetPerson("tyler@example.com", "trusted", false);
+            requests.SetPerson("riley@example.com", "trusted", false);
             var trustedRequest = requests.CreateRequest(
-                "tyler@example.com",
+                "riley@example.com",
                 "QuoteDesk",
                 "Help with QuoteDesk exports",
                 "Could you add CSV export?",

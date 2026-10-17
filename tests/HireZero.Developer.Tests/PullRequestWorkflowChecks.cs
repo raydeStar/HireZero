@@ -323,7 +323,7 @@ public static class PullRequestWorkflowChecks
         var signal = new PullRequestTaskSignal();
         check(
             signal.TaskKey("https://github.com/Northwind/PartnerQuoteDesk/pull/216 take a look and fix the p1s")
-                == "github:Northwind/Partnerquotedesk#216"
+                == "github:northwind/partnerquotedesk#216"
                 && signal.TaskKey("fix https://dev.azure.com/north/Web/_git/Quote-Api/pullrequest/7081")
                     == "ado:quote-api!7081"
                 && signal.TaskKey("can you fix PR 213?") == "pr#213",

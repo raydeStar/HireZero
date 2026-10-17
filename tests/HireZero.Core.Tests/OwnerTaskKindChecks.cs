@@ -35,7 +35,7 @@ public static class OwnerTaskKindChecks
             var db = Path.Combine(root, "allow.sqlite");
             var requests = new RequestStore(db);
             var agents = new AgentStore(db);
-            var owner = new WorkspaceOwner("mark@example.com");
+            var owner = new WorkspaceOwner("owner@example.com");
             var answered = requests.CreateRequest(
                 WorkspaceOwner.LocalIdentity,
                 "p",

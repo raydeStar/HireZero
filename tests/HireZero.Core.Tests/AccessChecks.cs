@@ -19,7 +19,7 @@ public static class AccessChecks
             );
 
             check(
-                desk.Knock("riley@northwind.example", "Riley Park") == PersonRoles.Visitor
+                desk.Knock("Riley@Northwind.example", "Riley Park") == PersonRoles.Visitor
                     && requests.FindPerson("riley@northwind.example")?.Role == PersonRoles.Visitor
                     && store.Find("riley@northwind.example")
                         is { Status: "visitor", DisplayName: "Riley Park", RequestId: { } joined }
@@ -67,7 +67,7 @@ public static class AccessChecks
                 "Revoking someone who was let in keeps them out."
             );
             check(
-                desk.Knock("morgan@northwind.example", "Mark") is null && store.Find("morgan@northwind.example") is null,
+                desk.Knock("morgan@northwind.example", "Morgan") is null && store.Find("morgan@northwind.example") is null,
                 "The owner never knocks."
             );
             try

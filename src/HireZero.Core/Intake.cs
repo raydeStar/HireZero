@@ -113,7 +113,7 @@ public static class IntakeCategory
         return "fyi";
     }
 
-    // "Avery Stone <dana@example.com>" -> "dana@example.com"
+    // "Avery Stone <avery@example.com>" -> "avery@example.com"
     public static string? Address(string from) =>
         System.Text.RegularExpressions.Regex.Match(
             from,
