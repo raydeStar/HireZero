@@ -2,103 +2,362 @@ using System.Text.Json;
 
 namespace HireZero.Core;
 
-public sealed record CompanyRole(string Id, string Name, string Instructions, string[] Skills, string[] OnboardingFields)
+public sealed record CompanyRole(
+    string Id,
+    string Name,
+    string Instructions,
+    string[] Skills,
+    string[] OnboardingFields
+)
 {
-    public Func<string,string,string>? ValidateInput {get;init;}
-    public Func<string,string>? InstructionsForSkill {get;init;}
-    public bool WorkspaceClaims {get;init;}
-    public bool CompanyOverview {get;init;}
-    public string[] ExecutionSkills {get;init;}=[];
-    public string[] MeasuredSkills {get;init;}=[];
+    public Func<string, string, string>? ValidateInput { get; init; }
+    public Func<string, string>? InstructionsForSkill { get; init; }
+    public bool WorkspaceClaims { get; init; }
+    public bool CompanyOverview { get; init; }
+    public string[] ExecutionSkills { get; init; } = [];
+    public string[] MeasuredSkills { get; init; } = [];
 }
+
 public sealed record CompanyDepartment(string Id, string Name, string? Guide, string? Knowledge, int Version = 1);
-public sealed record CompanyEmployee(string Id, string DepartmentId, string RoleId, string Name, string Responsibility, string State = "onboarding", int Version = 1, int Generation = 1);
-public sealed record CompanyKnowledge(string Id, string? DepartmentId, string Body, string Digest, string State = "draft", int Version = 1);
-public sealed record CompanyThread(string Id, string EmployeeId, string Title, int Version = 1,string Scope="employee");
-public sealed record CompanyMessage(string Id, string ThreadId, string EmployeeId, string Author, string Body, long Sequence);
+
+public sealed record CompanyEmployee(
+    string Id,
+    string DepartmentId,
+    string RoleId,
+    string Name,
+    string Responsibility,
+    string State = "onboarding",
+    int Version = 1,
+    int Generation = 1
+);
+
+public sealed record CompanyKnowledge(
+    string Id,
+    string? DepartmentId,
+    string Body,
+    string Digest,
+    string State = "draft",
+    int Version = 1
+);
+
+public sealed record CompanyThread(
+    string Id,
+    string EmployeeId,
+    string Title,
+    int Version = 1,
+    string Scope = "employee"
+);
+
+public sealed record CompanyMessage(
+    string Id,
+    string ThreadId,
+    string EmployeeId,
+    string Author,
+    string Body,
+    long Sequence
+);
+
 public sealed record CompanyNotes(string Id, string Body, int Version = 1);
-public sealed record CompanyTask(string Id, string EmployeeId, string ThreadId, string Skill, string Input, string State,
-    string? Reason, string RootId, string[] Evidence, string[] Dependencies, string? PlanId = null, string? MeetingId = null,
-    string? Resource = null, int Version = 1, int Generation = 1, long Watermark = 0, string? KnowledgeId = null, string? CompanyKnowledgeId = null,
-    string? ModelRoute = null, string? Runtime = null,string Kind="work");
-public sealed record CompanyArtifact(string Id, string TaskId, string EmployeeId, string Body, string Digest, string State,
-    string Provenance, string? ContextId, int Version = 1);
-public sealed record CompanyHandoff(string Id, string ArtifactId, string TargetEmployeeId, string TargetThreadId, string Body, string Digest, string State = "shared", int Version = 1,string? TargetTaskId=null,int? ArtifactVersion=null);
+
+public sealed record CompanyTask(
+    string Id,
+    string EmployeeId,
+    string ThreadId,
+    string Skill,
+    string Input,
+    string State,
+    string? Reason,
+    string RootId,
+    string[] Evidence,
+    string[] Dependencies,
+    string? PlanId = null,
+    string? MeetingId = null,
+    string? Resource = null,
+    int Version = 1,
+    int Generation = 1,
+    long Watermark = 0,
+    string? KnowledgeId = null,
+    string? CompanyKnowledgeId = null,
+    string? ModelRoute = null,
+    string? Runtime = null,
+    string Kind = "work"
+);
+
+public sealed record CompanyArtifact(
+    string Id,
+    string TaskId,
+    string EmployeeId,
+    string Body,
+    string Digest,
+    string State,
+    string Provenance,
+    string? ContextId,
+    int Version = 1
+);
+
+public sealed record CompanyHandoff(
+    string Id,
+    string ArtifactId,
+    string TargetEmployeeId,
+    string TargetThreadId,
+    string Body,
+    string Digest,
+    string State = "shared",
+    int Version = 1,
+    string? TargetTaskId = null,
+    int? ArtifactVersion = null
+);
+
 public sealed record CompanyEvidence(string Id, string Body, string Digest);
-public sealed record CompanyColleague(string Id,string Name,string DepartmentId,string RoleId,string Responsibility,string State,string? ThreadId);
-public sealed record CompanyWorkStatus(string Id,string EmployeeId,string Skill,string State);
-public sealed record CompanyContext(string Id, string EmployeeId, string RoleId, string ThreadId, string Responsibility,
-    string CompanyKnowledge, string DepartmentKnowledge, string Notes, CompanyMessage[] History, CompanyEvidence[] Evidence,
-    string Input, string? MeetingId = null,CompanyColleague[]? Colleagues=null,CompanyWorkStatus[]? CompanyWork=null,string Scope="employee");
-public sealed record CompanyAttempt(string Id, string TaskId, string EmployeeId, string Phase, int TaskGeneration,
-    int EmployeeGeneration, string? ContextId, string? Error = null, int Version = 1,string? ProviderReceipt=null,long? ReportedUsage=null,
-    CompanyInputAdmission? Admission=null,CompanyTokenUsage? Usage=null,CompanyMeasuredJob? Measured=null);
+
+public sealed record CompanyColleague(
+    string Id,
+    string Name,
+    string DepartmentId,
+    string RoleId,
+    string Responsibility,
+    string State,
+    string? ThreadId
+);
+
+public sealed record CompanyWorkStatus(string Id, string EmployeeId, string Skill, string State);
+
+public sealed record CompanyContext(
+    string Id,
+    string EmployeeId,
+    string RoleId,
+    string ThreadId,
+    string Responsibility,
+    string CompanyKnowledge,
+    string DepartmentKnowledge,
+    string Notes,
+    CompanyMessage[] History,
+    CompanyEvidence[] Evidence,
+    string Input,
+    string? MeetingId = null,
+    CompanyColleague[]? Colleagues = null,
+    CompanyWorkStatus[]? CompanyWork = null,
+    string Scope = "employee"
+);
+
+public sealed record CompanyAttempt(
+    string Id,
+    string TaskId,
+    string EmployeeId,
+    string Phase,
+    int TaskGeneration,
+    int EmployeeGeneration,
+    string? ContextId,
+    string? Error = null,
+    int Version = 1,
+    string? ProviderReceipt = null,
+    long? ReportedUsage = null,
+    CompanyInputAdmission? Admission = null,
+    CompanyTokenUsage? Usage = null,
+    CompanyMeasuredJob? Measured = null
+);
+
 public sealed record CompanyBudget(string Id, long Limit, long Used = 0, long Reserved = 0, int Version = 1);
-public sealed record CompanyReservation(string Id, string RootId, long Amount, string State = "reserved", long? Actual = null, int Version = 1,string[]? Scopes=null);
-public sealed record CompanyResourceClaim(string Id, string TaskId, string AttemptId, string EmployeeId, int Version = 1);
-public sealed record CompanyTaskSpec(string EmployeeId, string ThreadId, string Skill, string Input, string[] Evidence, int[] DependsOn);
-public sealed record CompanyPlanProposal(string Objective,CompanyTaskSpec[] Tasks,long Budget);
-public sealed record CompanyPlan(string Id, string CeoId, string Objective, CompanyTaskSpec[] Tasks, string Digest, string State,
-    string RootId, long Budget, string[] TaskIds, DateTimeOffset Deadline, int Version = 1);
+
+public sealed record CompanyReservation(
+    string Id,
+    string RootId,
+    long Amount,
+    string State = "reserved",
+    long? Actual = null,
+    int Version = 1,
+    string[]? Scopes = null
+);
+
+public sealed record CompanyResourceClaim(
+    string Id,
+    string TaskId,
+    string AttemptId,
+    string EmployeeId,
+    int Version = 1
+);
+
+public sealed record CompanyTaskSpec(
+    string EmployeeId,
+    string ThreadId,
+    string Skill,
+    string Input,
+    string[] Evidence,
+    int[] DependsOn
+);
+
+public sealed record CompanyPlanProposal(string Objective, CompanyTaskSpec[] Tasks, long Budget);
+
+public sealed record CompanyPlan(
+    string Id,
+    string CeoId,
+    string Objective,
+    CompanyTaskSpec[] Tasks,
+    string Digest,
+    string State,
+    string RootId,
+    long Budget,
+    string[] TaskIds,
+    DateTimeOffset Deadline,
+    int Version = 1
+);
+
 public sealed record CompanyMeetingTurn(string EmployeeId, string Body, string TaskId);
-public sealed record CompanyMeeting(string Id, string Title, string Agenda, string[] Participants, string ChairId, string[] Evidence,
-    string State, string RootId, long Budget, DateTimeOffset Deadline, CompanyMeetingTurn[] Turns, string? ActiveTask,
-    string? Outcome, string? OutcomeDigest, int Version = 1);
-public sealed record CompanyEvent(long Sequence, string Type, string Id, string? EmployeeId, string Text, DateTimeOffset At);
+
+public sealed record CompanyMeeting(
+    string Id,
+    string Title,
+    string Agenda,
+    string[] Participants,
+    string ChairId,
+    string[] Evidence,
+    string State,
+    string RootId,
+    long Budget,
+    DateTimeOffset Deadline,
+    CompanyMeetingTurn[] Turns,
+    string? ActiveTask,
+    string? Outcome,
+    string? OutcomeDigest,
+    int Version = 1
+);
+
+public sealed record CompanyEvent(
+    long Sequence,
+    string Type,
+    string Id,
+    string? EmployeeId,
+    string Text,
+    DateTimeOffset At
+);
 
 // Transport fields are data. Company, owner, actor, approval authority and provider route are never accepted from the client.
-public sealed record CompanyCommand(string RequestId, string Action, string? Id = null, int ExpectedVersion = 0,
-    string? DepartmentId = null, string? RoleId = null, string? EmployeeId = null, string? ThreadId = null,
-    string? Name = null, string? Responsibility = null, string? Body = null, string? Digest = null, string? Decision = null,
-    string? Skill = null, string[]? Evidence = null, CompanyTaskSpec[]? Tasks = null, string[]? Participants = null,
-    string? ChairId = null, long Budget = 0,decimal CreditAllowance=0,string? Scope=null);
+public sealed record CompanyCommand(
+    string RequestId,
+    string Action,
+    string? Id = null,
+    int ExpectedVersion = 0,
+    string? DepartmentId = null,
+    string? RoleId = null,
+    string? EmployeeId = null,
+    string? ThreadId = null,
+    string? Name = null,
+    string? Responsibility = null,
+    string? Body = null,
+    string? Digest = null,
+    string? Decision = null,
+    string? Skill = null,
+    string[]? Evidence = null,
+    CompanyTaskSpec[]? Tasks = null,
+    string[]? Participants = null,
+    string? ChairId = null,
+    long Budget = 0,
+    decimal CreditAllowance = 0,
+    string? Scope = null
+);
 
-public sealed record CompanyModelCall(string DispatchId, CompanyContext Context, string Instructions, int MaxInputTokens, int MaxOutputTokens, string? ModelRoute = null);
+public sealed record CompanyModelCall(
+    string DispatchId,
+    CompanyContext Context,
+    string Instructions,
+    int MaxInputTokens,
+    int MaxOutputTokens,
+    string? ModelRoute = null
+);
+
 // Runtime selection and task purpose are independent of employee role. A Developer conversation is ordinary text.
-public sealed record CompanyModelRouting(string TextModel="openai/gpt-6-luna",string CodingModel="openai/gpt-6.1-sol",string Runtime="codex")
+public sealed record CompanyModelRouting(
+    string TextModel = "openai/gpt-6-luna",
+    string CodingModel = "openai/gpt-6.1-sol",
+    string Runtime = "codex"
+)
 {
-    public string For(bool execution)=>execution?CodingModel:TextModel;
-    public static string Native(string route)=>route.StartsWith("openai/",StringComparison.Ordinal)?route[7..]:route;
+    public string For(bool execution) => execution ? CodingModel : TextModel;
+
+    public static string Native(string route) =>
+        route.StartsWith("openai/", StringComparison.Ordinal) ? route[7..] : route;
+
     public void Validate()
     {
-        if(Runtime!="codex"||new[]{TextModel,CodingModel}.Any(s=>!s.StartsWith("openai/",StringComparison.Ordinal)||s.Length is <8 or >100||s.Any(c=>!char.IsAsciiLetterOrDigit(c)&&c is not('/' or '-' or '.'))))
+        if (
+            Runtime != "codex"
+            || new[] { TextModel, CodingModel }.Any(s =>
+                !s.StartsWith("openai/", StringComparison.Ordinal)
+                || s.Length is < 8 or > 100
+                || s.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not ('/' or '-' or '.'))
+            )
+        )
             throw new WorkspaceException("Select explicit OpenAI model routes on the Codex runtime.");
     }
 }
-public sealed record CompanyModelReply(string Body, long? TotalTokens, string? Receipt = null,CompanyTokenUsage? Usage=null);
-public sealed class CompanyTransportException(string message,long? knownUsage=null,string? receipt=null,CompanyTokenUsage? usage=null,bool accountingViolation=false):Exception(message)
+
+public sealed record CompanyModelReply(
+    string Body,
+    long? TotalTokens,
+    string? Receipt = null,
+    CompanyTokenUsage? Usage = null
+);
+
+public sealed class CompanyTransportException(
+    string message,
+    long? knownUsage = null,
+    string? receipt = null,
+    CompanyTokenUsage? usage = null,
+    bool accountingViolation = false
+) : Exception(message)
 {
-    public long? KnownUsage {get;}=knownUsage;
-    public string? Receipt {get;}=receipt;
-    public CompanyTokenUsage? Usage {get;}=usage;
-    public bool AccountingViolation {get;}=accountingViolation;
+    public long? KnownUsage { get; } = knownUsage;
+    public string? Receipt { get; } = receipt;
+    public CompanyTokenUsage? Usage { get; } = usage;
+    public bool AccountingViolation { get; } = accountingViolation;
 }
+
 public interface ICompanyModel
 {
     bool Qualified { get; }
     string Status { get; }
+
     // Counts all provider input, including runtime-added framing/instructions. No observed offset.
     CompanyInputAccounting CountInput(CompanyModelCall call);
-    int CountTokens(CompanyModelCall call)=>CountInput(call).TotalTokens();
+    int CountTokens(CompanyModelCall call) => CountInput(call).TotalTokens();
     Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token);
 }
+
 public interface ICompanyMeasuredModel
 {
-    string RuntimeIdentity {get;}
-    Task<CompanyModelReply> CompleteMeasuredAsync(CompanyModelCall call,CompanyMeasuredJob job,CancellationToken token);
+    string RuntimeIdentity { get; }
+    Task<CompanyModelReply> CompleteMeasuredAsync(
+        CompanyModelCall call,
+        CompanyMeasuredJob job,
+        CancellationToken token
+    );
 }
+
 public sealed class UnavailableCompanyModel : ICompanyModel
 {
     public bool Qualified => false;
-    public string Status => "Live context isolation and usage accounting have not been qualified. No model request is sent.";
+    public string Status =>
+        "Live context isolation and usage accounting have not been qualified. No model request is sent.";
+
     public int CountTokens(CompanyModelCall call) => throw new ModelUnavailableException(Status);
+
     public CompanyInputAccounting CountInput(CompanyModelCall call) => throw new ModelUnavailableException(Status);
-    public Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token) => throw new ModelUnavailableException(Status);
+
+    public Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token) =>
+        throw new ModelUnavailableException(Status);
 }
+
 public static class CompanyJson
 {
-    public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web) { UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow };
+    public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    {
+        UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow,
+    };
+
     public static string Encode<T>(T value) => JsonSerializer.Serialize(value, Options);
-    public static T Decode<T>(string value) => JsonSerializer.Deserialize<T>(value, Options) ?? throw new WorkspaceException("Invalid stored company record.");
+
+    public static T Decode<T>(string value) =>
+        JsonSerializer.Deserialize<T>(value, Options) ?? throw new WorkspaceException("Invalid stored company record.");
+
     public static string Digest<T>(T value) => EmployeeStore.Hash(Encode(value));
 }

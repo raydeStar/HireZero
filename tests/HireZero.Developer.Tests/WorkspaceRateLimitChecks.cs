@@ -1,3 +1,5 @@
+using System.Net;
+using System.Text.Json;
 using HireZero.Core;
 using HireZero.Roles.Developer;
 using Microsoft.AspNetCore.Builder;
@@ -7,8 +9,6 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Net;
-using System.Text.Json;
 
 public static class WorkspaceRateLimitChecks
 {
@@ -20,27 +20,46 @@ public static class WorkspaceRateLimitChecks
         builder.Services.AddWorkspaceRateLimits();
         await using var app = builder.Build();
         var agentStarts = 0;
-        app.Use(async (context, next) =>
-        {
-            // Synthetic authenticated identities; the real host verifies identity before this limiter.
-            context.Items["login"] = context.Request.Headers["Test-Login"].ToString();
-            await next();
-        });
+        app.Use(
+            async (context, next) =>
+            {
+                // Synthetic authenticated identities; the real host verifies identity before this limiter.
+                context.Items["login"] = context.Request.Headers["Test-Login"].ToString();
+                await next();
+            }
+        );
         app.UseRateLimiter();
         app.MapGet("/api/read", () => Results.Ok(new { read = true }));
         app.MapPost("/api/write", () => Results.Ok(new { saved = true }));
-        app.MapPost("/api/agent", () => { agentStarts++; return Results.Ok(new { started = true }); }).RequireRateLimiting("agent");
+        app.MapPost(
+                "/api/agent",
+                () =>
+                {
+                    agentStarts++;
+                    return Results.Ok(new { started = true });
+                }
+            )
+            .RequireRateLimiting("agent");
         app.MapGet("/assets/app.js", () => Results.Text("synthetic"));
         await app.StartAsync();
         try
         {
-            var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+            var address = app
+                .Services.GetRequiredService<IServer>()
+                .Features.Get<IServerAddressesFeature>()!
+                .Addresses.Single();
             using var client = new HttpClient { BaseAddress = new Uri(address) };
-            async Task<HttpResponseMessage> Send(string login, string path, HttpMethod? method = null, string? rawIdentity = null)
+            async Task<HttpResponseMessage> Send(
+                string login,
+                string path,
+                HttpMethod? method = null,
+                string? rawIdentity = null
+            )
             {
                 using var request = new HttpRequestMessage(method ?? HttpMethod.Get, path);
                 request.Headers.Add("Test-Login", login);
-                if (rawIdentity is not null) request.Headers.Add("Tailscale-User-Login", rawIdentity);
+                if (rawIdentity is not null)
+                    request.Headers.Add("Tailscale-User-Login", rawIdentity);
                 return await client.SendAsync(request);
             }
 
@@ -55,20 +74,45 @@ public static class WorkspaceRateLimitChecks
                 check(response.IsSuccessStatusCode, "Polling must not prevent a saved message or action.");
             using (var response = await Send("reader", "/api/read"))
             {
-                check(response.StatusCode == HttpStatusCode.TooManyRequests, "Read requests must still have a bounded limit.");
+                check(
+                    response.StatusCode == HttpStatusCode.TooManyRequests,
+                    "Read requests must still have a bounded limit."
+                );
                 using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-                check(problem.RootElement.GetProperty("code").GetString() == "workspace_rate_limited", "A local rate limit must identify itself, not look like an OpenAI outage.");
-                check(problem.RootElement.GetProperty("retryAfterSeconds").GetInt32() is > 0 and <= 60 &&
-                    response.Headers.RetryAfter?.Delta is { TotalSeconds: > 0 }, "A rejection must give the client an explicit retry delay.");
-                check(problem.RootElement.GetProperty("error").GetString()!.Contains("Try again"), "Rate-limit failures need a readable recovery message.");
+                check(
+                    problem.RootElement.GetProperty("code").GetString() == "workspace_rate_limited",
+                    "A local rate limit must identify itself, not look like an OpenAI outage."
+                );
+                check(
+                    problem.RootElement.GetProperty("retryAfterSeconds").GetInt32() is > 0 and <= 60
+                        && response.Headers.RetryAfter?.Delta is { TotalSeconds: > 0 },
+                    "A rejection must give the client an explicit retry delay."
+                );
+                check(
+                    problem.RootElement.GetProperty("error").GetString()!.Contains("Try again"),
+                    "Rate-limit failures need a readable recovery message."
+                );
             }
             for (var i = 0; i < 3; i++)
             {
                 using var response = await Send("reader", "/api/agent", HttpMethod.Post);
-                check(response.IsSuccessStatusCode, "Background polling must not consume the separate model-call allowance.");
+                check(
+                    response.IsSuccessStatusCode,
+                    "Background polling must not consume the separate model-call allowance."
+                );
             }
-            using (var response = await Send("reader", "/api/agent", HttpMethod.Post, "different-raw-header@fixture.invalid"))
-                check(response.StatusCode == HttpStatusCode.TooManyRequests, "Changing an unverified header must not bypass the authenticated identity's action limit.");
+            using (
+                var response = await Send(
+                    "reader",
+                    "/api/agent",
+                    HttpMethod.Post,
+                    "different-raw-header@fixture.invalid"
+                )
+            )
+                check(
+                    response.StatusCode == HttpStatusCode.TooManyRequests,
+                    "Changing an unverified header must not bypass the authenticated identity's action limit."
+                );
             check(agentStarts == 3, "A rejected request must not start a model call.");
             using (var response = await Send("other", "/api/agent", HttpMethod.Post))
                 check(response.IsSuccessStatusCode, "Different authenticated users must have independent allowances.");
@@ -91,6 +135,9 @@ public static class WorkspaceRateLimitChecks
             }
             check(assetsSucceeded, "Page assets must remain loadable even while an API allowance is exhausted.");
         }
-        finally { await app.StopAsync(); }
+        finally
+        {
+            await app.StopAsync();
+        }
     }
 }

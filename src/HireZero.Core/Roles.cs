@@ -3,6 +3,7 @@ using System.Text.Json;
 namespace HireZero.Core;
 
 public sealed record RoleInfo(string Id, string Name, string Summary);
+
 public sealed record RoleContext(string DataRoot, string DatabasePath);
 
 // A pluggable employee (developer, marketer, ...). Hiring a role registers its services, sensors, task
@@ -13,6 +14,7 @@ public interface IRole
     RoleInfo Info { get; }
     void AddServices(IServiceCollection services, RoleContext context);
     void MapEndpoints(WebApplication app);
+
     // Runs once after the app is built (warm caches, recover interrupted work).
     void Start(IServiceProvider services) { }
 }
@@ -22,6 +24,7 @@ public sealed class RoleCatalog(string dataRoot, IReadOnlyList<IRole> available,
 {
     private readonly string _path = Path.Combine(dataRoot, "roles.json");
     public IReadOnlyList<IRole> Available => available;
+
     public string[] HiredIds()
     {
         try
@@ -32,13 +35,22 @@ public sealed class RoleCatalog(string dataRoot, IReadOnlyList<IRole> available,
         catch (JsonException) { }
         return defaultHired;
     }
-    public IRole[] Hired() { var ids = HiredIds(); return [.. available.Where(role => ids.Contains(role.Info.Id))]; }
+
+    public IRole[] Hired()
+    {
+        var ids = HiredIds();
+        return [.. available.Where(role => ids.Contains(role.Info.Id))];
+    }
+
     public string[] SetHired(string id, bool hired)
     {
-        if (available.All(role => role.Info.Id != id)) throw new WorkspaceException("Unknown role.", 404);
+        if (available.All(role => role.Info.Id != id))
+            throw new WorkspaceException("Unknown role.", 404);
         var ids = HiredIds().Where(value => value != id).ToList();
-        if (hired) ids.Add(id);
-        Directory.CreateDirectory(dataRoot); File.WriteAllText(_path, JsonSerializer.Serialize(ids));
+        if (hired)
+            ids.Add(id);
+        Directory.CreateDirectory(dataRoot);
+        File.WriteAllText(_path, JsonSerializer.Serialize(ids));
         return [.. ids];
     }
 }

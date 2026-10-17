@@ -12,7 +12,8 @@ internal static class Scratch
     public static string Folder()
     {
         var folder = Path.Combine(Path.GetTempPath(), "hirezero-brief");
-        Directory.CreateDirectory(folder); return folder;
+        Directory.CreateDirectory(folder);
+        return folder;
     }
 }
 
@@ -21,26 +22,70 @@ internal static class Scratch
 public sealed class ClaudeNarrator(string? command = null) : ISessionNarrator
 {
     public string App => "claude";
-    private readonly string _command = command ?? Environment.GetEnvironmentVariable("HIREZERO_CLAUDE_COMMAND") ?? ClaudeSessionDriver.ResolveCommand();
+    private readonly string _command =
+        command
+        ?? Environment.GetEnvironmentVariable("HIREZERO_CLAUDE_COMMAND")
+        ?? ClaudeSessionDriver.ResolveCommand();
+
     public static string[] Arguments() =>
-        ["-p", "--output-format", "text", "--tools", "", "--no-session-persistence", "--strict-mcp-config", "--setting-sources", "project", "--permission-mode", "default"];
+        [
+            "-p",
+            "--output-format",
+            "text",
+            "--tools",
+            "",
+            "--no-session-persistence",
+            "--strict-mcp-config",
+            "--setting-sources",
+            "project",
+            "--permission-mode",
+            "default",
+        ];
 
     public async Task<string> NarrateAsync(string prompt, CancellationToken token)
     {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token); timeout.CancelAfter(TimeSpan.FromMinutes(3));
-        var start = new ProcessStartInfo(_command) { WorkingDirectory = Scratch.Folder(), RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
-        foreach (var argument in Arguments()) start.ArgumentList.Add(argument);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromMinutes(3));
+        var start = new ProcessStartInfo(_command)
+        {
+            WorkingDirectory = Scratch.Folder(),
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        foreach (var argument in Arguments())
+            start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Claude Code could not start.");
         try
         {
-            await process.StandardInput.WriteAsync(prompt.AsMemory(), timeout.Token); process.StandardInput.Close();
-            var output = process.StandardOutput.ReadToEndAsync(timeout.Token); var errors = process.StandardError.ReadToEndAsync(timeout.Token);
+            await process.StandardInput.WriteAsync(prompt.AsMemory(), timeout.Token);
+            process.StandardInput.Close();
+            var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var errors = process.StandardError.ReadToEndAsync(timeout.Token);
             await process.WaitForExitAsync(timeout.Token);
             var text = (await output).Trim();
-            if (process.ExitCode != 0 || text.Length == 0) throw new InvalidOperationException("Claude didn't write a summary" + ((await errors).Contains("login", StringComparison.OrdinalIgnoreCase) ? " (sign in to Claude Code)." : "."));
+            if (process.ExitCode != 0 || text.Length == 0)
+                throw new InvalidOperationException(
+                    "Claude didn't write a summary"
+                        + (
+                            (await errors).Contains("login", StringComparison.OrdinalIgnoreCase)
+                                ? " (sign in to Claude Code)."
+                                : "."
+                        )
+                );
             return text;
         }
-        finally { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { } }
+        finally
+        {
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException) { }
+        }
     }
 }
 
@@ -48,18 +93,29 @@ public sealed class ClaudeNarrator(string? command = null) : ISessionNarrator
 public sealed class CodexNarrator(ICodingRunner runner) : ISessionNarrator
 {
     public string App => "codex";
+
     public async Task<string> NarrateAsync(string prompt, CancellationToken token)
     {
-        var run = runner.Start(new CodingRunRequest(Scratch.Folder(), prompt, null, null, "low", false, AllowWrite: false));
+        var run = runner.Start(
+            new CodingRunRequest(Scratch.Folder(), prompt, null, null, "low", false, AllowWrite: false)
+        );
         var deadline = DateTimeOffset.UtcNow.AddMinutes(3);
         while (run.State is "queued" or "running")
         {
-            if (DateTimeOffset.UtcNow > deadline) { runner.Cancel(run.Id); throw new InvalidOperationException("Codex took too long to summarize."); }
+            if (DateTimeOffset.UtcNow > deadline)
+            {
+                runner.Cancel(run.Id);
+                throw new InvalidOperationException("Codex took too long to summarize.");
+            }
             await Task.Delay(1000, token);
             run = runner.Find(run.Id) ?? throw new InvalidOperationException("The Codex summary run disappeared.");
         }
-        if (run.State != "completed" || run.ResultJson is null) throw new InvalidOperationException(run.Error ?? "Codex didn't write a summary.");
+        if (run.State != "completed" || run.ResultJson is null)
+            throw new InvalidOperationException(run.Error ?? "Codex didn't write a summary.");
         using var result = JsonDocument.Parse(run.ResultJson);
-        return result.RootElement.TryGetProperty("summary", out var summary) && summary.ValueKind == JsonValueKind.String ? summary.GetString()!.Trim() : throw new InvalidOperationException("Codex didn't write a summary.");
+        return
+            result.RootElement.TryGetProperty("summary", out var summary) && summary.ValueKind == JsonValueKind.String
+            ? summary.GetString()!.Trim()
+            : throw new InvalidOperationException("Codex didn't write a summary.");
     }
 }

@@ -10,7 +10,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
-    <EmbeddedResource Include="../../runtime/openclaw/package.json" LogicalName="HireZero.Integrations.OpenClaw.runtime-package.json" Link="runtime-package.json" />
+    <EmbeddedResource
+      Include="../../runtime/openclaw/package.json"
+      LogicalName="HireZero.Integrations.OpenClaw.runtime-package.json"
+      Link="runtime-package.json"
+    />
     <Using Include="HireZero.Core" />
   </ItemGroup>
 </Project>

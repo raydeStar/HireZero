@@ -23,33 +23,66 @@ public sealed class SharingPolicy(string dataRoot, string ownerLogin, string? de
     {
         try
         {
-            var settings = File.Exists(_path) ? JsonSerializer.Deserialize<SharingSettings>(File.ReadAllText(_path), Json) ?? Defaults() : Defaults();
+            var settings = File.Exists(_path)
+                ? JsonSerializer.Deserialize<SharingSettings>(File.ReadAllText(_path), Json) ?? Defaults()
+                : Defaults();
             return settings.OwnerName is { Length: > 0 } ? settings : settings with { OwnerName = defaultOwnerName };
         }
-        catch (JsonException) { return Defaults(); }
+        catch (JsonException)
+        {
+            return Defaults();
+        }
     }
 
     public SharingSettings Save(SharingSettings settings)
     {
-        static string[] Clean(string[]? values) => [.. (values ?? []).Select(value => value.Trim()).Where(value => value.Length is > 0 and <= 100).Distinct(StringComparer.OrdinalIgnoreCase).Take(100)];
+        static string[] Clean(string[]? values) =>
+            [
+                .. (values ?? [])
+                    .Select(value => value.Trim())
+                    .Where(value => value.Length is > 0 and <= 100)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(100),
+            ];
         var name = settings.OwnerName is { } given ? ContentGuard.Clean(given, 80).Text.Trim() : null;
-        var clean = new SharingSettings(Clean(settings.BossOrganizations), Clean(settings.HiddenProjects), name is { Length: > 0 } ? name : null);
-        Directory.CreateDirectory(dataRoot); File.WriteAllText(_path, JsonSerializer.Serialize(clean, Json));
+        var clean = new SharingSettings(
+            Clean(settings.BossOrganizations),
+            Clean(settings.HiddenProjects),
+            name is { Length: > 0 } ? name : null
+        );
+        Directory.CreateDirectory(dataRoot);
+        File.WriteAllText(_path, JsonSerializer.Serialize(clean, Json));
         return clean;
     }
 
     public bool SharesWithBoss(ProjectRef project) =>
-        project.Origin is { } origin ? SharesWithBoss(origin, project.Name)
-            : project.Repository is { } repository && repository.Contains('/') && SharesWithBoss(new GitOrigin(GitOrigin.GitHub, repository.Split('/')[0], null, repository.Split('/')[1]), project.Name);
+        project.Origin is { } origin
+            ? SharesWithBoss(origin, project.Name)
+            : project.Repository is { } repository
+                && repository.Contains('/')
+                && SharesWithBoss(
+                    new GitOrigin(GitOrigin.GitHub, repository.Split('/')[0], null, repository.Split('/')[1]),
+                    project.Name
+                );
 
     public bool SharesWithBoss(GitOrigin origin, string projectName)
     {
         var settings = Settings();
-        if (settings.HiddenProjects.Any(hidden => hidden.Equals(projectName, StringComparison.OrdinalIgnoreCase) || hidden.Equals(origin.Name, StringComparison.OrdinalIgnoreCase) ||
-            hidden.Equals(origin.Slug, StringComparison.OrdinalIgnoreCase))) return false;
+        if (
+            settings.HiddenProjects.Any(hidden =>
+                hidden.Equals(projectName, StringComparison.OrdinalIgnoreCase)
+                || hidden.Equals(origin.Name, StringComparison.OrdinalIgnoreCase)
+                || hidden.Equals(origin.Slug, StringComparison.OrdinalIgnoreCase)
+            )
+        )
+            return false;
         // An Azure DevOps organization is often a short form of the company name ("exam" for Example).
         var devops = origin.Host == GitOrigin.AzureDevOps;
-        return settings.BossOrganizations.Any(allowed => allowed.Equals(origin.Organization, StringComparison.OrdinalIgnoreCase) ||
-            devops && origin.Organization.Length >= 4 && allowed.StartsWith(origin.Organization, StringComparison.OrdinalIgnoreCase));
+        return settings.BossOrganizations.Any(allowed =>
+            allowed.Equals(origin.Organization, StringComparison.OrdinalIgnoreCase)
+            || devops
+                && origin.Organization.Length >= 4
+                && allowed.StartsWith(origin.Organization, StringComparison.OrdinalIgnoreCase)
+        );
     }
 }

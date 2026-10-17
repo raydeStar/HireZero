@@ -14,12 +14,30 @@ public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        if(args.FirstOrDefault() is "--codex-inspect" or "--codex-pilot")
-        {try{await CompanyCodexChecks.InspectInstalledAsync(args);}catch(Exception e) when(e is WorkspaceException or CompanyTransportException){Console.WriteLine("BLOCKED: "+e.Message);Environment.ExitCode=2;}return Environment.ExitCode;}
-        if(args.FirstOrDefault() is "--measured-browser-fixture" or "--company-browser-fixture"){await BrowserQueueFixture.RunAsync(args);return Environment.ExitCode;}
+        if (args.FirstOrDefault() is "--codex-inspect" or "--codex-pilot")
+        {
+            try
+            {
+                await CompanyCodexChecks.InspectInstalledAsync(args);
+            }
+            catch (Exception e) when (e is WorkspaceException or CompanyTransportException)
+            {
+                Console.WriteLine("BLOCKED: " + e.Message);
+                Environment.ExitCode = 2;
+            }
+            return Environment.ExitCode;
+        }
+        if (args.FirstOrDefault() is "--measured-browser-fixture" or "--company-browser-fixture")
+        {
+            await BrowserQueueFixture.RunAsync(args);
+            return Environment.ExitCode;
+        }
         // Mirrors xUnit's generated entry point: Microsoft.Testing.Platform for dotnet test, the console runner otherwise.
         if (args.Any(arg => arg is "--server" or "--internal-msbuild-node"))
-            return await Xunit.MicrosoftTestingPlatform.TestPlatformTestFramework.RunAsync(args, HireZero.Company.Tests.SelfRegisteredExtensions.AddSelfRegisteredExtensions);
+            return await Xunit.MicrosoftTestingPlatform.TestPlatformTestFramework.RunAsync(
+                args,
+                HireZero.Company.Tests.SelfRegisteredExtensions.AddSelfRegisteredExtensions
+            );
         return await ConsoleRunner.Run(args);
     }
 }

@@ -7,11 +7,13 @@ public sealed class OpenClawRuntimeTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "openclaw-pin-" + Guid.NewGuid().ToString("N"));
 
     public OpenClawRuntimeTests() => Directory.CreateDirectory(_root);
+
     public void Dispose() => Directory.Delete(_root, true);
 
     private string Entry(string? manifest)
     {
-        if (manifest is not null) File.WriteAllText(Path.Combine(_root, "package.json"), manifest);
+        if (manifest is not null)
+            File.WriteAllText(Path.Combine(_root, "package.json"), manifest);
         var entry = Path.Combine(_root, "openclaw.mjs");
         File.WriteAllText(entry, "// fictional entry");
         return entry;
@@ -20,9 +22,14 @@ public sealed class OpenClawRuntimeTests : IDisposable
     [Fact]
     public void PinMatchesTheRuntimeManifest()
     {
-        var manifest = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../runtime/openclaw/package.json"));
+        var manifest = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "../../../../../runtime/openclaw/package.json")
+        );
         using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(manifest));
-        Assert.Equal(document.RootElement.GetProperty("dependencies").GetProperty("openclaw").GetString(), OpenClawRuntime.PinnedVersion);
+        Assert.Equal(
+            document.RootElement.GetProperty("dependencies").GetProperty("openclaw").GetString(),
+            OpenClawRuntime.PinnedVersion
+        );
     }
 
     [Fact]

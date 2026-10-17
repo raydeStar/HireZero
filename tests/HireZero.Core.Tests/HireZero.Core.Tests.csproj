@@ -2,5 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/HireZero.Core/HireZero.Core.csproj" />
   </ItemGroup>
-  <ItemGroup><Content Include="../xunit.runner.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup>
+    <Content Include="../xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

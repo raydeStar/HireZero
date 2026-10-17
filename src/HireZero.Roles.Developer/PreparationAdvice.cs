@@ -26,13 +26,25 @@ public static class PreparationAdvice
     {
         try
         {
-            var value = JsonSerializer.Deserialize<PreparationSuggestion>(text,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            return value is not null && ValidStage(value.Stage) && value.Blocker is not null && value.Blocker.Length <= 1000 &&
-                !string.IsNullOrWhiteSpace(value.NextAction) && value.NextAction.Length <= 1000 &&
-                value.Questions is { Length: <= 5 } && value.Questions.All(question => !string.IsNullOrWhiteSpace(question) && question.Length <= 400)
-                ? value : null;
+            var value = JsonSerializer.Deserialize<PreparationSuggestion>(
+                text,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            );
+            return
+                value is not null
+                && ValidStage(value.Stage)
+                && value.Blocker is not null
+                && value.Blocker.Length <= 1000
+                && !string.IsNullOrWhiteSpace(value.NextAction)
+                && value.NextAction.Length <= 1000
+                && value.Questions is { Length: <= 5 }
+                && value.Questions.All(question => !string.IsNullOrWhiteSpace(question) && question.Length <= 400)
+                ? value
+                : null;
         }
-        catch (JsonException) { return null; }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 }

@@ -5,5 +5,10 @@ namespace HireZero.Core;
 public sealed class RequestAgentConsent(CancellationTokenSource source, Action release) : IDisposable
 {
     public CancellationToken Token => source.Token;
-    public void Dispose() { release(); source.Dispose(); }
+
+    public void Dispose()
+    {
+        release();
+        source.Dispose();
+    }
 }

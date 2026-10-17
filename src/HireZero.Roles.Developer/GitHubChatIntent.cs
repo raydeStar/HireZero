@@ -36,40 +36,86 @@ public sealed record GitHubChatIntent(string Action, string? Repository, string 
         Keep reply at most 1200 characters. Never claim an action was completed or authorization was saved.
         """;
 
-    public static string Prompt(WorkRequest request, IReadOnlyList<ConversationMessage> messages, string[] repositoryNames,
-        GitHubChatRoute? routingHint = null)
+    public static string Prompt(
+        WorkRequest request,
+        IReadOnlyList<ConversationMessage> messages,
+        string[] repositoryNames,
+        GitHubChatRoute? routingHint = null
+    )
     {
-        static string Bound(string text, int limit) => GitHubReviewPolicy.SafeText(text)
-            ? text[..Math.Min(limit, text.Length)] : "Text withheld because it appears to contain credentials.";
+        static string Bound(string text, int limit) =>
+            GitHubReviewPolicy.SafeText(text)
+                ? text[..Math.Min(limit, text.Length)]
+                : "Text withheld because it appears to contain credentials.";
         var discussion = messages.Where(note => note.Visibility != "owner").ToArray();
         var latest = discussion.LastOrDefault();
-        return JsonSerializer.Serialize(new {
-            project = Bound(request.Project, 100), title = Bound(request.Title, 180),
-            latestOwnerMessage = Bound(latest?.Body ?? request.Description, 4000),
-            conversation = discussion.SkipLast(1).TakeLast(6).Select(note => new {
-                author = note.Author == "workspace-agent" ? "Workspace agent" : "Owner",
-                text = Bound(note.Body, 1000)
-            }),
-            connectedRepositoryNames = repositoryNames.Take(20).ToArray(), routingHint
-        });
+        return JsonSerializer.Serialize(
+            new
+            {
+                project = Bound(request.Project, 100),
+                title = Bound(request.Title, 180),
+                latestOwnerMessage = Bound(latest?.Body ?? request.Description, 4000),
+                conversation = discussion
+                    .SkipLast(1)
+                    .TakeLast(6)
+                    .Select(note => new
+                    {
+                        author = note.Author == "workspace-agent" ? "Workspace agent" : "Owner",
+                        text = Bound(note.Body, 1000),
+                    }),
+                connectedRepositoryNames = repositoryNames.Take(20).ToArray(),
+                routingHint,
+            }
+        );
     }
 
     public static GitHubChatIntent? Parse(string text)
     {
-        if (text.Length > 4000) return null;
+        if (text.Length > 4000)
+            return null;
         try
         {
-            var intent = JsonSerializer.Deserialize<GitHubChatIntent>(text, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (intent is null || intent.Reply is null || intent.Reply.Length > 1200 || !GitHubReviewPolicy.SafeText(intent.Reply)) return null;
-            if (intent.Action is "none" or "clarify") return intent.Repository is null && !string.IsNullOrWhiteSpace(intent.Reply) ? intent : null;
-            if (intent.Action == "inspect") return (intent.Repository is null || GitHubReviewPolicy.ValidRepository(intent.Repository)) &&
-                (intent.Number is null || intent.Number > 0) && (intent.Number is null || intent.Repository is not null) ? intent : null;
-            if (intent.Action is not ("connect" or "enableAutomatic" or "disableAutomatic")) return null;
+            var intent = JsonSerializer.Deserialize<GitHubChatIntent>(
+                text,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+            );
+            if (
+                intent is null
+                || intent.Reply is null
+                || intent.Reply.Length > 1200
+                || !GitHubReviewPolicy.SafeText(intent.Reply)
+            )
+                return null;
+            if (intent.Action is "none" or "clarify")
+                return intent.Repository is null && !string.IsNullOrWhiteSpace(intent.Reply) ? intent : null;
+            if (intent.Action == "inspect")
+                return
+                    (intent.Repository is null || GitHubReviewPolicy.ValidRepository(intent.Repository))
+                    && (intent.Number is null || intent.Number > 0)
+                    && (intent.Number is null || intent.Repository is not null)
+                    ? intent
+                    : null;
+            if (intent.Action is not ("connect" or "enableAutomatic" or "disableAutomatic"))
+                return null;
             var name = intent.Repository?.Trim();
-            return name is { Length: >= 2 and <= 100 } && GitHubReviewPolicy.SafeText(name) && (GitHubReviewPolicy.ValidRepository(name) ||
-                name.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_' or ' '))
-                ? intent with { Repository = name } : null;
+            return
+                name is { Length: >= 2 and <= 100 }
+                && GitHubReviewPolicy.SafeText(name)
+                && (
+                    GitHubReviewPolicy.ValidRepository(name)
+                    || name.All(character =>
+                        char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_' or ' '
+                    )
+                )
+                ? intent with
+                {
+                    Repository = name,
+                }
+                : null;
         }
-        catch (JsonException) { return null; }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 }

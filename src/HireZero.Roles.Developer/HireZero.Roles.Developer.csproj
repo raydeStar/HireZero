@@ -10,7 +10,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
-    <EmbeddedResource Include="TrustedPostgresRunner.mjs" LogicalName="HireZero.Roles.Developer.TrustedPostgresRunner.mjs" />
+    <EmbeddedResource
+      Include="TrustedPostgresRunner.mjs"
+      LogicalName="HireZero.Roles.Developer.TrustedPostgresRunner.mjs"
+    />
     <Using Include="HireZero.Core" />
   </ItemGroup>
 </Project>

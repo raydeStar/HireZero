@@ -17,12 +17,20 @@ public interface IModelGateway
     string Reasoning { get; }
     void Prepare(string cell);
     void Stop(string cell);
-    Task<string> CompleteAsync(string cell, string instructions, string prompt, CancellationToken token, string? model = null, int maxTokens = 900);
+    Task<string> CompleteAsync(
+        string cell,
+        string instructions,
+        string prompt,
+        CancellationToken token,
+        string? model = null,
+        int maxTokens = 900
+    );
 }
 
 public sealed record WorkspaceOwner(string Login)
 {
     public const string LocalIdentity = "local-owner@workspace.invalid";
+
     public bool Owns(WorkRequest request) => request.Requester == Login || request.Requester == LocalIdentity;
 }
 
@@ -32,5 +40,11 @@ public interface IConversationResponder
 {
     // context: what HireZero knows about the projects this conversation mentions, already cleaned and fenced
     // for the asker's audience (full for the owner, an outline for visitors), or null when none matched.
-    Task<string?> RespondAsync(WorkRequest request, IReadOnlyList<ConversationMessage> messages, bool ownerConversation, string? context, CancellationToken token);
+    Task<string?> RespondAsync(
+        WorkRequest request,
+        IReadOnlyList<ConversationMessage> messages,
+        bool ownerConversation,
+        string? context,
+        CancellationToken token
+    );
 }

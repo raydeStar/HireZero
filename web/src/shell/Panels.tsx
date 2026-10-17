@@ -1,50 +1,479 @@
-import {useEffect,useRef,useState,type ReactNode} from 'react';
-import {ArrowRight,FileText,Folder,Monitor,Moon,Search,ShieldCheck,Sun,X} from 'lucide-react';
-import {api,initials,when,type Person,type Session,type SharedWork,type WorkRequest,titleOf} from './api';
-import type {RoleUi} from '../roles/types';
-import {MicrosoftConnection} from './Inbox';
-import {SharingSection} from './Sharing';
-import {AccessSection} from './Access';
-const roleName=(role:string)=>role==='boss'||role==='manager'?'Boss':role==='trusted'?'Trusted':'Visitor';
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowRight, FileText, Folder, Monitor, Moon, Search, ShieldCheck, Sun, X } from "lucide-react";
+import { api, initials, when, type Person, type Session, type SharedWork, type WorkRequest, titleOf } from "./api";
+import type { RoleUi } from "../roles/types";
+import { MicrosoftConnection } from "./Inbox";
+import { SharingSection } from "./Sharing";
+import { AccessSection } from "./Access";
+const roleName = (role: string) =>
+  role === "boss" || role === "manager" ? "Boss" : role === "trusted" ? "Trusted" : "Visitor";
 
-export type ThemeChoice='light'|'dark'|'system';
-interface DialogProps {title:string;onClose:()=>void;children:ReactNode;className?:string;}
-export function Dialog({title,onClose,children,className=''}:DialogProps){
-  const dialog=useRef<HTMLDialogElement>(null);
-  useEffect(()=>{dialog.current?.showModal();},[]);
-  return <dialog ref={dialog} className={'fe-dialog '+className} aria-label={title} onCancel={event=>{event.preventDefault();onClose();}} onClick={event=>{if(event.target===event.currentTarget)onClose();}}><header><h2>{title}</h2><button className="fe-icon-button" aria-label="Close dialog" onClick={onClose}><X size={17}/></button></header>{children}</dialog>;
+export type ThemeChoice = "light" | "dark" | "system";
+interface DialogProps {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  className?: string;
+}
+export function Dialog({ title, onClose, children, className = "" }: DialogProps) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    dialog.current?.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={dialog}
+      className={"fe-dialog " + className}
+      aria-label={title}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <header>
+        <h2>{title}</h2>
+        <button className="fe-icon-button" aria-label="Close dialog" onClick={onClose}>
+          <X size={17} />
+        </button>
+      </header>
+      {children}
+    </dialog>
+  );
 }
 
-interface NewRequestProps{prefill:string;project:string;onCreate:(project:string,title:string,description:string,key:string)=>Promise<void>;onClose:()=>void;}
-export function NewRequestDialog({prefill,project,onCreate,onClose}:NewRequestProps){
-  const [name,setName]=useState(project),[title,setTitle]=useState(''),[description,setDescription]=useState(prefill),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const attempt=useRef<{body:string;key:string}|null>(null);
-  async function submit(){setBusy(true);setError('');const body=JSON.stringify([name,title,description]);if(attempt.current?.body!==body)attempt.current={body,key:crypto.randomUUID()};try{await onCreate(name,title,description,attempt.current.key);onClose();}catch(cause){setError((cause as Error).message);}finally{setBusy(false);}}
-  return <Dialog title="New development request" onClose={onClose}><form className="fe-dialog-body fe-form" onSubmit={event=>{event.preventDefault();void submit();}}><p className="fe-muted">Bring the problem, examples, and what a successful result looks like. This adds intake for review.</p><label>Project or repository<input autoFocus required maxLength={100} value={name} onChange={event=>setName(event.target.value)} placeholder="General development"/></label><label>Title<input required maxLength={160} value={title} onChange={event=>setTitle(event.target.value)} placeholder="What needs to change?"/></label><label>Requirements and acceptance criteria<textarea required rows={8} maxLength={4000} value={description} onChange={event=>setDescription(event.target.value)}/></label>{error&&<p className="fe-alert" role="alert">{error} Your draft is preserved.</p>}<footer><button type="button" onClick={onClose}>Cancel</button><button className="primary" disabled={busy}>{busy?'Saving…':'Add request'} <ArrowRight size={15}/></button></footer></form></Dialog>;
+interface NewRequestProps {
+  prefill: string;
+  project: string;
+  onCreate: (project: string, title: string, description: string, key: string) => Promise<void>;
+  onClose: () => void;
+}
+export function NewRequestDialog({ prefill, project, onCreate, onClose }: NewRequestProps) {
+  const [name, setName] = useState(project),
+    [title, setTitle] = useState(""),
+    [description, setDescription] = useState(prefill),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const attempt = useRef<{ body: string; key: string } | null>(null);
+  async function submit() {
+    setBusy(true);
+    setError("");
+    const body = JSON.stringify([name, title, description]);
+    if (attempt.current?.body !== body) attempt.current = { body, key: crypto.randomUUID() };
+    try {
+      await onCreate(name, title, description, attempt.current.key);
+      onClose();
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Dialog title="New development request" onClose={onClose}>
+      <form
+        className="fe-dialog-body fe-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <p className="fe-muted">
+          Bring the problem, examples, and what a successful result looks like. This adds intake for review.
+        </p>
+        <label>
+          Project or repository
+          <input
+            autoFocus
+            required
+            maxLength={100}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="General development"
+          />
+        </label>
+        <label>
+          Title
+          <input
+            required
+            maxLength={160}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="What needs to change?"
+          />
+        </label>
+        <label>
+          Requirements and acceptance criteria
+          <textarea
+            required
+            rows={8}
+            maxLength={4000}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </label>
+        {error && (
+          <p className="fe-alert" role="alert">
+            {error} Your draft is preserved.
+          </p>
+        )}
+        <footer>
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary" disabled={busy}>
+            {busy ? "Saving…" : "Add request"} <ArrowRight size={15} />
+          </button>
+        </footer>
+      </form>
+    </Dialog>
+  );
 }
 
-interface PaletteProps{requests:WorkRequest[];workload:SharedWork[];onOpen:(id:string)=>void;onWork:()=>void;onClose:()=>void;}
-export function CommandPalette({requests,workload,onOpen,onWork,onClose}:PaletteProps){
-  const [query,setQuery]=useState(''),[selected,setSelected]=useState(0);
-  const matches=requests.filter(item=>[titleOf(item),item.title,item.project,item.description].join(' ').toLowerCase().includes(query.toLowerCase())).slice(0,8);
-  const shared=workload.filter(item=>!requests.some(request=>request.id===item.requestId)&&[item.summary,item.outcome||''].join(' ').toLowerCase().includes(query.toLowerCase())).slice(0,4);
-  const count=matches.length+shared.length;
-  function choose(index:number){const item=matches[index];if(item)onOpen(item.id);else onWork();onClose();}
-  return <Dialog title="Search your workspace" onClose={onClose} className="fe-palette"><div className="fe-dialog-body"><label className="fe-search"><Search size={18}/><input autoFocus aria-label="Search visible requests and approved work" value={query} placeholder="Find a request or approved update…" onChange={event=>{setQuery(event.target.value);setSelected(0);}} onKeyDown={event=>{if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();if(count)setSelected(value=>(value+(event.key==='ArrowDown'?1:-1)+count)%count);}if(event.key==='Enter'&&count){event.preventDefault();choose(selected);}}}/></label><div className="dev-palette-results">{matches.map((item,index)=><button className="fe-palette-item" aria-selected={index===selected} key={item.id} onClick={()=>choose(index)}><FileText size={17}/><span><strong>{titleOf(item)}</strong><small>{item.project}</small></span><em>Request</em></button>)}{shared.map((item,index)=><button className="fe-palette-item" aria-selected={matches.length+index===selected} key={item.requestId} onClick={()=>choose(matches.length+index)}><ShieldCheck size={17}/><span><strong>{item.summary}</strong><small>{item.status} · {item.priority} priority</small></span><em>Approved work</em></button>)}{count===0&&<p className="fe-empty">No visible work matches.</p>}</div></div><footer className="fe-palette-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></footer></Dialog>;
+interface PaletteProps {
+  requests: WorkRequest[];
+  workload: SharedWork[];
+  onOpen: (id: string) => void;
+  onWork: () => void;
+  onClose: () => void;
+}
+export function CommandPalette({ requests, workload, onOpen, onWork, onClose }: PaletteProps) {
+  const [query, setQuery] = useState(""),
+    [selected, setSelected] = useState(0);
+  const matches = requests
+    .filter((item) =>
+      [titleOf(item), item.title, item.project, item.description].join(" ").toLowerCase().includes(query.toLowerCase()),
+    )
+    .slice(0, 8);
+  const shared = workload
+    .filter(
+      (item) =>
+        !requests.some((request) => request.id === item.requestId) &&
+        [item.summary, item.outcome || ""].join(" ").toLowerCase().includes(query.toLowerCase()),
+    )
+    .slice(0, 4);
+  const count = matches.length + shared.length;
+  function choose(index: number) {
+    const item = matches[index];
+    if (item) onOpen(item.id);
+    else onWork();
+    onClose();
+  }
+  return (
+    <Dialog title="Search your workspace" onClose={onClose} className="fe-palette">
+      <div className="fe-dialog-body">
+        <label className="fe-search">
+          <Search size={18} />
+          <input
+            autoFocus
+            aria-label="Search visible requests and approved work"
+            value={query}
+            placeholder="Find a request or approved update…"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setSelected(0);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                if (count) setSelected((value) => (value + (event.key === "ArrowDown" ? 1 : -1) + count) % count);
+              }
+              if (event.key === "Enter" && count) {
+                event.preventDefault();
+                choose(selected);
+              }
+            }}
+          />
+        </label>
+        <div className="dev-palette-results">
+          {matches.map((item, index) => (
+            <button
+              className="fe-palette-item"
+              aria-selected={index === selected}
+              key={item.id}
+              onClick={() => choose(index)}
+            >
+              <FileText size={17} />
+              <span>
+                <strong>{titleOf(item)}</strong>
+                <small>{item.project}</small>
+              </span>
+              <em>Request</em>
+            </button>
+          ))}
+          {shared.map((item, index) => (
+            <button
+              className="fe-palette-item"
+              aria-selected={matches.length + index === selected}
+              key={item.requestId}
+              onClick={() => choose(matches.length + index)}
+            >
+              <ShieldCheck size={17} />
+              <span>
+                <strong>{item.summary}</strong>
+                <small>
+                  {item.status} · {item.priority} priority
+                </small>
+              </span>
+              <em>Approved work</em>
+            </button>
+          ))}
+          {count === 0 && <p className="fe-empty">No visible work matches.</p>}
+        </div>
+      </div>
+      <footer className="fe-palette-foot">
+        <span>
+          <kbd>↑</kbd> <kbd>↓</kbd> to move
+        </span>
+        <span>
+          <kbd>Enter</kbd> to open
+        </span>
+        <span>
+          <kbd>Esc</kbd> to close
+        </span>
+      </footer>
+    </Dialog>
+  );
 }
 
-export function ProjectsView({requests,onOpen}:{requests:WorkRequest[];onOpen:(id:string)=>void}){
-  const projects=[...new Set(requests.map(item=>item.project))].sort();
-  return <section className="fe-view"><header className="fe-view-head"><div><h1>Projects</h1><p className="fe-muted">Development work grouped by project or repository.</p></div></header>{!projects.length&&<p className="fe-empty">Projects appear when you bring a request.</p>}{projects.map(project=><section className="fe-section" key={project}><header className="fe-section-head"><Folder size={18}/><h2>{project}</h2><span className="fe-count">{requests.filter(item=>item.project===project).length}</span></header>{requests.filter(item=>item.project===project).map(item=><button className="fe-list-row" key={item.id} onClick={()=>onOpen(item.id)}><FileText size={16}/><span className="fe-list-main"><strong>{titleOf(item)}</strong><small>{when(item.createdAt)}</small></span><ArrowRight size={15}/></button>)}</section>)}</section>;
+export function ProjectsView({ requests, onOpen }: { requests: WorkRequest[]; onOpen: (id: string) => void }) {
+  const projects = [...new Set(requests.map((item) => item.project))].sort();
+  return (
+    <section className="fe-view">
+      <header className="fe-view-head">
+        <div>
+          <h1>Projects</h1>
+          <p className="fe-muted">Development work grouped by project or repository.</p>
+        </div>
+      </header>
+      {!projects.length && <p className="fe-empty">Projects appear when you bring a request.</p>}
+      {projects.map((project) => (
+        <section className="fe-section" key={project}>
+          <header className="fe-section-head">
+            <Folder size={18} />
+            <h2>{project}</h2>
+            <span className="fe-count">{requests.filter((item) => item.project === project).length}</span>
+          </header>
+          {requests
+            .filter((item) => item.project === project)
+            .map((item) => (
+              <button className="fe-list-row" key={item.id} onClick={() => onOpen(item.id)}>
+                <FileText size={16} />
+                <span className="fe-list-main">
+                  <strong>{titleOf(item)}</strong>
+                  <small>{when(item.createdAt)}</small>
+                </span>
+                <ArrowRight size={15} />
+              </button>
+            ))}
+        </section>
+      ))}
+    </section>
+  );
 }
 
-export function TeamView({people,session,onRefresh,onForbidden}:{people:Person[];session:Session;onRefresh:()=>Promise<void>;onForbidden:()=>void}){
-  const [login,setLogin]=useState(''),[role,setRole]=useState<'boss'|'trusted'|'visitor'>('visitor'),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  async function save(person:Person){setBusy(true);setError('');try{await api('/people','PUT',person);await onRefresh();setLogin('');}catch(cause){setError((cause as Error).message);if((cause as {status?:number}).status===403)onForbidden();}finally{setBusy(false);}}
-  return <section className="fe-view"><header className="fe-view-head"><div><h1>Team</h1><p className="fe-muted">Your agent and invited people.</p></div></header><section className="fe-section"><div className="fe-section-head"><span className="fe-avatar">WA</span><div><h2>Workspace agent</h2><p className="fe-muted">OpenClaw · AI assistant · {session.agentModel?.split('/' ).pop()} · {session.agentReasoning} reasoning</p></div></div><p>Clarifies direct requests in an isolated conversation. Execution needs your approval.</p></section><section className="fe-section"><h2>Access</h2><p className="fe-muted">{session.accessMode==='local'?'You are on this computer. On the tailnet, only you and the people below can open HireZero; everyone else is refused.':'Access is restricted to invited identities.'}</p><div className="fe-list-row"><span className="fe-avatar small">{initials(session.login)}</span><span className="fe-list-main"><strong>{session.login}</strong><small>Owner</small></span></div>{people.map(person=><div className="fe-list-row" key={person.login}><span className="fe-avatar small">{initials(person.login)}</span><span className="fe-list-main"><strong>{person.login}</strong><small>{roleName(person.role)} · {person.revoked?'Revoked':'Invited'}</small></span><button disabled={busy} onClick={()=>void save({...person,revoked:!person.revoked})}>{person.revoked?'Restore access':'Revoke'}</button></div>)}</section><form className="fe-section fe-form" onSubmit={event=>{event.preventDefault();void save({login,role,revoked:false});}}><h2>Prepare an invitation</h2><label>Login email<input required type="email" maxLength={320} value={login} onChange={event=>setLogin(event.target.value)}/></label><label>Role<select value={role} onChange={event=>setRole(event.target.value as 'boss'|'trusted'|'visitor')}><option value="boss">Boss · sanitized log of your company work and a daily synopsis on request</option><option value="trusted">Trusted · usually a yes; the agent answers and prepares, you approve before anything runs</option><option value="visitor">Visitor · may ask; no agent effort until you allow it per request</option></select></label><footer><button className="primary" disabled={busy}>Save invitation</button></footer>{error&&<p className="fe-alert" role="alert">{error}</p>}</form><AccessSection/><SharingSection/></section>;
+export function TeamView({
+  people,
+  session,
+  onRefresh,
+  onForbidden,
+}: {
+  people: Person[];
+  session: Session;
+  onRefresh: () => Promise<void>;
+  onForbidden: () => void;
+}) {
+  const [login, setLogin] = useState(""),
+    [role, setRole] = useState<"boss" | "trusted" | "visitor">("visitor"),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function save(person: Person) {
+    setBusy(true);
+    setError("");
+    try {
+      await api("/people", "PUT", person);
+      await onRefresh();
+      setLogin("");
+    } catch (cause) {
+      setError((cause as Error).message);
+      if ((cause as { status?: number }).status === 403) onForbidden();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="fe-view">
+      <header className="fe-view-head">
+        <div>
+          <h1>Team</h1>
+          <p className="fe-muted">Your agent and invited people.</p>
+        </div>
+      </header>
+      <section className="fe-section">
+        <div className="fe-section-head">
+          <span className="fe-avatar">WA</span>
+          <div>
+            <h2>Workspace agent</h2>
+            <p className="fe-muted">
+              OpenClaw · AI assistant · {session.agentModel?.split("/").pop()} · {session.agentReasoning} reasoning
+            </p>
+          </div>
+        </div>
+        <p>Clarifies direct requests in an isolated conversation. Execution needs your approval.</p>
+      </section>
+      <section className="fe-section">
+        <h2>Access</h2>
+        <p className="fe-muted">
+          {session.accessMode === "local"
+            ? "You are on this computer. On the tailnet, only you and the people below can open HireZero; everyone else is refused."
+            : "Access is restricted to invited identities."}
+        </p>
+        <div className="fe-list-row">
+          <span className="fe-avatar small">{initials(session.login)}</span>
+          <span className="fe-list-main">
+            <strong>{session.login}</strong>
+            <small>Owner</small>
+          </span>
+        </div>
+        {people.map((person) => (
+          <div className="fe-list-row" key={person.login}>
+            <span className="fe-avatar small">{initials(person.login)}</span>
+            <span className="fe-list-main">
+              <strong>{person.login}</strong>
+              <small>
+                {roleName(person.role)} · {person.revoked ? "Revoked" : "Invited"}
+              </small>
+            </span>
+            <button disabled={busy} onClick={() => void save({ ...person, revoked: !person.revoked })}>
+              {person.revoked ? "Restore access" : "Revoke"}
+            </button>
+          </div>
+        ))}
+      </section>
+      <form
+        className="fe-section fe-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save({ login, role, revoked: false });
+        }}
+      >
+        <h2>Prepare an invitation</h2>
+        <label>
+          Login email
+          <input
+            required
+            type="email"
+            maxLength={320}
+            value={login}
+            onChange={(event) => setLogin(event.target.value)}
+          />
+        </label>
+        <label>
+          Role
+          <select value={role} onChange={(event) => setRole(event.target.value as "boss" | "trusted" | "visitor")}>
+            <option value="boss">Boss · sanitized log of your company work and a daily synopsis on request</option>
+            <option value="trusted">
+              Trusted · usually a yes; the agent answers and prepares, you approve before anything runs
+            </option>
+            <option value="visitor">Visitor · may ask; no agent effort until you allow it per request</option>
+          </select>
+        </label>
+        <footer>
+          <button className="primary" disabled={busy}>
+            Save invitation
+          </button>
+        </footer>
+        {error && (
+          <p className="fe-alert" role="alert">
+            {error}
+          </p>
+        )}
+      </form>
+      <AccessSection />
+      <SharingSection />
+    </section>
+  );
 }
 
-interface SettingsProps{session:Session;roles:RoleUi[];onForbidden:()=>void;theme:ThemeChoice;onTheme:(theme:ThemeChoice)=>void;railWide:boolean;onRail:()=>void;cockpitOpen:boolean;onCockpit:()=>void;}
-export function SettingsView({session,roles,onForbidden,theme,onTheme,railWide,onRail,cockpitOpen,onCockpit}:SettingsProps){
-  return <section className="fe-view"><header className="fe-view-head"><div><h1>Settings</h1><p className="fe-muted">Make this workspace feel like yours.</p></div></header><section className="fe-section"><h2>Appearance</h2><p className="fe-muted">Theme</p><div className="fe-tabs">{([['light',Sun],['dark',Moon],['system',Monitor]] as const).map(([value,Icon])=><button key={value} aria-pressed={theme===value} onClick={()=>onTheme(value)}><Icon size={16}/>{value[0].toUpperCase()+value.slice(1)}</button>)}</div><div className="dev-setting-row"><span>Navigation labels</span><button aria-pressed={railWide} onClick={onRail}>{railWide?'Expanded':'Compact'}</button></div><div className="dev-setting-row"><span>Cockpit on wide screens</span><button aria-pressed={cockpitOpen} onClick={onCockpit}>{cockpitOpen?'Shown':'Hidden'}</button></div></section><section className="fe-section"><h2>Workspace agent</h2><p>{session.agentModel} · {session.agentReasoning} reasoning</p></section><section className="fe-section"><h2>Your access</h2><p>{session.login}</p><p className="fe-muted">{session.role} · {session.accessMode==='local'?'Local preview. Tailscale is off.':'Invited access.'}</p></section>{session.role==='owner'&&<MicrosoftConnection onForbidden={onForbidden}/>}{roles.map(role=>role.settingsSections?<div key={role.id}>{role.settingsSections({session,onForbidden})}</div>:null)}</section>;
+interface SettingsProps {
+  session: Session;
+  roles: RoleUi[];
+  onForbidden: () => void;
+  theme: ThemeChoice;
+  onTheme: (theme: ThemeChoice) => void;
+  railWide: boolean;
+  onRail: () => void;
+  cockpitOpen: boolean;
+  onCockpit: () => void;
+}
+export function SettingsView({
+  session,
+  roles,
+  onForbidden,
+  theme,
+  onTheme,
+  railWide,
+  onRail,
+  cockpitOpen,
+  onCockpit,
+}: SettingsProps) {
+  return (
+    <section className="fe-view">
+      <header className="fe-view-head">
+        <div>
+          <h1>Settings</h1>
+          <p className="fe-muted">Make this workspace feel like yours.</p>
+        </div>
+      </header>
+      <section className="fe-section">
+        <h2>Appearance</h2>
+        <p className="fe-muted">Theme</p>
+        <div className="fe-tabs">
+          {(
+            [
+              ["light", Sun],
+              ["dark", Moon],
+              ["system", Monitor],
+            ] as const
+          ).map(([value, Icon]) => (
+            <button key={value} aria-pressed={theme === value} onClick={() => onTheme(value)}>
+              <Icon size={16} />
+              {value[0].toUpperCase() + value.slice(1)}
+            </button>
+          ))}
+        </div>
+        <div className="dev-setting-row">
+          <span>Navigation labels</span>
+          <button aria-pressed={railWide} onClick={onRail}>
+            {railWide ? "Expanded" : "Compact"}
+          </button>
+        </div>
+        <div className="dev-setting-row">
+          <span>Cockpit on wide screens</span>
+          <button aria-pressed={cockpitOpen} onClick={onCockpit}>
+            {cockpitOpen ? "Shown" : "Hidden"}
+          </button>
+        </div>
+      </section>
+      <section className="fe-section">
+        <h2>Workspace agent</h2>
+        <p>
+          {session.agentModel} · {session.agentReasoning} reasoning
+        </p>
+      </section>
+      <section className="fe-section">
+        <h2>Your access</h2>
+        <p>{session.login}</p>
+        <p className="fe-muted">
+          {session.role} · {session.accessMode === "local" ? "Local preview. Tailscale is off." : "Invited access."}
+        </p>
+      </section>
+      {session.role === "owner" && <MicrosoftConnection onForbidden={onForbidden} />}
+      {roles.map((role) =>
+        role.settingsSections ? <div key={role.id}>{role.settingsSections({ session, onForbidden })}</div> : null,
+      )}
+    </section>
+  );
 }

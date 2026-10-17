@@ -5,5 +5,7 @@
     <ProjectReference Include="../../src/HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.AzureDevOps/HireZero.Integrations.AzureDevOps.csproj" />
   </ItemGroup>
-  <ItemGroup><Content Include="../xunit.runner.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup>
+    <Content Include="../xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

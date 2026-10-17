@@ -1,8 +1,8 @@
-using HireZero.Integrations.AzureDevOps;
 using HireZero.Integrations.AgentApps;
-using HireZero.Integrations.Microsoft365;
+using HireZero.Integrations.AzureDevOps;
 using HireZero.Integrations.Codex;
 using HireZero.Integrations.Jev;
+using HireZero.Integrations.Microsoft365;
 using HireZero.Integrations.OpenClaw;
 using HireZero.Roles.Developer;
 
@@ -10,7 +10,12 @@ using HireZero.Roles.Developer;
 // Developer runs on the employee module contract (docs/adr/0002-employee-module-contract.md).
 public static class DeveloperWorkspace
 {
-    public static async Task<WebApplication> CreateAsync(string[] args, string ownerLogin, bool localOwnerEnabled, string dataRoot)
+    public static async Task<WebApplication> CreateAsync(
+        string[] args,
+        string ownerLogin,
+        bool localOwnerEnabled,
+        string dataRoot
+    )
     {
         const string localHost = "127.0.0.1:5064";
         var database = Path.Combine(dataRoot, "workspace.sqlite");
@@ -24,30 +29,77 @@ public static class DeveloperWorkspace
         // [::1] too: Microsoft sign-in returns to http://localhost, which browsers may resolve to IPv6 first.
         // Optional direct tailnet listener (HIREZERO_TAILNET_ADDRESS); callers there are identified by tailscale whois.
         var tailnet = TailnetAccess.FromEnvironment(5064);
-        builder.Services.AddSingleton(new WorkspaceRuntime(ownerLogin, Path.GetFullPath(dataRoot), tailnet?.Address.ToString(), tailnet?.Hosts ?? [], localOwnerEnabled));
-        builder.WebHost.UseUrls(tailnet is null ? ["http://" + localHost, "http://[::1]:5064"] : ["http://" + localHost, "http://[::1]:5064", "http://" + tailnet.Address + ":5064"]);
-        if (tailnet is not null) builder.Services.AddSingleton(tailnet);
+        builder.Services.AddSingleton(
+            new WorkspaceRuntime(
+                ownerLogin,
+                Path.GetFullPath(dataRoot),
+                tailnet?.Address.ToString(),
+                tailnet?.Hosts ?? [],
+                localOwnerEnabled
+            )
+        );
+        builder.WebHost.UseUrls(
+            tailnet is null
+                ? ["http://" + localHost, "http://[::1]:5064"]
+                : ["http://" + localHost, "http://[::1]:5064", "http://" + tailnet.Address + ":5064"]
+        );
+        if (tailnet is not null)
+            builder.Services.AddSingleton(tailnet);
         builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 16_384);
         builder.Services.AddSingleton(roles);
 
         builder.Services.AddSingleton(new RequestStore(database));
         builder.Services.AddSingleton(new BacklogStore(database));
         builder.Services.AddSingleton<IBacklogSource>(new LocalRequestBacklog(database));
-        builder.Services.AddSingleton<IBacklogSource>(new UnavailableBacklogSource("github-live", "GitHub history", 30, "No approved live history adapter. Saved observations are a separate local source."));
-        builder.Services.AddSingleton<IBacklogSource>(new UnavailableBacklogSource("microsoft-history", "Microsoft conversations", 40, "No approved account or conversation scope selected."));
-        builder.Services.AddSingleton<IBacklogSource>(new UnavailableBacklogSource("codex-history", "Codex session history", 50, "Session contents are not collected by this backlog increment."));
-        builder.Services.AddSingleton<IBacklogSource>(new UnavailableBacklogSource("claude-history", "Claude session history", 60, "Session contents are not collected by this backlog increment."));
+        builder.Services.AddSingleton<IBacklogSource>(
+            new UnavailableBacklogSource(
+                "github-live",
+                "GitHub history",
+                30,
+                "No approved live history adapter. Saved observations are a separate local source."
+            )
+        );
+        builder.Services.AddSingleton<IBacklogSource>(
+            new UnavailableBacklogSource(
+                "microsoft-history",
+                "Microsoft conversations",
+                40,
+                "No approved account or conversation scope selected."
+            )
+        );
+        builder.Services.AddSingleton<IBacklogSource>(
+            new UnavailableBacklogSource(
+                "codex-history",
+                "Codex session history",
+                50,
+                "Session contents are not collected by this backlog increment."
+            )
+        );
+        builder.Services.AddSingleton<IBacklogSource>(
+            new UnavailableBacklogSource(
+                "claude-history",
+                "Claude session history",
+                60,
+                "Session contents are not collected by this backlog increment."
+            )
+        );
         builder.Services.AddSingleton<BacklogCoordinator>();
         builder.Services.AddHostedService<BacklogStartup>();
         builder.Services.AddSingleton(new OwnerTaskStore(database));
         builder.Services.AddSingleton<OwnerTaskBoard>();
         builder.Services.AddSingleton(new ShiftProposalStore(database));
-        builder.Services.AddSingleton<IOwnerTaskContributor>(services => services.GetRequiredService<ShiftProposalStore>());
+        builder.Services.AddSingleton<IOwnerTaskContributor>(services =>
+            services.GetRequiredService<ShiftProposalStore>()
+        );
         builder.Services.AddSingleton<IShiftSensor, RecentWorkShiftSensor>();
         builder.Services.AddSingleton<IShiftSensor, InboxShiftSensor>();
         builder.Services.AddSingleton(new WorkspaceOwner(ownerLogin));
         builder.Services.AddSingleton(new AgentStore(database));
-        builder.Services.AddSingleton(services => new BudgetLedger(database, services.GetRequiredService<RequestStore>(), ownerLogin));
+        builder.Services.AddSingleton(services => new BudgetLedger(
+            database,
+            services.GetRequiredService<RequestStore>(),
+            ownerLogin
+        ));
         builder.Services.AddSingleton<ThreadTitler>();
         builder.Services.AddSingleton<HomeFeed>();
         builder.Services.AddHostedService<ThreadTitleBackfill>();
@@ -55,15 +107,25 @@ public static class DeveloperWorkspace
         builder.Services.AddSingleton<AgentWorker>();
         builder.Services.AddHostedService(services => services.GetRequiredService<AgentWorker>());
         builder.Services.AddHostedService<RequestReplyRecovery>();
-        builder.Services.AddSingleton(services => new OpenClawCells(dataRoot, services.GetRequiredService<IHttpClientFactory>()));
+        builder.Services.AddSingleton(services => new OpenClawCells(
+            dataRoot,
+            services.GetRequiredService<IHttpClientFactory>()
+        ));
         builder.Services.AddSingleton<IModelGateway>(services => services.GetRequiredService<OpenClawCells>());
         builder.Services.AddSingleton<IMemoryStore, OpenClawMemory>();
         builder.Services.AddSingleton<MemoryService>();
-        builder.Services.AddSingleton(new SharingPolicy(dataRoot, ownerLogin, tailnet is null ? null : await tailnet.OwnDisplayNameAsync()));
+        builder.Services.AddSingleton(
+            new SharingPolicy(dataRoot, ownerLogin, tailnet is null ? null : await tailnet.OwnDisplayNameAsync())
+        );
         builder.Services.AddSingleton<WorkingContext>();
         builder.Services.AddSingleton<WorkLogService>();
         builder.Services.AddSingleton(new AccessStore(database));
-        builder.Services.AddSingleton(services => new AccessDesk(services.GetRequiredService<RequestStore>(), services.GetRequiredService<AccessStore>(), services.GetRequiredService<WorkspaceOwner>(), dataRoot));
+        builder.Services.AddSingleton(services => new AccessDesk(
+            services.GetRequiredService<RequestStore>(),
+            services.GetRequiredService<AccessStore>(),
+            services.GetRequiredService<WorkspaceOwner>(),
+            dataRoot
+        ));
         builder.Services.AddSingleton(new TriageStore(database));
         builder.Services.AddSingleton<RequestTriageService>();
         builder.Services.AddSingleton(new MemorySuggestionStore(database));
@@ -86,14 +148,18 @@ public static class DeveloperWorkspace
         builder.Services.AddSingleton(new HookToken(dataRoot));
         builder.Services.AddSingleton<SessionWatcher>();
         builder.Services.AddHostedService(services => services.GetRequiredService<SessionWatcher>());
-        builder.Services.AddKeyedSingleton<ISessionSource>("codex-preferred", (services, _) => new OpenClawCodexSessions(services.GetRequiredService<OpenClawCells>()));
+        builder.Services.AddKeyedSingleton<ISessionSource>(
+            "codex-preferred",
+            (services, _) => new OpenClawCodexSessions(services.GetRequiredService<OpenClawCells>())
+        );
         builder.Services.AddAgentApps();
         builder.Services.AddAzureDevOps();
         builder.Services.AddSingleton<SessionSteering>();
         builder.Services.AddSingleton(new DigestStore(database));
         builder.Services.AddSingleton(services => ActivatorUtilities.CreateInstance<BriefService>(services, dataRoot));
         var context = new RoleContext(dataRoot, database);
-        foreach (var role in hired) role.AddServices(builder.Services, context);
+        foreach (var role in hired)
+            role.AddServices(builder.Services, context);
 
         var app = builder.Build();
         app.Services.GetRequiredService<HomeFeed>().Attach();
@@ -113,7 +179,11 @@ public static class DeveloperWorkspace
         app.MapBacklogEndpoints();
         app.MapAzureDevOps();
         app.MapMicrosoft365();
-        foreach (var role in hired) { role.MapEndpoints(app); role.Start(app.Services); }
+        foreach (var role in hired)
+        {
+            role.MapEndpoints(app);
+            role.Start(app.Services);
+        }
         app.MapFallback("/api/{**path}", () => Results.NotFound());
         app.MapFallbackToFile("index.html");
         return app;

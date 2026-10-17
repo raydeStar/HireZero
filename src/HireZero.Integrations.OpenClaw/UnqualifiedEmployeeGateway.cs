@@ -9,5 +9,7 @@ namespace HireZero.Integrations.OpenClaw;
 public sealed class UnqualifiedEmployeeGateway : IEmployeeModelGateway
 {
     public Task<string> CompleteAsync(EmployeeModelRequest request, CancellationToken token) =>
-        throw new ModelUnavailableException("Live employee context isolation has not been qualified. No model request was sent. Your work is saved; no automatic retry.");
+        throw new ModelUnavailableException(
+            "Live employee context isolation has not been qualified. No model request was sent. Your work is saved; no automatic retry."
+        );
 }
