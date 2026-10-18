@@ -129,8 +129,12 @@ features in 2B.5 rather than twice.
 - **2B.5a (done, see [Phase 2B.5a report](PHASE2B5A_REPORT.md)):** employee actions
   ([ADR 0011](adr/0011-employee-actions.md)). The company Developer gathers PR evidence (`pr-evidence`), and a
   measured `pr-review` skill reviews it once you approve the evidence.
-- **2B.5b:** the PR fix as an execution skill. A reviewed fix runs in an approved checkout, then commits and pushes
-  through `git.write` and `git.push` under an execution grant and your publication approval. The fix loop follows.
+- **2B.5b1 (done):** the PR fix as an execution skill. A reviewed fix runs in an approved checkout of the PR head,
+  then commits and pushes through `git.write` and `git.push`, each call authorized once by your publication approval
+  ([ADR 0012](adr/0012-company-publication.md)). Fixture runner only.
+- **2B.5b2:** the company host and UI drive it: endpoints to prepare, run, publish and reconcile, approval buttons
+  for the grant and the publication, and the diff review for every execution skill.
+- **2B.5b3:** a qualified live coding runner for company execution, sized for real fixes, then the fix loop.
 - **2B.5c:** wiki drafts, request preparation and Trusted Postgres as Developer skills and actions.
 - **2B.5d to 2B.5i:** each legacy-only feature as an optional integration
   ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core: Microsoft

@@ -32,6 +32,7 @@ public sealed partial class CompanyStore
         [typeof(CompanyPlan)] = "co_plans",
         [typeof(CompanyMeeting)] = "co_meetings",
         [typeof(CompanyExecutionGrant)] = "co_execution_grants",
+        [typeof(CompanyPublication)] = "co_publications",
     };
     private static readonly Dictionary<string, string> ParentTables = new()
     {
@@ -81,6 +82,7 @@ public sealed partial class CompanyStore
                     Schema(),
                     "CREATE TABLE co_execution_grants(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id),FOREIGN KEY(company_id,parent_id) REFERENCES co_tasks(company_id,id),FOREIGN KEY(company_id,employee_id) REFERENCES co_employees(company_id,id));",
                     ToolCallSchema,
+                    "CREATE TABLE co_publications(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id),FOREIGN KEY(company_id,parent_id) REFERENCES co_tasks(company_id,id),FOREIGN KEY(company_id,employee_id) REFERENCES co_employees(company_id,id));",
                 ];
                 if (
                     migrations.Any(m =>
@@ -114,7 +116,7 @@ public sealed partial class CompanyStore
         {
             "CREATE TABLE IF NOT EXISTS co_company(id TEXT PRIMARY KEY, owner TEXT NOT NULL)",
         };
-        foreach (var table in Tables.Values.Where(table => table != "co_execution_grants"))
+        foreach (var table in Tables.Values.Where(table => table is not ("co_execution_grants" or "co_publications")))
         {
             var parent = ParentTables.TryGetValue(table, out var target)
                 ? $",FOREIGN KEY(company_id,parent_id) REFERENCES {target}(company_id,id)"

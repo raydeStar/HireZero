@@ -16,3 +16,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0009](0009-legacy-features-are-optional-integrations.md) | Every legacy feature is kept, as an optional integration | Accepted |
 | [0010](0010-model-provider-contract.md) | The company provider contract is the model provider contract | Accepted |
 | [0011](0011-employee-actions.md) | Employee actions gather evidence the owner reviews | Accepted |
+| [0012](0012-company-publication.md) | Publishing reviewed execution through exact calls | Accepted |

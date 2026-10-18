@@ -848,6 +848,7 @@ public sealed partial class CompanyStore
             () =>
             {
                 RecoverActions(db);
+                RecoverPublications(db);
                 return true;
             }
         );

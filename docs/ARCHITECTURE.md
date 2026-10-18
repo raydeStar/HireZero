@@ -63,6 +63,11 @@ Employees can also declare read-only actions ([ADR 0011](adr/0011-employee-actio
 `pr-evidence` action gathers a PR through `github.read`. Its output is an artifact for owner review, and only once it
 is approved can it be evidence for a skill such as `pr-review`. Models themselves get no tools.
 
+Reviewed execution can be published ([ADR 0012](adr/0012-company-publication.md)). The module proposes the exact
+local calls and one external call. The owner approves that publication after the change itself, and the
+`company-publication` verifier authorizes each call once, in order. The Developer's `pr-fix` uses this to commit a
+reviewed fix and push it to the pull request's branch with a lease on the reviewed head.
+
 On the web, `web/src/roles/company.ts` collects every `web/src/roles/<id>/company.tsx` and renders a contribution
 only where the module's manifest declares the slot (`skill-input:<skill>` for structured input editors, named
 panels such as `plan-guidance`).

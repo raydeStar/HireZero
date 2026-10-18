@@ -14,11 +14,12 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
         string taskId,
         string root,
         bool allowWrite,
-        CancellationToken token = default
+        CancellationToken token = default,
+        string? revision = null
     )
     {
         var task = store.Work(taskId);
-        if (task.Skill != "developer-work")
+        if (task.Skill is not (DeveloperModule.Work or DeveloperModule.Fix))
             throw new WorkspaceException("This bridge accepts explicitly assigned Developer execution work only.");
         var attempt =
             store.Claim(task.EmployeeId, true, task.Id, execution: true)
@@ -27,6 +28,8 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
         {
             var context = store.Capture(attempt.Id);
             var snapshot = await InspectAsync(root, token);
+            if (revision is not null && snapshot.Revision != revision)
+                throw new WorkspaceException("The checkout is not at the reviewed revision.");
             return store.ProposeExecution(
                 new(
                     attempt.Id,
