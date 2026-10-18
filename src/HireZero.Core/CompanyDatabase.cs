@@ -15,7 +15,7 @@ public sealed partial class CompanyStore
     public SemaphoreSlim ProviderGate { get; } = new(1, 1);
 
     // The limits proposed with each execution grant unless the module asks for others; the owner approves them.
-    public CompanyExecutionLimits ExecutionDefaults { get; init; } = CompanyExecutionLimits.Pilot;
+    public CompanyExecutionLimits ExecutionDefaults { get; init; } = CompanyExecutionLimits.Default;
     private static readonly Dictionary<Type, string> Tables = new()
     {
         [typeof(CompanyDepartment)] = "co_departments",

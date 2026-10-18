@@ -136,9 +136,11 @@ features in 2B.5 rather than twice.
   for the grant and the publication, and the diff review for every execution skill.
 - **2B.5b3a (done):** execution limits are approved with the grant and size its reservation
   ([ADR 0013](adr/0013-execution-limits-approved-with-the-grant.md)).
-- **2B.5b3b:** a qualified live Codex coding runner for company execution (pinned runtime, MXC sandbox scoped to the
-  checkout, network off, preflight as for measured replies), after your decisions on limits, read scope and the pin.
-  Then the fix loop.
+- **2B.5b3b (done, offline):** a qualified live Codex coding runner for company execution
+  ([ADR 0014](adr/0014-pinned-codex-runtime.md)): pinned runtime, MXC sandbox writing only the checkout, named
+  read-only toolchain folders, network off, the measured-reply preflight and a usage tripwire, behind
+  `--company-coding`. Live qualification (sandbox probe, one fictional coding turn, a real fix) needs your approval
+  for each step. Then the fix loop.
 - **2B.5c:** wiki drafts, request preparation and Trusted Postgres as Developer skills and actions.
 - **2B.5d to 2B.5i:** each legacy-only feature as an optional integration
   ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core: Microsoft

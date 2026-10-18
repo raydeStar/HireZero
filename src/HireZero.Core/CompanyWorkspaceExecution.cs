@@ -7,6 +7,9 @@ namespace HireZero.Core;
 public sealed record CompanyExecutionLimits(int Tokens, int Seconds, string Effort)
 {
     public static readonly CompanyExecutionLimits Pilot = new(5000, 20, "low");
+
+    // The owner's chosen defaults for a fix run (2026-10-17): 200,000 tokens, 15 minutes, medium effort.
+    public static readonly CompanyExecutionLimits Default = new(200_000, 900, "medium");
     public static readonly CompanyExecutionLimits Ceiling = new(1_000_000, 3600, "high");
 
     public bool Within() =>

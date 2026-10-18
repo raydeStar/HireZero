@@ -128,7 +128,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         }
     }
 
-    private async Task<CompanyCodexInspection> Inspect(Rpc rpc, CancellationToken token)
+    private async Task<CompanyCodexInspection> Inspect(CodexAppServer rpc, CancellationToken token)
     {
         _routing.Validate();
         await rpc.Initialize(token);
@@ -225,7 +225,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         var started = false;
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
         deadline.CancelAfter(TimeSpan.FromSeconds(60));
-        Rpc? rpc = null;
+        CodexAppServer? rpc = null;
         CompanyCodexReceipt? completedReceipt = null,
             observedReceipt = null;
         CompanyCodexReceipt ReadUsage(JsonElement parameters)
@@ -295,7 +295,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 throw new WorkspaceException(
                     "A selected model is absent from this account's catalog; no substitution."
                 );
-            await rpc.VerifyPermissions(deadline.Token);
+            await rpc.VerifyPermissions(PermissionProfile, ReadOnly(rpc.WorkingDirectory), deadline.Token);
             var response = await rpc.Request(
                 "thread/start",
                 new
@@ -563,7 +563,9 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         }
     }
 
-    private Rpc Start()
+    private static Dictionary<string, string> ReadOnly(string work) => new() { [work] = "read" };
+
+    private CodexAppServer Start()
     {
         if (
             !Path.IsPathFullyQualified(options.Executable)
@@ -577,7 +579,13 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         Directory.CreateDirectory(root);
         var work = Path.Combine(root, "text-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(work);
-        return new(options, work);
+        return new(
+            options.Executable,
+            options.Home,
+            options.SyntheticMode,
+            work,
+            CodexAppServer.Arguments(PermissionProfile, ReadOnly(work), CodexAppServer.TextOnlyFeatures)
+        );
     }
 
     private static long Number(JsonElement j, string key) =>
@@ -634,305 +642,4 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
-
-    private sealed class Rpc : IAsyncDisposable
-    {
-        private readonly Process _process;
-        private int _id;
-        private readonly Queue<JsonElement> _events = new();
-        public string WorkingDirectory { get; }
-
-        public Rpc(CompanyCodexOptions options, string work)
-        {
-            // app-server stdio is UTF-8, independent of the Windows console code page.
-            WorkingDirectory = work;
-            var info = new ProcessStartInfo(options.Executable)
-            {
-                WorkingDirectory = work,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardInputEncoding = new UTF8Encoding(false),
-                StandardOutputEncoding = new UTF8Encoding(false),
-                StandardErrorEncoding = new UTF8Encoding(false),
-            };
-            var environment = info
-                .Environment.Where(x =>
-                    new[]
-                    {
-                        "PATH",
-                        "SystemRoot",
-                        "WINDIR",
-                        "USERPROFILE",
-                        "HOMEDRIVE",
-                        "HOMEPATH",
-                        "APPDATA",
-                        "LOCALAPPDATA",
-                        "TEMP",
-                        "TMP",
-                        "CODEX_HOME",
-                    }.Contains(x.Key, StringComparer.OrdinalIgnoreCase)
-                )
-                .ToArray();
-            info.Environment.Clear();
-            foreach (var (key, value) in environment)
-                info.Environment[key] = value;
-            if (options.Home is not null)
-                info.Environment["CODEX_HOME"] = Path.GetFullPath(options.Home);
-            if (options.SyntheticMode is not null)
-                info.Environment["HIREZERO_FIXTURE_MODE"] = options.SyntheticMode;
-            foreach (var a in Arguments(work))
-                info.ArgumentList.Add(a);
-            _process = Process.Start(info) ?? throw new WorkspaceException("Codex did not start.");
-            _process.ErrorDataReceived += (_, _) => { };
-            _process.BeginErrorReadLine();
-        }
-
-        private static IEnumerable<string> Arguments(string work)
-        {
-            yield return "app-server";
-            yield return "--stdio";
-            yield return "--strict-config";
-            if (OperatingSystem.IsWindows())
-            {
-                yield return "-c";
-                yield return "windows.sandbox=\"mxc\"";
-            }
-            // The pinned native deserializer rejects legacy readOnly.access, even though the
-            // generated schema permits unknown properties. Configure restricted reads by name.
-            yield return "-c";
-            yield return "permissions={"
-                + PermissionProfile
-                + "={filesystem={"
-                + JsonSerializer.Serialize(work)
-                + "=\"read\"},network={enabled=false}}}";
-            yield return "-c";
-            yield return "default_permissions=\"" + PermissionProfile + "\"";
-            foreach (
-                var value in new[]
-                {
-                    "model_provider=\"openai\"",
-                    "forced_login_method=\"chatgpt\"",
-                    "mcp_servers={}",
-                    "plugins={}",
-                    "project_doc_max_bytes=0",
-                    "developer_instructions=\"\"",
-                    "include_environment_context=false",
-                    "web_search=\"disabled\"",
-                    "skills.bundled.enabled=false",
-                    "skills.include_instructions=false",
-                    "memories.generate_memories=false",
-                    "memories.use_memories=false",
-                    "tools.update_plan.enabled=false",
-                    "tools.experimental_request_user_input.enabled=false",
-                }
-            )
-            {
-                yield return "-c";
-                yield return value;
-            }
-            foreach (
-                var feature in new[]
-                {
-                    "shell_tool",
-                    "shell_snapshot",
-                    "apps",
-                    "plugins",
-                    "remote_plugin",
-                    "memories",
-                    "multi_agent",
-                    "hooks",
-                    "computer_use",
-                    "browser_use",
-                    "image_generation",
-                    "view_image",
-                    "request_permissions_tool",
-                    "skill_search",
-                    "goals",
-                    "code_mode_host",
-                    "workspace_dependencies",
-                    "sleep_tool",
-                    "unbounded_connection_retries",
-                }
-            )
-            {
-                yield return "--disable";
-                yield return feature;
-            }
-        }
-
-        public async Task Initialize(CancellationToken token)
-        {
-            await Request(
-                "initialize",
-                new
-                {
-                    clientInfo = new { name = "hirezero_company", version = "0.1.0" },
-                    capabilities = new { experimentalApi = true },
-                },
-                token
-            );
-            await Write(new { method = "initialized", @params = new { } }, token);
-        }
-
-        public async Task VerifyPermissions(CancellationToken token)
-        {
-            var config = (
-                await Request("config/read", new { cwd = WorkingDirectory, includeLayers = false }, token)
-            ).GetProperty("config");
-            // An allowed named profile does not enable the Windows execution backend. With
-            // no backend, command/exec can read outside the declared restricted roots.
-            // This necessary configuration gate is not a substitute for behavioral qualification.
-            if (
-                OperatingSystem.IsWindows()
-                && (!config.TryGetProperty("windows", out var windows) || Text(windows, "sandbox") != "mxc")
-            )
-                throw new WorkspaceException(
-                    "Native Windows sandbox enforcement is not configured as explicit MXC for restricted reads. No model turn was sent."
-                );
-            if (
-                Text(config, "default_permissions") != PermissionProfile
-                || !config.TryGetProperty("permissions", out var profiles)
-                || !profiles.TryGetProperty(PermissionProfile, out var profile)
-                || profile.ValueKind != JsonValueKind.Object
-                || profile
-                    .EnumerateObject()
-                    .Any(p => p.Name is not ("filesystem" or "network") && p.Value.ValueKind != JsonValueKind.Null)
-                || !profile.TryGetProperty("filesystem", out var fs)
-                || fs.ValueKind != JsonValueKind.Object
-                || fs.EnumerateObject().Count(p => p.Value.ValueKind != JsonValueKind.Null) != 1
-                || Text(fs, WorkingDirectory) != "read"
-                || !profile.TryGetProperty("network", out var network)
-                || Flag(network, "enabled") != false
-                || network.EnumerateObject().Any(p => p.Name != "enabled" && p.Value.ValueKind != JsonValueKind.Null)
-            )
-                throw new WorkspaceException(
-                    "Codex restricted permissions are unconfirmed: only the empty scratch root may be read, with no network or inherited profile."
-                );
-            var available = await Request("permissionProfile/list", new { cwd = WorkingDirectory, limit = 100 }, token);
-            if (
-                available.TryGetProperty("nextCursor", out var cursor) && cursor.ValueKind != JsonValueKind.Null
-                || !available
-                    .GetProperty("data")
-                    .EnumerateArray()
-                    .Any(p => Text(p, "id") == PermissionProfile && Flag(p, "allowed") == true)
-            )
-                throw new WorkspaceException(
-                    "Codex did not allow the selected restricted permissions profile. No model turn was sent."
-                );
-        }
-
-        private async Task Write(object value, CancellationToken token) =>
-            await _process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(value).AsMemory(), token);
-
-        public async Task<JsonElement> Request(string method, object parameters, CancellationToken token)
-        {
-            var id = ++_id;
-            await Write(
-                new
-                {
-                    id,
-                    method,
-                    @params = parameters,
-                },
-                token
-            );
-            while (true)
-            {
-                var j = await ReadWire(token);
-                if (j.TryGetProperty("id", out var n) && n.TryGetInt32(out var value) && value == id)
-                {
-                    if (j.TryGetProperty("error", out var error))
-                    {
-                        var code =
-                            error.TryGetProperty("code", out var rawCode) && rawCode.TryGetInt32(out var errorCode)
-                                ? errorCode.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                                : "unknown";
-                        throw new WorkspaceException(
-                            "Codex refused the supported protocol request: "
-                                + method
-                                + " (code "
-                                + code
-                                + "). "
-                                + SafeDiagnostic(error)
-                                + " No automatic replay."
-                        );
-                    }
-                    return j.GetProperty("result").Clone();
-                }
-                if (j.TryGetProperty("id", out var serverId))
-                {
-                    await Deny(serverId, token);
-                    throw new WorkspaceException("Codex requested an unapproved action during preflight.");
-                }
-                if (_events.Count >= 256)
-                    throw new WorkspaceException("Too many runtime events.");
-                _events.Enqueue(j);
-            }
-        }
-
-        private static string SafeDiagnostic(JsonElement error)
-        {
-            // Emit only exact public protocol literals, never arbitrary server text or error.data.
-            var message = Text(error, "message");
-            foreach (
-                var known in new[]
-                {
-                    "readOnly.access is no longer supported; use permissionProfile for restricted reads",
-                    "workspaceWrite.readOnlyAccess is no longer supported; use permissionProfile for restricted reads",
-                    "`permissions` cannot be combined with `sandboxPolicy`",
-                    "`permissions` cannot be combined with `sandbox`",
-                }
-            )
-                if (message == known || message == "Invalid request: " + known)
-                    return known + ".";
-            return "Server message/details withheld.";
-        }
-
-        public Task Deny(JsonElement id, CancellationToken token) =>
-            Write(
-                new
-                {
-                    id = id.Clone(),
-                    error = new
-                    {
-                        code = -32601,
-                        message = "HireZero qualification declines all tools, approvals and authentication changes.",
-                    },
-                },
-                token
-            );
-
-        public Task<JsonElement> Read(CancellationToken token) =>
-            _events.Count > 0 ? Task.FromResult(_events.Dequeue()) : ReadWire(token);
-
-        private async Task<JsonElement> ReadWire(CancellationToken token)
-        {
-            var line =
-                await _process.StandardOutput.ReadLineAsync(token)
-                ?? throw new ModelTransportException("Codex exited without a confirmed outcome.");
-            if (line.Length > 131072)
-                throw new ModelTransportException("Runtime event size exceeded its local allowance.");
-            using var document = JsonDocument.Parse(line);
-            return document.RootElement.Clone();
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            try
-            {
-                if (!_process.HasExited)
-                    _process.Kill(entireProcessTree: true);
-                await _process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
-            }
-            finally
-            {
-                _process.Dispose();
-                if (Directory.Exists(WorkingDirectory) && !Directory.EnumerateFileSystemEntries(WorkingDirectory).Any())
-                    Directory.Delete(WorkingDirectory);
-            }
-        }
-    }
 }

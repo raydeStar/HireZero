@@ -9,6 +9,10 @@ public static class CompanyWorkspace
     public const string Flag = "--company-local";
     public const string CodexFlag = "--company-codex";
 
+    // Live company coding on the pinned Codex runtime (docs/adr/0014-pinned-codex-runtime.md). Off unless asked for,
+    // and only together with the Codex connection profile.
+    public const string CodingFlag = "--company-coding";
+
     public static CompanyRole[] Definitions() => [.. HostEmployees.Modules.Select(CompanyRole.From)];
 
     public static WebApplication? TryCreate(
@@ -25,6 +29,10 @@ public static class CompanyWorkspace
     {
         if (!args.Contains(Flag))
             return null;
+        if (args.Contains(CodingFlag) && !args.Contains(CodexFlag) && fixtureCoding is null)
+            throw new InvalidOperationException(
+                "Live company coding needs the Codex connection profile (--company-codex)."
+            );
         if (!localOwner)
             throw new InvalidOperationException("Company local mode requires explicit local owner mode.");
         if (fixtureUrl is null && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("HIREZERO_DATA_ROOT")))
@@ -38,7 +46,7 @@ public static class CompanyWorkspace
         var builder = WebApplication.CreateBuilder(
             new WebApplicationOptions
             {
-                Args = args.Where(a => a != Flag && a != CodexFlag).ToArray(),
+                Args = args.Where(a => a != Flag && a != CodexFlag && a != CodingFlag).ToArray(),
                 WebRootPath = fixtureUrl is not null ? fixtureWebRoot : null,
             }
         );
@@ -79,28 +87,38 @@ public static class CompanyWorkspace
                     ?? ModelRoutes.Route(ModelRoutes.CompanyCoding)
             );
             routing.Validate();
+            CompanyCodexOptions? codex =
+                fixture is null && args.Contains(CodexFlag)
+                    ? new(
+                        Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_EXECUTABLE")
+                            ?? throw new InvalidOperationException("Pin the selected Codex executable."),
+                        Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_IDENTITY")
+                            ?? throw new InvalidOperationException(
+                                "Pin the selected Codex executable bundle identity."
+                            ),
+                        Path.Combine(root, "codex-scratch"),
+                        Home: Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_HOME")
+                            ?? throw new InvalidOperationException("Select the dedicated native Codex profile home.")
+                    )
+                    : null;
             IModelProvider model =
                 fixture
-                ?? (
-                    args.Contains(CodexFlag)
-                        ? new CompanyCodexConnection(
-                            new(
-                                Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_EXECUTABLE")
-                                    ?? throw new InvalidOperationException("Pin the selected Codex executable."),
-                                Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_IDENTITY")
-                                    ?? throw new InvalidOperationException(
-                                        "Pin the selected Codex executable bundle identity."
-                                    ),
-                                Path.Combine(root, "codex-scratch"),
-                                Home: Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_HOME")
-                                    ?? throw new InvalidOperationException(
-                                        "Select the dedicated native Codex profile home."
-                                    )
-                            ),
-                            routing
-                        )
-                        : new UnavailableModelProvider()
+                ?? (codex is not null ? new CompanyCodexConnection(codex, routing) : new UnavailableModelProvider());
+            var coding = fixtureCoding;
+            if (coding is null && codex is not null && args.Contains(CodingFlag))
+            {
+                var live = new CompanyCodexCodingFactory(
+                    codex,
+                    routing,
+                    (Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODING_READ") ?? "").Split(
+                        ';',
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                    )
                 );
+                coding = live.Qualified
+                    ? live
+                    : throw new InvalidOperationException("Live company coding is not qualified: " + live.Refusal);
+            }
             var store = new CompanyStore(
                 Path.Combine(root, "workspace.sqlite"),
                 owner,
@@ -178,6 +196,7 @@ public static class CompanyWorkspace
                             status = "healthy",
                             companyLocal = true,
                             modelExecution = model.Qualified,
+                            liveCoding = coding?.Qualified == true,
                         }
                     )
             );
@@ -210,6 +229,7 @@ public static class CompanyWorkspace
                             {
                                 localManagement = true,
                                 modelExecution = model.Qualified,
+                                liveCoding = coding?.Qualified == true,
                                 measuredOneJob = model is IMeasuredModelProvider,
                                 conversationalReplies = model is IMeasuredModelProvider,
                                 providerStatus = model.Status,
@@ -293,9 +313,7 @@ public static class CompanyWorkspace
                     var module = HostEmployees.Modules.Single(m => m.Manifest.Id == employee.RoleId);
                     try
                     {
-                        return Results.Ok(
-                            await module.ExecuteAsync(parsed, id, new(store, tools, fixtureCoding), token)
-                        );
+                        return Results.Ok(await module.ExecuteAsync(parsed, id, new(store, tools, coding), token));
                     }
                     catch (Exception error) when (error is not (WorkspaceException or OutOfMemoryException))
                     {

@@ -164,7 +164,11 @@ public sealed class PullRequestFixTests : IDisposable
     }
 
     // A hired Developer, approved evidence for PR 7 at the checkout's head, and a pr-fix task on the owner's checkout.
-    private async Task<Fix> Assign(CompanyStore? existing = null, ToolRegistry? tools = null)
+    private async Task<Fix> Assign(
+        CompanyStore? existing = null,
+        ToolRegistry? tools = null,
+        ICompanyCodingFactory? coding = null
+    )
     {
         Directory.CreateDirectory(Checkout);
         await Git(Checkout, "init", "-q");
@@ -267,7 +271,7 @@ public sealed class PullRequestFixTests : IDisposable
             }
         );
         var registry = tools ?? Registry(store);
-        return new(store, new(store, registry, Coding()), registry, employee, task, head);
+        return new(store, new(store, registry, coding ?? Coding()), registry, employee, task, head);
     }
 
     // The fix ran under an approved grant and its publication is proposed; nothing is approved for publication yet.
@@ -606,7 +610,7 @@ public sealed class PullRequestFixTests : IDisposable
     [Fact]
     public async Task ARunLargerThanTheBudgetIsNotSent()
     {
-        var fix = await Assign(Store(new(30000, 120, "medium")));
+        var fix = await Assign(Store(new(300_000, 120, "medium")));
         var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
         Approve<CompanyExecutionGrant>(fix.Store, "execution.review", grant.Id, grant.Version, grant.Digest);
         await Assert.ThrowsAsync<WorkspaceException>(() => fix.Developer.ExecuteFixtureAsync(grant.Id, Token));
@@ -644,5 +648,42 @@ public sealed class PullRequestFixTests : IDisposable
         Assert.Equal("awaiting_review", fix.Store.Work(fix.Task.Id).State);
         now = now.AddMinutes(6);
         Assert.False(fix.Store.ExecutionCurrent(grant.Id));
+    }
+
+    // The live runner drives the same reviewed path: approved limits, the diff review and a publication.
+    [Fact]
+    public async Task ALiveRunnerFixesThroughTheReviewedPath()
+    {
+        var fake = Path.GetFullPath(
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "../../../../HireZero.FakeCodex/bin/Debug/net10.0/HireZero.FakeCodex.exe"
+            )
+        );
+        var home = Directory.CreateDirectory(Path.Combine(_root.Path, "signed-in-home")).FullName;
+        var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
+        var live = new CompanyCodexCodingFactory(
+            new(
+                fake,
+                CompanyCodingFactory.Identity(fake),
+                Path.Combine(_root.Path, "codex-scratch"),
+                home,
+                "coding-live-success"
+            ),
+            store.ModelRouting,
+            [],
+            CodexRuntimePin.Sha256(fake)
+        );
+        var fix = await Assign(store, coding: live);
+        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
+        Assert.Equal(CompanyExecutionLimits.Default, grant.Limits);
+        Approve<CompanyExecutionGrant>(fix.Store, "execution.review", grant.Id, grant.Version, grant.Digest);
+        await fix.Developer.ExecuteFixtureAsync(grant.Id, Token);
+        var done = fix.Store.Execution(grant.Id);
+        Assert.Equal("completed", done.State);
+        Assert.Equal("fixture-change.txt", Assert.Single(done.Review!.Files).Path);
+        Assert.Contains("ran the tests", fix.Store.ArtifactsOf(fix.Task.Id).Last().Body);
+        var publication = await fix.Developer.ProposePublicationAsync(grant.Id, Token);
+        Assert.Equal("proposed", publication.State);
     }
 }

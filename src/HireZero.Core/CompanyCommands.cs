@@ -250,16 +250,16 @@ public sealed partial class CompanyStore
                 var id = Text(c.Id, 100);
                 long ceiling;
                 if (id == "company-total")
-                    ceiling = 100000;
+                    ceiling = CompanyBudgetCeilings.Company;
                 else if (id.StartsWith("department:", StringComparison.Ordinal))
                 {
                     Need<CompanyDepartment>(db, id[11..]);
-                    ceiling = 50000;
+                    ceiling = CompanyBudgetCeilings.Department;
                 }
                 else if (id.StartsWith("employee:", StringComparison.Ordinal))
                 {
                     Need<CompanyEmployee>(db, id[9..]);
-                    ceiling = 25000;
+                    ceiling = CompanyBudgetCeilings.Employee;
                 }
                 else
                     throw new WorkspaceException("Root plan allowances require a new exact plan approval.", 403);

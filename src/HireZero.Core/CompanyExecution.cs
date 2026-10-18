@@ -304,10 +304,11 @@ public sealed partial class CompanyStore
         CompanyBudget[] scopes =
         [
             root,
-            Find<CompanyBudget>(db, "company-total") ?? new("company-total", 100000),
+            Find<CompanyBudget>(db, "company-total") ?? new("company-total", CompanyBudgetCeilings.Company),
             Find<CompanyBudget>(db, "department:" + employee.DepartmentId)
-                ?? new("department:" + employee.DepartmentId, 50000),
-            Find<CompanyBudget>(db, "employee:" + employee.Id) ?? new("employee:" + employee.Id, 25000),
+                ?? new("department:" + employee.DepartmentId, CompanyBudgetCeilings.Department),
+            Find<CompanyBudget>(db, "employee:" + employee.Id)
+                ?? new("employee:" + employee.Id, CompanyBudgetCeilings.Employee),
         ];
         var amount = execution ?? a.Measured?.Policy.PlanningTokens ?? CompanyTokenLimits.Total;
         if (scopes.Any(b => b.Used + b.Reserved + amount > b.Limit))

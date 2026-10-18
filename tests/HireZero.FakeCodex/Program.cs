@@ -133,6 +133,228 @@ while (await Console.In.ReadLineAsync() is { } line)
     using var doc = JsonDocument.Parse(line);
     var r = doc.RootElement;
     var method = r.TryGetProperty("method", out var raw) ? raw.GetString() : null;
+    // Live company coding (CompanyCodexCodingRunner): checks the strict envelope, records it in the fixture home and
+    // plays one coding turn. Nothing here is written to the checkout except the fictional fix.
+    if (mode.StartsWith("coding-live", StringComparison.Ordinal))
+    {
+        var id = r.TryGetProperty("id", out var rid) && rid.ValueKind == JsonValueKind.Number ? rid.GetInt32() : 0;
+        var home = Environment.GetEnvironmentVariable("CODEX_HOME") ?? throw new Exception("Missing CODEX_HOME");
+        void Wire(string entry) => File.AppendAllText(Path.Combine(home, "fixture-coding-wire.jsonl"), entry + "\n");
+        void Reply(object result) => Write(new { id, result });
+        void Usage(long total) =>
+            Write(
+                new
+                {
+                    method = "thread/tokenUsage/updated",
+                    @params = new
+                    {
+                        threadId = thread,
+                        turnId = turn,
+                        tokenUsage = new { total = new { totalTokens = total } },
+                    },
+                }
+            );
+        void Item(string method, object item) =>
+            Write(
+                new
+                {
+                    method,
+                    @params = new
+                    {
+                        threadId = thread,
+                        turnId = turn,
+                        item,
+                    },
+                }
+            );
+        if (method == "initialize")
+        {
+            var profile = args.FirstOrDefault(a =>
+                a.StartsWith("permissions={hirezero_execution=", StringComparison.Ordinal)
+            );
+            if (
+                !args.Contains("--strict-config")
+                || OperatingSystem.IsWindows() && !args.Contains("windows.sandbox=\"mxc\"")
+                || !args.Contains("default_permissions=\"hirezero_execution\"")
+                || profile is null
+                || !profile.EndsWith("},network={enabled=false}}}", StringComparison.Ordinal)
+                || args.Contains("shell_tool")
+                || !args.Contains("plugins")
+                || Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL") is not null
+                || Environment.GetEnvironmentVariable("OPENAI_API_KEY") is not null
+                || Environment.GetEnvironmentVariable("TEMP") is not { } temp
+                || !temp.StartsWith(Directory.GetCurrentDirectory(), StringComparison.OrdinalIgnoreCase)
+            )
+                throw new Exception("Invalid live coding envelope");
+            Wire(JsonSerializer.Serialize(new { profile, home }));
+            Reply(new { });
+        }
+        else if (method == "account/read")
+            Reply(
+                new { account = new { type = mode == "coding-live-apikey" ? "apiKey" : "chatgpt", planType = "pro" } }
+            );
+        else if (method == "account/rateLimits/read")
+            Reply(
+                new
+                {
+                    ordinaryUsageAllowed = mode != "coding-live-quota",
+                    rateLimits = new
+                    {
+                        spendControlReached = false,
+                        rateLimitReachedType = (string?)null,
+                        credits = new
+                        {
+                            hasCredits = true,
+                            balance = mode == "coding-live-credit" && companyTurnSent ? "9.0" : "10.0",
+                        },
+                    },
+                }
+            );
+        else if (method == "model/list")
+            Reply(
+                new
+                {
+                    data = (
+                        mode == "coding-live-missing-model"
+                            ? new[] { "gpt-6-luna" }
+                            : new[] { "gpt-6-luna", "gpt-6.1-sol" }
+                    ).Select(model => new { id = model, model }),
+                    nextCursor = (string?)null,
+                }
+            );
+        else if (method == "config/read")
+        {
+            // Echo the process-local profile back as the effective configuration.
+            var profile = args.First(a => a.StartsWith("permissions={hirezero_execution=", StringComparison.Ordinal));
+            var inner = profile[
+                "permissions={hirezero_execution={filesystem={".Length..profile.IndexOf(
+                    "},network=",
+                    StringComparison.Ordinal
+                )
+            ];
+            var filesystem = new Dictionary<string, string>();
+            foreach (
+                var entry in JsonSerializer.Deserialize<string[]>("[" + inner.Replace("=\"", ",\"") + "]")!.Chunk(2)
+            )
+                filesystem[entry[0]] = entry[1];
+            if (mode == "coding-live-broad")
+                filesystem["C:\\"] = "read";
+            Reply(
+                new
+                {
+                    config = new
+                    {
+                        windows = new { sandbox = "mxc" },
+                        default_permissions = "hirezero_execution",
+                        permissions = new Dictionary<string, object>
+                        {
+                            { "hirezero_execution", new { filesystem, network = new { enabled = false } } },
+                        },
+                    },
+                }
+            );
+        }
+        else if (method == "permissionProfile/list")
+            Reply(
+                new { data = new[] { new { id = "hirezero_execution", allowed = true } }, nextCursor = (string?)null }
+            );
+        else if (method == "thread/start")
+        {
+            var pr = r.GetProperty("params");
+            if (
+                pr.GetProperty("model").GetString() != "gpt-6.1-sol"
+                || pr.GetProperty("permissions").GetString() != "hirezero_execution"
+                || !pr.GetProperty("ephemeral").GetBoolean()
+                || pr.GetProperty("approvalPolicy").GetString() != "never"
+                || pr.GetProperty("allowProviderModelFallback").GetBoolean()
+                || pr.TryGetProperty("sandbox", out _)
+                || pr.TryGetProperty("sandboxPolicy", out _)
+            )
+                throw new Exception("Invalid live coding thread");
+            File.WriteAllText(Path.Combine(home, "fixture-coding-cwd"), pr.GetProperty("cwd").GetString());
+            Reply(
+                new
+                {
+                    thread = new { id = thread, ephemeral = true },
+                    model = "gpt-6.1-sol",
+                    modelProvider = "openai",
+                    approvalPolicy = "never",
+                    activePermissionProfile = new { id = "hirezero_execution", extends = (string?)null },
+                    instructionSources = mode == "coding-live-ambient"
+                        ? new[] { "fictional/AGENTS.md" }
+                        : Array.Empty<string>(),
+                    sandbox = new { type = "workspaceWrite", networkAccess = false },
+                }
+            );
+        }
+        else if (method == "turn/start")
+        {
+            var pr = r.GetProperty("params");
+            if (
+                pr.GetProperty("permissions").GetString() != "hirezero_execution"
+                || pr.TryGetProperty("sandboxPolicy", out _)
+                || pr.GetProperty("environments").GetArrayLength() != 0
+            )
+                throw new Exception("Invalid live coding turn");
+            companyTurnSent = true;
+            Wire(JsonSerializer.Serialize(new { turn = true, effort = pr.GetProperty("effort").GetString() }));
+            Reply(new { turn = new { id = turn } });
+            var checkout = File.ReadAllText(Path.Combine(home, "fixture-coding-cwd"));
+            if (mode == "coding-live-tool")
+            {
+                Item("item/started", new { type = "mcpToolCall", server = "fictional" });
+                continue;
+            }
+            if (mode == "coding-live-approval")
+            {
+                Write(
+                    new
+                    {
+                        id = 900,
+                        method = "item/commandExecution/requestApproval",
+                        @params = new { threadId = thread, turnId = turn },
+                    }
+                );
+                continue;
+            }
+            Item("item/started", new { type = "commandExecution", command = "dotnet test" });
+            Item(
+                "item/completed",
+                new
+                {
+                    type = "commandExecution",
+                    command = "dotnet test",
+                    exitCode = 0,
+                }
+            );
+            File.WriteAllText(Path.Combine(checkout, "fixture-change.txt"), "Fictional live fix");
+            Item(
+                "item/completed",
+                new { type = "fileChange", changes = new[] { new { path = "fixture-change.txt" } } }
+            );
+            if (mode == "coding-live-overrun")
+            {
+                Usage(150000);
+                Usage(250000);
+                continue;
+            }
+            Usage(1500);
+            Item(
+                "item/completed",
+                new { type = "agentMessage", text = "Fixed the fictional finding and ran the tests." }
+            );
+            Complete();
+        }
+        else if (method == "turn/interrupt")
+        {
+            Wire("{\"interrupt\":true}");
+            Reply(new { });
+            Complete("interrupted");
+        }
+        else if (id != 0 && method is not null)
+            Reply(new { });
+        continue;
+    }
     if (mode.StartsWith("company-", StringComparison.Ordinal))
     {
         if (method == "initialize")
