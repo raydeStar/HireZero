@@ -147,8 +147,6 @@ public static class CompanyWorkspace
             builder.Services.AddHostedService(s => s.GetRequiredService<CompanyScheduler>());
             // The synthetic Wiki pilot, only when it is switched on (docs/adr/0015-publishing-an-approved-artifact.md).
             var wiki = fixtureTools is null && Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1";
-            if (wiki)
-                builder.Services.AddWiki();
             // Microsoft 365: owner-started reads only, no polling; its tools register once a client ID is saved.
             builder.Services.AddMicrosoft365Company(root);
             var app = builder.Build();
@@ -161,8 +159,7 @@ public static class CompanyWorkspace
             if (app.Services.GetRequiredService<MicrosoftStore>().Settings().ClientId is { Length: > 0 })
                 Microsoft();
             if (wiki)
-                foreach (var provider in app.Services.GetServices<IToolProvider>())
-                    provider.Register(tools);
+                WikiRegistration.CompanyProvider().Register(tools);
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
             app.Use(

@@ -119,6 +119,30 @@ public static class WikiRegistration
         return origin;
     }
 
+    // The company workspace's Wiki tools: one private, long-lived handler per session keeps its sign-in cookies, and
+    // no general HTTP client factory is offered to the rest of the profile.
+    public static IToolProvider CompanyProvider() => new WikiToolProvider(new PrivateSessions());
+
+    private sealed class PrivateSessions : IHttpClientFactory
+    {
+        private readonly Dictionary<string, HttpClientHandler> _handlers = WikiTools.Sessions.ToDictionary(
+            session => Client(session),
+            _ => new HttpClientHandler
+            {
+                UseCookies = true,
+                CookieContainer = new CookieContainer(),
+                AllowAutoRedirect = false,
+            }
+        );
+
+        public HttpClient CreateClient(string name) =>
+            new(_handlers[name], disposeHandler: false)
+            {
+                BaseAddress = Origin(),
+                Timeout = TimeSpan.FromSeconds(name == Client("context") ? 5 : 15),
+            };
+    }
+
     public static IServiceCollection AddWiki(this IServiceCollection services)
     {
         foreach (var session in WikiTools.Sessions)

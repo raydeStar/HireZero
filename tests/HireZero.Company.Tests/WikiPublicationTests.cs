@@ -3,6 +3,7 @@ using HireZero.Core;
 using HireZero.Roles.Developer;
 using HireZero.Tools.Wiki;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 
 // Wiki drafts in the company workspace (docs/adr/0015-publishing-an-approved-artifact.md): a wiki-read action gathers
 // evidence, an approved draft artifact is proposed for publication, and publishing makes exactly one contribution and
@@ -430,5 +431,37 @@ public sealed class WikiPublicationTests : IDisposable
         );
         await Assert.ThrowsAsync<WorkspaceException>(() => Publish(company, publication));
         Assert.Empty(_contributions);
+    }
+
+    // With the pilot switched on, the company host registers the Wiki tools on private session clients and still offers
+    // no general HTTP client factory.
+    [Fact]
+    public async Task TheWikiPilotAddsNoGeneralHttpClientFactory()
+    {
+        var previous = (
+            Held: Environment.GetEnvironmentVariable(HeldWorkspace.Variable),
+            Wiki: Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI")
+        );
+        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        Environment.SetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI", "1");
+        try
+        {
+            await using var app = CompanyWorkspace.TryCreate(
+                [CompanyWorkspace.Flag],
+                Owner,
+                true,
+                Path.Combine(_root.Path, "host"),
+                fixtureUrl: "http://127.0.0.1:0"
+            )!;
+            Assert.Null(app.Services.GetService<IHttpClientFactory>());
+            Assert.True(app.Services.GetRequiredService<ToolRegistry>().Has(WikiTools.Contribute.Id));
+            await app.StartAsync(Token);
+            await app.StopAsync(Token);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous.Held);
+            Environment.SetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI", previous.Wiki);
+        }
     }
 }
