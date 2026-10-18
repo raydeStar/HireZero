@@ -960,11 +960,15 @@ public sealed class CodingRunStore
     {
         _path = path;
         using var connection = Open();
-        using var command = connection.CreateCommand();
-        command.CommandText =
-            "CREATE TABLE IF NOT EXISTS coding_runs(id TEXT PRIMARY KEY, state TEXT NOT NULL, payload TEXT NOT NULL)";
-        command.ExecuteNonQuery();
+        ModuleStorage.Migrate(connection, StorageOwner, Steps);
     }
+
+    // Versioned through ModuleStorage; step 1 adopts a table an older build created.
+    public const string StorageOwner = "coding-runs";
+    public static readonly string[] Steps =
+    [
+        "CREATE TABLE IF NOT EXISTS coding_runs(id TEXT PRIMARY KEY, state TEXT NOT NULL, payload TEXT NOT NULL)",
+    ];
 
     private SqliteConnection Open()
     {

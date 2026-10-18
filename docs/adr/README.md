@@ -22,3 +22,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0015](0015-publishing-an-approved-artifact.md) | Publishing an approved artifact | Accepted |
 | [0016](0016-publishing-one-approved-call.md) | Publishing one approved external call | Accepted |
 | [0017](0017-publishing-a-step-from-an-action.md) | Publishing a step from an action | Accepted |
+| [0018](0018-module-storage-migrations.md) | Module storage migrations | Accepted |
