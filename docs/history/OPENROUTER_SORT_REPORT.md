@@ -74,5 +74,18 @@ question and produce the same evidence.
 | CSharpier and web format checks; Node tests | passed; 14 passed |
 | All 7 headless Chrome smoke tests; launcher tests | passed; 14 passed |
 
-**Not verified:** a real OpenRouter request. It needs your key in the environment and a model in `openrouter.json`.
-The first live sort spends a few hundred tokens at most.
+## Live check, 2026-10-18
+
+You approved one live sort on fictional text only. It used your user-level key and `google/gemini-2.5-flash-lite`,
+listed at $0.10 per million input tokens and $0.40 per million output tokens. It went through the real Developer
+action and the real `openrouter.choose` tool, with Microsoft 365 replaced by ten fictional messages.
+
+- **Result:** all ten answered in 9.8 seconds, each with an allowed choice, so nothing came back unsorted.
+  - **act:** the review request, the meeting move, the token-rotation notice and the direct question.
+  - **ignore:** the newsletter, receipt, build notice, FYI, webinar and appointment reminder.
+  - Confidence was 90 to 100%.
+- **Usage:** OpenRouter reported 2,029 tokens in total, about 200 per message. At the listed prices that is roughly
+  $0.0003 for the whole sort.
+- **Reading the results:** the appointment reminder was sorted as ignore, a judgment call; you may see such items as
+  personal reminders. The question and its criteria can be tuned in `CompanyMessageSort` if needed.
+- **Data:** no real mail was read, and the key was never printed or stored outside your user environment.
