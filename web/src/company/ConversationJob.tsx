@@ -144,7 +144,7 @@ export function ConversationJob({
         />
       )}
       {t.skill === "developer-work" && <CodeReview taskId={t.id} />}
-      {t.modelRoute && (
+      {t.modelRoute && t.kind !== "action" && (
         <p className="co-muted">
           {t.runtime}: {t.modelRoute.replace("openai/", "")}
         </p>
@@ -163,18 +163,20 @@ export function ConversationJob({
         {["queued", "blocked", "running", "awaiting_review", "unknown", "failed"].includes(t.state) && (
           <button onClick={() => void run("task.cancel", { id: t.id, expectedVersion: t.version })}>Cancel</button>
         )}
-        {["blocked", "failed"].includes(t.state) && !d.handoffs?.some((h) => h.targetTaskId === t.id) && (
-          <button onClick={() => void run("task.retry", { id: t.id, expectedVersion: t.version })}>
-            Request fresh attempt
-          </button>
-        )}
+        {["blocked", "failed"].includes(t.state) &&
+          t.kind !== "action" &&
+          !d.handoffs?.some((h) => h.targetTaskId === t.id) && (
+            <button onClick={() => void run("task.retry", { id: t.id, expectedVersion: t.version })}>
+              Request fresh attempt
+            </button>
+          )}
         {t.state === "awaiting_review" && (
           <button onClick={() => void run("task.complete", { id: t.id, expectedVersion: t.version })}>
             Complete after review
           </button>
         )}
       </div>
-      {["blocked", "awaiting_review", "queued"].includes(t.state) && (
+      {["blocked", "awaiting_review", "queued"].includes(t.state) && t.kind !== "action" && (
         <form
           onSubmit={form(async () => {
             const body = outcome;

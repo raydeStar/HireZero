@@ -84,6 +84,7 @@ public sealed partial class CompanyStore
         var t = All<CompanyTask>(db)
             .FirstOrDefault(t =>
                 t.EmployeeId == employee
+                && t.Kind != ActionKind
                 && (t.Kind != "conversation" || conversation)
                 && (taskId is null || t.Id == taskId)
                 && Role(e.RoleId).ExecutionSkills.Contains(t.Skill) == execution

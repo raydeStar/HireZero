@@ -51,39 +51,44 @@ export function EmployeeActions({
   return (
     <details className="co-evidence">
       <summary>Gather evidence</summary>
-      {actions.map((action) => (
-        <form
-          key={action.id}
-          className="co-action"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void run(
-              action.id,
-              action.fields.map((field) => field.id),
-            );
-          }}
-        >
-          <p>
-            <b>{action.name}</b> {action.description} The result is saved for your review before it can be used.
-          </p>
-          {action.fields.map((field) => (
-            <label key={field.id}>
-              {field.label}
-              <input
-                required
-                maxLength={field.maxLength}
-                value={values[action.id]?.[field.id] ?? ""}
-                onChange={(event) =>
-                  setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: event.target.value } })
-                }
-              />
-            </label>
-          ))}
-          <button type="submit" disabled={disabled || running !== ""}>
-            {running === action.id ? "Gathering…" : "Run"}
-          </button>
-        </form>
-      ))}
+      {actions.map((action) => {
+        // The panel sits inside the conversation composer's form, and forms cannot nest: a plain group, a button
+        // that is not a submit button, and Enter handled here keep the composer from submitting.
+        const start = () =>
+          void run(
+            action.id,
+            action.fields.map((field) => field.id),
+          );
+        return (
+          <div key={action.id} className="co-action" role="group" aria-label={action.name}>
+            <p>
+              <b>{action.name}</b> {action.description} The result is saved for your review before it can be used.
+            </p>
+            {action.fields.map((field) => (
+              <label key={field.id}>
+                {field.label}
+                <input
+                  aria-label={field.label}
+                  maxLength={field.maxLength}
+                  value={values[action.id]?.[field.id] ?? ""}
+                  onChange={(event) =>
+                    setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: event.target.value } })
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!disabled && running === "") start();
+                  }}
+                />
+              </label>
+            ))}
+            <button type="button" disabled={disabled || running !== ""} onClick={start}>
+              {running === action.id ? "Gathering…" : "Run"}
+            </button>
+          </div>
+        );
+      })}
       {error && <p className="co-error">{error}</p>}
     </details>
   );

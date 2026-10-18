@@ -62,7 +62,7 @@ can use it only after you approve it.
 
 New tests in this phase:
 
-- `EmployeeActionTests` (5):
+- `EmployeeActionTests` (7):
   - **The full path:** an action is gathered, the scheduler never claims it, the artifact needs review, unapproved
     evidence is refused, and approved evidence feeds `pr-review`.
   - **Input:** it must be exactly the declared fields; unknown actions are refused; an action can't be created as a
@@ -81,17 +81,44 @@ New tests in this phase:
 | Check | Result |
 | --- | --- |
 | `dotnet build HireZero.slnx` (clean rebuild) | 0 warnings, 0 errors |
-| `dotnet test --solution HireZero.slnx` | 160 passed in two consecutive runs (152 before, plus 8 new) |
+| `dotnet test --solution HireZero.slnx` | 162 passed after the live-test fixes (152 before, plus 10 new) |
 | Web typecheck, build and format check; Node tests | passed; 6 passed |
 | Headless Chrome, all 7 smoke tests; launcher tests | all passed; 14 + 14 passed |
 
-**Not verified:**
+## Live test against a real pull request
 
-- **The panel in a browser.** The existing smoke tests don't cover it yet.
-- **A real `gh pr view`.** It would read GitHub with your signed-in account; the tests use a fake `github.read`
-  handler behind the real registry.
+The full path was run once against a public pull request of yours, in a scratch data root on `127.0.0.1`. It used your
+signed-in `gh` and only read. It hired and onboarded a Developer, gathered the PR's evidence from the panel, approved
+it, and created a `pr-review` task from it. No model was called: the task waits for your one-job authorization.
 
-Please try it once in the company workspace against a PR of yours.
+Both `github.read` calls were audited against the Developer and the task. The artifact is 6,875 characters, with
+provenance `action:pr-evidence`.
+
+The test found five bugs, all fixed:
+
+1. **Run reloaded the page.** The action panel was a form nested inside the composer's form, so Run submitted the
+   composer. Each action is now a group with a plain button. Enter runs the action and no longer saves a composer
+   message.
+2. **Real evidence was refused.** The PR description mentions "system prompt", which the content guard treats as
+   instruction-like text. Action evidence now keeps that text and labels it as data (`CompanyStore.Evidence`). Secrets
+   are still redacted and hidden characters removed, and you review it before any use.
+3. **Action cards showed a model route.** Actions now get no route, and the card hides the route even for tasks
+   recorded before the fix.
+4. **A failed action offered a retry.** A retry would have requeued it as model work. Core now refuses retrying or
+   reassigning an action, the scheduler never claims one, and the card has no retry button: run the action again
+   instead.
+5. **An action accepted an owner-authored artifact.** That could have moved a running action to review underneath
+   it. Core refuses it and the card no longer offers it.
+
+The two new tests cover 2–5 in Core. The panel itself is still not in the headless smoke tests.
+
+## Known risk: model replies about prompts
+
+The company execution path withholds any model reply the content guard flags as instruction-like text
+(`CompanyExecution.cs`, the `Text(reply.Body, 12000)` check). A review of this PR would likely quote "system prompt"
+and be withheld as invalid text, with its usage retained. This is unchanged: relaxing a guard on model output is your
+call. A likely option is to apply the same labelling that evidence now uses, but only for reviews, which take no
+action.
 
 ## Next: 2B.5b, the PR fix
 

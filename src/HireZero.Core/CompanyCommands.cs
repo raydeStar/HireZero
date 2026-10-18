@@ -306,6 +306,9 @@ public sealed partial class CompanyStore
                     throw new WorkspaceException(
                         "A conversational turn cannot become autonomous work or be resumed. Prepare a fresh separately authorized reply."
                     );
+                // An action is never model work: rerun it from the employee's actions instead of requeuing it.
+                if (task.Kind == ActionKind && c.Action is "task.retry" or "task.reassign")
+                    throw new WorkspaceException("Run the action again instead of retrying or reassigning it.");
                 if (c.Action == "task.complete")
                 {
                     if (task.State is not ("awaiting_review" or "blocked"))
@@ -377,7 +380,10 @@ public sealed partial class CompanyStore
             {
                 var task = Need<CompanyTask>(db, c.Id);
                 Version(task.Version, c.ExpectedVersion);
-                if (task.Kind == "conversation" || task.State is "running" or "canceled" or "superseded" or "completed")
+                if (
+                    task.Kind is "conversation" or ActionKind
+                    || task.State is "running" or "canceled" or "superseded" or "completed"
+                )
                     throw new WorkspaceException("This task cannot accept a manual artifact.");
                 var body = Text(c.Body, 12000);
                 var a = new CompanyArtifact(
@@ -575,7 +581,19 @@ public sealed partial class CompanyStore
                 ?.Id
         );
         var execution = Role(e.RoleId).ExecutionSkills.Contains(skill);
-        task = task with { ModelRoute = ModelRouting.For(execution), Runtime = ModelRouting.Runtime, Kind = kind };
+        // Actions never call a model, so they carry no route.
+        task =
+            kind == ActionKind
+                ? task with
+                {
+                    Kind = kind,
+                }
+                : task with
+                {
+                    ModelRoute = ModelRouting.For(execution),
+                    Runtime = ModelRouting.Runtime,
+                    Kind = kind,
+                };
         if (execution)
             task = task with { State = "blocked", Reason = CompanyReasons.ExecutionUnavailable };
         Put(db, task);
