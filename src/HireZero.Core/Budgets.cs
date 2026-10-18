@@ -21,7 +21,9 @@ public sealed record BudgetLimit(
     string? ResumedFor = null
 );
 
-public sealed record BudgetUse(long Tokens, int Runs, int Minutes, int Calls);
+// Unreported counts entries whose provider gave no usage: model calls are then recorded at a conservative estimate
+// (their input plus the output cap), coding runs at zero tokens. Either way they are visible, never silently zero.
+public sealed record BudgetUse(long Tokens, int Runs, int Minutes, int Calls, int Unreported = 0);
 
 public sealed record BudgetStatus(
     string Scope,
@@ -64,6 +66,14 @@ public sealed class BudgetLedger
             CREATE TABLE IF NOT EXISTS budget_limits(scope TEXT PRIMARY KEY, payload TEXT NOT NULL);
             """;
         command.ExecuteNonQuery();
+        using var columns = connection.CreateCommand();
+        columns.CommandText = "SELECT COUNT(*) FROM pragma_table_info('budget_usage') WHERE name='unreported'";
+        if ((long)columns.ExecuteScalar()! == 0)
+        {
+            using var add = connection.CreateCommand();
+            add.CommandText = "ALTER TABLE budget_usage ADD COLUMN unreported INTEGER NOT NULL DEFAULT 0";
+            add.ExecuteNonQuery();
+        }
     }
 
     private SqliteConnection Open()
@@ -109,7 +119,8 @@ public sealed class BudgetLedger
         string? model,
         long tokens,
         int runs,
-        double seconds
+        double seconds,
+        bool unreported = false
     )
     {
         int added;
@@ -119,7 +130,7 @@ public sealed class BudgetLedger
             using var connection = Open();
             using var insert = Command(
                 connection,
-                "INSERT OR IGNORE INTO budget_usage VALUES($id,$at,$month,$role,$task,$kind,$model,$tokens,$runs,$seconds)",
+                "INSERT OR IGNORE INTO budget_usage(id,at,month,role,task,kind,model,tokens,runs,seconds,unreported) VALUES($id,$at,$month,$role,$task,$kind,$model,$tokens,$runs,$seconds,$unreported)",
                 ("$id", id),
                 ("$at", at.ToString("O")),
                 ("$month", MonthOf(at)),
@@ -129,7 +140,8 @@ public sealed class BudgetLedger
                 ("$model", model),
                 ("$tokens", Math.Max(0, tokens)),
                 ("$runs", Math.Max(0, runs)),
-                ("$seconds", (long)Math.Max(0, Math.Round(seconds)))
+                ("$seconds", (long)Math.Max(0, Math.Round(seconds))),
+                ("$unreported", unreported ? 1 : 0)
             );
             added = insert.ExecuteNonQuery();
         }
@@ -148,7 +160,7 @@ public sealed class BudgetLedger
             && DateTimeOffset.TryParse(run.UpdatedAt, out var ended)
                 ? (ended - started).TotalSeconds
                 : 0;
-        long tokens = 0;
+        long? tokens = null;
         if (run.Events.LastOrDefault(item => item.Type == CodingUsage) is { } usage)
             try
             {
@@ -163,9 +175,10 @@ public sealed class BudgetLedger
             task,
             "coding",
             run.ResolvedModel ?? run.RequestedModel,
-            tokens,
+            tokens ?? 0,
             1,
-            seconds
+            seconds,
+            unreported: tokens is null
         );
     }
 
@@ -174,7 +187,7 @@ public sealed class BudgetLedger
         using var connection = Open();
         using var command = Command(
             connection,
-            "SELECT COALESCE(SUM(tokens),0),COALESCE(SUM(runs),0),COALESCE(SUM(CASE kind WHEN 'coding' THEN seconds ELSE 0 END),0),COALESCE(SUM(kind='model'),0) FROM budget_usage WHERE "
+            "SELECT COALESCE(SUM(tokens),0),COALESCE(SUM(runs),0),COALESCE(SUM(CASE kind WHEN 'coding' THEN seconds ELSE 0 END),0),COALESCE(SUM(kind='model'),0),COALESCE(SUM(unreported),0) FROM budget_usage WHERE "
                 + where,
             values
         );
@@ -184,7 +197,8 @@ public sealed class BudgetLedger
             reader.GetInt64(0),
             (int)reader.GetInt64(1),
             (int)Math.Ceiling(reader.GetInt64(2) / 60.0),
-            (int)reader.GetInt64(3)
+            (int)reader.GetInt64(3),
+            (int)reader.GetInt64(4)
         );
     }
 
@@ -463,8 +477,19 @@ public static class UsageMeter
     // Same task, another role (a role's own model prompts).
     public static IDisposable As(string role) => For(role, Task);
 
-    public static void Model(string? model, long tokens, double seconds) =>
-        Ledger?.Record("model:" + Guid.NewGuid().ToString("N"), Role, Task, "model", model, tokens, 0, seconds);
+    // Tokens the provider reported, or null with a conservative estimate when it reported none.
+    public static void Model(string? model, long? tokens, double seconds, long estimate = 0) =>
+        Ledger?.Record(
+            "model:" + Guid.NewGuid().ToString("N"),
+            Role,
+            Task,
+            "model",
+            model,
+            tokens ?? Math.Max(0, estimate),
+            0,
+            seconds,
+            unreported: tokens is null
+        );
 
     private sealed class Restore(Action action) : IDisposable
     {

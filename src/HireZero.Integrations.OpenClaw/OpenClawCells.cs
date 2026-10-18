@@ -118,7 +118,8 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
             AgentActivity.Note(
                 name + " answered in " + Math.Max(1, (int)(DateTimeOffset.UtcNow - started).TotalSeconds) + "s."
             );
-            // OpenAI-compatible usage when the gateway passes it through; a call without it still counts as a call.
+            // OpenAI-compatible usage when the gateway passes it through. Without it the call is recorded as unreported at
+            // a conservative estimate: its input (about four characters a token) plus the full output cap.
             UsageMeter.Model(
                 model ?? Model,
                 document.RootElement.TryGetProperty("usage", out var usage)
@@ -126,8 +127,9 @@ public sealed class OpenClawCells : IDisposable, IModelGateway
                 && usage.TryGetProperty("total_tokens", out var total)
                 && total.TryGetInt64(out var tokens)
                     ? tokens
-                    : 0,
-                (DateTimeOffset.UtcNow - started).TotalSeconds
+                    : null,
+                (DateTimeOffset.UtcNow - started).TotalSeconds,
+                estimate: (instructions.Length + prompt.Length) / 4 + maxTokens
             );
             return answer.Length <= 8000 ? answer : answer[..8000];
         }

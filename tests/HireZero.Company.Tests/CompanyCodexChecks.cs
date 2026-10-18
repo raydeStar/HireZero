@@ -104,7 +104,7 @@ static class CompanyCodexChecks
                     QualificationCreditBudget: 1000
                 )
             );
-        CompanyModelCall Call(string employee, string note, string? history = null) =>
+        ModelCall Call(string employee, string note, string? history = null) =>
             new(
                 Guid.NewGuid().ToString("N"),
                 new(
@@ -250,7 +250,7 @@ static class CompanyCodexChecks
                 await refused.CompletePilotAsync(Call("a", "PRIVATE_ALPHA"));
                 check(false, mode + " must fail closed.");
             }
-            catch (Exception e) when (e is WorkspaceException or CompanyTransportException)
+            catch (Exception e) when (e is WorkspaceException or ModelTransportException)
             {
                 var safe = mode switch
                 {
@@ -315,11 +315,11 @@ static class CompanyCodexChecks
             await billingFailure.CompletePilotAsync(Call("a", "FICTIONAL_ALPHA"));
             check(false, "Missing final billing reconciliation cannot continue.");
         }
-        catch (CompanyTransportException error)
+        catch (ModelTransportException error)
         {
             check(
                 error.KnownUsage == 120
-                    && error.Usage == new CompanyTokenUsage(100, 20, 5)
+                    && error.Usage == new ModelUsage(100, 20, 5)
                     && error.Receipt is not null
                     && !error.Message.Contains("private billing"),
                 "Completed native usage survives a failed account read while output is withheld and private diagnostics remain hidden."
@@ -390,7 +390,7 @@ static class CompanyCodexChecks
             {
                 var employee = i % 2 == 0 ? "fictional-alpha" : "fictional-beta";
                 var note = i % 2 == 0 ? "FICTIONAL_ALPHA" : "FICTIONAL_BETA";
-                var call = new CompanyModelCall(
+                var call = new ModelCall(
                     Guid.NewGuid().ToString("N"),
                     new(
                         "fictional-context-" + i,

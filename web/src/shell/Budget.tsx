@@ -13,7 +13,8 @@ interface BudgetLimit {
 }
 interface BudgetStatus {
   scope: string;
-  used: { tokens: number; runs: number; minutes: number; calls: number };
+  // unreported: entries whose provider gave no usage (model calls are counted at a conservative estimate).
+  used: { tokens: number; runs: number; minutes: number; calls: number; unreported?: number };
   percent: number;
   state: "unlimited" | "ok" | "warning" | "reached";
   resumed: boolean;
@@ -33,6 +34,7 @@ const used = (s: BudgetStatus) =>
     s.used.tokens
       ? s.used.tokens.toLocaleString() + " tokens"
       : s.used.calls + " model call" + (s.used.calls === 1 ? "" : "s"),
+    ...(s.used.unreported ? [s.used.unreported + " without reported usage (estimated)"] : []),
   ].join(" · ");
 const stateLabel = (s: BudgetStatus) =>
   s.state === "reached"

@@ -18,7 +18,7 @@ public interface ICompanyTokenCounter
 
 // Request/response plumbing qualified by real loopback HTTP fixtures, not an assertion about an installed runtime.
 // No process startup, auth lookup, filesystem retrieval, retries, cookies, proxy, redirects or owner-cell fallback.
-public sealed class ScopedCompanyText : ICompanyModel, IDisposable
+public sealed class ScopedCompanyText : IModelProvider, IDisposable
 {
     private readonly HttpClient _http;
     private readonly Uri _endpoint;
@@ -71,18 +71,18 @@ public sealed class ScopedCompanyText : ICompanyModel, IDisposable
         };
     }
 
-    private static string User(CompanyModelCall call) => CompanyJson.Encode(call.Context);
+    private static string User(ModelCall call) => CompanyJson.Encode(call.Context);
 
-    public CompanyInputAccounting CountInput(CompanyModelCall call)
+    public ModelInputAccounting CountInput(ModelCall call)
     {
         if (!Qualified)
             throw new ModelUnavailableException(Status);
         return new(_counter.Count(call.Instructions, User(call)), _counter.RuntimeOverheadTokens, _counter.Identity);
     }
 
-    public int CountTokens(CompanyModelCall call) => CountInput(call).TotalTokens();
+    public int CountTokens(ModelCall call) => CountInput(call).TotalTokens();
 
-    public async Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token)
+    public async Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token)
     {
         if (!Qualified)
             throw new ModelUnavailableException(Status);
@@ -121,11 +121,9 @@ public sealed class ScopedCompanyText : ICompanyModel, IDisposable
         // A rejected/malformed response can still follow upstream usage. Unconfirmed outcomes retain reservations.
         using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
         if (!response.IsSuccessStatusCode)
-            throw new CompanyTransportException(
-                "The scoped gateway refused or failed the request; no automatic retry."
-            );
+            throw new ModelTransportException("The scoped gateway refused or failed the request; no automatic retry.");
         if (response.Content.Headers.ContentLength is > 65536)
-            throw new CompanyTransportException("Scoped response exceeded its size bound.");
+            throw new ModelTransportException("Scoped response exceeded its size bound.");
         await using var stream = await response.Content.ReadAsStreamAsync(token);
         using var bytes = new MemoryStream();
         var buffer = new byte[4096];
@@ -135,18 +133,18 @@ public sealed class ScopedCompanyText : ICompanyModel, IDisposable
             if (read == 0)
                 break;
             if (bytes.Length + read > 65536)
-                throw new CompanyTransportException("Scoped response exceeded its size bound.");
+                throw new ModelTransportException("Scoped response exceeded its size bound.");
             bytes.Write(buffer, 0, read);
         }
         long? confirmedTotal = null;
         string? confirmedReceipt = null;
-        CompanyTokenUsage? actual = null;
+        ModelUsage? actual = null;
         try
         {
             using var document = JsonDocument.Parse(bytes.ToArray());
             var json = document.RootElement;
             if (!json.TryGetProperty("model", out var route) || route.GetString() != _model)
-                throw new CompanyTransportException("The gateway returned a different model route.");
+                throw new ModelTransportException("The gateway returned a different model route.");
             if (
                 !json.TryGetProperty("usage", out var usage)
                 || !Number(usage, "prompt_tokens", out var input)
@@ -155,18 +153,18 @@ public sealed class ScopedCompanyText : ICompanyModel, IDisposable
                 || input > long.MaxValue - output
                 || total != input + output
             )
-                throw new CompanyTransportException("Complete bounded provider usage was not confirmed.");
+                throw new ModelTransportException("Complete bounded provider usage was not confirmed.");
             if (
                 !json.TryGetProperty("id", out var id)
                 || id.ValueKind != JsonValueKind.String
                 || id.GetString() is not { Length: > 0 and <= 160 } receipt
             )
-                throw new CompanyTransportException("A provider receipt is required.");
-            actual = new CompanyTokenUsage(input, output);
+                throw new ModelTransportException("A provider receipt is required.");
+            actual = new ModelUsage(input, output);
             confirmedTotal = total;
             confirmedReceipt = receipt;
             if (input > call.MaxInputTokens || output > call.MaxOutputTokens)
-                throw new CompanyTransportException(
+                throw new ModelTransportException(
                     "Provider input/output exceeded the admitted contract; complete observed usage is retained.",
                     total,
                     receipt,
@@ -178,7 +176,7 @@ public sealed class ScopedCompanyText : ICompanyModel, IDisposable
                 || choices.ValueKind != JsonValueKind.Array
                 || choices.GetArrayLength() != 1
             )
-                throw new CompanyTransportException("One plain text response is required.", total, receipt, actual);
+                throw new ModelTransportException("One plain text response is required.", total, receipt, actual);
             var choice = choices[0];
             var message = choice.GetProperty("message");
             if (
@@ -189,7 +187,7 @@ public sealed class ScopedCompanyText : ICompanyModel, IDisposable
                     && !(tools.ValueKind == JsonValueKind.Array && tools.GetArrayLength() == 0)
                 || message.TryGetProperty("function_call", out var function) && function.ValueKind != JsonValueKind.Null
             )
-                throw new CompanyTransportException(
+                throw new ModelTransportException(
                     "Tool requests and incomplete replies are withheld.",
                     total,
                     receipt,
@@ -197,16 +195,16 @@ public sealed class ScopedCompanyText : ICompanyModel, IDisposable
                 );
             var text = message.GetProperty("content").GetString();
             if (string.IsNullOrWhiteSpace(text) || text.Length > 12000)
-                throw new CompanyTransportException("Text output was invalid.", total, receipt, actual);
+                throw new ModelTransportException("Text output was invalid.", total, receipt, actual);
             return new(text, total, receipt, actual);
         }
-        catch (CompanyTransportException)
+        catch (ModelTransportException)
         {
             throw;
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException or KeyNotFoundException)
         {
-            throw new CompanyTransportException(
+            throw new ModelTransportException(
                 "Scoped response did not satisfy the text/usage contract.",
                 confirmedTotal,
                 confirmedReceipt,

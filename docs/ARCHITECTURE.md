@@ -127,8 +127,16 @@ assemblies' metadata. Platform infrastructure that is not an employee capability
 - **Codex** (`Integrations.Codex`): app-server over stdio; used by the company workspace for measured one-turn work
   and by Developer coding runs. The executable is pinned by a reviewed bundle identity hash.
 
-Several overlapping model contracts remain (`IModelGateway`, `ICompanyModel`, `ICompanyMeasuredModel`,
-`ICodingRunner`); Phase 2B replaces them with one provider contract.
+- **Provider contract**: `IModelProvider` and `IMeasuredModelProvider` (`Core/ModelProviders.cs`,
+  [ADR 0010](adr/0010-model-provider-contract.md)).
+  - The company scheduler admits each call with exact input accounting, reserves budget and dispatches under the
+    provider gate. It watches authority while the call runs, drains on cancellation and holds the provider when
+    termination or usage is unconfirmed.
+  - Implementations: `CompanyCodexConnection` (measured), `ScopedCompanyText` and `UnavailableModelProvider`. Adding
+    a vendor: [ADDING_A_MODEL_PROVIDER.md](ADDING_A_MODEL_PROVIDER.md).
+- **Legacy contracts**: `IModelGateway` (OpenClaw text) and `ICodingRunner` (Codex coding runs) serve the Developer
+  profile only and retire with it in Phase 2B.5. Their usage goes to the budget ledger, which flags anything the
+  provider didn't report.
 
 ## Storage
 

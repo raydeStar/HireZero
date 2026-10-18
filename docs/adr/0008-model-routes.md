@@ -1,6 +1,6 @@
 # 0008: Model routes come from one catalog; one provider contract follows
 
-Status: Accepted (Phase 2)
+Status: Accepted (Phase 2). The provider-contract section is superseded by [ADR 0010](0010-model-provider-contract.md).
 
 ## Context
 

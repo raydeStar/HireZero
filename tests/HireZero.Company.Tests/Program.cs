@@ -20,7 +20,7 @@ public static class Program
             {
                 await CompanyCodexChecks.InspectInstalledAsync(args);
             }
-            catch (Exception e) when (e is WorkspaceException or CompanyTransportException)
+            catch (Exception e) when (e is WorkspaceException or ModelTransportException)
             {
                 Console.WriteLine("BLOCKED: " + e.Message);
                 Environment.ExitCode = 2;

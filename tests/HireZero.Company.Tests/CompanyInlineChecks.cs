@@ -224,7 +224,7 @@ public static class CompanyInlineChecks
             !model.Calls.Last().Context.Evidence.Any(e => e.Id == a.Id),
             "Handoff excluded from unrelated recipient thread."
         );
-        var hold = new TaskCompletionSource<CompanyModelReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var hold = new TaskCompletionSource<ModelReply>(TaskCreationOptions.RunContinuationsAsynchronously);
         model.Hold = hold;
         var pending = Submit(d1, td1, "Cancelable output");
         var running = scheduler.TickAsync(d1.Id);
@@ -281,7 +281,7 @@ public static class CompanyInlineChecks
             "Missing usage never counts as zero."
         );
         var unavailable = Submit(m1, tm1, "Unavailable provider");
-        await new CompanyScheduler(store, new UnavailableCompanyModel()).TickAsync(m1.Id);
+        await new CompanyScheduler(store, new UnavailableModelProvider()).TickAsync(m1.Id);
         Check(
             TaskOf(unavailable.Id).Reason == "provider-unavailable",
             "Unavailable provider saves blocked work without dispatch."
@@ -668,29 +668,29 @@ public static class CompanyInlineChecks
     }
 }
 
-sealed class FakeModel : ICompanyModel
+sealed class FakeModel : IModelProvider
 {
     public bool Qualified => true;
     public string Status => "Deterministic synthetic provider; no network.";
-    public ConcurrentQueue<CompanyModelCall> Calls { get; } = new();
+    public ConcurrentQueue<ModelCall> Calls { get; } = new();
     public int MaxActive;
     private int _active;
     public long? Usage = 100;
-    public TaskCompletionSource<CompanyModelReply>? Hold;
+    public TaskCompletionSource<ModelReply>? Hold;
     public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public string? ReplyBody;
 
-    public CompanyInputAccounting CountInput(CompanyModelCall call) =>
+    public ModelInputAccounting CountInput(ModelCall call) =>
         new(Math.Max(1, CompanyJson.Encode(call).Length / 4), 0, "synthetic-test-counter");
 
-    public async Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token)
+    public async Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token)
     {
         var active = Interlocked.Increment(ref _active);
         MaxActive = Math.Max(MaxActive, active);
         Calls.Enqueue(call);
         try
         {
-            CompanyModelReply reply;
+            ModelReply reply;
             if (Hold is not null)
             {
                 Entered.TrySetResult();

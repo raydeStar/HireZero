@@ -301,18 +301,18 @@ static class ConversationChecks
             );
             if (mode is "company-drain" or "company-nontext")
                 check(
-                    attempt.ReportedUsage == 120 && attempt.Usage == new CompanyTokenUsage(100, 20, 5),
+                    attempt.ReportedUsage == 120 && attempt.Usage == new ModelUsage(100, 20, 5),
                     "Complete measured usage survives a rejected conversational response."
                 );
             if (mode == "company-measured-inconsistent")
                 check(
-                    attempt.ReportedUsage == 4951 && attempt.Usage == new CompanyTokenUsage(4800, 150, 5),
+                    attempt.ReportedUsage == 4951 && attempt.Usage == new ModelUsage(4800, 150, 5),
                     "Inconsistent conversational usage is retained without trusted settlement."
                 );
             if (mode == "company-measured-overrun")
                 check(
                     attempt.ReportedUsage == 9150
-                        && attempt.Usage == new CompanyTokenUsage(9000, 150, 5)
+                        && attempt.Usage == new ModelUsage(9000, 150, 5)
                         && Items<CompanyBudget>(f.Store, "budgets").Single(b => b.Id == p.Task.RootId).Reserved == 8000,
                     "Conversational overage preserves all measured usage and its reservation without clamping."
                 );
@@ -380,7 +380,7 @@ static class ConversationChecks
             if (mode == "company-measured-partial")
                 check(
                     a.ReportedUsage is null
-                        && a.Usage == new CompanyTokenUsage(4800, 20, 5)
+                        && a.Usage == new ModelUsage(4800, 20, 5)
                         && Items<CompanyBudget>(f.Store, "budgets").Single(b => b.Id == p.Task.RootId).Reserved == 8000,
                     "Partial cancellation receipts retain usage and the planning reservation."
                 );

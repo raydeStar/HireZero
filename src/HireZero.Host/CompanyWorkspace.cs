@@ -15,7 +15,7 @@ public static class CompanyWorkspace
         string owner,
         bool localOwner,
         string root,
-        ICompanyModel? fixture = null,
+        IModelProvider? fixture = null,
         string? fixtureUrl = null,
         string? fixtureWebRoot = null
     )
@@ -76,7 +76,7 @@ public static class CompanyWorkspace
                     ?? ModelRoutes.Route(ModelRoutes.CompanyCoding)
             );
             routing.Validate();
-            ICompanyModel model =
+            IModelProvider model =
                 fixture
                 ?? (
                     args.Contains(CodexFlag)
@@ -96,14 +96,14 @@ public static class CompanyWorkspace
                             ),
                             routing
                         )
-                        : new UnavailableCompanyModel()
+                        : new UnavailableModelProvider()
                 );
             var store = new CompanyStore(
                 Path.Combine(root, "workspace.sqlite"),
                 owner,
                 Definitions(),
                 routing,
-                (model as ICompanyMeasuredModel)?.RuntimeIdentity
+                (model as IMeasuredModelProvider)?.RuntimeIdentity
             );
             builder.Services.AddSingleton(store);
             // Tools employees may call, audited in the company store (docs/adr/0007-tool-registry.md).
@@ -111,7 +111,7 @@ public static class CompanyWorkspace
             if (GitToolRegistration.FindGit() is { } git)
                 tools.AddGitTools(new GitCheckoutInspector(git));
             builder.Services.AddSingleton(tools);
-            builder.Services.AddSingleton<ICompanyModel>(model);
+            builder.Services.AddSingleton<IModelProvider>(model);
             builder.Services.AddSingleton<CompanyScheduler>();
             builder.Services.AddHostedService(s => s.GetRequiredService<CompanyScheduler>());
             var app = builder.Build();
@@ -180,7 +180,7 @@ public static class CompanyWorkspace
                             role = "owner",
                             accessMode = "local",
                             roles = Array.Empty<string>(),
-                            agentModel = model is ICompanyMeasuredModel
+                            agentModel = model is IMeasuredModelProvider
                                 ? CompanyModelRouting.Native(routing.TextModel) + " (manual only)"
                                 : "Unavailable",
                             agentReasoning = "",
@@ -199,8 +199,8 @@ public static class CompanyWorkspace
                             {
                                 localManagement = true,
                                 modelExecution = model.Qualified,
-                                measuredOneJob = model is ICompanyMeasuredModel,
-                                conversationalReplies = model is ICompanyMeasuredModel,
+                                measuredOneJob = model is IMeasuredModelProvider,
+                                conversationalReplies = model is IMeasuredModelProvider,
                                 providerStatus = model.Status,
                                 modelRouting = routing,
                                 ceoEnabled = true,
@@ -247,7 +247,7 @@ public static class CompanyWorkspace
                     var command = CompanyJson.Decode<CompanyCommand>(body.GetRawText());
                     if (command.Action == "measured.run")
                     {
-                        if (model is not ICompanyMeasuredModel measured)
+                        if (model is not IMeasuredModelProvider measured)
                             throw new WorkspaceException("A pinned measured runtime is not configured.");
                         var receipt = await app
                             .Services.GetRequiredService<CompanyScheduler>()

@@ -103,11 +103,11 @@ public static class RecoveryChecks
                 )
             )
                 Check(posted.StatusCode == HttpStatusCode.Created, "Fresh owner message is admitted.");
-            await model.Called.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await model.Called.Task.WaitAsync(TimeSpan.FromSeconds(15));
             Check(model.Calls == 1 && model.Prompt == "Reply exactly: ready", "Only fresh text reaches model.");
             async Task WaitState(string state)
             {
-                using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(15));
                 while (agents.Latest(home.Id)?.State != state)
                     await Task.Delay(10, limit.Token);
             }

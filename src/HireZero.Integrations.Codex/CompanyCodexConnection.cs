@@ -54,8 +54,8 @@ public sealed record CompanyCodexReceipt(
 // this native protocol cannot supply. Explicit one-job measured admission is separate from
 // strict qualification; neither entry point is an automatic worker fallback.
 public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyModelRouting? routing = null)
-    : ICompanyModel,
-        ICompanyMeasuredModel
+    : IModelProvider,
+        IMeasuredModelProvider
 {
     private const string PermissionProfile = "hirezero_qualification";
     private readonly SemaphoreSlim _serial = new(1, 1);
@@ -99,17 +99,17 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
     public string Status =>
         "Codex selected. Automatic model work is off. An eligible task may run only after explicit one-job measured authorization; token/time/output targets are local soft stops.";
 
-    public int CountTokens(CompanyModelCall call) =>
+    public int CountTokens(ModelCall call) =>
         throw new ModelUnavailableException(
             "Codex app-server has no compatible exact input counter; character counts are not token bounds."
         );
 
-    public CompanyInputAccounting CountInput(CompanyModelCall call) =>
+    public ModelInputAccounting CountInput(ModelCall call) =>
         throw new ModelUnavailableException(
             "Codex application tokens and runtime-added input have no compatible exact preflight counter. Observed usage is not an admission bound."
         );
 
-    public Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token) =>
+    public Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token) =>
         throw new ModelUnavailableException(Status);
 
     public async Task<CompanyCodexInspection> InspectAsync(CancellationToken token = default)
@@ -169,14 +169,10 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
     // Caller supplies fictional data only. This is an explicit qualification entry point, never a worker fallback.
     // Four attempts maximum per connection; any uncertain outcome permanently closes this qualification instance.
     // Byte/character/deadline checks below are conservative local controls, NOT upstream token/spending ceilings.
-    public Task<CompanyCodexReceipt> CompletePilotAsync(CompanyModelCall call, CancellationToken token = default) =>
+    public Task<CompanyCodexReceipt> CompletePilotAsync(ModelCall call, CancellationToken token = default) =>
         CompleteNativeAsync(call, null, token);
 
-    public async Task<CompanyModelReply> CompleteMeasuredAsync(
-        CompanyModelCall call,
-        CompanyMeasuredJob job,
-        CancellationToken token
-    )
+    public async Task<ModelReply> CompleteMeasuredAsync(ModelCall call, CompanyMeasuredJob job, CancellationToken token)
     {
         if (
             job.State != "dispatched"
@@ -189,9 +185,9 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         )
             throw new WorkspaceException("The exact consumed measured authorization is required.");
         var receipt = await CompleteNativeAsync(call, job, token);
-        var usage = new CompanyTokenUsage(receipt.InputTokens, receipt.OutputTokens, receipt.ReasoningTokens);
+        var usage = new ModelUsage(receipt.InputTokens, receipt.OutputTokens, receipt.ReasoningTokens);
         if (receipt.StopReason is not null)
-            throw new CompanyTransportException(
+            throw new ModelTransportException(
                 receipt.StopReason,
                 receipt.TotalTokens,
                 "codex:" + receipt.TurnId,
@@ -202,7 +198,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
     }
 
     private async Task<CompanyCodexReceipt> CompleteNativeAsync(
-        CompanyModelCall call,
+        ModelCall call,
         CompanyMeasuredJob? measured,
         CancellationToken token
     )
@@ -243,8 +239,8 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                     ? Number(usage, "reasoningOutputTokens")
                     : null;
             var total = Number(usage, "totalTokens");
-            if (!new CompanyTokenUsage(i, o, r).Consistent(total))
-                throw new CompanyTransportException(
+            if (!new ModelUsage(i, o, r).Consistent(total))
+                throw new ModelTransportException(
                     "Complete runtime usage is inconsistent.",
                     total,
                     "codex:" + turn,
@@ -375,12 +371,12 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 if (e.TryGetProperty("id", out var requestId))
                 {
                     await rpc.Deny(requestId, deadline.Token);
-                    throw new CompanyTransportException(
+                    throw new ModelTransportException(
                         "Runtime requested a tool, approval or authentication change; qualification stopped."
                     );
                 }
                 if (method == "error")
-                    throw new CompanyTransportException("Codex reported an error; no replay.");
+                    throw new ModelTransportException("Codex reported an error; no replay.");
                 if (!e.TryGetProperty("params", out var p))
                     continue;
                 if (
@@ -391,11 +387,11 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                         || Billing(p).RateLimitReachedType is not null
                     )
                 )
-                    throw new CompanyTransportException(
+                    throw new ModelTransportException(
                         "Runtime reported quota or spending exhaustion; no continuation or replay."
                     );
                 if (method == "account/updated" && Text(p, "authMode") is { } mode && mode != "chatgpt")
-                    throw new CompanyTransportException("Runtime account mode changed; no provider fallback.");
+                    throw new ModelTransportException("Runtime account mode changed; no provider fallback.");
                 if (Text(p, "threadId") != thread || Text(p, "turnId") is { } eventTurn && eventTurn != turn)
                     continue;
                 if (method is "item/started" or "item/completed")
@@ -403,7 +399,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                     var item = p.GetProperty("item");
                     var kind = Text(item, "type");
                     if (kind is not ("agentMessage" or "reasoning" or "userMessage"))
-                        throw new CompanyTransportException(
+                        throw new ModelTransportException(
                             "A non-text runtime item was withheld; qualification stopped."
                         );
                     if (method == "item/completed" && kind == "agentMessage" && output.Length == 0)
@@ -412,7 +408,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 if (method == "item/agentMessage/delta")
                     output.Append(Text(p, "delta"));
                 if (output.Length > (measured?.Policy.VisibleCharacterStop ?? 2000))
-                    throw new CompanyTransportException(
+                    throw new ModelTransportException(
                         "Local output character allowance exceeded; native work stopped."
                     );
                 if (method == "thread/tokenUsage/updated")
@@ -425,7 +421,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                             || receipt.OutputTokens > measured.Policy.OutputTarget
                         )
                     )
-                        throw new CompanyTransportException(
+                        throw new ModelTransportException(
                             "Observed usage exceeded its soft planning tripwire; native work stopped."
                         );
                 }
@@ -435,7 +431,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                     if (Text(completed, "id") != turn)
                         continue;
                     if (Text(completed, "status") != "completed" || receipt is null || output.Length == 0)
-                        throw new CompanyTransportException("Completion or complete usage was not confirmed.");
+                        throw new ModelTransportException("Completion or complete usage was not confirmed.");
                     completedReceipt = receipt;
                     var after = Billing(
                         await rpc.Request(
@@ -521,17 +517,17 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 catch { }
             }
             // Retain the inconsistent provider numbers without treating them as a settled bill.
-            if (failure is CompanyTransportException { Usage: not null, AccountingViolation: true })
+            if (failure is ModelTransportException { Usage: not null, AccountingViolation: true })
                 throw;
             if (completedReceipt is { } known)
-                throw new CompanyTransportException(
+                throw new ModelTransportException(
                     "The native turn completed but final account reconciliation failed; observed usage is retained. No replay.",
                     known.TotalTokens,
                     "codex:" + known.TurnId,
                     new(known.InputTokens, known.OutputTokens, known.ReasoningTokens)
                 );
             if (observedReceipt is { } partial)
-                throw new CompanyTransportException(
+                throw new ModelTransportException(
                     "Native outcome is unknown; last observed usage is retained without claiming final billing. No replay.",
                     null,
                     "codex:" + partial.TurnId,
@@ -550,7 +546,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
             {
                 _stopped = true;
                 var retained = completedReceipt ?? observedReceipt;
-                throw new CompanyTransportException(
+                throw new ModelTransportException(
                     "Owned native process cleanup is unconfirmed; observed usage is retained and continuation is held.",
                     completedReceipt?.TotalTokens,
                     retained is null ? null : "codex:" + retained.TurnId,
@@ -587,7 +583,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
     private static long Number(JsonElement j, string key) =>
         j.TryGetProperty(key, out var value) && value.TryGetInt64(out var n) && n >= 0
             ? n
-            : throw new CompanyTransportException("Complete runtime usage is missing.");
+            : throw new ModelTransportException("Complete runtime usage is missing.");
 
     private static bool? Flag(JsonElement j, string key) =>
         j.ValueKind == JsonValueKind.Object && j.TryGetProperty(key, out var value)
@@ -916,9 +912,9 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         {
             var line =
                 await _process.StandardOutput.ReadLineAsync(token)
-                ?? throw new CompanyTransportException("Codex exited without a confirmed outcome.");
+                ?? throw new ModelTransportException("Codex exited without a confirmed outcome.");
             if (line.Length > 131072)
-                throw new CompanyTransportException("Runtime event size exceeded its local allowance.");
+                throw new ModelTransportException("Runtime event size exceeded its local allowance.");
             using var document = JsonDocument.Parse(line);
             return document.RootElement.Clone();
         }

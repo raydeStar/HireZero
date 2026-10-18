@@ -125,7 +125,7 @@ static class MeasuredQueueChecks
             check(
                 f.Starts == 1
                     && done.Measured?.State == "completed"
-                    && done.Usage == new CompanyTokenUsage(4800, 150, 5)
+                    && done.Usage == new ModelUsage(4800, 150, 5)
                     && Budget(f.Store, f.Task) is { Used: 4950, Reserved: 0, Limit: 8000 }
                     && artifact.State == "needs_review",
                 "The real HTTP queue entry runs one fake-native Marketing job above the old input default, accounts for all runtime usage and saves a review-required draft."
@@ -155,7 +155,7 @@ static class MeasuredQueueChecks
             await f.Post(RunCommand(proposal));
             var done = f.Store.Attempt(proposal.Id);
             check(
-                done.Usage == new CompanyTokenUsage(4800, 150)
+                done.Usage == new ModelUsage(4800, 150)
                     && Budget(f.Store, f.Task) is { Used: 4950, Reserved: 0 }
                     && Items<CompanyArtifact>(f.Store, "artifacts").Length == 1,
                 "A missing reasoning sub-breakdown remains unknown while complete input/output usage settles in full."
@@ -273,7 +273,7 @@ static class MeasuredQueueChecks
             if (mode == "company-measured-overrun")
                 check(
                     result.ReportedUsage == 9150
-                        && result.Usage == new CompanyTokenUsage(9000, 150, 5)
+                        && result.Usage == new ModelUsage(9000, 150, 5)
                         && budget.Reserved == 8000,
                     "A token tripwire overrun retains full actual usage without clamping it to the planning reservation."
                 );
@@ -290,7 +290,7 @@ static class MeasuredQueueChecks
             else if (mode == "company-measured-inconsistent")
                 check(
                     result.ReportedUsage == 4951
-                        && result.Usage == new CompanyTokenUsage(4800, 150, 5)
+                        && result.Usage == new ModelUsage(4800, 150, 5)
                         && budget.Reserved == 8000,
                     "Inconsistent provider numbers remain visible without settling an untrusted total or releasing the reservation."
                 );
@@ -418,7 +418,7 @@ static class MeasuredQueueChecks
             )
                 check(
                     result.ReportedUsage is null
-                        && result.Usage == new CompanyTokenUsage(4800, 20, 5)
+                        && result.Usage == new ModelUsage(4800, 20, 5)
                         && Budget(f.Store, f.Task).Reserved == 8000,
                     "Partial native usage survives interruption while final billing stays unknown and reserved."
                 );
@@ -558,24 +558,22 @@ static class MeasuredQueueChecks
     static CompanyBudget Budget(CompanyStore store, CompanyTask task) =>
         Items<CompanyBudget>(store, "budgets").Single(b => b.Id == task.RootId);
 
-    sealed class SlowProvider : ICompanyModel, ICompanyMeasuredModel
+    sealed class SlowProvider : IModelProvider, IMeasuredModelProvider
     {
         public bool Qualified => false;
         public string Status => "Fictional noncooperative fixture";
         public string RuntimeIdentity => "fictional-delayed-runtime";
         public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously),
             Canceled = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public TaskCompletionSource<CompanyModelReply> Completion = new(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
+        public TaskCompletionSource<ModelReply> Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public CompanyInputAccounting CountInput(CompanyModelCall call) => throw new NotSupportedException();
+        public ModelInputAccounting CountInput(ModelCall call) => throw new NotSupportedException();
 
-        public Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token) =>
+        public Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token) =>
             throw new NotSupportedException();
 
-        public async Task<CompanyModelReply> CompleteMeasuredAsync(
-            CompanyModelCall call,
+        public async Task<ModelReply> CompleteMeasuredAsync(
+            ModelCall call,
             CompanyMeasuredJob job,
             CancellationToken token
         )

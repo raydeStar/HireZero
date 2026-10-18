@@ -89,7 +89,7 @@ static class MarketingQueueChecks
         check(
             attempt.Admission is { Accounting.ApplicationTokens: 200, Accounting.RuntimeOverheadTokens: 3000 }
                 && attempt.Admission.ContextDigest == CompanyJson.Digest(provider.Call!.Context)
-                && attempt.Usage == new CompanyTokenUsage(3200, 100, 10)
+                && attempt.Usage == new ModelUsage(3200, 100, 10)
                 && attempt.ReportedUsage == 3300
                 && Budget(good.Store, good.Task).Used == 3300,
             "Admission binds the exact packed context, counts runtime overhead, and settles the full provider input/output receipt."
@@ -247,7 +247,7 @@ static class MarketingQueueChecks
             if (mode == "input-overhead")
                 check(
                     fixture.Store.Work(fixture.Task.Id).State == "failed"
-                        && receipt.Usage == new CompanyTokenUsage(4355, 14)
+                        && receipt.Usage == new ModelUsage(4355, 14)
                         && receipt.ReportedUsage == 4369
                         && budget is { Used: 4369, Reserved: 0 },
                     "Observed native-sized input is withheld and fully accounted, rather than subtracting overhead or discarding known usage."
@@ -261,7 +261,7 @@ static class MarketingQueueChecks
                 check(
                     fixture.Store.Work(fixture.Task.Id).State == "unknown"
                         && receipt.ReportedUsage == 6100
-                        && receipt.Usage == new CompanyTokenUsage(6000, 100)
+                        && receipt.Usage == new ModelUsage(6000, 100)
                         && budget.Reserved == 5000,
                     "Usage above the reservation retains its full receipt and hold for reconciliation; the allowance is not increased."
                 );
@@ -318,23 +318,23 @@ static class MarketingQueueChecks
             .Select(a => CompanyJson.Decode<CompanyAttempt>(a.GetRawText()))
             .Single();
 
-    sealed class Provider : ICompanyModel
+    sealed class Provider : IModelProvider
     {
         public bool Qualified => true;
         public string Status => "Fictional fixture only; no native runtime.";
         public int? Overhead = 3000;
         public string Mode = "success";
         public int Calls;
-        public CompanyModelCall? Call;
+        public ModelCall? Call;
         public bool HonorCancellation,
             CancellationObserved;
-        public TaskCompletionSource<CompanyModelReply>? Hold;
+        public TaskCompletionSource<ModelReply>? Hold;
         public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public CompanyInputAccounting CountInput(CompanyModelCall call) =>
+        public ModelInputAccounting CountInput(ModelCall call) =>
             new(200, Overhead, "fictional-complete-envelope-counter");
 
-        public static CompanyModelReply Reply() =>
+        public static ModelReply Reply() =>
             new(
                 "DRAFT for internal review.\nFictional paper-crane kits.\nClaim sources: approved brief.\nMissing facts: price.\nOwner questions: confirm wording.",
                 3300,
@@ -342,7 +342,7 @@ static class MarketingQueueChecks
                 new(3200, 100, 10)
             );
 
-        public async Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token)
+        public async Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token)
         {
             Calls++;
             Call = call;
@@ -367,7 +367,7 @@ static class MarketingQueueChecks
                 "counter-drift" => new("Withheld fictional draft", 3301, "fictional-drift-receipt", new(3201, 100)),
                 "over-reservation" => new("Withheld fictional draft", 6100, "fictional-excess-receipt", new(6000, 100)),
                 "invalid-text" => Reply() with { Body = "" },
-                "lost" => throw new CompanyTransportException("Fictional connection lost after dispatch"),
+                "lost" => throw new ModelTransportException("Fictional connection lost after dispatch"),
                 _ => Reply(),
             };
         }

@@ -177,7 +177,7 @@ public sealed record CompanyAttempt(
     string? ProviderReceipt = null,
     long? ReportedUsage = null,
     CompanyInputAdmission? Admission = null,
-    CompanyTokenUsage? Usage = null,
+    ModelUsage? Usage = null,
     CompanyMeasuredJob? Measured = null
 );
 
@@ -280,15 +280,6 @@ public sealed record CompanyCommand(
     string? Scope = null
 );
 
-public sealed record CompanyModelCall(
-    string DispatchId,
-    CompanyContext Context,
-    string Instructions,
-    int MaxInputTokens,
-    int MaxOutputTokens,
-    string? ModelRoute = null
-);
-
 // Runtime selection and task purpose are independent of employee role: a conversation is ordinary text work; only
 // execution skills use the coding route. Routes come from the model route catalog (docs/adr/0008-model-routes.md);
 // the runtime that dispatches them decides which providers it can serve.
@@ -331,62 +322,6 @@ public static class CompanyReasons
     // Tasks saved before the reason was made role-neutral carry the older name.
     public static bool IsExecutionUnavailable(string? reason) =>
         reason is ExecutionUnavailable or "developer-execution-unavailable";
-}
-
-public sealed record CompanyModelReply(
-    string Body,
-    long? TotalTokens,
-    string? Receipt = null,
-    CompanyTokenUsage? Usage = null
-);
-
-public sealed class CompanyTransportException(
-    string message,
-    long? knownUsage = null,
-    string? receipt = null,
-    CompanyTokenUsage? usage = null,
-    bool accountingViolation = false
-) : Exception(message)
-{
-    public long? KnownUsage { get; } = knownUsage;
-    public string? Receipt { get; } = receipt;
-    public CompanyTokenUsage? Usage { get; } = usage;
-    public bool AccountingViolation { get; } = accountingViolation;
-}
-
-public interface ICompanyModel
-{
-    bool Qualified { get; }
-    string Status { get; }
-
-    // Counts all provider input, including runtime-added framing/instructions. No observed offset.
-    CompanyInputAccounting CountInput(CompanyModelCall call);
-    int CountTokens(CompanyModelCall call) => CountInput(call).TotalTokens();
-    Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token);
-}
-
-public interface ICompanyMeasuredModel
-{
-    string RuntimeIdentity { get; }
-    Task<CompanyModelReply> CompleteMeasuredAsync(
-        CompanyModelCall call,
-        CompanyMeasuredJob job,
-        CancellationToken token
-    );
-}
-
-public sealed class UnavailableCompanyModel : ICompanyModel
-{
-    public bool Qualified => false;
-    public string Status =>
-        "Live context isolation and usage accounting have not been qualified. No model request is sent.";
-
-    public int CountTokens(CompanyModelCall call) => throw new ModelUnavailableException(Status);
-
-    public CompanyInputAccounting CountInput(CompanyModelCall call) => throw new ModelUnavailableException(Status);
-
-    public Task<CompanyModelReply> CompleteAsync(CompanyModelCall call, CancellationToken token) =>
-        throw new ModelUnavailableException(Status);
 }
 
 public static class CompanyJson

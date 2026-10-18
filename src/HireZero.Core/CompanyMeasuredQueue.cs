@@ -45,13 +45,13 @@ public sealed partial class CompanyStore
         return Need<CompanyAttempt>(db, id);
     }
 
-    public CompanyModelCall TextCall(string attempt)
+    public ModelCall TextCall(string attempt)
     {
         using var db = Open();
         return TextCall(db, Need<CompanyAttempt>(db, attempt));
     }
 
-    private CompanyModelCall TextCall(SqliteConnection db, CompanyAttempt attempt)
+    private ModelCall TextCall(SqliteConnection db, CompanyAttempt attempt)
     {
         var context = Need<CompanyContext>(db, attempt.ContextId);
         var task = Need<CompanyTask>(db, attempt.TaskId);
@@ -80,7 +80,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    private static int ApplicationBytes(CompanyModelCall call) =>
+    private static int ApplicationBytes(ModelCall call) =>
         Encoding.UTF8.GetByteCount(call.Instructions) + Encoding.UTF8.GetByteCount(CompanyJson.Encode(call.Context));
 
     private static string MeasuredDigest(CompanyAttempt attempt, CompanyMeasuredJob job) =>
@@ -352,7 +352,7 @@ public sealed partial class CompanyScheduler
     // Explicit owner entry point only. ExecuteAsync never scans or starts measured proposals.
     public async Task<string> RunMeasuredOnceAsync(
         CompanyCommand command,
-        ICompanyMeasuredModel measured,
+        IMeasuredModelProvider measured,
         CancellationToken token = default
     )
     {
@@ -377,7 +377,7 @@ public sealed partial class CompanyScheduler
                 );
                 store.Finish(attempt.Id, reply);
             }
-            catch (CompanyTransportException error)
+            catch (ModelTransportException error)
             {
                 store.RejectResponse(attempt.Id, error);
             }
