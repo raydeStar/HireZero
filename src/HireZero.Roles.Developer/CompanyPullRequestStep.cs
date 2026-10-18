@@ -15,17 +15,18 @@ public static class CompanyPullRequestStep
     public const string Merge = "merge";
     public const string Rerun = "rerun";
     public const string Rebase = "rebase";
+    public const string RerunBase = "rerun-base";
     private const string RebaseComment = "@dependabot rebase";
     private const string Dependabot = "dependabot[bot]";
 
     public static readonly EmployeeAction Definition = new(
         Action,
         "Pull request step",
-        "Read a pull request and name one step you can publish: merge it, re-run its failed jobs, or ask Dependabot to rebase it.",
+        "Read a pull request and name one step you can publish: merge it, re-run its failed jobs or its base branch's, or ask Dependabot to rebase it.",
         [
             new("repository", "Repository (owner/name)", 140),
             new("number", "Pull request number", 10),
-            new("step", "Step (merge, rerun or rebase)", 10),
+            new("step", "Step (merge, rerun, rerun-base or rebase)", 12),
         ]
     )
     {
@@ -70,8 +71,8 @@ public static class CompanyPullRequestStep
         )
             throw new WorkspaceException("Use the pull request's number.", 422);
         var kind = kindInput.Trim().ToLowerInvariant();
-        if (kind is not (Merge or Rerun or Rebase))
-            throw new WorkspaceException("Choose merge, rerun or rebase.", 422);
+        if (kind is not (Merge or Rerun or RerunBase or Rebase))
+            throw new WorkspaceException("Choose merge, rerun, rerun-base or rebase.", 422);
 
         var pull = await GetAsync(tools, $"repos/{repository}/pulls/{number}", token);
         var head = Text(pull, "head", "sha");
@@ -121,6 +122,8 @@ public static class CompanyPullRequestStep
                 : mergeState != "clean"
                     ? $"GitHub does not report it as clean ({mergeState}); read again later or fix it first."
                 : !headChecks.Green ? "Its head checks have not all passed."
+                : !baseChecks.Green && baseChecks.Failing > 0 && baseChecks.Running == 0
+                    ? "The base branch's checks failed; re-run them (rerun-base) or fix the base before merging."
                 : !baseChecks.Green
                     ? "The base branch's checks have not passed yet; merges wait until the last one is green."
                 : method is null ? "The repository allows no merge method."
@@ -128,9 +131,19 @@ public static class CompanyPullRequestStep
             if (refusal is null)
                 step = new(repository, number, Merge, head, BaseHead: baseHead, MergeMethod: method);
         }
-        else if (kind == Rerun)
+        else if (kind is Rerun or RerunBase)
         {
-            var runs = await GetAsync(tools, $"repos/{repository}/actions/runs?head_sha={head}&per_page=30", token);
+            // rerun targets the pull request's head; rerun-base the base branch's head, which blocks every merge.
+            var baseHead =
+                kind == RerunBase
+                    ? Text(
+                        await GetAsync(tools, $"repos/{repository}/branches/{Uri.EscapeDataString(baseRef)}", token),
+                        "commit",
+                        "sha"
+                    )
+                    : null;
+            var sha = baseHead ?? head;
+            var runs = await GetAsync(tools, $"repos/{repository}/actions/runs?head_sha={sha}&per_page=30", token);
             var failed = runs.TryGetProperty("workflow_runs", out var list)
                 ? list.EnumerateArray()
                     .Where(r => Text(r, "status") == "completed" && Text(r, "conclusion") == "failure")
@@ -138,15 +151,18 @@ public static class CompanyPullRequestStep
                     .FirstOrDefault()
                 : default;
             if (failed.ValueKind != JsonValueKind.Object)
-                refusal = "No completed workflow run on its head failed.";
+                refusal =
+                    kind == RerunBase
+                        ? $"No completed workflow run on {Clip(baseRef, 100)} at {Short(sha)} failed."
+                        : "No completed workflow run on its head failed.";
             else
             {
                 var id = failed.GetProperty("id").GetInt64();
                 var attempt = failed.TryGetProperty("run_attempt", out var a) ? a.GetInt32() : 1;
                 text.AppendLine(
-                    $"Failed run {id} ({JsonSerializer.Serialize(Clip(Text(failed, "name"), 100))}), attempt {attempt}"
+                    $"Failed run {id} ({JsonSerializer.Serialize(Clip(Text(failed, "name"), 100))}) on {Short(sha)}, attempt {attempt}"
                 );
-                step = new(repository, number, Rerun, head, RunId: id, RunAttempt: attempt);
+                step = new(repository, number, kind, head, BaseHead: baseHead, RunId: id, RunAttempt: attempt);
             }
         }
         else
@@ -188,6 +204,8 @@ public static class CompanyPullRequestStep
             Merge =>
                 $"Merge {step.Repository}#{step.Number} at head {Short(step.Head)} ({step.MergeMethod}), once, only while it and its base are green.",
             Rerun => $"Re-run the failed jobs of run {step.RunId} on {step.Repository}#{step.Number}, once.",
+            RerunBase =>
+                $"Re-run the failed jobs of run {step.RunId} on the base branch at {Short(step.BaseHead ?? "")}, which blocks merging {step.Repository}#{step.Number}, once.",
             _ => $"Comment \"{RebaseComment}\" on {step.Repository}#{step.Number}, once.",
         };
 
@@ -207,7 +225,7 @@ public static class CompanyPullRequestStep
                 "-f",
                 "merge_method=" + step.MergeMethod,
             ]),
-            Rerun => new([
+            Rerun or RerunBase => new([
                 "api",
                 "--hostname",
                 "github.com",
@@ -253,7 +271,7 @@ public static class CompanyPullRequestStep
             case Merge:
                 var pull = await GetAsync(tools, $"repos/{step.Repository}/pulls/{step.Number}", token);
                 return Flag(pull, "merged") && Text(pull, "head", "sha") == step.Head;
-            case Rerun:
+            case Rerun or RerunBase:
                 var run = await GetAsync(tools, $"repos/{step.Repository}/actions/runs/{step.RunId}", token);
                 return run.TryGetProperty("run_attempt", out var attempt) && attempt.GetInt32() > step.RunAttempt;
             default:
@@ -267,7 +285,7 @@ public static class CompanyPullRequestStep
         }
     }
 
-    private sealed record CheckSummary(bool Green, string Summary);
+    private sealed record CheckSummary(bool Green, string Summary, int Failing, int Running);
 
     private static CheckSummary Checks(JsonElement checkRuns)
     {
@@ -282,7 +300,9 @@ public static class CompanyPullRequestStep
             runs.Length > 0 && passed == runs.Length && !truncated,
             runs.Length == 0
                 ? "none"
-                : $"{passed} passed, {failing} failing, {running} running{(truncated ? " (more than listed)" : "")}"
+                : $"{passed} passed, {failing} failing, {running} running{(truncated ? " (more than listed)" : "")}",
+            failing,
+            running
         );
     }
 
@@ -421,7 +441,7 @@ public sealed class CompanyPullRequestStepPublication(CompanyStore store, ToolRe
 
     private static (bool Done, string Reason) Outcome(CompanyPullRequestStep.Step step, string response)
     {
-        if (step.Kind == CompanyPullRequestStep.Rerun)
+        if (step.Kind is CompanyPullRequestStep.Rerun or CompanyPullRequestStep.RerunBase)
             return (true, $"Re-run requested for run {step.RunId}; follow it on GitHub.");
         try
         {

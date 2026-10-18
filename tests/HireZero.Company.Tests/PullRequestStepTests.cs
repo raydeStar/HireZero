@@ -18,6 +18,7 @@ public sealed class PullRequestStepTests : IDisposable
     private string _mergeState = "clean";
     private string _author = "dependabot[bot]";
     private bool _baseGreen = true;
+    private bool _baseFailed;
     private bool _merged;
     private bool _writeFails;
 
@@ -48,26 +49,22 @@ public sealed class PullRequestStepTests : IDisposable
         public CompanyExecutionServices Services => new(Store, Registry, null);
     }
 
-    private static string Checks(bool green) =>
+    // One check: passed when green, failed when failed, otherwise still running.
+    private static string Checks(bool green, bool failed = false) =>
         JsonSerializer.Serialize(
             new
             {
                 total_count = 1,
                 check_runs = new[]
                 {
-                    green
-                        ? new
-                        {
-                            name = "build",
-                            status = "completed",
-                            conclusion = (string?)"success",
-                        }
-                        : new
-                        {
-                            name = "build",
-                            status = "in_progress",
-                            conclusion = (string?)null,
-                        },
+                    new
+                    {
+                        name = "build",
+                        status = green || failed ? "completed" : "in_progress",
+                        conclusion = green ? "success"
+                        : failed ? "failure"
+                        : null,
+                    },
                 },
             }
         );
@@ -93,7 +90,12 @@ public sealed class PullRequestStepTests : IDisposable
                 new { commit = new { sha = _baseHead } }
             ),
             _ when path == $"repos/{Repository}/commits/{_head}/check-runs?per_page=100" => Checks(true),
-            _ when path == $"repos/{Repository}/commits/{_baseHead}/check-runs?per_page=100" => Checks(_baseGreen),
+            _ when path == $"repos/{Repository}/commits/{_baseHead}/check-runs?per_page=100" => Checks(
+                _baseGreen,
+                _baseFailed
+            ),
+            _ when path == $"repos/{Repository}/actions/runs?head_sha={_baseHead}&per_page=30" =>
+                """{"workflow_runs":[{"id":91,"name":"CI","status":"completed","conclusion":"failure","run_attempt":1,"created_at":"2026-10-18T23:00:00Z"}]}""",
             _ when path == $"repos/{Repository}/compare/main...{_head}" => """{"behind_by":2}""",
             "repos/" + Repository + "/issues/7/comments?per_page=100" => "[]",
             _ => throw new ToolFailureException("failed", "Unexpected fixture GitHub read: " + path),
@@ -285,5 +287,21 @@ public sealed class PullRequestStepTests : IDisposable
         _merged = true;
         Assert.Equal("published", ((CompanyPublication)await Run(company, ExecutionStep.Reconcile, publication)).State);
         Assert.Single(_writes);
+    }
+
+    // A failed base branch blocks every merge until its failed jobs pass; rerun-base re-runs them once.
+    [Fact]
+    public async Task AFailedBaseIsReRunOnceAndBlocksMergesUntilThen()
+    {
+        var company = await Hire();
+        _baseGreen = false;
+        _baseFailed = true;
+        var blocked = await Reading(company);
+        Assert.Contains("Not eligible: The base branch's checks failed; re-run them (rerun-base)", blocked.Body);
+        var publication = await Approved(company, await Reading(company, CompanyPullRequestStep.RerunBase));
+        Assert.Contains("run 91 on the base branch", publication.Summary);
+        Assert.Equal("published", ((CompanyPublication)await Run(company, ExecutionStep.Publish, publication)).State);
+        var write = Assert.Single(_writes);
+        Assert.Equal(["--method", "POST", $"repos/{Repository}/actions/runs/91/rerun-failed-jobs"], write.Args[3..]);
     }
 }

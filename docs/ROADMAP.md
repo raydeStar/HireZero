@@ -166,7 +166,7 @@ features in 2B.5 rather than twice.
 - **OpenRouter (done):** a second classifier for the message sort (`openrouter-sort`), with the key in the
   environment and the owner's chosen model in `openrouter.json`.
 - **Pull request steps (done):** the Developer's `pr-step` action reads a pull request live and names one step
-  (merge, re-run failed jobs, or ask Dependabot to rebase), published once as a single approved GitHub call
+  (merge, re-run its or its base branch's failed jobs, or ask Dependabot to rebase), published once as a single approved GitHub call
   ([ADR 0017](adr/0017-publishing-a-step-from-an-action.md)). A merge needs green head checks and a green base
   branch, so merges go one at a time.
 - **2B.5h to 2B.5i:** each legacy-only feature as an optional integration

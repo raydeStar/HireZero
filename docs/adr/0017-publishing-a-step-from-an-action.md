@@ -32,6 +32,8 @@ cannot come from the model anyway: it is rebuilt from the reading.
     and so must the base branch's checks. The call names the reviewed head commit, so GitHub refuses it if the
     branch moves.
   - Requiring a green base branch makes merges sequential: the next merge waits until the previous one's checks pass.
+  - When the base branch's checks failed, the reading says so, and `rerun-base` re-runs that run's failed jobs once.
+    A red base is never merged over.
 
 ## Consequences
 
