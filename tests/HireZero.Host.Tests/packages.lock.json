@@ -254,7 +254,8 @@
       "hirezero.integrations.microsoft365": {
         "type": "Project",
         "dependencies": {
-          "HireZero.Core": "[1.0.0, )"
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Microsoft365": "[1.0.0, )"
         }
       },
       "hirezero.integrations.node": {
@@ -303,6 +304,7 @@
           "HireZero.Tools.Git": "[1.0.0, )",
           "HireZero.Tools.GitHub": "[1.0.0, )",
           "HireZero.Tools.Jev": "[1.0.0, )",
+          "HireZero.Tools.Microsoft365": "[1.0.0, )",
           "HireZero.Tools.Node": "[1.0.0, )",
           "HireZero.Tools.SemaForge": "[1.0.0, )",
           "HireZero.Tools.Wiki": "[1.0.0, )"
@@ -327,6 +329,12 @@
         }
       },
       "hirezero.tools.jev": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.microsoft365": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

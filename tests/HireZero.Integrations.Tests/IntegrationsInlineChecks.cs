@@ -695,6 +695,8 @@ sealed class FakeMicrosoft : HttpMessageHandler, IHttpClientFactory
             body = """{"id":"u-me","mail":"me@contoso.invalid"}""";
         else if (url.Contains("/messages/delta"))
             (status, body) = Mail.Dequeue();
+        else if (url.Contains("/mailFolders/inbox/messages?"))
+            (status, body) = Mail.Dequeue();
         else
             throw new InvalidOperationException("Unexpected fake Microsoft request: " + url);
         return new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };

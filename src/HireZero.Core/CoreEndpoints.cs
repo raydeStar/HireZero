@@ -629,7 +629,7 @@ public static class CoreEndpoints
                 : agents.Cancel(id) ? Results.Ok(agents.Find(id))
                 : Results.Conflict(new { error = "That task already finished." })
         );
-        // Intake: connectors (Outlook, Teams, ...) call the pipeline directly; owners can also hand a message in.
+        // Intake: mail and chat connectors call the pipeline directly; owners can also hand a message in.
         app.MapGet(
             "/api/intake",
             (HttpContext context, IntakeStore intake) =>

@@ -2,6 +2,7 @@ using HireZero.Core;
 using HireZero.Integrations.Codex;
 using HireZero.Integrations.Git;
 using HireZero.Integrations.GitHub;
+using HireZero.Integrations.Microsoft365;
 using HireZero.Integrations.Wiki;
 
 // Explicit composition profile. Native Codex inspection is opt-in; legacy workers are never registered.
@@ -148,7 +149,17 @@ public static class CompanyWorkspace
             var wiki = fixtureTools is null && Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1";
             if (wiki)
                 builder.Services.AddWiki();
+            // Microsoft 365: owner-started reads only, no polling; its tools register once a client ID is saved.
+            builder.Services.AddMicrosoft365Company(root);
             var app = builder.Build();
+            var microsoft = app.Services.GetRequiredService<Microsoft365ToolProvider>();
+            void Microsoft()
+            {
+                if (fixtureTools is null)
+                    microsoft.RegisterOnce(tools);
+            }
+            if (app.Services.GetRequiredService<MicrosoftStore>().Settings().ClientId is { Length: > 0 })
+                Microsoft();
             if (wiki)
                 foreach (var provider in app.Services.GetServices<IToolProvider>())
                     provider.Register(tools);
@@ -227,6 +238,34 @@ public static class CompanyWorkspace
                         }
                     )
             );
+            // Every optional integration and why it is or is not active (docs/adr/0009).
+            IntegrationStatus[] Integrations() =>
+                [
+                    microsoft.Status(),
+                    new(
+                        "wiki",
+                        "Synthetic Wiki",
+                        wiki,
+                        wiki
+                            ? "The synthetic Wiki pilot is switched on."
+                            : "Set HIREZERO_SYNTHETIC_WIKI=1 to use the Wiki pilot."
+                    ),
+                    new(
+                        "git",
+                        "Git",
+                        tools.Has("git.read"),
+                        tools.Has("git.read") ? "Git is available." : "Git was not found."
+                    ),
+                    new(
+                        "live-coding",
+                        "Live coding",
+                        coding?.Qualified == true,
+                        coding?.Qualified == true ? "A qualified coding runner is configured."
+                            : coding is CompanyCodexCodingFactory { Refusal: { } why } ? why
+                            : "Start with -Coding and the pinned Codex runtime to enable live coding."
+                    ),
+                ];
+            app.MapMicrosoft365(Microsoft);
             app.MapGet(
                 "/api/company",
                 () =>
@@ -245,6 +284,7 @@ public static class CompanyWorkspace
                                 ceoEnabled = true,
                                 meetingsEnabled = true,
                                 legacyDeveloperAvailable = false,
+                                integrations = Integrations(),
                                 tools = tools.Contracts.Select(c => new
                                 {
                                     c.Id,

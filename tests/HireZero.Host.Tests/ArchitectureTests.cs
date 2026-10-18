@@ -176,6 +176,21 @@ public sealed partial class ArchitectureTests
         Assert.Empty(offenders);
     }
 
+    // Core knows no product an integration serves (docs/adr/0009). Each port to an optional integration adds its names
+    // here: Microsoft 365 (2B.5d); Azure DevOps and tailnet access follow in their own phases.
+    [Fact]
+    public void CoreNamesNoIntegrationProduct()
+    {
+        var offenders = Directory
+            .EnumerateFiles(Path.Combine(Repository, "src", "HireZero.Core"), "*.cs")
+            .Where(path => IntegrationProduct().IsMatch(File.ReadAllText(path)))
+            .Select(Path.GetFileName);
+        Assert.Empty(offenders);
+    }
+
+    [GeneratedRegex(@"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com)\b")]
+    private static partial Regex IntegrationProduct();
+
     // Shared company UI reaches employee UI only through the slot registry in web/src/roles/company.ts.
     [Fact]
     public void CompanyWebUiImportsNoRoleFolder()

@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace HireZero.Core;
 
-// An email, chat message or notification from any source (Outlook, Teams, Gmail, GitHub...).
+// An email, chat message or notification from any source (a mail or chat connector, GitHub...).
 public sealed record InboundMessage(
     string Source,
     string ExternalId,

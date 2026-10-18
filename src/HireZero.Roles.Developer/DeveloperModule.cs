@@ -2,6 +2,7 @@ using HireZero.Roles.Developer;
 using HireZero.Tools.Git;
 using HireZero.Tools.GitHub;
 using HireZero.Tools.Jev;
+using HireZero.Tools.Microsoft365;
 using HireZero.Tools.Node;
 using HireZero.Tools.SemaForge;
 using HireZero.Tools.Wiki;
@@ -83,6 +84,12 @@ public sealed class DeveloperModule : IEmployeeModule
                 {
                     Publishes = true,
                 },
+                new(
+                    CompanyInbox.Triage,
+                    "Inbox triage",
+                    "Sort recent messages from an approved Microsoft 365 read: category, priority and next step.",
+                    SkillMode.Measured
+                ),
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -143,6 +150,9 @@ public sealed class DeveloperModule : IEmployeeModule
                 ),
                 new(JevTools.Classify.Id, ToolRisk.Read, "Classify a request with the owner's configured Jev key."),
                 new(JevTools.Status.Id, ToolRisk.Read, "Check whether Jev is configured."),
+                new(Microsoft365Tools.Status.Id, ToolRisk.Read, "Show whether Microsoft 365 is connected."),
+                new(Microsoft365Tools.ReadMail.Id, ToolRisk.Read, "Read recent inbox messages when the owner asks."),
+                new(Microsoft365Tools.ReadTeams.Id, ToolRisk.Read, "Read recent Teams messages when the owner asks."),
             ],
             Kpis =
             [
@@ -155,7 +165,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 new("diffs-accepted", "Diffs accepted", "count", "Reviewed checkout diffs the owner accepted."),
             ],
             Capabilities = new() { WorkspaceClaims = true },
-            Actions = [PullRequestEvidenceAction.Definition, CompanyWiki.Definition],
+            Actions = [PullRequestEvidenceAction.Definition, CompanyWiki.Definition, CompanyInbox.Definition],
             DisplayOrder = 20,
         };
 
@@ -166,6 +176,7 @@ public sealed class DeveloperModule : IEmployeeModule
             Fix => FixInstructions,
             Prepare => PrepareInstructions,
             CompanyWiki.Draft => CompanyWiki.DraftInstructions,
+            CompanyInbox.Triage => CompanyInbox.TriageInstructions,
             _ => Manifest.Instructions,
         };
 
@@ -184,6 +195,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 token
             ),
             CompanyWiki.ReadAction => CompanyWiki.ReadAsync(input, tools, token),
+            CompanyInbox.ReadAction => CompanyInbox.ReadAsync(input, tools, token),
             _ => throw new WorkspaceException("This employee has no such action.", 404),
         };
 

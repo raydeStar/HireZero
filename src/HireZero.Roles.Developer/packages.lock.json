@@ -80,6 +80,12 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.tools.microsoft365": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
       "hirezero.tools.node": {
         "type": "Project",
         "dependencies": {

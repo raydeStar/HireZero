@@ -211,7 +211,8 @@
       "hirezero.integrations.microsoft365": {
         "type": "Project",
         "dependencies": {
-          "HireZero.Core": "[1.0.0, )"
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Microsoft365": "[1.0.0, )"
         }
       },
       "hirezero.integrations.openclaw": {
@@ -225,6 +226,12 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.Wiki": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.microsoft365": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.tools.wiki": {

@@ -147,12 +147,14 @@ export type Handoff = {
   digest: string;
   body: string;
 };
+export type IntegrationStatus = { id: string; name: string; active: boolean; reason: string };
 export type Snapshot = {
   capabilities: {
     modelExecution: boolean;
     measuredOneJob?: boolean;
     conversationalReplies?: boolean;
     providerStatus: string;
+    integrations?: IntegrationStatus[];
   };
   data: {
     departments: Department[];

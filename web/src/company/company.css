@@ -900,3 +900,15 @@
   gap: 0.5rem;
   margin: 0.75rem 0;
 }
+
+.co-integrations ul {
+  margin: 0.5rem 0;
+  padding-left: 1rem;
+}
+
+.co-integrations section,
+.co-integrations form {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}

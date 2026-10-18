@@ -18,6 +18,7 @@
     <Project Path="src/HireZero.Tools.Jev/HireZero.Tools.Jev.csproj" />
     <Project Path="src/HireZero.Tools.Node/HireZero.Tools.Node.csproj" />
     <Project Path="src/HireZero.Tools.SemaForge/HireZero.Tools.SemaForge.csproj" />
+    <Project Path="src/HireZero.Tools.Microsoft365/HireZero.Tools.Microsoft365.csproj" />
     <Project Path="src/HireZero.Tools.Wiki/HireZero.Tools.Wiki.csproj" />
     <Project Path="src/HireZero.Roles.Developer/HireZero.Roles.Developer.csproj" />
     <Project Path="src/HireZero.Roles.Marketing/HireZero.Roles.Marketing.csproj" />
