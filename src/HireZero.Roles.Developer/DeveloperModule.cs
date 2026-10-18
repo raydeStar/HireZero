@@ -214,6 +214,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 CompanyInbox.Definition,
                 CompanySessions.Definition,
                 CompanyPullRequestAttention.Definition,
+                CompanyPullRequestStep.Definition,
                 CompanyMessageSort.JevDefinition,
                 CompanyMessageSort.OpenRouterDefinition,
             ],
@@ -251,6 +252,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyInbox.ReadAction => CompanyInbox.ReadAsync(input, tools, token),
             CompanySessions.ReadAction => CompanySessions.ReadAsync(input, tools, token),
             CompanyPullRequestAttention.ReadAction => CompanyPullRequestAttention.ReadAsync(input, tools, token),
+            CompanyPullRequestStep.Action => CompanyPullRequestStep.RunAsync(input, tools, token),
             CompanyMessageSort.JevAction or CompanyMessageSort.OpenRouterAction => CompanyMessageSort.SortAsync(
                 action,
                 input,
@@ -305,6 +307,17 @@ public sealed class DeveloperModule : IEmployeeModule
                 ExecutionStep.Publish => await steer.PublishAsync(id, token),
                 ExecutionStep.Reconcile => store.Publication(id),
                 _ => throw new WorkspaceException("A steering message is published, not executed."),
+            };
+        }
+        if (task.Skill == CompanyPullRequestStep.Action)
+        {
+            var pullStep = new CompanyPullRequestStepPublication(store, services.Tools);
+            return step switch
+            {
+                ExecutionStep.Propose => pullStep.Propose(id),
+                ExecutionStep.Publish => await pullStep.PublishAsync(id, token),
+                ExecutionStep.Reconcile => await pullStep.ReconcileAsync(id, token),
+                _ => throw new WorkspaceException("A pull request step is published, not executed."),
             };
         }
         if (task.Skill == CompanyWiki.Draft)

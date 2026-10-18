@@ -165,6 +165,10 @@ features in 2B.5 rather than twice.
   excerpts sent to Jev), with Jev's name out of Core.
 - **OpenRouter (done):** a second classifier for the message sort (`openrouter-sort`), with the key in the
   environment and the owner's chosen model in `openrouter.json`.
+- **Pull request steps (done):** the Developer's `pr-step` action reads a pull request live and names one step
+  (merge, re-run failed jobs, or ask Dependabot to rebase), published once as a single approved GitHub call
+  ([ADR 0017](adr/0017-publishing-a-step-from-an-action.md)). A merge needs green head checks and a green base
+  branch, so merges go one at a time.
 - **2B.5h to 2B.5i:** each legacy-only feature as an optional integration
   ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core:
   tailnet multi-user access and the daily brief.

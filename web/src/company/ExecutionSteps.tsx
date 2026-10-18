@@ -302,7 +302,8 @@ export function ArtifactPublication({
     ready = artifacts.filter(
       (a) =>
         a.state === "approved" &&
-        !a.provenance.startsWith("action:") &&
+        // Gathered evidence is never published, except a publishing action's own reading (ADR 0017).
+        (!a.provenance.startsWith("action:") || a.provenance === "action:" + t.skill) &&
         !publications.some((p) => p.artifactId === a.id && started.includes(p.state)),
     );
   return (

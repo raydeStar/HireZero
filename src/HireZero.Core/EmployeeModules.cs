@@ -124,7 +124,12 @@ public sealed record EmployeeTool(string Id, ToolRisk Risk, string Purpose);
 
 public sealed record EmployeeKpi(string Id, string Name, string Unit, string Description);
 
-public sealed record EmployeeAction(string Id, string Name, string Description, ActionField[] Fields);
+public sealed record EmployeeAction(string Id, string Name, string Description, ActionField[] Fields)
+{
+    // The action's reviewed result names one exact external step the owner may publish
+    // (docs/adr/0017-publishing-a-step-from-an-action.md). Other gathered evidence is never published.
+    public bool Publishes { get; init; }
+}
 
 public sealed record ActionField(string Id, string Label, int MaxLength = 200);
 

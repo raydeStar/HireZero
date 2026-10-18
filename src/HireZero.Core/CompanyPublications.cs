@@ -55,7 +55,8 @@ public sealed partial class CompanyStore
             {
                 var a = Need<CompanyArtifact>(db, proposal.ArtifactId);
                 var task = Need<CompanyTask>(db, a.TaskId);
-                if (!Role(Need<CompanyEmployee>(db, a.EmployeeId).RoleId).PublishingSkills.Contains(task.Skill))
+                var role = Role(Need<CompanyEmployee>(db, a.EmployeeId).RoleId);
+                if (!role.PublishingSkills.Contains(task.Skill))
                     throw new WorkspaceException("This skill's results are not published.");
                 if (a.State is not ("needs_review" or "approved") || task.State is "canceled" or "superseded")
                     throw new WorkspaceException("Only reviewable work can be proposed for publication.");
@@ -63,7 +64,12 @@ public sealed partial class CompanyStore
                 if (proposal.GrantId is null)
                 {
                     // An approved artifact is published as it stands; its exact digest is what the owner reviews.
-                    if (a.Provenance.StartsWith("action:", StringComparison.Ordinal))
+                    // Gathered evidence is never published, except the result of an action the role declares as
+                    // naming one exact step (docs/adr/0017-publishing-a-step-from-an-action.md).
+                    if (
+                        a.Provenance.StartsWith("action:", StringComparison.Ordinal)
+                        && !(a.Provenance == "action:" + task.Skill && role.PublishingActions.Contains(task.Skill))
+                    )
                         throw new WorkspaceException("Gathered evidence is not published.");
                     reviewDigest = a.Digest;
                 }
