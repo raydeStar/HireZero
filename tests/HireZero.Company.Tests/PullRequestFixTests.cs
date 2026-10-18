@@ -501,14 +501,26 @@ public sealed class PullRequestFixTests : IDisposable
     {
         var fix = await Assign();
         await Git(Checkout, "config", "core.autocrlf", "true");
-        File.Delete(Path.Combine(Checkout, "Quote.cs"));
-        await Git(Checkout, "checkout", "--", "Quote.cs");
-        Assert.EndsWith("\r\n", await File.ReadAllTextAsync(Path.Combine(Checkout, "Quote.cs"), Token));
-        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
-        Assert.Equal(fix.Head, grant.Revision);
+        // Under an explicit eol attribute a committed stray CR stays as it is; only the LFs are converted.
+        await File.WriteAllTextAsync(Path.Combine(Checkout, ".gitattributes"), "*.md text eol=crlf\n", Token);
+        await File.WriteAllTextAsync(Path.Combine(Checkout, "Notes.md"), "Fictional\rnote\nline\n", Token);
+        await Git(Checkout, "add", ".gitattributes", "Notes.md");
+        await Git(Checkout, "commit", "-q", "-m", "Fictional notes");
+        var head = (await Git(Checkout, "rev-parse", "HEAD")).Trim();
+        foreach (var name in new[] { "Quote.cs", "Notes.md" })
+        {
+            File.Delete(Path.Combine(Checkout, name));
+            await Git(Checkout, "checkout", "--", name);
+        }
+        Assert.Equal(
+            "Fictional\rnote\r\nline\r\n",
+            await File.ReadAllTextAsync(Path.Combine(Checkout, "Notes.md"), Token)
+        );
+        var inspector = new GitCheckoutInspector(GitPath);
+        Assert.Empty((await inspector.ReviewAsync(Checkout, head, Token)).Files);
 
         await File.AppendAllTextAsync(Path.Combine(Checkout, "Quote.cs"), "// Fictional rounding note\r\n", Token);
-        var review = await new GitCheckoutInspector(GitPath).ReviewAsync(Checkout, fix.Head, Token);
+        var review = await inspector.ReviewAsync(Checkout, head, Token);
         var file = Assert.Single(review.Files);
         Assert.Contains("+// Fictional rounding note", file.Patch);
         Assert.DoesNotContain("-// Fictional quote rounding", file.Patch);

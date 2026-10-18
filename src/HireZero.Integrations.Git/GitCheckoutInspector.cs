@@ -96,24 +96,22 @@ public sealed class GitCheckoutInspector(string gitExecutable)
                 var actual = current.TryGetValue(name, out var file)
                     ? await ReadFile(file, 20 * 1024 * 1024, token)
                     : [];
-                // Unchanged: the committed bytes, or exactly those bytes with every line ending converted to CRLF on
-                // checkout (a repository's own eol attributes). Only reviewed paths are ever staged, so such a file is
-                // never committed.
+                var committed = blobs.TryGetValue(name, out var oid);
                 if (
-                    blobs.TryGetValue(name, out var objectId)
+                    committed
                     && current.ContainsKey(name)
-                    && (
-                        BlobId(actual, revision.Length).Equals(objectId, StringComparison.OrdinalIgnoreCase)
-                        || IsCrlfCheckout(actual)
-                            && BlobId(Lf(actual), revision.Length).Equals(objectId, StringComparison.OrdinalIgnoreCase)
-                    )
+                    && BlobId(actual, revision.Length).Equals(oid, StringComparison.OrdinalIgnoreCase)
                 )
+                    continue;
+                var original = committed
+                    ? await ReadGit(root, 1024 * 1024, false, token, "cat-file", "blob", oid!)
+                    : [];
+                // Also unchanged: the committed text as Git checks it out under a CRLF eol attribute (each LF without a
+                // preceding CR written as CRLF). Only reviewed paths are ever staged, so such a file is never committed.
+                if (committed && current.ContainsKey(name) && HasCrlf(actual) && Crlf(original).SequenceEqual(actual))
                     continue;
                 if (diffs.Count >= 50)
                     throw new WorkspaceException("Use at most 50 changed files in the coding pilot.");
-                var original = blobs.TryGetValue(name, out var oid)
-                    ? await ReadGit(root, 1024 * 1024, false, token, "cat-file", "blob", oid)
-                    : [];
                 try
                 {
                     var utf8 = new UTF8Encoding(false, true);
@@ -132,7 +130,7 @@ public sealed class GitCheckoutInspector(string gitExecutable)
                 // A checkout converted to CRLF from LF text is compared as LF, so only real edits fill the patch.
                 await File.WriteAllBytesAsync(
                     right,
-                    !original.Contains((byte)'\r') && IsCrlfCheckout(actual) ? Lf(actual) : actual,
+                    !HasCrlf(original) && HasCrlf(actual) ? Lf(actual) : actual,
                     token
                 );
                 // Compare raw files outside the checkout. Project attributes/clean filters never run.
@@ -260,24 +258,30 @@ public sealed class GitCheckoutInspector(string gitExecutable)
         return Convert.ToHexString(hash.GetHashAndReset());
     }
 
-    // True when the content has line breaks and every one is CRLF, with no other carriage return.
-    private static bool IsCrlfCheckout(byte[] content)
+    private static bool HasCrlf(byte[] content) => content.AsSpan().IndexOf("\r\n"u8) >= 0;
+
+    // Git's LF-to-CRLF checkout conversion: each LF not already preceded by CR becomes CRLF.
+    private static byte[] Crlf(byte[] content)
     {
-        var breaks = 0;
+        var output = new List<byte>(content.Length + content.Length / 32);
         for (var i = 0; i < content.Length; i++)
-            if (content[i] == (byte)'\r')
-            {
-                if (i + 1 >= content.Length || content[i + 1] != (byte)'\n')
-                    return false;
-                breaks++;
-                i++;
-            }
-            else if (content[i] == (byte)'\n')
-                return false;
-        return breaks > 0;
+        {
+            if (content[i] == (byte)'\n' && (i == 0 || content[i - 1] != (byte)'\r'))
+                output.Add((byte)'\r');
+            output.Add(content[i]);
+        }
+        return [.. output];
     }
 
-    private static byte[] Lf(byte[] content) => [.. content.Where(b => b != (byte)'\r')];
+    // The inverse for text with no CRLF of its own: each CRLF becomes LF.
+    private static byte[] Lf(byte[] content)
+    {
+        var output = new List<byte>(content.Length);
+        for (var i = 0; i < content.Length; i++)
+            if (!(content[i] == (byte)'\r' && i + 1 < content.Length && content[i + 1] == (byte)'\n'))
+                output.Add(content[i]);
+        return [.. output];
+    }
 
     private static async Task<byte[]> ReadFile(string path, int limit, CancellationToken token)
     {
