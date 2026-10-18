@@ -145,6 +145,41 @@ public sealed class EmployeeActionTests : IDisposable
         Assert.Equal([artifact.Id], review.Evidence);
     }
 
+    // Request preparation is a measured skill over the same approved evidence, with its own instructions.
+    [Fact]
+    public void ApprovedEvidenceFeedsRequestPreparation()
+    {
+        var company = Hire(Store());
+        var store = company.Store;
+        var task = Apply<CompanyTask>(store, Start(company, Input()));
+        var artifact = store.CompleteAction(task.Id, "Fictional gathered evidence");
+        Apply<CompanyArtifact>(
+            store,
+            Cmd("artifact.review") with
+            {
+                Id = artifact.Id,
+                ExpectedVersion = artifact.Version,
+                Digest = artifact.Digest,
+                Decision = "approve",
+            }
+        );
+        var prep = Apply<CompanyTask>(
+            store,
+            Cmd("task.create") with
+            {
+                EmployeeId = company.Developer.Id,
+                ThreadId = company.Thread.Id,
+                Skill = DeveloperModule.Prepare,
+                Body = "Prepare this request.",
+                Evidence = [artifact.Id],
+            }
+        );
+        Assert.Equal([artifact.Id], prep.Evidence);
+        var role = store.Roles.Single(r => r.Id == "developer");
+        Assert.Contains(DeveloperModule.Prepare, role.MeasuredSkills);
+        Assert.Equal(DeveloperModule.PrepareInstructions, role.InstructionsForSkill!(DeveloperModule.Prepare));
+    }
+
     [Fact]
     public void ActionInputIsExactlyTheDeclaredFields()
     {

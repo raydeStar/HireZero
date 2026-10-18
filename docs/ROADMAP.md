@@ -141,7 +141,14 @@ features in 2B.5 rather than twice.
   read-only toolchain folders, network off, the measured-reply preflight and a usage tripwire, behind
   `--company-coding`. Live qualification (sandbox probe, one fictional coding turn, a real fix) needs your approval
   for each step. Then the fix loop.
-- **2B.5c:** wiki drafts, request preparation and Trusted Postgres as Developer skills and actions.
+- **2B.5c1 (done):** request preparation as the `request-prep` measured skill over approved evidence. The legacy
+  stage board retires with the legacy profile; your approved artifact is the record.
+- **2B.5c2:** wiki drafts. A `wiki-read` action for evidence, a measured `wiki-draft` skill, and a publication
+  sourced from the approved draft artifact (contribute, then publish once; no automatic retry). Synthetic projects
+  only.
+- **Trusted Postgres moves to the live-coding track** (after 2B.5b3 qualification). It is part of the coding
+  environment and only coding runs use it. Its install downloads a package and runs its install scripts, so it stays
+  an owner-approved install bound to the exact package, and it is never an action.
 - **2B.5d to 2B.5i:** each legacy-only feature as an optional integration
   ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core: Microsoft
   365 intake, coding-agent session steering, Azure DevOps, Jev triage, tailnet multi-user access and the daily brief.
