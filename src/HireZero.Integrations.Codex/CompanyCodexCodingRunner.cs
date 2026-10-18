@@ -12,10 +12,17 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
     public const string Profile = "hirezero_execution";
     private const int MessageLimit = 8000;
 
-    private const string BaseInstructions =
+    // System-level instructions; they must agree with the grant, or they override what the task allows.
+    internal static string BaseInstructions(bool network) =>
         "You are the HireZero Developer working in one owner-approved checkout. Change only the files the task needs. "
-        + "You may run local build and test commands. Do not commit, push, install packages, use the network or touch "
-        + "anything outside the checkout. Finish with a short summary of what you changed and how you checked it.";
+        + "You may run local build and test commands. "
+        + (
+            network
+                ? "The owner allowed network access for this run: you may restore or download packages from the project's "
+                    + "configured package sources. Do not commit, push, install global tools or touch anything outside the checkout. "
+                : "Do not commit, push, install packages, use the network or touch anything outside the checkout. "
+        )
+        + "Finish with a short summary of what you changed and how you checked it.";
 
     private static readonly string[] CodingItems =
     [
@@ -215,7 +222,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                 // (an empty list disables them); the workspace root is exactly the approved checkout.
                 runtimeWorkspaceRoots = new[] { Path.GetFullPath(request.Root) },
                 serviceName = "hirezero_execution",
-                baseInstructions = BaseInstructions,
+                baseInstructions = BaseInstructions(_grant.AllowNetwork),
                 developerInstructions = "",
             },
             token

@@ -295,6 +295,9 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || pr.TryGetProperty("environments", out _)
                 || pr.GetProperty("runtimeWorkspaceRoots").GetArrayLength() != 1
                 || pr.GetProperty("runtimeWorkspaceRoots")[0].GetString() != pr.GetProperty("cwd").GetString()
+                // The system instructions must agree with the run's network grant.
+                || pr.GetProperty("baseInstructions").GetString()!.Contains("allowed network access")
+                    != (mode == "coding-live-network")
             )
                 throw new Exception("Invalid live coding thread");
             File.WriteAllText(Path.Combine(home, "fixture-coding-cwd"), pr.GetProperty("cwd").GetString());
