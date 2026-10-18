@@ -298,6 +298,9 @@ static class IntegrationPathChecks
         var bridge = new CompanyDeveloperBridge(store, ToolFixtures.Developer(store, inspector), factory);
         async Task<CompanyExecutionGrant> Prepare(CompanyEmployee e, CompanyThread thread)
         {
+            // Each proposal starts from the clean commit; earlier runs' and scenarios' changes are discarded first.
+            File.Delete(Path.Combine(repo, "fixture-change.txt"));
+            await File.WriteAllTextAsync(Path.Combine(repo, "source.txt"), "Fictional source");
             var work = Submit(e, thread, "developer-work");
             store.Apply(C("workspace.grant") with { Id = work.Id, ExpectedVersion = work.Version, Body = repo });
             return await bridge.PrepareAsync(work.Id, repo, true);
@@ -308,10 +311,11 @@ static class IntegrationPathChecks
             "Explicit coding task and reviewed proposal record Sol 6.1."
         );
         check(
-            store.ToolCalls().FirstOrDefault()
-                is { ToolId: "git.checkout-inspect", Outcome: "completed", ModuleId: "developer" } call
-                && call.InputDigest.Length == 64,
-            "Checkout inspection runs through the declared Git tool and is audited in the company store."
+            store.ToolCalls().FirstOrDefault(c => c.ToolId == "git.checkout-inspect")
+                is { Outcome: "completed", ModuleId: "developer" } call
+                && call.InputDigest.Length == 64
+                && store.ToolCalls().Any(c => c.ToolId == "git.checkout-review" && c.Outcome == "completed"),
+            "Checkout inspection and the clean-baseline review run through the declared Git tools and are audited."
         );
         check(!store.AuthorizeDispatch(grant.AttemptId), "Text dispatch cannot bypass an execution grant.");
         try
@@ -468,6 +472,9 @@ static class IntegrationPathChecks
         await Git("commit", "-m", "Fictional clean baseline");
         Directory.CreateDirectory(Path.Combine(repo, ".codex"));
         await File.WriteAllTextAsync(Path.Combine(repo, ".codex", "config.toml"), "# Unreviewed fixture configuration");
+        // Committed, so the baseline is clean and the runner itself must refuse the project configuration.
+        await Git("add", ".codex/config.toml");
+        await Git("commit", "-m", "Fictional project configuration");
         var configured = await Prepare(first, t1);
         configured = A<CompanyExecutionGrant>(
             C("execution.review") with
@@ -492,8 +499,8 @@ static class IntegrationPathChecks
                 "Provable pre-start refusal releases its reservation without launching the runtime."
             );
         }
-        File.Delete(Path.Combine(repo, ".codex", "config.toml"));
-        Directory.Delete(Path.Combine(repo, ".codex"));
+        await Git("rm", "-r", "-q", ".codex");
+        await Git("commit", "-m", "Remove the fictional project configuration");
         var waiting = await Prepare(first, t1);
         waiting = A<CompanyExecutionGrant>(
             C("execution.review") with

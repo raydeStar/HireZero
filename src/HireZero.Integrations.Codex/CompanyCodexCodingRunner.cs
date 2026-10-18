@@ -5,7 +5,7 @@ namespace HireZero.Integrations.Codex;
 
 // One live coding run for one approved execution grant (docs/adr/0014-pinned-codex-runtime.md), on the pinned Codex
 // runtime with the owner's dedicated sign-in home. The sandbox lets the run write only the approved checkout and its
-// own scratch folder, read the owner's named toolchain folders, and reach no network. Everything up to the turn is a
+// own scratch folder, read the owner's named toolchain folders, and reach the network only when its grant allows. Everything up to the turn is a
 // preflight: any doubt refuses the run before anything is sent. Once sent, an uncertain outcome is never replayed.
 public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycle, IDisposable
 {

@@ -30,6 +30,7 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
             var snapshot = await InspectAsync(root, token);
             if (revision is not null && snapshot.Revision != revision)
                 throw new WorkspaceException("The checkout is not at the reviewed revision.");
+            await RequireCleanBaselineAsync(snapshot, token);
             return store.ProposeExecution(
                 new(
                     attempt.Id,
@@ -48,6 +49,34 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
             store.FailAttempt(attempt.Id, "execution-preparation-refused", false);
             throw;
         }
+    }
+
+    // A run's result is reviewed as the difference from its commit, so the checkout must match its commit byte for byte
+    // before anything is sent. Uncommitted changes, or line endings converted on checkout, are refused here rather than
+    // discovered after a paid run (live pr-fix, 2026-10-18).
+    private async Task RequireCleanBaselineAsync(CompanyRepositorySnapshot snapshot, CancellationToken token)
+    {
+        const string Advice =
+            " Use a clean checkout whose files match the commit exactly (no uncommitted changes; clone with core.autocrlf=false).";
+        CompanyRepositoryReview baseline;
+        try
+        {
+            baseline = await tools.InvokeAsync(
+                GitTools.ReviewCheckout,
+                new(snapshot.Workspace, snapshot.Revision),
+                token
+            );
+        }
+        catch (WorkspaceException error)
+        {
+            throw new WorkspaceException(
+                "The checkout cannot be reviewed against its commit: " + error.Message + Advice
+            );
+        }
+        if (baseline.Files.Length > 0)
+            throw new WorkspaceException(
+                "The checkout differs from its commit in " + baseline.Files.Length + " file(s)." + Advice
+            );
     }
 
     public async Task ExecuteFixtureAsync(string grantId, CancellationToken token = default)
