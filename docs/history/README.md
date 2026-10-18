@@ -44,3 +44,4 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 | [PHASE2B5F_REPORT](PHASE2B5F_REPORT.md) | Phase 2B.5f: Azure DevOps as an optional, read-only integration |
 | [PHASE2B5G_REPORT](PHASE2B5G_REPORT.md) | Phase 2B.5g: Jev as an optional integration |
 | [OPENROUTER_SORT_REPORT](OPENROUTER_SORT_REPORT.md) | OpenRouter as a second classifier for the message sort |
+| [CODEX_LIVE_CODING_TURN](CODEX_LIVE_CODING_TURN.md) | Live step 2: one real coding turn on a fictional repository |

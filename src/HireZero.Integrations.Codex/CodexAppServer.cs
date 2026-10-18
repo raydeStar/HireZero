@@ -75,7 +75,7 @@ internal sealed class CodexAppServer : IAsyncDisposable
         _process.BeginErrorReadLine();
     }
 
-    // Features a text-only turn never needs. Coding keeps the shell tool and drops nothing else.
+    // Features a text-only turn never needs.
     public static readonly string[] TextOnlyFeatures =
     [
         "shell_tool",
@@ -99,7 +99,11 @@ internal sealed class CodexAppServer : IAsyncDisposable
         "unbounded_connection_retries",
     ];
 
-    public static readonly string[] CodingFeatures = [.. TextOnlyFeatures.Where(f => f != "shell_tool")];
+    // Coding keeps the shell tool and the tool host that runs it (live step 2: without the host the model has no tools).
+    public static readonly string[] CodingFeatures =
+    [
+        .. TextOnlyFeatures.Where(f => f is not ("shell_tool" or "code_mode_host")),
+    ];
 
     // Process-local, strict configuration: the MXC sandbox on Windows, one named permissions profile granting exactly
     // the given filesystem access with no network, and no MCP, plugins, web search, memories or project docs.

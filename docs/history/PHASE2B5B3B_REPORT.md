@@ -84,7 +84,7 @@ Each step uses your Codex sign-in, and steps 2 and 3 use included usage. AGENTS.
 checks, so each needs your explicit go-ahead.
 
 1. **Sandbox probe, no model.** Done 2026-10-18. It found and fixed two environment bugs, after which every check passed: [CODEX_SANDBOX_PROBE](CODEX_SANDBOX_PROBE.md).
-2. **One coding turn** on a fictional temporary repository, with low limits. It confirms the thread's reported
+2. **One coding turn**: done 2026-10-18. It found and fixed two runner bugs (empty environments, tool host disabled), then made the exact one-word fix: [CODEX_LIVE_CODING_TURN](CODEX_LIVE_CODING_TURN.md). Originally: one turn on a fictional temporary repository, with low limits. It confirms the thread's reported
    sandbox shape for a write profile, the item types 0.163 actually emits, usage reporting, termination and the
    diff review. Anything unexpected is refused rather than accepted, so this is where a protocol difference would
    show.

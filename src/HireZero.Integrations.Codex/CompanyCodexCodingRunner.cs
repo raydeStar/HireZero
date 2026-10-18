@@ -200,8 +200,9 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                 permissions = Profile,
                 ephemeral = true,
                 allowProviderModelFallback = false,
-                environments = Array.Empty<object>(),
-                runtimeWorkspaceRoots = Array.Empty<string>(),
+                // Environments are omitted so the default environment gives the model its file and shell tools
+                // (an empty list disables them); the workspace root is exactly the approved checkout.
+                runtimeWorkspaceRoots = new[] { Path.GetFullPath(request.Root) },
                 serviceName = "hirezero_execution",
                 baseInstructions = BaseInstructions,
                 developerInstructions = "",
@@ -257,8 +258,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                     effort = limits.Effort,
                     summary = "none",
                     approvalPolicy = "never",
-                    environments = Array.Empty<object>(),
-                    runtimeWorkspaceRoots = Array.Empty<string>(),
+                    runtimeWorkspaceRoots = new[] { Path.GetFullPath(_grant.Workspace) },
                     serviceTierForTurn = "default",
                     permissions = Profile,
                     input = new[] { new { type = "text", text = prompt } },

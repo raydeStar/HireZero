@@ -179,6 +179,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || profile is null
                 || !profile.EndsWith("},network={enabled=false}}}", StringComparison.Ordinal)
                 || args.Contains("shell_tool")
+                || args.Contains("code_mode_host")
                 || !args.Contains("plugins")
                 || Environment.GetEnvironmentVariable("HIREZERO_PARENT_SENTINEL") is not null
                 || Environment.GetEnvironmentVariable("OPENAI_API_KEY") is not null
@@ -275,6 +276,9 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || pr.GetProperty("allowProviderModelFallback").GetBoolean()
                 || pr.TryGetProperty("sandbox", out _)
                 || pr.TryGetProperty("sandboxPolicy", out _)
+                || pr.TryGetProperty("environments", out _)
+                || pr.GetProperty("runtimeWorkspaceRoots").GetArrayLength() != 1
+                || pr.GetProperty("runtimeWorkspaceRoots")[0].GetString() != pr.GetProperty("cwd").GetString()
             )
                 throw new Exception("Invalid live coding thread");
             File.WriteAllText(Path.Combine(home, "fixture-coding-cwd"), pr.GetProperty("cwd").GetString());
@@ -299,7 +303,11 @@ while (await Console.In.ReadLineAsync() is { } line)
             if (
                 pr.GetProperty("permissions").GetString() != "hirezero_execution"
                 || pr.TryGetProperty("sandboxPolicy", out _)
-                || pr.GetProperty("environments").GetArrayLength() != 0
+                // An empty environments list disables the model's file and shell tools in the pinned runtime.
+                || pr.TryGetProperty("environments", out _)
+                || pr.GetProperty("runtimeWorkspaceRoots").GetArrayLength() != 1
+                || pr.GetProperty("runtimeWorkspaceRoots")[0].GetString()
+                    != File.ReadAllText(Path.Combine(home, "fixture-coding-cwd"))
             )
                 throw new Exception("Invalid live coding turn");
             companyTurnSent = true;
