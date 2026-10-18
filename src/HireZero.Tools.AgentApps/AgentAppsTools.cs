@@ -18,12 +18,32 @@ public sealed record SessionSummary(
 
 public sealed record AgentAppsStatusRequest;
 
+// One read-only message for an existing session: the turn it starts may not edit files or use the network, and
+// nothing in this contract can ask otherwise.
+public sealed record SteerMessage(string SessionId, string Message);
+
+public sealed record SteerCheck(bool Ready, string Reason);
+
+public sealed record SteerReceipt(string RunId, string State);
+
 public static class AgentAppsTools
 {
     public static readonly ToolContract<AgentAppsStatusRequest, IntegrationStatus> Status = new(
         "agentapps.status",
         ToolRisk.Read,
         "Which coding-agent apps are enabled for session listing, and why not."
+    );
+
+    public static readonly ToolContract<SteerMessage, SteerCheck> CheckSteer = new(
+        "agentapps.session.check",
+        ToolRisk.Read,
+        "Check whether a session can take a read-only message now (enabled, idle, quiet, no turn running)."
+    );
+
+    public static readonly ToolContract<SteerMessage, SteerReceipt> SendReadOnly = new(
+        "agentapps.session.send",
+        ToolRisk.External,
+        "Send one read-only message (no edits, no network) into an idle coding-agent session."
     );
 
     public static readonly ToolContract<SessionListRequest, SessionSummary[]> ListSessions = new(

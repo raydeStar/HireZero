@@ -1,4 +1,7 @@
-namespace HireZero.Core;
+namespace HireZero.Integrations.AgentApps;
+
+// Legacy Developer-profile steering, moved out of Core (docs/history/PHASE2B5E2_REPORT.md); it retires with the
+// legacy profile at 2B.5j. The company workspace steers through owner-approved publications instead.
 
 // What the owner sends into a session, and what that turn may do. Edits stay inside the session's folder.
 public sealed record SteerRequest(string Message, bool AllowEdits, bool AllowNetwork);
@@ -16,7 +19,7 @@ public interface ISessionDriver
 // One driver at a time: HireZero sends only when the owner clicks, only into a session that is idle or waiting,
 // never while it is working or holding an approval in its own app, and never right after recent activity.
 // The owner's own input in the app always wins; HireZero never locks a session.
-public sealed class SessionSteering(SessionStore sessions, IEnumerable<ISessionDriver> drivers)
+public sealed class SessionSteering(SessionStore sessions, IEnumerable<ISessionDriver> drivers) : ISessionReconciler
 {
     public static readonly TimeSpan QuietPeriod = TimeSpan.FromSeconds(60);
     private readonly Dictionary<string, ISessionDriver> _drivers = drivers.ToDictionary(
@@ -126,3 +129,98 @@ public sealed class SessionSteering(SessionStore sessions, IEnumerable<ISessionD
             throw new WorkspaceException("Network access only applies when edits are allowed.", 400);
     }
 }
+
+public static class LegacySessionSteering
+{
+    // A steering turn as the UI shows it: state, the latest steps, the cleaned answer and any error.
+    private static object TurnView(CodingRun run)
+    {
+        string? summary = null;
+        if (run.ResultJson is { } json)
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(json);
+                summary = document.RootElement.TryGetProperty("summary", out var value) ? value.GetString() : null;
+            }
+            catch (System.Text.Json.JsonException) { }
+        return new
+        {
+            id = run.Id,
+            state = run.State,
+            threadId = run.ThreadId,
+            model = run.ResolvedModel,
+            steps = run.Events.TakeLast(8).Select(item => item.Message),
+            summary,
+            error = run.Error,
+            updatedAt = run.UpdatedAt,
+        };
+    }
+
+    public static void MapLegacySessionSteering(this WebApplication app)
+    {
+        // Steering: the owner sends into an idle session, or starts one that appears in its app. One driver at a time.
+        app.MapPost(
+                "/api/sessions/{id}/send",
+                (HttpContext context, SessionSteering steering, string id, SteerInput input) =>
+                    !WorkspaceAccess.IsOwner(context)
+                        ? Results.StatusCode(403)
+                        : Results.Ok(
+                            TurnView(steering.Send(id, new(input.Message ?? "", input.AllowEdits, input.AllowNetwork)))
+                        )
+            )
+            .RequireRateLimiting("agent");
+        app.MapGet(
+            "/api/sessions/{id}/turn",
+            (HttpContext context, SessionSteering steering, string id) =>
+                !WorkspaceAccess.IsOwner(context) ? Results.StatusCode(403)
+                : steering.Turn(id) is { } run ? Results.Ok(TurnView(run))
+                : Results.Ok(new { state = "none" })
+        );
+        app.MapPost(
+            "/api/sessions/{id}/turn/cancel",
+            (HttpContext context, SessionSteering steering, string id) =>
+            {
+                if (!WorkspaceAccess.IsOwner(context))
+                    return Results.StatusCode(403);
+                steering.Cancel(id);
+                return Results.Ok(new { stopping = true });
+            }
+        );
+        app.MapPost(
+                "/api/sessions/start",
+                (HttpContext context, SessionSteering steering, StartSessionInput input) =>
+                    !WorkspaceAccess.IsOwner(context) ? Results.StatusCode(403)
+                    : input.App is not ("codex" or "claude") || input.Folder is not { Length: > 0 and <= 400 }
+                        ? Results.BadRequest(new { error = "Choose Codex or Claude and a project folder." })
+                    : Results.Ok(
+                        TurnView(
+                            steering.Start(
+                                input.App,
+                                input.Folder,
+                                input.Title ?? "",
+                                new(input.Message ?? "", input.AllowEdits, input.AllowNetwork)
+                            )
+                        )
+                    )
+            )
+            .RequireRateLimiting("agent");
+        app.MapGet(
+            "/api/sessions/runs/{app}/{runId}",
+            (HttpContext context, SessionSteering steering, string app, string runId) =>
+                !WorkspaceAccess.IsOwner(context) ? Results.StatusCode(403)
+                : steering.FindRun(app, runId) is { } run ? Results.Ok(TurnView(run))
+                : Results.NotFound()
+        );
+    }
+}
+
+public sealed record SteerInput(string? Message, bool AllowEdits, bool AllowNetwork);
+
+public sealed record StartSessionInput(
+    string? App,
+    string? Folder,
+    string? Title,
+    string? Message,
+    bool AllowEdits,
+    bool AllowNetwork
+);

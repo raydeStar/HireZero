@@ -177,7 +177,7 @@ public sealed partial class ArchitectureTests
     }
 
     // Core knows no product an integration serves (docs/adr/0009). Each port to an optional integration adds its names
-    // here: Microsoft 365 (2B.5d); Azure DevOps and tailnet access follow in their own phases.
+    // here: Microsoft 365 (2B.5d), session steering (2B.5e); Azure DevOps and tailnet access follow in their own phases.
     [Fact]
     public void CoreNamesNoIntegrationProduct()
     {
@@ -188,7 +188,9 @@ public sealed partial class ArchitectureTests
         Assert.Empty(offenders);
     }
 
-    [GeneratedRegex(@"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com)\b")]
+    [GeneratedRegex(
+        @"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com|SessionSteering|ISessionDriver|SteerRequest)\b"
+    )]
     private static partial Regex IntegrationProduct();
 
     // Shared company UI reaches employee UI only through the slot registry in web/src/roles/company.ts.

@@ -203,12 +203,18 @@ public sealed class HookToken
         );
 }
 
+// Something that settles sessions after each scan (the legacy steering drivers).
+public interface ISessionReconciler
+{
+    void Reconcile();
+}
+
 // Rescans every source each minute; one failing app never stops the others.
 public sealed class SessionWatcher(
     IEnumerable<ISessionSource> sources,
     SessionStore store,
     ILogger<SessionWatcher> log,
-    SessionSteering? steering = null
+    ISessionReconciler? reconciler = null
 ) : BackgroundService
 {
     public Dictionary<string, string> Health { get; } = new();
@@ -256,7 +262,7 @@ public sealed class SessionWatcher(
         while (!stoppingToken.IsCancellationRequested)
         {
             await ScanAsync(stoppingToken);
-            steering?.Reconcile();
+            reconciler?.Reconcile();
             await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
         }
     }

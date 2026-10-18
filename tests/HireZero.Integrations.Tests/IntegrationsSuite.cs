@@ -6,4 +6,7 @@ public sealed class IntegrationsSuite
 
     [Fact]
     public Task AzureDevOps() => AzureDevOpsChecks.RunAsync(Verify.Check);
+
+    [Fact]
+    public Task Steering() => SteeringChecks.RunAsync(Verify.Check);
 }

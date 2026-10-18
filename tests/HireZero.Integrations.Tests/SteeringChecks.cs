@@ -1,4 +1,5 @@
 using HireZero.Core;
+using HireZero.Integrations.AgentApps;
 
 // One driver at a time, with a fake driver: no Codex or Claude process is started.
 public static class SteeringChecks

@@ -163,6 +163,7 @@ public static class DeveloperWorkspace
         builder.Services.AddAgentApps();
         builder.Services.AddAzureDevOps();
         builder.Services.AddSingleton<SessionSteering>();
+        builder.Services.AddSingleton<ISessionReconciler>(services => services.GetRequiredService<SessionSteering>());
         builder.Services.AddSingleton(new DigestStore(database));
         builder.Services.AddSingleton(services => ActivatorUtilities.CreateInstance<BriefService>(services, dataRoot));
         // Tools the Developer may call (docs/adr/0007-tool-registry.md); verifiers come from the hired roles.
@@ -189,6 +190,7 @@ public static class DeveloperWorkspace
         app.UseDefaultFiles();
         app.UseStaticFiles();
         app.MapCoreEndpoints(ownerLogin, localOwnerEnabled);
+        app.MapLegacySessionSteering();
 
         app.MapBudgetEndpoints();
         app.MapAgentRequests();

@@ -91,6 +91,15 @@ public sealed class DeveloperModule : IEmployeeModule
                     "Sort recent messages from an approved Microsoft 365 read: category, priority and next step.",
                     SkillMode.Measured
                 ),
+                new(
+                    CompanySteer.Skill,
+                    "Session steer",
+                    "Draft one read-only message for a listed coding-agent session; you approve it before it is sent once.",
+                    SkillMode.Measured
+                )
+                {
+                    Publishes = true,
+                },
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -160,6 +169,12 @@ public sealed class DeveloperModule : IEmployeeModule
                     ToolRisk.Read,
                     "List recent coding-agent sessions when the owner asks."
                 ),
+                new(AgentAppsTools.CheckSteer.Id, ToolRisk.Read, "Check that a session can take a message now."),
+                new(
+                    AgentAppsTools.SendReadOnly.Id,
+                    ToolRisk.External,
+                    "Send one owner-approved, read-only message into a session."
+                ),
             ],
             Kpis =
             [
@@ -190,6 +205,7 @@ public sealed class DeveloperModule : IEmployeeModule
             Prepare => PrepareInstructions,
             CompanyWiki.Draft => CompanyWiki.DraftInstructions,
             CompanyInbox.Triage => CompanyInbox.TriageInstructions,
+            CompanySteer.Skill => CompanySteer.Instructions,
             _ => Manifest.Instructions,
         };
 
@@ -247,6 +263,17 @@ public sealed class DeveloperModule : IEmployeeModule
                 ),
                 ExecutionStep.Run => await Run(bridge.ExecuteFixtureAsync(id, token), store, id),
                 _ => throw new WorkspaceException("Reviewed implementation work is not published."),
+            };
+        }
+        if (task.Skill == CompanySteer.Skill)
+        {
+            var steer = new CompanySteerPublication(store, services.Tools);
+            return step switch
+            {
+                ExecutionStep.Propose => steer.Propose(id),
+                ExecutionStep.Publish => await steer.PublishAsync(id, token),
+                ExecutionStep.Reconcile => store.Publication(id),
+                _ => throw new WorkspaceException("A steering message is published, not executed."),
             };
         }
         if (task.Skill == CompanyWiki.Draft)

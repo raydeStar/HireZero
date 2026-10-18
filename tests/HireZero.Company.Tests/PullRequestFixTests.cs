@@ -568,7 +568,7 @@ public sealed class PullRequestFixTests : IDisposable
                 .EnumerateArray()
                 .Single(r => r.GetProperty("id").GetString() == "developer");
             Assert.Equal(
-                [DeveloperModule.Fix, CompanyWiki.Draft],
+                [DeveloperModule.Fix, CompanyWiki.Draft, CompanySteer.Skill],
                 role.GetProperty("publishingSkills").EnumerateArray().Select(e => e.GetString()!)
             );
             await app.StopAsync(Token);

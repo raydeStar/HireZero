@@ -34,30 +34,6 @@ public static class CoreEndpoints
         };
     }
 
-    // A steering turn as the UI shows it: state, the latest steps, the cleaned answer and any error.
-    static object TurnView(CodingRun run)
-    {
-        string? summary = null;
-        if (run.ResultJson is { } json)
-            try
-            {
-                using var document = System.Text.Json.JsonDocument.Parse(json);
-                summary = document.RootElement.TryGetProperty("summary", out var value) ? value.GetString() : null;
-            }
-            catch (System.Text.Json.JsonException) { }
-        return new
-        {
-            id = run.Id,
-            state = run.State,
-            threadId = run.ThreadId,
-            model = run.ResolvedModel,
-            steps = run.Events.TakeLast(8).Select(item => item.Message),
-            summary,
-            error = run.Error,
-            updatedAt = run.UpdatedAt,
-        };
-    }
-
     // The owner works on this machine, so the brief follows its clock.
     static TimeZoneInfo BriefZone(AgentStore agents) =>
         agents.Schedule().Enabled ? ShiftClock.Zone(agents.Schedule().TimeZone) : TimeZoneInfo.Local;
@@ -714,59 +690,6 @@ public static class CoreEndpoints
                 return Results.Ok(new { sessions = sessions.Recent(60), health });
             }
         );
-        // Steering: the owner sends into an idle session, or starts one that appears in its app. One driver at a time.
-        app.MapPost(
-                "/api/sessions/{id}/send",
-                (HttpContext context, SessionSteering steering, string id, SteerInput input) =>
-                    !IsOwner(context)
-                        ? Results.StatusCode(403)
-                        : Results.Ok(
-                            TurnView(steering.Send(id, new(input.Message ?? "", input.AllowEdits, input.AllowNetwork)))
-                        )
-            )
-            .RequireRateLimiting("agent");
-        app.MapGet(
-            "/api/sessions/{id}/turn",
-            (HttpContext context, SessionSteering steering, string id) =>
-                !IsOwner(context) ? Results.StatusCode(403)
-                : steering.Turn(id) is { } run ? Results.Ok(TurnView(run))
-                : Results.Ok(new { state = "none" })
-        );
-        app.MapPost(
-            "/api/sessions/{id}/turn/cancel",
-            (HttpContext context, SessionSteering steering, string id) =>
-            {
-                if (!IsOwner(context))
-                    return Results.StatusCode(403);
-                steering.Cancel(id);
-                return Results.Ok(new { stopping = true });
-            }
-        );
-        app.MapPost(
-                "/api/sessions/start",
-                (HttpContext context, SessionSteering steering, StartSessionInput input) =>
-                    !IsOwner(context) ? Results.StatusCode(403)
-                    : input.App is not ("codex" or "claude") || input.Folder is not { Length: > 0 and <= 400 }
-                        ? Results.BadRequest(new { error = "Choose Codex or Claude and a project folder." })
-                    : Results.Ok(
-                        TurnView(
-                            steering.Start(
-                                input.App,
-                                input.Folder,
-                                input.Title ?? "",
-                                new(input.Message ?? "", input.AllowEdits, input.AllowNetwork)
-                            )
-                        )
-                    )
-            )
-            .RequireRateLimiting("agent");
-        app.MapGet(
-            "/api/sessions/runs/{app}/{runId}",
-            (HttpContext context, SessionSteering steering, string app, string runId) =>
-                !IsOwner(context) ? Results.StatusCode(403)
-                : steering.FindRun(app, runId) is { } run ? Results.Ok(TurnView(run))
-                : Results.NotFound()
-        );
         // Live status from installed hooks. Besides the local-owner checks, the hook proves itself with hook.token from the data root.
         app.MapPost(
             "/api/sessions/events",
@@ -1107,14 +1030,3 @@ public sealed record RoleChange(bool Hired);
 public sealed record ManualIntake(string? Source, string? ThreadKey, string From, string Subject, string Body);
 
 public sealed record PriorityChange(string? Priority);
-
-public sealed record SteerInput(string? Message, bool AllowEdits, bool AllowNetwork);
-
-public sealed record StartSessionInput(
-    string? App,
-    string? Folder,
-    string? Title,
-    string? Message,
-    bool AllowEdits,
-    bool AllowNetwork
-);

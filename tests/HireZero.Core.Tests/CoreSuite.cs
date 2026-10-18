@@ -17,9 +17,6 @@ public sealed class CoreSuite
     public Task GuardAndSession() => GuardAndSessionChecks.RunAsync(Verify.Check);
 
     [Fact]
-    public Task Steering() => SteeringChecks.RunAsync(Verify.Check);
-
-    [Fact]
     public Task Brief() => BriefChecks.RunAsync(Verify.Check);
 
     [Fact]
