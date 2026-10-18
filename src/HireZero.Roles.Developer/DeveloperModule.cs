@@ -6,6 +6,7 @@ using HireZero.Tools.GitHub;
 using HireZero.Tools.Jev;
 using HireZero.Tools.Microsoft365;
 using HireZero.Tools.Node;
+using HireZero.Tools.OpenRouter;
 using HireZero.Tools.SemaForge;
 using HireZero.Tools.Wiki;
 
@@ -178,6 +179,12 @@ public sealed class DeveloperModule : IEmployeeModule
                 ),
                 new(AgentAppsTools.CheckSteer.Id, ToolRisk.Read, "Check that a session can take a message now."),
                 new(AzureDevOpsTools.Status.Id, ToolRisk.Read, "Show whether Azure DevOps is configured."),
+                new(OpenRouterTools.Status.Id, ToolRisk.Read, "Show whether an OpenRouter key and model are set."),
+                new(
+                    OpenRouterTools.Choose.Id,
+                    ToolRisk.Read,
+                    "Ask your chosen OpenRouter model for one structured choice when you start a sort."
+                ),
                 new(
                     AzureDevOpsTools.Attention.Id,
                     ToolRisk.Read,
@@ -207,7 +214,8 @@ public sealed class DeveloperModule : IEmployeeModule
                 CompanyInbox.Definition,
                 CompanySessions.Definition,
                 CompanyPullRequestAttention.Definition,
-                CompanyJevSort.Definition,
+                CompanyMessageSort.JevDefinition,
+                CompanyMessageSort.OpenRouterDefinition,
             ],
             DisplayOrder = 20,
         };
@@ -243,7 +251,12 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyInbox.ReadAction => CompanyInbox.ReadAsync(input, tools, token),
             CompanySessions.ReadAction => CompanySessions.ReadAsync(input, tools, token),
             CompanyPullRequestAttention.ReadAction => CompanyPullRequestAttention.ReadAsync(input, tools, token),
-            CompanyJevSort.ReadAction => CompanyJevSort.SortAsync(input, tools, token),
+            CompanyMessageSort.JevAction or CompanyMessageSort.OpenRouterAction => CompanyMessageSort.SortAsync(
+                action,
+                input,
+                tools,
+                token
+            ),
             _ => throw new WorkspaceException("This employee has no such action.", 404),
         };
 

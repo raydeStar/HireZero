@@ -104,6 +104,12 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.tools.openrouter": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
       "hirezero.tools.semaforge": {
         "type": "Project",
         "dependencies": {

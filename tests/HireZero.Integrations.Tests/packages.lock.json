@@ -230,6 +230,13 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.openrouter": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.OpenRouter": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.wiki": {
         "type": "Project",
         "dependencies": {
@@ -256,6 +263,12 @@
         }
       },
       "hirezero.tools.microsoft365": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.openrouter": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

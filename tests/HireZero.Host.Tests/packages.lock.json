@@ -202,6 +202,7 @@
           "HireZero.Integrations.Microsoft365": "[1.0.0, )",
           "HireZero.Integrations.Node": "[1.0.0, )",
           "HireZero.Integrations.OpenClaw": "[1.0.0, )",
+          "HireZero.Integrations.OpenRouter": "[1.0.0, )",
           "HireZero.Integrations.SemaForge": "[1.0.0, )",
           "HireZero.Integrations.Tailscale": "[1.0.0, )",
           "HireZero.Integrations.Wiki": "[1.0.0, )",
@@ -273,6 +274,13 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.openrouter": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.OpenRouter": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.semaforge": {
         "type": "Project",
         "dependencies": {
@@ -310,6 +318,7 @@
           "HireZero.Tools.Jev": "[1.0.0, )",
           "HireZero.Tools.Microsoft365": "[1.0.0, )",
           "HireZero.Tools.Node": "[1.0.0, )",
+          "HireZero.Tools.OpenRouter": "[1.0.0, )",
           "HireZero.Tools.SemaForge": "[1.0.0, )",
           "HireZero.Tools.Wiki": "[1.0.0, )"
         }
@@ -357,6 +366,12 @@
         }
       },
       "hirezero.tools.node": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.openrouter": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

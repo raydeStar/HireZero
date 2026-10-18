@@ -5,6 +5,7 @@
     <ProjectReference Include="../HireZero.Roles.*/HireZero.Roles.*.csproj" />
     <ProjectReference Include="../HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.OpenRouter/HireZero.Integrations.OpenRouter.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Codex/HireZero.Integrations.Codex.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Git/HireZero.Integrations.Git.csproj" />
     <ProjectReference Include="../HireZero.Integrations.GitHub/HireZero.Integrations.GitHub.csproj" />

@@ -189,7 +189,7 @@ public sealed partial class ArchitectureTests
     }
 
     [GeneratedRegex(
-        @"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com|SessionSteering|ISessionDriver|SteerRequest|AzureDevOps|Azure DevOps|dev\.azure\.com|visualstudio\.com|Jev|TypeSafe)\b"
+        @"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com|SessionSteering|ISessionDriver|SteerRequest|AzureDevOps|Azure DevOps|dev\.azure\.com|visualstudio\.com|Jev|TypeSafe|OpenRouter|openrouter\.ai)\b"
     )]
     private static partial Regex IntegrationProduct();
 

@@ -163,6 +163,8 @@ features in 2B.5 rather than twice.
   configured in `azure-devops.json`), with its remote-URL format, sharing rule and title pattern moved out of Core.
 - **2B.5g (done):** Jev as an optional integration: the owner-started `jev-sort` action (at most ten message
   excerpts sent to Jev), with Jev's name out of Core.
+- **OpenRouter (done):** a second classifier for the message sort (`openrouter-sort`), with the key in the
+  environment and the owner's chosen model in `openrouter.json`.
 - **2B.5h to 2B.5i:** each legacy-only feature as an optional integration
   ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core:
   tailnet multi-user access and the daily brief.

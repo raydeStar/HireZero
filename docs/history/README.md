@@ -43,3 +43,4 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 | [PHASE2B5E2_REPORT](PHASE2B5E2_REPORT.md) | Phase 2B.5e2: read-only session steering as an approved publication |
 | [PHASE2B5F_REPORT](PHASE2B5F_REPORT.md) | Phase 2B.5f: Azure DevOps as an optional, read-only integration |
 | [PHASE2B5G_REPORT](PHASE2B5G_REPORT.md) | Phase 2B.5g: Jev as an optional integration |
+| [OPENROUTER_SORT_REPORT](OPENROUTER_SORT_REPORT.md) | OpenRouter as a second classifier for the message sort |

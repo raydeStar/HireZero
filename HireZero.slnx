@@ -3,6 +3,7 @@
     <Project Path="src/HireZero.Core/HireZero.Core.csproj" />
     <Project Path="src/HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
     <Project Path="src/HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />
+    <Project Path="src/HireZero.Integrations.OpenRouter/HireZero.Integrations.OpenRouter.csproj" />
     <Project Path="src/HireZero.Integrations.Codex/HireZero.Integrations.Codex.csproj" />
     <Project Path="src/HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
     <Project Path="src/HireZero.Integrations.AgentApps/HireZero.Integrations.AgentApps.csproj" />
@@ -16,6 +17,7 @@
     <Project Path="src/HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
     <Project Path="src/HireZero.Tools.GitHub/HireZero.Tools.GitHub.csproj" />
     <Project Path="src/HireZero.Tools.Jev/HireZero.Tools.Jev.csproj" />
+    <Project Path="src/HireZero.Tools.OpenRouter/HireZero.Tools.OpenRouter.csproj" />
     <Project Path="src/HireZero.Tools.Node/HireZero.Tools.Node.csproj" />
     <Project Path="src/HireZero.Tools.SemaForge/HireZero.Tools.SemaForge.csproj" />
     <Project Path="src/HireZero.Tools.AgentApps/HireZero.Tools.AgentApps.csproj" />

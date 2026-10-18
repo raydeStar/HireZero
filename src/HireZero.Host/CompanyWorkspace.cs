@@ -6,6 +6,7 @@ using HireZero.Integrations.Git;
 using HireZero.Integrations.GitHub;
 using HireZero.Integrations.Jev;
 using HireZero.Integrations.Microsoft365;
+using HireZero.Integrations.OpenRouter;
 using HireZero.Integrations.Wiki;
 
 // Explicit composition profile. Native Codex inspection is opt-in; legacy workers are never registered.
@@ -175,6 +176,10 @@ public static class CompanyWorkspace
             var jev = JevToolProvider.Company();
             if (fixtureTools is null && jev.Status().Active)
                 jev.Register(tools);
+            // OpenRouter, only when its key and the owner's chosen model are set; called only from owner-started sorts.
+            var openRouter = new OpenRouterToolProvider(root);
+            if (fixtureTools is null && openRouter.Status().Active)
+                openRouter.Register(tools);
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
             app.Use(
@@ -257,6 +262,7 @@ public static class CompanyWorkspace
                     agentApps.Status(),
                     azureDevOps.Status(),
                     jev.Status(),
+                    openRouter.Status(),
                     new(
                         "wiki",
                         "Synthetic Wiki",
