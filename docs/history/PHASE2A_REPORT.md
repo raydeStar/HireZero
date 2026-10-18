@@ -1,6 +1,6 @@
 # Phase 2A report: tools and model routes
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 Phase 2 restores the layers: employees reach the world only through registered, audited tools, and models are
 chosen by purpose. It is split in two. 2A, reported here, lays the foundations and proves them end to end on the
@@ -21,12 +21,12 @@ path onto them; 2B moves the rest behind tests that already pass.
 
 ## Decisions
 
-- [ADR 0007](adr/0007-tool-registry.md): employees reach the world through registered tools.
+- [ADR 0007](../adr/0007-tool-registry.md): employees reach the world through registered tools.
   - Typed contracts live in `HireZero.Tools.*` assemblies.
   - Integrations register handlers.
   - Roles call through a per-module toolbox that enforces the manifest and a risk gate.
   - Every call is audited.
-- [ADR 0008](adr/0008-model-routes.md): model routes come from one catalog. It also records the design of the single
+- [ADR 0008](../adr/0008-model-routes.md): model routes come from one catalog. It also records the design of the single
   provider contract that 2B will implement.
 
 ## What changed

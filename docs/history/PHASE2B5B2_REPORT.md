@@ -1,6 +1,6 @@
 # Phase 2B.5b2 report: the company host drives reviewed execution
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 Reviewed execution, and the Developer's pull request fix from 2B.5b1, can now be driven from the company workspace.
 A job card for any execution skill walks you through each step:

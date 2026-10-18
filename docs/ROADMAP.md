@@ -9,9 +9,9 @@ column when a phase lands; open a new ADR when a decision changes.
 
 | Phase | Theme | Status |
 | --- | --- | --- |
-| 0 | Clean foundation | Done (see [Phase 0 report](PHASE0_REPORT.md)) |
-| 1 | One employee module contract | Done (see [Phase 1 report](PHASE1_REPORT.md)) |
-| 2 | Restore the layers: tools, integrations, one model provider | 2A and 2B.1–2B.4 done; 2B.5 under way ([2B.5a](PHASE2B5A_REPORT.md)) |
+| 0 | Clean foundation | Done (see [Phase 0 report](history/PHASE0_REPORT.md)) |
+| 1 | One employee module contract | Done (see [Phase 1 report](history/PHASE1_REPORT.md)) |
+| 2 | Restore the layers: tools, integrations, one model provider | 2A and 2B.1–2B.4 done; 2B.5 under way ([2B.5a](history/PHASE2B5A_REPORT.md)) |
 | 3 | Enterprise readiness | Planned |
 | 4 | Prove "omni": a real second and third employee | Planned |
 
@@ -47,7 +47,7 @@ Replace the three overlapping employee definitions (`IRole`, `EmployeeDefinition
 contract, `IEmployeeModule`, described by a manifest ([ADR 0002](adr/0002-employee-module-contract.md)), and find
 modules without editing the platform ([ADR 0006](adr/0006-compiled-in-module-discovery.md)).
 
-Delivered (see [Phase 1 report](PHASE1_REPORT.md)):
+Delivered (see [Phase 1 report](history/PHASE1_REPORT.md)):
 
 - The contract and manifest: identity and versions, instructions, skills with modes, structured input validation,
   tools with risk levels, KPIs, onboarding copy, capabilities, UI slots and display order.
@@ -72,7 +72,7 @@ Employees reach the world only through registered, audited tools ([ADR 0007](adr
 model is chosen by purpose from one catalog and called through one provider contract
 ([ADR 0008](adr/0008-model-routes.md)). Delivered in two parts.
 
-### 2A: Foundations (done, see [Phase 2A report](PHASE2A_REPORT.md))
+### 2A: Foundations (done, see [Phase 2A report](history/PHASE2A_REPORT.md))
 
 - Tool registry in Core: typed contracts in `HireZero.Tools.*` assemblies, a toolbox per module that enforces the
   manifest's declarations, a risk gate (Read; Write with a verified authority; External and Spend with a
@@ -84,7 +84,7 @@ model is chosen by purpose from one catalog and called through one provider cont
 
 ### 2B: Developer port and one provider
 
-**2B.1 (done, see [Phase 2B.1 report](PHASE2B1_REPORT.md)):** every process the Developer starts goes through
+**2B.1 (done, see [Phase 2B.1 report](history/PHASE2B1_REPORT.md)):** every process the Developer starts goes through
 tools.
 
 - `Integrations.GitHub` runs git and gh for `git.read`, `git.write`, `git.push`, `github.read` and `github.write`. It
@@ -94,7 +94,7 @@ tools.
 - GitHub sign-in and the pinned npm install are owner-action tools.
 - Roles no longer reference `System.Diagnostics.Process`, and a test enforces it.
 
-**2B.2 (done, see [Phase 2B.2 report](PHASE2B2_REPORT.md)):** every HTTP call the Developer made goes through
+**2B.2 (done, see [Phase 2B.2 report](history/PHASE2B2_REPORT.md)):** every HTTP call the Developer made goes through
 tools. SemaForge, the Wiki pilot and Jev are integrations. Writes are bound to:
 
 - an approved workflow;
@@ -104,7 +104,7 @@ tools. SemaForge, the Wiki pilot and Jev are integrations. Writes are bound to:
 
 No role opens an HTTP client, and a test enforces it.
 
-**2B.3 (done, see [Phase 2B.3 report](PHASE2B3_REPORT.md)):** Core starts no process, and a test enforces it.
+**2B.3 (done, see [Phase 2B.3 report](history/PHASE2B3_REPORT.md)):** Core starts no process, and a test enforces it.
 
 - The repository context moved to the Developer, read through `git.read`.
 - Tailscale identity moved to `Integrations.Tailscale`.
@@ -115,7 +115,7 @@ The remaining vocabulary in Core is legacy-only: work-log PR fields, owner-task 
 wiki notices, Codex and Claude session names, and git-host parsing for boss sharing. It moves out with those
 features in 2B.5 rather than twice.
 
-**2B.4 (done, see [Phase 2B.4 report](PHASE2B4_REPORT.md)):** one model provider contract, recorded in
+**2B.4 (done, see [Phase 2B.4 report](history/PHASE2B4_REPORT.md)):** one model provider contract, recorded in
 [ADR 0010](adr/0010-model-provider-contract.md).
 
 - The company contract is now the platform's `IModelProvider` (`ModelProviders.cs`), with a how-to for adding a
@@ -126,7 +126,7 @@ features in 2B.5 rather than twice.
 
 **2B.5 is under way**, one feature at a time:
 
-- **2B.5a (done, see [Phase 2B.5a report](PHASE2B5A_REPORT.md)):** employee actions
+- **2B.5a (done, see [Phase 2B.5a report](history/PHASE2B5A_REPORT.md)):** employee actions
   ([ADR 0011](adr/0011-employee-actions.md)). The company Developer gathers PR evidence (`pr-evidence`), and a
   measured `pr-review` skill reviews it once you approve the evidence.
 - **2B.5b1 (done):** the PR fix as an execution skill. A reviewed fix runs in an approved checkout of the PR head,

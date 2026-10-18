@@ -23,3 +23,13 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 | [IMPLEMENTATION_HANDOFF](IMPLEMENTATION_HANDOFF.md) | Handoff notes from the 2026-10-14 session |
 | [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md) | Verification checkpoint log |
 | [SOURCE_PUBLICATION_REVIEW](SOURCE_PUBLICATION_REVIEW.md) | Secret-scan and publication review |
+| [PHASE0_REPORT](PHASE0_REPORT.md) | Phase 0: clean foundation |
+| [PHASE1_REPORT](PHASE1_REPORT.md) | Phase 1: one employee module contract |
+| [PHASE2A_REPORT](PHASE2A_REPORT.md) | Phase 2A: layering foundations |
+| [PHASE2B1_REPORT](PHASE2B1_REPORT.md) | Phase 2B.1: Developer processes through integrations |
+| [PHASE2B2_REPORT](PHASE2B2_REPORT.md) | Phase 2B.2: SemaForge, Wiki and Jev as audited tools |
+| [PHASE2B3_REPORT](PHASE2B3_REPORT.md) | Phase 2B.3: Core starts no processes |
+| [PHASE2B4_REPORT](PHASE2B4_REPORT.md) | Phase 2B.4: one model provider contract |
+| [PHASE2B5A_REPORT](PHASE2B5A_REPORT.md) | Phase 2B.5a: employee actions; PR review, with the live-test findings |
+| [PHASE2B5B1_REPORT](PHASE2B5B1_REPORT.md) | Phase 2B.5b1: PR fix and publications |
+| [PHASE2B5B2_REPORT](PHASE2B5B2_REPORT.md) | Phase 2B.5b2: the host drives reviewed execution |

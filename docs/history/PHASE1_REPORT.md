@@ -1,15 +1,15 @@
 # Phase 1 report: one employee module contract
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 Every employee is now one `IEmployeeModule` with a manifest, discovered at startup. The company workspace, the
 hiring flow and the employee UI are driven by manifests, and architecture tests enforce the rules. Adding an
-employee no longer touches Host, Core or shared web code ([how-to](ADDING_AN_EMPLOYEE.md)).
+employee no longer touches Host, Core or shared web code ([how-to](../ADDING_AN_EMPLOYEE.md)).
 
 ## Decisions
 
-Recorded as [ADR 0002](adr/0002-employee-module-contract.md) (now Accepted) and the new
-[ADR 0006](adr/0006-compiled-in-module-discovery.md):
+Recorded as [ADR 0002](../adr/0002-employee-module-contract.md) (now Accepted) and the new
+[ADR 0006](../adr/0006-compiled-in-module-discovery.md):
 
 - **Discovery: compiled in.** Role projects are built with the host through a wildcard reference and found by an
   assembly attribute. A runtime plugin folder was rejected for now: loading third-party code into the process

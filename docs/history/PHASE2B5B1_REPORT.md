@@ -1,6 +1,6 @@
 # Phase 2B.5b1 report: the company Developer fixes pull requests
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 The second legacy Developer service is ported into the company workspace, as far as Core and the Developer module. A
 Developer employee can fix a pull request in your checkout of its head. You review the diff, approve the publication,
@@ -10,7 +10,7 @@ It works through a new general mechanism, publications. Any module can use it to
 
 ## Decision
 
-[ADR 0012](adr/0012-company-publication.md): publishing reviewed execution through exact calls.
+[ADR 0012](../adr/0012-company-publication.md): publishing reviewed execution through exact calls.
 
 A publication binds a completed execution's reviewed diff to the exact local calls that will commit it and, later,
 to one external call. You approve it after approving the change. A new verifier, `company-publication`, then

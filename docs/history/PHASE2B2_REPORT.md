@@ -1,6 +1,6 @@
 # Phase 2B.2 report: Developer services through tools
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 SemaForge, the Wiki pilot and Jev now sit behind integrations as audited tools. Every write is bound to what
 authorizes it: an approved workflow, a fix's own runs, a reserved wiki draft, or your request while it is in flight.

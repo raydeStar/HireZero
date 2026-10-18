@@ -1,6 +1,6 @@
 # Phase 2B.4 report: one model provider contract
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 HireZero now has one model provider contract, `IModelProvider`, with a how-to for adding a vendor. Runtime
 constraints moved into the providers that impose them. A model call or coding run whose usage wasn't reported is no
@@ -8,7 +8,7 @@ longer counted as zero tokens without any trace. The safety behavior of the comp
 
 ## Decision and why it differs from the plan
 
-[ADR 0010](adr/0010-model-provider-contract.md) supersedes the provider section of ADR 0008. ADR 0008 planned a new
+[ADR 0010](../adr/0010-model-provider-contract.md) supersedes the provider section of ADR 0008. ADR 0008 planned a new
 abstraction to replace four. Up close, two things changed that:
 
 - **The company contract already does what matters.** That covers:
@@ -43,7 +43,7 @@ legacy profile.
   | `UnavailableCompanyModel` | `UnavailableModelProvider` |
 
   Only type names changed. Persisted JSON uses property names, so existing data roots are unaffected.
-- **Provider how-to.** [ADDING_A_MODEL_PROVIDER.md](ADDING_A_MODEL_PROVIDER.md) covers what each member must do
+- **Provider how-to.** [ADDING_A_MODEL_PROVIDER.md](../ADDING_A_MODEL_PROVIDER.md) covers what each member must do
   (counting, withholding, failures, cancellation, no retries), the measured extension, routing, the one composition
   point, and the offline test matrix a new provider must pass.
 - **Unreported usage is visible.**

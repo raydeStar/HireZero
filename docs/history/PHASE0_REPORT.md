@@ -1,6 +1,6 @@
 # Phase 0 report: clean foundation
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 Phase 0 made the repository read like a product, made the build reproducible on any .NET 10 SDK, pinned the agent
 runtime, and moved the checks onto a standard test framework. Behaviour is unchanged except where noted under
@@ -10,16 +10,16 @@ runtime, and moved the checks onto a standard test framework. Behaviour is uncha
 
 ### Plan and decisions
 
-- [ROADMAP.md](ROADMAP.md) is the canonical plan (phases 0–4, exit criteria, what is deliberately deferred).
-- Five ADRs in [docs/adr](adr/): three layers, the employee module contract (proposed), the owner-approval safety
+- [ROADMAP.md](../ROADMAP.md) is the canonical plan (phases 0–4, exit criteria, what is deliberately deferred).
+- Five ADRs in [docs/adr](../adr/): three layers, the employee module contract (proposed), the owner-approval safety
   model, pinned runtimes, and offline checks on xUnit.
-- [ARCHITECTURE.md](ARCHITECTURE.md) describes the system as it is, including known layering violations.
+- [ARCHITECTURE.md](../ARCHITECTURE.md) describes the system as it is, including known layering violations.
 - `AGENTS.md` points at the roadmap and records the new runtime-pin and formatting conventions.
 
 ### Repository hygiene
 
 - Removed ZIP-export leftovers: `SOURCE-MANIFEST.json`, `PACKAGE-VALIDATION.json`, `README.upstream.md`.
-- Moved 13 dated session/handoff notes and `PROVENANCE.md` to [docs/history](history/) with an index.
+- Moved 13 dated session/handoff notes and `PROVENANCE.md` to [docs/history]() with an index.
 - Moved the marketing brief fixture from `docs/` to `tests/fixtures/one-job-marketing-brief.json`.
 - Rewrote `README.md` as a product README (requirements, build, profiles, runtime, checks, layout).
 

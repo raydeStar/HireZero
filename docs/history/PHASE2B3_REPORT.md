@@ -1,6 +1,6 @@
 # Phase 2B.3 report: Core starts no processes, and the fixtures are fictional
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 Core no longer starts any process, and an architecture test enforces it. Its last two process calls went to the
 roles and integrations they belong to. The company path no longer names a role or a model vendor. Along the way I
@@ -100,7 +100,7 @@ covers identification, caching and host matching through the injected lookup.
 ## Next: Phase 2B.4, one provider contract
 
 Replace `IModelGateway`, `ICompanyModel`, `ICompanyMeasuredModel` and `ICodingRunner` with the single provider
-contract designed in [ADR 0008](adr/0008-model-routes.md):
+contract designed in [ADR 0008](../adr/0008-model-routes.md):
 
 - one request and one result type;
 - usage that can say "unknown" and never records zero;

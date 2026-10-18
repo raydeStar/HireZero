@@ -1,6 +1,6 @@
 # Phase 2B.5a report: the company Developer reviews pull requests
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 This is the first legacy Developer service ported into the company workspace. A Developer employee can now gather a
 pull request's evidence from GitHub. You review that evidence, and once approved the Developer drafts a review of
@@ -9,7 +9,7 @@ actions, which the remaining ports reuse.
 
 ## Decision
 
-[ADR 0011](adr/0011-employee-actions.md): employee actions gather evidence that you review.
+[ADR 0011](../adr/0011-employee-actions.md): employee actions gather evidence that you review.
 
 Models in the company workspace get no tools; that is what keeps their context reviewable. So reading an external
 system is a deterministic, read-only action, and its output becomes an artifact that waits for your review. A skill

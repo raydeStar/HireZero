@@ -1,6 +1,6 @@
 # Phase 2B.1 report: Developer processes through tools
 
-Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](ROADMAP.md).
+Date: 2026-10-17. Branch: `feature/employee-contexts`. Plan: [ROADMAP](../ROADMAP.md).
 
 Every process the Developer used to start (git, the GitHub CLI and npm) now runs as a declared, audited tool
 behind a risk gate. Pushes, merges and review requests are bound to the specific approved workflow or fix loop.
@@ -8,7 +8,7 @@ Roles no longer reference `System.Diagnostics.Process`, and an architecture test
 
 ## Decision
 
-[ADR 0009](adr/0009-legacy-features-are-optional-integrations.md): you chose to keep every legacy-only feature:
+[ADR 0009](../adr/0009-legacy-features-are-optional-integrations.md): you chose to keep every legacy-only feature:
 
 - Microsoft 365 intake
 - coding-agent session steering
