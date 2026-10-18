@@ -7,6 +7,7 @@ import { CompanyConversation, type ConversationDraft } from "./CompanyConversati
 import { MessageSquareText, Users, Building2, ClipboardList, MessagesSquare } from "lucide-react";
 import { HireOnboarding } from "./HireOnboarding";
 import { Integrations } from "./Integrations";
+import { Today } from "./Today";
 import "./company.css";
 type ConversationRoute = { tab: string; selected: string; thread: string };
 function readRoute(): ConversationRoute {
@@ -298,6 +299,7 @@ export function CompanyWorkspace() {
         <p className="co-muted">
           You have final authority. CEO plans and Board decisions remain subject to your review.
         </p>
+        <Today version={d.cursor ?? 0} />
         <Integrations integrations={snapshot.capabilities.integrations ?? []} refresh={refresh} />
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>

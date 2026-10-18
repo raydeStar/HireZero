@@ -46,3 +46,4 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 | [OPENROUTER_SORT_REPORT](OPENROUTER_SORT_REPORT.md) | OpenRouter as a second classifier for the message sort |
 | [CODEX_LIVE_CODING_TURN](CODEX_LIVE_CODING_TURN.md) | Live step 2: one real coding turn on a fictional repository |
 | [CODEX_LIVE_PR_FIX](CODEX_LIVE_PR_FIX.md) | Live step 3: a real pr-fix with network, the defects it found, and why the fix was not published |
+| [PHASE2B5I_REPORT](PHASE2B5I_REPORT.md) | Phase 2B.5i: the daily brief (Today view, session activity, day-brief skill) |

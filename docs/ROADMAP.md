@@ -169,9 +169,10 @@ features in 2B.5 rather than twice.
   (merge, re-run its or its base branch's failed jobs, or ask Dependabot to rebase), published once as a single approved GitHub call
   ([ADR 0017](adr/0017-publishing-a-step-from-an-action.md)). A merge needs green head checks and a green base
   branch, so merges go one at a time.
-- **2B.5h to 2B.5i:** each legacy-only feature as an optional integration
-  ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core:
-  tailnet multi-user access and the daily brief.
+- **2B.5i (done):** the daily brief: the company's Today view (what waits on you, the day's events), the
+  Developer's `session-brief` action (one day of agent-session counts, no transcripts) and the measured `day-brief`
+  skill. See [the report](history/PHASE2B5I_REPORT.md).
+- **2B.5h (moved to Phase 3):** tailnet multi-user access belongs with real users, sign-in and roles.
 - **2B.5j:** merge the Developer panels into the company UI and give modules their own storage migrations. Then
   retire `IRole`, `roles.json`, `IModelGateway`, `UsageMeter`, the Developer, Recovery and Held profiles and
   `web/src/shell`.

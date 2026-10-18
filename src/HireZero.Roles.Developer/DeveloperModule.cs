@@ -108,6 +108,12 @@ public sealed class DeveloperModule : IEmployeeModule
                     "Rank your open pull requests from an approved Azure DevOps read: problem and next step for each.",
                     SkillMode.Measured
                 ),
+                new(
+                    CompanySessionBrief.Skill,
+                    "Daily brief",
+                    "Write your daily brief from an approved day of agent sessions: what needs you, what got done, what is stuck.",
+                    SkillMode.Measured
+                ),
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -177,6 +183,11 @@ public sealed class DeveloperModule : IEmployeeModule
                     ToolRisk.Read,
                     "List recent coding-agent sessions when the owner asks."
                 ),
+                new(
+                    AgentAppsTools.ListActivity.Id,
+                    ToolRisk.Read,
+                    "Count what each coding-agent session did on a day when the owner asks."
+                ),
                 new(AgentAppsTools.CheckSteer.Id, ToolRisk.Read, "Check that a session can take a message now."),
                 new(AzureDevOpsTools.Status.Id, ToolRisk.Read, "Show whether Azure DevOps is configured."),
                 new(OpenRouterTools.Status.Id, ToolRisk.Read, "Show whether an OpenRouter key and model are set."),
@@ -213,6 +224,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 CompanyWiki.Definition,
                 CompanyInbox.Definition,
                 CompanySessions.Definition,
+                CompanySessionBrief.Definition,
                 CompanyPullRequestAttention.Definition,
                 CompanyPullRequestStep.Definition,
                 CompanyMessageSort.JevDefinition,
@@ -231,6 +243,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyInbox.Triage => CompanyInbox.TriageInstructions,
             CompanySteer.Skill => CompanySteer.Instructions,
             CompanyPullRequestAttention.Skill => CompanyPullRequestAttention.Instructions,
+            CompanySessionBrief.Skill => CompanySessionBrief.Instructions,
             _ => Manifest.Instructions,
         };
 
@@ -251,6 +264,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyWiki.ReadAction => CompanyWiki.ReadAsync(input, tools, token),
             CompanyInbox.ReadAction => CompanyInbox.ReadAsync(input, tools, token),
             CompanySessions.ReadAction => CompanySessions.ReadAsync(input, tools, token),
+            CompanySessionBrief.ReadAction => CompanySessionBrief.ReadAsync(input, tools, DateTimeOffset.UtcNow, token),
             CompanyPullRequestAttention.ReadAction => CompanyPullRequestAttention.ReadAsync(input, tools, token),
             CompanyPullRequestStep.Action => CompanyPullRequestStep.RunAsync(input, tools, token),
             CompanyMessageSort.JevAction or CompanyMessageSort.OpenRouterAction => CompanyMessageSort.SortAsync(

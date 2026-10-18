@@ -325,6 +325,32 @@ public static class CompanyWorkspace
                         : Results.Json(new { error = "Select the explicit Codex connection profile." }, statusCode: 503)
             );
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(store.ToolCalls(limit ?? 100)));
+            // The company's day on this machine's clock: what waits on the owner and what happened (2B.5i).
+            app.MapGet(
+                "/api/company/today",
+                (string? day) =>
+                {
+                    var zone = TimeZoneInfo.Local;
+                    var date = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
+                    if (
+                        day is not null
+                        && !DateOnly.TryParseExact(
+                            day,
+                            "yyyy-MM-dd",
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.None,
+                            out date
+                        )
+                    )
+                        return Results.BadRequest(new { error = "Use a yyyy-MM-dd day." });
+                    DateTimeOffset At(DateOnly value)
+                    {
+                        var local = value.ToDateTime(TimeOnly.MinValue);
+                        return new(local, zone.GetUtcOffset(local));
+                    }
+                    return Results.Ok(store.Today(date.ToString("yyyy-MM-dd"), At(date), At(date.AddDays(1))));
+                }
+            );
             // Runs a declared employee action once (docs/adr/0011-employee-actions.md). A retried request returns the
             // recorded task without running the action again.
             app.MapPost(

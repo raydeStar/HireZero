@@ -16,12 +16,14 @@ namespace HireZero.Integrations.AgentApps;
 public sealed class AgentAppsToolProvider(
     string dataRoot,
     IEnumerable<ISessionSource> sources,
-    Func<string, string, ISessionDriver>? drivers = null
+    Func<string, string, ISessionDriver>? drivers = null,
+    IEnumerable<ISessionActivityReader>? readers = null
 ) : IToolProvider, IIntegrationStatusSource
 {
     public static readonly string[] Known = ["claude", "codex"];
     public static readonly TimeSpan QuietPeriod = TimeSpan.FromSeconds(60);
     private readonly ISessionSource[] _sources = [.. sources];
+    private readonly ISessionActivityReader[] _readers = [.. readers ?? []];
     private readonly ConcurrentDictionary<string, ISessionDriver> _drivers = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, (ISessionDriver Driver, string RunId)> _active = new(
         StringComparer.Ordinal
@@ -87,6 +89,7 @@ public sealed class AgentAppsToolProvider(
     {
         registry.Register(AgentAppsTools.Status, (_, _) => Task.FromResult(Status()));
         registry.Register(AgentAppsTools.ListSessions, ListAsync);
+        registry.Register(AgentAppsTools.ListActivity, ActivityAsync);
         if (Steerable().Length > 0)
         {
             registry.Register(
@@ -208,9 +211,94 @@ public sealed class AgentAppsToolProvider(
         ];
     }
 
-    // The company workspace's provider: the installed apps' own session sources, scanned only on request.
+    // One local day of each enabled app's sessions, counted from their own records (2B.5i, the daily brief).
+    private async Task<SessionDay[]> ActivityAsync(SessionActivityRequest request, CancellationToken token)
+    {
+        if (request.Max is < 1 or > 25)
+            throw new ToolFailureException("refused", "Read between 1 and 25 sessions.", 422);
+        if (
+            !DateOnly.TryParseExact(
+                request.Day,
+                "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var day
+            )
+        )
+            throw new ToolFailureException("refused", "Use a yyyy-MM-dd day.", 422);
+        var enabled = Enabled();
+        if (enabled.Length == 0)
+            throw new ToolFailureException("refused", "No app is enabled: " + Status().Reason, 409);
+        var zone = TimeZoneInfo.Local;
+        DateTimeOffset At(DateOnly value)
+        {
+            var local = value.ToDateTime(TimeOnly.MinValue);
+            return new(local, zone.GetUtcOffset(local));
+        }
+        var (from, to) = (At(day), At(day.AddDays(1)));
+        var days = new List<SessionDay>();
+        foreach (var source in _sources.Where(s => enabled.Contains(s.App)))
+        {
+            var reader = _readers.FirstOrDefault(r => r.App == source.App);
+            if (reader is null)
+                continue;
+            AgentSession[] sessions;
+            try
+            {
+                sessions = await source.ScanAsync(token);
+            }
+            catch (Exception error) when (error is not OperationCanceledException || !token.IsCancellationRequested)
+            {
+                throw new ToolFailureException("unavailable", source.App + " sessions could not be listed.");
+            }
+            foreach (var session in sessions.Where(s => DateTimeOffset.TryParse(s.UpdatedAt, out var at) && at >= from))
+            {
+                SessionActivity? activity;
+                try
+                {
+                    activity = await reader.ReadAsync(session, from, to, token);
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+                {
+                    continue;
+                }
+                if (activity is null || activity.Turns == 0 && activity.Commands == 0 && activity.Files.Length == 0)
+                    continue;
+                days.Add(
+                    new(
+                        session.Id,
+                        session.App,
+                        session.Title,
+                        session.Cwd is null
+                            ? null
+                            : Path.GetFileName(session.Cwd.TrimEnd(Path.DirectorySeparatorChar, '/')),
+                        session.Repository,
+                        session.Branch,
+                        session.Status,
+                        activity.FirstAt,
+                        activity.LastAt,
+                        activity.Turns,
+                        [.. activity.Files.Select(f => Path.GetFileName(f)).Distinct().Take(20)],
+                        activity.Commands,
+                        activity.FailedCommands,
+                        [.. activity.FailedSamples.Take(3).Select(c => c.Length <= 160 ? c : c[..160] + "…")],
+                        [.. activity.Tests.Take(10)],
+                        activity.EndedWithQuestion
+                    )
+                );
+            }
+        }
+        return [.. days.OrderByDescending(d => d.LastAt, StringComparer.Ordinal).Take(request.Max)];
+    }
+
+    // The company workspace's provider: the installed apps' own session sources and activity readers, scanned only
+    // on request.
     public static AgentAppsToolProvider Company(string dataRoot) =>
-        new(dataRoot, [new ClaudeSessionSource(), new LazySource("codex", () => new CodexSessionSource())]);
+        new(
+            dataRoot,
+            [new ClaudeSessionSource(), new LazySource("codex", () => new CodexSessionSource())],
+            readers: [new ClaudeActivityReader(), new CodexActivityReader()]
+        );
 
     // Defers resolving the Codex command until a listing actually needs it.
     private sealed class LazySource(string app, Func<ISessionSource> create) : ISessionSource

@@ -46,6 +46,32 @@ public sealed class AgentAppsToolProviderTests : IDisposable
         }
     }
 
+    private sealed class Reader(string app) : ISessionActivityReader
+    {
+        public string App => app;
+
+        public Task<SessionActivity?> ReadAsync(
+            AgentSession session,
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken token
+        ) =>
+            Task.FromResult<SessionActivity?>(
+                new(
+                    "2026-10-18T08:00:00Z",
+                    "2026-10-18T09:00:00Z",
+                    4,
+                    [Path.Combine(Path.GetTempPath(), "fictional-owner", "quotes-service", "Quote.cs")],
+                    6,
+                    1,
+                    ["dotnet test " + new string('x', 400)],
+                    ["dotnet test: 12 passed"],
+                    true,
+                    ["FICTIONAL TRANSCRIPT EXCERPT"]
+                )
+            );
+    }
+
     private static readonly EmployeeManifest Manifest = new(
         "sessions-test",
         "Sessions test",
@@ -60,6 +86,7 @@ public sealed class AgentAppsToolProviderTests : IDisposable
         [
             new(AgentAppsTools.Status.Id, ToolRisk.Read, "Status."),
             new(AgentAppsTools.ListSessions.Id, ToolRisk.Read, "List."),
+            new(AgentAppsTools.ListActivity.Id, ToolRisk.Read, "Activity."),
         ],
     };
 
@@ -67,7 +94,7 @@ public sealed class AgentAppsToolProviderTests : IDisposable
     {
         var claude = new Source("claude");
         var codex = new Source("codex");
-        var provider = new AgentAppsToolProvider(_root, [claude, codex]);
+        var provider = new AgentAppsToolProvider(_root, [claude, codex], readers: [new Reader("claude")]);
         var registry = new ToolRegistry(new MemoryToolAudit());
         provider.Register(registry);
         return (registry.For(Manifest), claude, codex, provider);
@@ -109,5 +136,34 @@ public sealed class AgentAppsToolProviderTests : IDisposable
             tools.InvokeAsync(AgentAppsTools.ListSessions, new(null, 100), token)
         );
         Assert.Equal(0, codex.Scans);
+    }
+
+    // The daily brief's activity: only for enabled apps, counts and file names only, never an excerpt or a full path.
+    [Fact]
+    public async Task ADaysActivityIsCountsAndNamesOnly()
+    {
+        var (tools, claude, _, _) = Create();
+        var token = TestContext.Current.CancellationToken;
+        var day = DateOnly
+            .FromDateTime(DateTimeOffset.Parse("2026-10-18T08:00:00Z").LocalDateTime)
+            .ToString("yyyy-MM-dd");
+        await Assert.ThrowsAsync<ToolFailureException>(() =>
+            tools.InvokeAsync(AgentAppsTools.ListActivity, new(day, 10), token)
+        );
+        Enable("claude");
+        await Assert.ThrowsAsync<ToolFailureException>(() =>
+            tools.InvokeAsync(AgentAppsTools.ListActivity, new("yesterday", 10), token)
+        );
+        var activity = Assert.Single(await tools.InvokeAsync(AgentAppsTools.ListActivity, new(day, 10), token));
+        Assert.Equal(
+            (4, 6, 1, true),
+            (activity.Turns, activity.Commands, activity.FailedCommands, activity.EndedWithQuestion)
+        );
+        Assert.Equal(["Quote.cs"], activity.Files);
+        Assert.True(activity.FailedSamples.Single().Length <= 161);
+        var json = JsonSerializer.Serialize(activity);
+        Assert.DoesNotContain("FICTIONAL TRANSCRIPT EXCERPT", json);
+        Assert.DoesNotContain("fictional-owner", json);
+        Assert.Equal(1, claude.Scans);
     }
 }
