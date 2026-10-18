@@ -177,7 +177,7 @@ public sealed partial class ArchitectureTests
     }
 
     // Core knows no product an integration serves (docs/adr/0009). Each port to an optional integration adds its names
-    // here: Microsoft 365 (2B.5d), session steering (2B.5e), Azure DevOps (2B.5f); tailnet access follows in its phase.
+    // here: Microsoft 365 (2B.5d), session steering (2B.5e), Azure DevOps (2B.5f), Jev (2B.5g); tailnet access follows.
     [Fact]
     public void CoreNamesNoIntegrationProduct()
     {
@@ -189,7 +189,7 @@ public sealed partial class ArchitectureTests
     }
 
     [GeneratedRegex(
-        @"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com|SessionSteering|ISessionDriver|SteerRequest|AzureDevOps|Azure DevOps|dev\.azure\.com|visualstudio\.com)\b"
+        @"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com|SessionSteering|ISessionDriver|SteerRequest|AzureDevOps|Azure DevOps|dev\.azure\.com|visualstudio\.com|Jev|TypeSafe)\b"
     )]
     private static partial Regex IntegrationProduct();
 

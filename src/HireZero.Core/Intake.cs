@@ -30,9 +30,11 @@ public interface IIntakeRule
     RuleOutcome? Evaluate(InboundMessage message);
 }
 
-// Tier 2: a classifier (Jev), called only when no rule decided.
+// Tier 2: a classifier an integration provides, called only when no rule decided. Name is recorded as decided-by.
 public interface IIntakeClassifier
 {
+    string Name => "classifier";
+
     Task<(IntakeVerdict Verdict, double Confidence, string Reason)?> ClassifyAsync(
         InboundMessage message,
         CancellationToken token
@@ -127,7 +129,7 @@ public static class IntakeCategory
 }
 
 // Each step costs more than the one before, so each runs only when the cheaper ones couldn't settle it:
-// rules -> Jev -> match an existing task -> prioritize -> dive in. The tiers that ran are recorded.
+// rules -> classifier -> match an existing task -> prioritize -> dive in. The tiers that ran are recorded.
 public sealed class IntakePipeline(
     IntakeStore store,
     RequestStore requests,
@@ -200,7 +202,7 @@ public sealed class IntakePipeline(
                 if (await classifier.ClassifyAsync(message, token) is { } classified)
                 {
                     verdict = classified.Verdict;
-                    decidedBy = "jev";
+                    decidedBy = classifier.Name;
                     reason = classified.Reason;
                     break;
                 }

@@ -210,6 +210,13 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.jev": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Jev": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.microsoft365": {
         "type": "Project",
         "dependencies": {
@@ -237,6 +244,12 @@
         }
       },
       "hirezero.tools.azuredevops": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.jev": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

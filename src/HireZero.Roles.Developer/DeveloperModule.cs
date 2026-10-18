@@ -207,6 +207,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 CompanyInbox.Definition,
                 CompanySessions.Definition,
                 CompanyPullRequestAttention.Definition,
+                CompanyJevSort.Definition,
             ],
             DisplayOrder = 20,
         };
@@ -242,6 +243,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyInbox.ReadAction => CompanyInbox.ReadAsync(input, tools, token),
             CompanySessions.ReadAction => CompanySessions.ReadAsync(input, tools, token),
             CompanyPullRequestAttention.ReadAction => CompanyPullRequestAttention.ReadAsync(input, tools, token),
+            CompanyJevSort.ReadAction => CompanyJevSort.SortAsync(input, tools, token),
             _ => throw new WorkspaceException("This employee has no such action.", 404),
         };
 

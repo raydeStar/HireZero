@@ -83,6 +83,8 @@ public sealed class JevClient(IHttpClientFactory clients)
 // Tier 2 of intake: does the owner need to act on this message? Low confidence means "review".
 public sealed class JevIntakeClassifier(JevClient jev) : IIntakeClassifier
 {
+    public string Name => "jev";
+
     static readonly Dictionary<string, string> Criteria = new()
     {
         ["act"] =
@@ -147,8 +149,32 @@ public static class JevServices
 }
 
 // The jev.* tools. The key stays in this integration; callers send only the request body.
-public sealed class JevToolProvider(IHttpClientFactory clients) : IToolProvider
+public sealed class JevToolProvider(IHttpClientFactory clients) : IToolProvider, IIntegrationStatusSource
 {
+    // The company workspace's provider: private HTTP clients, so the profile offers no general client factory.
+    public static JevToolProvider Company() => new(new PrivateClients());
+
+    public IntegrationStatus Status() =>
+        JevClient.Key() is not null
+            ? new("jev", "Jev", true, "A Jev key is set; request text is sent to Jev only when you start a Jev action.")
+            : new("jev", "Jev", false, "Set HIREZERO_JEV_API_KEY to use Jev.");
+
+    private sealed class PrivateClients : IHttpClientFactory
+    {
+        private readonly SocketsHttpHandler _handler = new()
+        {
+            AllowAutoRedirect = false,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        };
+
+        public HttpClient CreateClient(string name) =>
+            new(_handler, disposeHandler: false)
+            {
+                BaseAddress = new Uri("https://api.typesafe.ai/"),
+                Timeout = TimeSpan.FromSeconds(30),
+            };
+    }
+
     public void Register(ToolRegistry registry)
     {
         registry.Register(JevTools.Status, (_, _) => Task.FromResult(new JevStatus(JevClient.Key() is not null)));

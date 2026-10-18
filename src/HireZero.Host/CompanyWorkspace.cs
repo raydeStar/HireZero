@@ -4,6 +4,7 @@ using HireZero.Integrations.AzureDevOps;
 using HireZero.Integrations.Codex;
 using HireZero.Integrations.Git;
 using HireZero.Integrations.GitHub;
+using HireZero.Integrations.Jev;
 using HireZero.Integrations.Microsoft365;
 using HireZero.Integrations.Wiki;
 
@@ -170,6 +171,10 @@ public static class CompanyWorkspace
             var azureDevOps = new AzureDevOpsToolProvider(root);
             if (fixtureTools is null && azureDevOps.Status().Active)
                 azureDevOps.Register(tools);
+            // Jev, only when its key is set; text is sent to it only when the owner starts a Jev action.
+            var jev = JevToolProvider.Company();
+            if (fixtureTools is null && jev.Status().Active)
+                jev.Register(tools);
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
             app.Use(
@@ -251,6 +256,7 @@ public static class CompanyWorkspace
                     microsoft.Status(),
                     agentApps.Status(),
                     azureDevOps.Status(),
+                    jev.Status(),
                     new(
                         "wiki",
                         "Synthetic Wiki",

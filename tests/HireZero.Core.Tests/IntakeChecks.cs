@@ -5,6 +5,8 @@ public static class IntakeChecks
 {
     sealed class Classifier : IIntakeClassifier
     {
+        public string Name => "jev";
+
         public int Calls;
         public IntakeVerdict? Answer = IntakeVerdict.Act;
 

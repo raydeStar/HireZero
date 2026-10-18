@@ -411,4 +411,71 @@ public sealed class Microsoft365CompanyTests : IDisposable
             Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
         }
     }
+
+    // Jev sorts only when the owner starts it and Jev is configured; at most ten excerpts are sent, and a low-confidence
+    // answer counts as review. The result is reviewed evidence.
+    [Fact]
+    public async Task JevSortsAtMostTenMessagesIntoReviewedEvidence()
+    {
+        var registry = new ToolRegistry(new MemoryToolAudit());
+        var configured = false;
+        var sent = new List<string>();
+        registry.Register(
+            Microsoft365Tools.ReadMail,
+            (request, _) =>
+            {
+                _reads.Add(request);
+                return Task.FromResult(
+                    Enumerable
+                        .Range(1, 12)
+                        .Select(i => new InboxMessage(
+                            "outlook",
+                            "m-" + i,
+                            "c-" + i,
+                            "Riley <riley@example.invalid>",
+                            "Fictional message " + i,
+                            "Fictional body " + i,
+                            new DateTimeOffset(2026, 10, 18, 8, i, 0, TimeSpan.Zero)
+                        ))
+                        .ToArray()
+                );
+            }
+        );
+        registry.Register(Microsoft365Tools.ReadTeams, (_, _) => Task.FromResult(Array.Empty<InboxMessage>()));
+        registry.Register(
+            HireZero.Tools.Jev.JevTools.Status,
+            (_, _) => Task.FromResult(new HireZero.Tools.Jev.JevStatus(configured))
+        );
+        registry.Register(
+            HireZero.Tools.Jev.JevTools.Classify,
+            (request, _) =>
+            {
+                sent.Add(request.Json);
+                var unsure = request.Json.Contains("Fictional message 12");
+                return Task.FromResult(
+                    new ServiceReply(
+                        200,
+                        JsonSerializer.Serialize(
+                            new { answers = new { answer = new { choice = "act", confidence = unsure ? 0.4 : 0.9 } } }
+                        )
+                    )
+                );
+            }
+        );
+        var tools = registry.For(Module.Manifest).ReadOnly();
+        var input = new Dictionary<string, string> { ["hours"] = "3", ["sources"] = "mail" };
+        await Assert.ThrowsAsync<WorkspaceException>(() =>
+            Module.RunActionAsync(CompanyJevSort.ReadAction, input, tools, Token)
+        );
+        Assert.Empty(_reads);
+        Assert.Empty(sent);
+
+        configured = true;
+        var output = await Module.RunActionAsync(CompanyJevSort.ReadAction, input, tools, Token);
+        Assert.Equal([new InboxReadRequest(3, CompanyJevSort.MaxMessages)], _reads);
+        Assert.Equal(CompanyJevSort.MaxMessages, sent.Count);
+        Assert.Contains("- review (40%): [outlook] Fictional message 12", output);
+        Assert.Contains("- act (90%): [outlook] Fictional message 11", output);
+        Assert.DoesNotContain("Fictional message 2 ", output);
+    }
 }
