@@ -70,6 +70,18 @@ public sealed class EmployeeModuleTests
             Manifest() with
             {
                 Capabilities = new() { WorkspaceClaims = true },
+            },
+            Manifest() with
+            {
+                Actions = [new("draft", "Collides with a skill", "x", [new("field", "Field")])],
+            },
+            Manifest() with
+            {
+                Actions = [new("gather", "No fields", "x", [])],
+            },
+            Manifest() with
+            {
+                Actions = [new("gather", "Unbounded", "x", [new("field", "Field", 100000)])],
             }
         );
 

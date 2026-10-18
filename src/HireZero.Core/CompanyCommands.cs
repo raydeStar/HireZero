@@ -226,6 +226,8 @@ public sealed partial class CompanyStore
                 );
                 return task;
             }
+            case "action.start":
+                return StartAction(db, c);
             case "task.create":
                 return NewTask(
                     db,
@@ -532,9 +534,15 @@ public sealed partial class CompanyStore
             throw new WorkspaceException(
                 "Company conversations admit one explicitly approved conversational reply only."
             );
-        if (!Role(e.RoleId).Skills.Contains(skill))
+        if (kind == ActionKind)
+        {
+            if (Role(e.RoleId).Manifest?.Actions.Any(a => a.Id == skill) != true)
+                throw new WorkspaceException("The selected role does not have this action.", 403);
+        }
+        else if (!Role(e.RoleId).Skills.Contains(skill))
             throw new WorkspaceException("The selected role does not have this skill.", 403);
-        input = Role(e.RoleId).ValidateInput?.Invoke(skill, input) ?? input;
+        else
+            input = Role(e.RoleId).ValidateInput?.Invoke(skill, input) ?? input;
         if (All<CompanyTask>(db).Count(j => j.EmployeeId == employee && j.State is "queued" or "blocked") >= 10)
             throw new WorkspaceException("Employee queue is full.");
         Evidence(db, evidence);

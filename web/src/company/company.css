@@ -885,3 +885,10 @@
   margin: 8px 0;
   padding: 8px 0;
 }
+
+/* Employee actions: one small form per declared action. */
+.co-action {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}

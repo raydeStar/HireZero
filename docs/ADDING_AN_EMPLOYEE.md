@@ -76,6 +76,11 @@ are refused, `Write`, `External` and `Spend` tools need an owner authority for t
 audited. Model choices go in `config/model-routes.json` under a purpose of your own (for example
 `support.reply`), never as model ids in code.
 
+Actions ([ADR 0011](adr/0011-employee-actions.md)) are read-only work the owner starts, such as gathering evidence.
+Declare them in `Actions` and implement `RunActionAsync`. The toolbox you receive carries no authority, so only Read
+tools succeed. Your output becomes an artifact the owner reviews, and only an approved artifact can be evidence for a
+skill. `PullRequestEvidenceAction` is the example. Use actions to read; leave judgement to skills.
+
 Skill modes decide which gates apply: `Text` for ordinary internal work, `Measured` for the one-job queue with exact
 packet review, `Execution` for work that needs an execution grant (requires `Capabilities.WorkspaceClaims`).
 

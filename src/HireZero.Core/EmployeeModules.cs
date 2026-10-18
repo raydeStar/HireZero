@@ -17,6 +17,15 @@ public interface IEmployeeModule
     // The system instructions for one skill; the manifest's base instructions unless a skill needs its own.
     string InstructionsFor(string skill) => Manifest.Instructions;
 
+    // Runs a declared action with a read-only toolbox and returns its output (at most 12,000 characters), which the
+    // owner reviews as an artifact before any skill may use it as evidence.
+    Task<string> RunActionAsync(
+        string action,
+        IReadOnlyDictionary<string, string> input,
+        IToolbox tools,
+        CancellationToken token
+    ) => throw new WorkspaceException("This employee has no such action.", 404);
+
     // Services and endpoints for the legacy Developer profile. Removed when that profile retires.
     IRole? LegacyRole => null;
 }
@@ -43,6 +52,9 @@ public sealed record EmployeeManifest(
     public EmployeeKpi[] Kpis { get; init; } = [];
     public EmployeeCapabilities Capabilities { get; init; } = new();
     public string[] UiSlots { get; init; } = [];
+
+    // Read-only, tool-backed work the owner can start, such as gathering evidence (docs/adr/0011-employee-actions.md).
+    public EmployeeAction[] Actions { get; init; } = [];
 
     // Position in hiring lists; the first employee is the suggested first hire. Ties sort by name.
     public int DisplayOrder { get; init; } = 100;
@@ -95,6 +107,10 @@ public enum ToolRisk
 public sealed record EmployeeTool(string Id, ToolRisk Risk, string Purpose);
 
 public sealed record EmployeeKpi(string Id, string Name, string Unit, string Description);
+
+public sealed record EmployeeAction(string Id, string Name, string Description, ActionField[] Fields);
+
+public sealed record ActionField(string Id, string Label, int MaxLength = 200);
 
 public sealed record EmployeeOnboarding(
     string Department,
@@ -188,6 +204,19 @@ public static partial class EmployeeModuleCatalog
         );
         Require(manifest.Tools.All(t => ToolIdentifier().IsMatch(t.Id)), "tool ids must look like 'system.action'.");
         Require(manifest.Kpis.All(k => Identifier().IsMatch(k.Id)), "KPI ids must be lowercase identifiers.");
+        Require(
+            manifest.Actions.All(a => Identifier().IsMatch(a.Id) && !manifest.Has(a.Id)),
+            "action ids must be lowercase identifiers distinct from skill ids."
+        );
+        Require(manifest.Actions.Select(a => a.Id).Distinct().Count() == manifest.Actions.Length, "action ids repeat.");
+        Require(
+            manifest.Actions.All(a =>
+                a.Fields.Length > 0
+                && a.Fields.All(f => Identifier().IsMatch(f.Id) && f.MaxLength is > 0 and <= 4000)
+                && a.Fields.Select(f => f.Id).Distinct().Count() == a.Fields.Length
+            ),
+            "action fields need distinct lowercase ids and a bound of at most 4000 characters."
+        );
         Require(
             !manifest.Capabilities.WorkspaceClaims || manifest.Skills.Any(s => s.Mode == SkillMode.Execution),
             "workspace claims need an execution skill."

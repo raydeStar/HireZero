@@ -842,6 +842,14 @@ public sealed partial class CompanyStore
     public void Recover()
     {
         using var db = Open();
+        Transaction(
+            db,
+            () =>
+            {
+                RecoverActions(db);
+                return true;
+            }
+        );
         var attempts = All<CompanyAttempt>(db)
             .Where(a => a.Phase is "claimed" or "reserved" or "dispatching")
             .ToArray();

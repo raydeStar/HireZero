@@ -11,7 +11,7 @@ column when a phase lands; open a new ADR when a decision changes.
 | --- | --- | --- |
 | 0 | Clean foundation | Done (see [Phase 0 report](PHASE0_REPORT.md)) |
 | 1 | One employee module contract | Done (see [Phase 1 report](PHASE1_REPORT.md)) |
-| 2 | Restore the layers: tools, integrations, one model provider | 2A, 2B.1–2B.4 done ([2A](PHASE2A_REPORT.md), [2B.1](PHASE2B1_REPORT.md), [2B.2](PHASE2B2_REPORT.md), [2B.3](PHASE2B3_REPORT.md), [2B.4](PHASE2B4_REPORT.md)); 2B.5 next |
+| 2 | Restore the layers: tools, integrations, one model provider | 2A and 2B.1–2B.4 done; 2B.5 under way ([2B.5a](PHASE2B5A_REPORT.md)) |
 | 3 | Enterprise readiness | Planned |
 | 4 | Prove "omni": a real second and third employee | Planned |
 
@@ -124,19 +124,22 @@ features in 2B.5 rather than twice.
 - Usage that a provider didn't report is flagged and estimated, never silently zero.
 - The legacy `IModelGateway` and `ICodingRunner` are not extended; they retire with the legacy profile.
 
-**Remaining**, in order:
+**2B.5 is under way**, one feature at a time:
 
-1. **2B.5 Port and retire:**
-   - Every legacy feature moves into the company workspace as an optional integration
-     ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core:
-     Microsoft 365 intake, coding-agent session steering, Azure DevOps, Jev triage, tailnet multi-user access and
-     the daily brief.
-   - The Developer's legacy services (PR review, fix loop, wiki drafts, preparation, Trusted Postgres) become
-     company skills. Its company coding joins the provider contract as an execution mode.
-   - The Developer panels merge into the company UI, and modules get their own storage migrations.
-   - Then `IRole`, `roles.json`, `IModelGateway`, `UsageMeter`, the Developer, Recovery and Held profiles and
-     `web/src/shell` are retired.
-2. Expose and consume tools over MCP.
+- **2B.5a (done, see [Phase 2B.5a report](PHASE2B5A_REPORT.md)):** employee actions
+  ([ADR 0011](adr/0011-employee-actions.md)). The company Developer gathers PR evidence (`pr-evidence`), and a
+  measured `pr-review` skill reviews it once you approve the evidence.
+- **2B.5b:** the PR fix as an execution skill. A reviewed fix runs in an approved checkout, then commits and pushes
+  through `git.write` and `git.push` under an execution grant and your publication approval. The fix loop follows.
+- **2B.5c:** wiki drafts, request preparation and Trusted Postgres as Developer skills and actions.
+- **2B.5d to 2B.5i:** each legacy-only feature as an optional integration
+  ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core: Microsoft
+  365 intake, coding-agent session steering, Azure DevOps, Jev triage, tailnet multi-user access and the daily brief.
+- **2B.5j:** merge the Developer panels into the company UI and give modules their own storage migrations. Then
+  retire `IRole`, `roles.json`, `IModelGateway`, `UsageMeter`, the Developer, Recovery and Held profiles and
+  `web/src/shell`.
+
+**After 2B:** expose and consume tools over MCP.
 
 ## Phase 3: Enterprise readiness
 

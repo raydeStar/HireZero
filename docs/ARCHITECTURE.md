@@ -59,6 +59,10 @@ wildcard and `EmployeeModuleCatalog.Discover` finds the modules at startup
 - `IRole` (`Core/Roles.cs`) remains only for the legacy Developer and Recovery profiles; a module exposes it as
   `LegacyRole`. It is removed with those profiles in Phase 2.
 
+Employees can also declare read-only actions ([ADR 0011](adr/0011-employee-actions.md)). For example, the Developer's
+`pr-evidence` action gathers a PR through `github.read`. Its output is an artifact for owner review, and only once it
+is approved can it be evidence for a skill such as `pr-review`. Models themselves get no tools.
+
 On the web, `web/src/roles/company.ts` collects every `web/src/roles/<id>/company.tsx` and renders a contribution
 only where the module's manifest declares the slot (`skill-input:<skill>` for structured input editors, named
 panels such as `plan-guidance`).

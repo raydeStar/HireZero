@@ -95,6 +95,12 @@ export type Role = {
   tools?: { id: string; risk: "read" | "write" | "external" | "spend"; purpose: string }[] | null;
   kpis?: { id: string; name: string; unit: string; description: string }[] | null;
   uiSlots?: string[];
+  actions?: {
+    id: string;
+    name: string;
+    description: string;
+    fields: { id: string; label: string; maxLength: number }[];
+  }[];
 };
 export type MeasuredEntry = {
   id: string;
@@ -232,4 +238,22 @@ export async function command(
     if (pending() === requestId) remember(null);
     throw error;
   }
+}
+
+// Runs one declared employee action; retrying with the same request ID returns the recorded task without rerunning it.
+export function runAction(
+  requestId: string,
+  employeeId: string,
+  threadId: string,
+  action: string,
+  input: Record<string, string>,
+) {
+  return api<unknown>("/company/actions", "POST", {
+    requestId,
+    action: "action.start",
+    employeeId,
+    threadId,
+    skill: action,
+    body: JSON.stringify(input),
+  });
 }

@@ -356,6 +356,7 @@ public sealed partial class CompanyStore
                         }),
                         kpis = r.Manifest?.Kpis,
                         uiSlots = r.Manifest?.UiSlots ?? [],
+                        actions = r.Manifest?.Actions ?? [],
                     }),
                     cursor = long.Parse(
                         Scalar(db, "SELECT COALESCE(MAX(seq),0) FROM co_events WHERE company_id=$0", CompanyId)!

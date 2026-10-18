@@ -1,6 +1,7 @@
 using HireZero.Core;
 using HireZero.Integrations.Codex;
 using HireZero.Integrations.Git;
+using HireZero.Integrations.GitHub;
 
 // Explicit composition profile. Native Codex inspection is opt-in; legacy workers are never registered.
 public static class CompanyWorkspace
@@ -17,7 +18,8 @@ public static class CompanyWorkspace
         string root,
         IModelProvider? fixture = null,
         string? fixtureUrl = null,
-        string? fixtureWebRoot = null
+        string? fixtureWebRoot = null,
+        Action<ToolRegistry>? fixtureTools = null
     )
     {
         if (!args.Contains(Flag))
@@ -108,8 +110,15 @@ public static class CompanyWorkspace
             builder.Services.AddSingleton(store);
             // Tools employees may call, audited in the company store (docs/adr/0007-tool-registry.md).
             var tools = new ToolRegistry(store);
-            if (GitToolRegistration.FindGit() is { } git)
-                tools.AddGitTools(new GitCheckoutInspector(git));
+            if (fixtureTools is not null)
+                fixtureTools(tools);
+            else
+            {
+                if (GitToolRegistration.FindGit() is { } git)
+                    tools.AddGitTools(new GitCheckoutInspector(git));
+                // Read-only GitHub CLI tools for employee actions; there are no verifiers, so every write is refused.
+                new GitHubCli().Register(tools);
+            }
             builder.Services.AddSingleton(tools);
             builder.Services.AddSingleton<IModelProvider>(model);
             builder.Services.AddSingleton<CompanyScheduler>();
@@ -225,6 +234,45 @@ public static class CompanyWorkspace
                         : Results.Json(new { error = "Select the explicit Codex connection profile." }, statusCode: 503)
             );
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(store.ToolCalls(limit ?? 100)));
+            // Runs a declared employee action once (docs/adr/0011-employee-actions.md). A retried request returns the
+            // recorded task without running the action again.
+            app.MapPost(
+                "/api/company/actions",
+                async (System.Text.Json.JsonElement body, CancellationToken token) =>
+                {
+                    var command = CompanyJson.Decode<CompanyCommand>(body.GetRawText()) with
+                    {
+                        Action = "action.start",
+                    };
+                    var task = CompanyJson.Decode<CompanyTask>(store.Apply(command, out var fresh));
+                    if (!fresh)
+                        return Results.Ok(store.TaskDetail(task.Id));
+                    var employee = store.EmployeeOf(task.EmployeeId);
+                    var module = HostEmployees.Modules.Single(m => m.Manifest.Id == employee.RoleId);
+                    var input = CompanyJson.Decode<Dictionary<string, string>>(task.Input);
+                    try
+                    {
+                        var output = await module.RunActionAsync(
+                            task.Skill,
+                            input,
+                            tools.For(module.Manifest, employee.Id, task.Id).ReadOnly(),
+                            token
+                        );
+                        store.CompleteAction(task.Id, output);
+                    }
+                    catch (Exception error) when (error is not OutOfMemoryException)
+                    {
+                        // Expected refusals keep their message; anything else is reported without internals.
+                        store.FailAction(
+                            task.Id,
+                            error is WorkspaceException or ModelUnavailableException
+                                ? error.Message
+                                : "The action failed unexpectedly (" + error.GetType().Name + ")."
+                        );
+                    }
+                    return Results.Ok(store.TaskDetail(task.Id));
+                }
+            );
             app.MapGet(
                 "/api/company/feed",
                 (long? after, int? limit) => Results.Ok(store.Feed(after ?? 0, limit ?? 100))

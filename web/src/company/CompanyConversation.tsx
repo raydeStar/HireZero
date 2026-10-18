@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowUp, MessageSquareText } from "lucide-react";
 import { api } from "../shell/api";
 import { skillInput } from "../roles/company";
+import { EmployeeActions } from "./EmployeeActions";
 import type { Employee, Event, Snapshot, ThreadDetail, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
 import { MeasuredJob } from "./MeasuredJob";
@@ -423,6 +424,15 @@ export function CompanyConversation({
               <structured.Editor value={draft.brief} onChange={(brief) => update({ brief })} />
             </details>
           ) : null}
+          {!company && employee && (
+            <EmployeeActions
+              role={role}
+              employeeId={employee.id}
+              threadId={thread}
+              disabled={busy || employee.state !== "active"}
+              refresh={refresh}
+            />
+          )}
           {!company && (
             <details className="co-evidence">
               <summary>Attach approved evidence ({draft.evidence.length})</summary>
