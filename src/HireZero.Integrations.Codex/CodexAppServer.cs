@@ -110,7 +110,8 @@ internal sealed class CodexAppServer : IAsyncDisposable
     public static IEnumerable<string> Arguments(
         string profile,
         IReadOnlyDictionary<string, string> filesystem,
-        IEnumerable<string> disabledFeatures
+        IEnumerable<string> disabledFeatures,
+        bool network = false
     )
     {
         yield return "app-server";
@@ -128,7 +129,9 @@ internal sealed class CodexAppServer : IAsyncDisposable
             + profile
             + "={filesystem={"
             + string.Join(",", filesystem.Select(f => JsonSerializer.Serialize(f.Key) + "=\"" + f.Value + "\""))
-            + "},network={enabled=false}}}";
+            + "},network={enabled="
+            + (network ? "true" : "false")
+            + "}}}";
         yield return "-c";
         yield return "default_permissions=\"" + profile + "\"";
         foreach (
@@ -178,7 +181,8 @@ internal sealed class CodexAppServer : IAsyncDisposable
     public async Task VerifyPermissions(
         string expectedProfile,
         IReadOnlyDictionary<string, string> filesystem,
-        CancellationToken token
+        CancellationToken token,
+        bool network = false
     )
     {
         var config = (
@@ -206,12 +210,14 @@ internal sealed class CodexAppServer : IAsyncDisposable
             || fs.ValueKind != JsonValueKind.Object
             || fs.EnumerateObject().Count(p => p.Value.ValueKind != JsonValueKind.Null) != filesystem.Count
             || filesystem.Any(f => Text(fs, f.Key) != f.Value)
-            || !profile.TryGetProperty("network", out var network)
-            || Flag(network, "enabled") != false
-            || network.EnumerateObject().Any(p => p.Name != "enabled" && p.Value.ValueKind != JsonValueKind.Null)
+            || !profile.TryGetProperty("network", out var networkSettings)
+            || Flag(networkSettings, "enabled") != network
+            || networkSettings
+                .EnumerateObject()
+                .Any(p => p.Name != "enabled" && p.Value.ValueKind != JsonValueKind.Null)
         )
             throw new WorkspaceException(
-                "Codex restricted permissions are unconfirmed: only the approved roots may be accessible, with no network or inherited profile."
+                "Codex restricted permissions are unconfirmed: only the approved roots may be accessible, with exactly the approved network access and no inherited profile."
             );
         var available = await Request("permissionProfile/list", new { cwd = WorkingDirectory, limit = 100 }, token);
         if (

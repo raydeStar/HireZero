@@ -13,6 +13,7 @@ type Grant = {
   expiresAt: string;
   review: null | { digest: string; files: { path: string }[] };
   bounds?: { tokens: number; seconds: number; effort: string };
+  allowNetwork?: boolean;
 };
 type Publication = {
   id: string;
@@ -45,7 +46,8 @@ export function ExecutionSteps({
   const [detail, setDetail] = useState<{ executions: Grant[]; publications?: Publication[] } | null>(null),
     [error, setError] = useState(""),
     [checkout, setCheckout] = useState(""),
-    [working, setWorking] = useState(false);
+    [working, setWorking] = useState(false),
+    [network, setNetwork] = useState(false);
   const load = useCallback(
     () =>
       api<{ executions: Grant[]; publications?: Publication[] }>("/company/tasks/" + t.id)
@@ -85,19 +87,32 @@ export function ExecutionSteps({
         <form
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
-            void command("workspace.grant", { id: t.id, expectedVersion: t.version, body: checkout });
+            void command("workspace.grant", {
+              id: t.id,
+              expectedVersion: t.version,
+              body: checkout,
+              allowNetwork: network,
+            });
           }}
         >
           <label>
             Approved checkout (full local path)
             <input required value={checkout} onChange={(e) => setCheckout(e.target.value)} />
           </label>
+          <label>
+            <input type="checkbox" checked={network} onChange={(e) => setNetwork(e.target.checked)} /> Allow network for
+            this run (for example, to restore packages); off by default
+          </label>
           <button className="co-primary" disabled={disabled} type="submit">
             Grant checkout
           </button>
         </form>
       )}
-      {t.resource && <p className="co-muted">Checkout: {t.resource}</p>}
+      {t.resource && (
+        <p className="co-muted">
+          Checkout: {t.resource} · network {t.allowNetwork ? "allowed for this run" : "off"}
+        </p>
+      )}
       {t.resource && open && !(grant && live.includes(grant.state)) && (
         <button disabled={disabled} type="button" onClick={() => void step("prepare", t.id)}>
           Prepare execution proposal
@@ -112,7 +127,7 @@ export function ExecutionSteps({
           {grant.bounds && (
             <small>
               Limits: {grant.bounds.tokens.toLocaleString()} tokens · {grant.bounds.seconds} seconds ·{" "}
-              {grant.bounds.effort} effort
+              {grant.bounds.effort} effort · network {grant.allowNetwork ? "on" : "off"}
             </small>
           )}
           {grant.state === "proposed" && (

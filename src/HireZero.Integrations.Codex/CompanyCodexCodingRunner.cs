@@ -66,7 +66,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
             !SamePath(request.Root, _grant.Workspace)
             || request.ResumeThreadId is not null
             || request.Persistent
-            || request.AllowNetwork
+            || request.AllowNetwork != _grant.AllowNetwork
             || request.Environment is not null
             || request.OutputSchemaJson is not null
             || request.Model is null
@@ -93,6 +93,9 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         var gitConfig = Path.Combine(temp, "gitconfig");
         File.WriteAllText(gitConfig, "");
         Directory.CreateDirectory(Path.Combine(scratch, "config"));
+        var profile = Path.Combine(scratch, "profile");
+        foreach (var folder in new[] { "", "AppData\\Roaming", "AppData\\Local" })
+            Directory.CreateDirectory(Path.Combine(profile, folder));
         var filesystem = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [Path.GetFullPath(_grant.Workspace)] = _grant.AllowWrite ? "write" : "read",
@@ -110,7 +113,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                 _options.Home,
                 _options.SyntheticMode,
                 scratch,
-                CodexAppServer.Arguments(Profile, filesystem, CodexAppServer.CodingFeatures),
+                CodexAppServer.Arguments(Profile, filesystem, CodexAppServer.CodingFeatures, _grant.AllowNetwork),
                 new Dictionary<string, string>
                 {
                     ["TEMP"] = temp,
@@ -118,6 +121,14 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                     ["GIT_CONFIG_GLOBAL"] = gitConfig,
                     ["GIT_CONFIG_NOSYSTEM"] = "1",
                     ["XDG_CONFIG_HOME"] = Path.Combine(scratch, "config"),
+                    // Tool caches (NuGet, npm, dotnet) land in the run's scratch, never the owner's profile.
+                    ["USERPROFILE"] = profile,
+                    ["HOME"] = profile,
+                    ["APPDATA"] = Path.Combine(profile, "AppData", "Roaming"),
+                    ["LOCALAPPDATA"] = Path.Combine(profile, "AppData", "Local"),
+                    ["DOTNET_CLI_HOME"] = profile,
+                    ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+                    ["DOTNET_NOLOGO"] = "1",
                 },
                 lineLimit: 4 * 1024 * 1024
             );
@@ -188,7 +199,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                 .Any(m => (CodexAppServer.Text(m, "model") ?? CodexAppServer.Text(m, "id")) == model)
         )
             throw new WorkspaceException("The coding model is absent from this account's catalog; no substitution.");
-        await server.VerifyPermissions(Profile, filesystem, token);
+        await server.VerifyPermissions(Profile, filesystem, token, _grant.AllowNetwork);
         var response = await server.Request(
             "thread/start",
             new
@@ -221,7 +232,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
             || CodexAppServer.Text(active, "extends") is not null
             || CodexAppServer.Text(response, "approvalPolicy") != "never"
             || !response.TryGetProperty("sandbox", out var sandbox)
-            || CodexAppServer.Flag(sandbox, "networkAccess") != false
+            || CodexAppServer.Flag(sandbox, "networkAccess") != _grant.AllowNetwork
         )
             throw new WorkspaceException(
                 "Codex thread isolation is unconfirmed: exact model, ephemeral state, the approved profile without network and zero ambient instruction sources are required. No turn was sent."

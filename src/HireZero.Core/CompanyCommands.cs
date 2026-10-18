@@ -286,14 +286,21 @@ public sealed partial class CompanyStore
                         403
                     );
                 var workspace = CanonicalWorkspace(Text(c.Body, 1000));
-                t = t with { Resource = workspace, Version = t.Version + 1, Generation = t.Generation + 1 };
+                t = t with
+                {
+                    Resource = workspace,
+                    AllowNetwork = c.AllowNetwork,
+                    Version = t.Version + 1,
+                    Generation = t.Generation + 1,
+                };
                 Put(db, t);
                 Event(
                     db,
                     "workspace.scoped",
                     t.Id,
                     t.EmployeeId,
-                    "Owner scoped a future checkout claim. Repository execution remains unavailable."
+                    "Owner scoped a checkout for this work"
+                        + (c.AllowNetwork ? ", with network access for its run." : ", without network access.")
                 );
                 return t;
             }

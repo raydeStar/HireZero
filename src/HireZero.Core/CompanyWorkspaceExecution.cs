@@ -28,7 +28,8 @@ public sealed record CompanyWorkspaceProposal(
     string ContextDigest,
     string Route,
     bool AllowWrite = false,
-    CompanyExecutionLimits? Limits = null
+    CompanyExecutionLimits? Limits = null,
+    bool AllowNetwork = false
 );
 
 public sealed record CompanyExecutionGrant(
@@ -49,7 +50,8 @@ public sealed record CompanyExecutionGrant(
     int Version = 1,
     CompanyRepositoryReview? Review = null,
     CompanyExecutionLimits? Limits = null,
-    DateTimeOffset? DispatchedAt = null
+    DateTimeOffset? DispatchedAt = null,
+    bool AllowNetwork = false
 )
 {
     // Grants recorded before limits were approved with them ran under the pilot limits.
@@ -96,6 +98,9 @@ public sealed partial class CompanyStore
                     || proposal.ContextDigest != CompanyJson.Digest(Need<CompanyContext>(db, a.ContextId))
                 )
                     throw new WorkspaceException("The workspace or context does not match owner-scoped work.", 403);
+                // Network access only as the owner granted it with the checkout; it is part of the approved digest.
+                if (proposal.AllowNetwork && !task.AllowNetwork)
+                    throw new WorkspaceException("Network access was not granted for this work.", 403);
                 Text(proposal.Revision, 80);
                 Text(proposal.Fingerprint, 80);
                 Text(proposal.Route, 100);
@@ -121,7 +126,8 @@ public sealed partial class CompanyStore
                     digest,
                     "proposed",
                     Clock().AddMinutes(10),
-                    Limits: limits
+                    Limits: limits,
+                    AllowNetwork: proposal.AllowNetwork
                 );
                 Save(db, grant, id, task.Id, employee.Id, grant.State);
                 Event(

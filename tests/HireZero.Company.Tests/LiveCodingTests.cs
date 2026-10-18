@@ -223,4 +223,28 @@ public sealed class LiveCodingTests : IDisposable
             Environment.SetEnvironmentVariable("HIREZERO_DATA_ROOT", previous);
         }
     }
+
+    // Network is off unless the owner granted it with the checkout; then the profile and the thread must both allow it,
+    // and the run request must match the grant either way.
+    [Fact]
+    public async Task NetworkIsOnlyWhatTheGrantAllows()
+    {
+        var off = Grant();
+        using (var runner = (CompanyCodexCodingRunner)Factory().Create(off, () => true))
+            Assert.Throws<CodingStartRefusedException>(() => runner.Start(Request(off) with { AllowNetwork = true }));
+
+        var on = Grant() with { AllowNetwork = true };
+        using (var runner = (CompanyCodexCodingRunner)Factory("coding-live-network").Create(on, () => true))
+            Assert.Throws<CodingStartRefusedException>(() => runner.Start(Request(on)));
+        using (var runner = (CompanyCodexCodingRunner)Factory("coding-live-network").Create(on, () => true))
+        {
+            var run = await Finished(runner, runner.Start(Request(on) with { AllowNetwork = true }));
+            Assert.Equal("completed", run.State);
+        }
+        var profile = JsonDocument
+            .Parse(Wire().First(line => line.Contains("profile")))
+            .RootElement.GetProperty("profile")
+            .GetString()!;
+        Assert.EndsWith("network={enabled=true}}}", profile);
+    }
 }

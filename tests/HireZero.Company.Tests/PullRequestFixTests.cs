@@ -686,4 +686,24 @@ public sealed class PullRequestFixTests : IDisposable
         var publication = await fix.Developer.ProposePublicationAsync(grant.Id, Token);
         Assert.Equal("proposed", publication.State);
     }
+
+    // The owner's network choice travels from the checkout grant into the approved execution grant.
+    [Fact]
+    public async Task NetworkAccessIsGrantedWithTheCheckoutAndApprovedInTheDigest()
+    {
+        var fix = await Assign();
+        var task = Apply<CompanyTask>(
+            fix.Store,
+            Cmd("workspace.grant") with
+            {
+                Id = fix.Task.Id,
+                ExpectedVersion = fix.Store.Work(fix.Task.Id).Version,
+                Body = Checkout,
+                AllowNetwork = true,
+            }
+        );
+        Assert.True(task.AllowNetwork);
+        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
+        Assert.True(grant.AllowNetwork);
+    }
 }

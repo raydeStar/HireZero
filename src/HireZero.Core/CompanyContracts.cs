@@ -106,7 +106,9 @@ public sealed record CompanyTask(
     string? CompanyKnowledgeId = null,
     string? ModelRoute = null,
     string? Runtime = null,
-    string Kind = "work"
+    string Kind = "work",
+    // The owner allowed this work's execution network access when granting its checkout (off by default).
+    bool AllowNetwork = false
 );
 
 public sealed record CompanyArtifact(
@@ -279,7 +281,8 @@ public sealed record CompanyCommand(
     string? ChairId = null,
     long Budget = 0,
     decimal CreditAllowance = 0,
-    string? Scope = null
+    string? Scope = null,
+    bool AllowNetwork = false
 );
 
 // Runtime selection and task purpose are independent of employee role: a conversation is ordinary text work; only

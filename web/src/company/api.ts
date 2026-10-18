@@ -33,6 +33,7 @@ export type Work = {
   modelRoute?: string | null;
   runtime?: string | null;
   resource?: string | null;
+  allowNetwork?: boolean;
 };
 export type Artifact = {
   id: string;

@@ -177,7 +177,11 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || OperatingSystem.IsWindows() && !args.Contains("windows.sandbox=\"mxc\"")
                 || !args.Contains("default_permissions=\"hirezero_execution\"")
                 || profile is null
-                || !profile.EndsWith("},network={enabled=false}}}", StringComparison.Ordinal)
+                // Network is off unless this run's grant allowed it (the coding-live-network mode).
+                || !profile.EndsWith(
+                    "},network={enabled=" + (mode == "coding-live-network" ? "true" : "false") + "}}}",
+                    StringComparison.Ordinal
+                )
                 || args.Contains("shell_tool")
                 || args.Contains("code_mode_host")
                 || !args.Contains("plugins")
@@ -255,7 +259,14 @@ while (await Console.In.ReadLineAsync() is { } line)
                         default_permissions = "hirezero_execution",
                         permissions = new Dictionary<string, object>
                         {
-                            { "hirezero_execution", new { filesystem, network = new { enabled = false } } },
+                            {
+                                "hirezero_execution",
+                                new
+                                {
+                                    filesystem,
+                                    network = new { enabled = profile.Contains("network={enabled=true}") },
+                                }
+                            },
                         },
                     },
                 }
@@ -293,7 +304,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                     instructionSources = mode == "coding-live-ambient"
                         ? new[] { "fictional/AGENTS.md" }
                         : Array.Empty<string>(),
-                    sandbox = new { type = "workspaceWrite", networkAccess = false },
+                    sandbox = new { type = "workspaceWrite", networkAccess = mode == "coding-live-network" },
                 }
             );
         }
