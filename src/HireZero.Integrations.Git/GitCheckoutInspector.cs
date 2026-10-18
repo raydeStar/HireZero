@@ -96,23 +96,19 @@ public sealed class GitCheckoutInspector(string gitExecutable)
                 var actual = current.TryGetValue(name, out var file)
                     ? await ReadFile(file, 20 * 1024 * 1024, token)
                     : [];
-                var blobHash =
-                    revision.Length == 40
-                        ? IncrementalHash.CreateHash(HashAlgorithmName.SHA1)
-                        : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-                using (blobHash)
-                {
-                    blobHash.AppendData(Encoding.ASCII.GetBytes("blob " + actual.Length + "\0"));
-                    blobHash.AppendData(actual);
-                    if (
-                        blobs.TryGetValue(name, out var objectId)
-                        && current.ContainsKey(name)
-                        && Convert
-                            .ToHexString(blobHash.GetHashAndReset())
-                            .Equals(objectId, StringComparison.OrdinalIgnoreCase)
+                // Unchanged: the committed bytes, or exactly those bytes with every line ending converted to CRLF on
+                // checkout (a repository's own eol attributes). Only reviewed paths are ever staged, so such a file is
+                // never committed.
+                if (
+                    blobs.TryGetValue(name, out var objectId)
+                    && current.ContainsKey(name)
+                    && (
+                        BlobId(actual, revision.Length).Equals(objectId, StringComparison.OrdinalIgnoreCase)
+                        || IsCrlfCheckout(actual)
+                            && BlobId(Lf(actual), revision.Length).Equals(objectId, StringComparison.OrdinalIgnoreCase)
                     )
-                        continue;
-                }
+                )
+                    continue;
                 if (diffs.Count >= 50)
                     throw new WorkspaceException("Use at most 50 changed files in the coding pilot.");
                 var original = blobs.TryGetValue(name, out var oid)
@@ -133,7 +129,12 @@ public sealed class GitCheckoutInspector(string gitExecutable)
                 var left = Path.Combine(temporary, "before");
                 var right = Path.Combine(temporary, "after");
                 await File.WriteAllBytesAsync(left, original, token);
-                await File.WriteAllBytesAsync(right, actual, token);
+                // A checkout converted to CRLF from LF text is compared as LF, so only real edits fill the patch.
+                await File.WriteAllBytesAsync(
+                    right,
+                    !original.Contains((byte)'\r') && IsCrlfCheckout(actual) ? Lf(actual) : actual,
+                    token
+                );
                 // Compare raw files outside the checkout. Project attributes/clean filters never run.
                 var patch = await ReadGit(
                     temporary,
@@ -247,6 +248,36 @@ public sealed class GitCheckoutInspector(string gitExecutable)
             }
         }
     }
+
+    private static string BlobId(byte[] content, int length)
+    {
+        using var hash =
+            length == 40
+                ? IncrementalHash.CreateHash(HashAlgorithmName.SHA1)
+                : IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(Encoding.ASCII.GetBytes("blob " + content.Length + "\0"));
+        hash.AppendData(content);
+        return Convert.ToHexString(hash.GetHashAndReset());
+    }
+
+    // True when the content has line breaks and every one is CRLF, with no other carriage return.
+    private static bool IsCrlfCheckout(byte[] content)
+    {
+        var breaks = 0;
+        for (var i = 0; i < content.Length; i++)
+            if (content[i] == (byte)'\r')
+            {
+                if (i + 1 >= content.Length || content[i + 1] != (byte)'\n')
+                    return false;
+                breaks++;
+                i++;
+            }
+            else if (content[i] == (byte)'\n')
+                return false;
+        return breaks > 0;
+    }
+
+    private static byte[] Lf(byte[] content) => [.. content.Where(b => b != (byte)'\r')];
 
     private static async Task<byte[]> ReadFile(string path, int limit, CancellationToken token)
     {

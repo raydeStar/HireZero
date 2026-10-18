@@ -479,21 +479,39 @@ public sealed class PullRequestFixTests : IDisposable
         Assert.Equal(fix.Head, grant.Revision);
     }
 
-    // Git can call a checkout clean while its files differ from the commit (line endings converted on checkout); the run's
-    // diff would then be unreviewable, so the work is refused before anything is sent.
+    // Git can call a checkout clean while it holds files the review would attribute to the run (here an excluded file);
+    // the work is refused before anything is sent.
     [Fact]
-    public async Task ACheckoutWhoseBytesDifferFromItsCommitIsRefusedBeforeARun()
+    public async Task ACheckoutWhoseFilesDifferFromItsCommitIsRefusedBeforeARun()
+    {
+        var fix = await Assign();
+        await File.AppendAllTextAsync(Path.Combine(Checkout, ".git", "info", "exclude"), "local.txt\n", Token);
+        await File.WriteAllTextAsync(Path.Combine(Checkout, "local.txt"), "Fictional local note\n", Token);
+        Assert.Equal("", (await Git(Checkout, "status", "--porcelain")).Trim());
+        var refusal = await Assert.ThrowsAsync<WorkspaceException>(() =>
+            fix.Developer.PrepareAsync(fix.Task.Id, Token)
+        );
+        Assert.Contains("differs from its commit", refusal.Message);
+    }
+
+    // A repository's eol attributes may check LF text out as CRLF. That conversion alone is no change, and a real edit in
+    // such a file is reviewed as only its edited lines (live pr-fix, 2026-10-18).
+    [Fact]
+    public async Task LineEndingsConvertedOnCheckoutAreNotAChange()
     {
         var fix = await Assign();
         await Git(Checkout, "config", "core.autocrlf", "true");
         File.Delete(Path.Combine(Checkout, "Quote.cs"));
         await Git(Checkout, "checkout", "--", "Quote.cs");
         Assert.EndsWith("\r\n", await File.ReadAllTextAsync(Path.Combine(Checkout, "Quote.cs"), Token));
-        Assert.Equal("", (await Git(Checkout, "status", "--porcelain")).Trim());
-        var refusal = await Assert.ThrowsAsync<WorkspaceException>(() =>
-            fix.Developer.PrepareAsync(fix.Task.Id, Token)
-        );
-        Assert.Contains("differs from its commit", refusal.Message);
+        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
+        Assert.Equal(fix.Head, grant.Revision);
+
+        await File.AppendAllTextAsync(Path.Combine(Checkout, "Quote.cs"), "// Fictional rounding note\r\n", Token);
+        var review = await new GitCheckoutInspector(GitPath).ReviewAsync(Checkout, fix.Head, Token);
+        var file = Assert.Single(review.Files);
+        Assert.Contains("+// Fictional rounding note", file.Patch);
+        Assert.DoesNotContain("-// Fictional quote rounding", file.Patch);
     }
 
     // Without a qualified coding runner the module prepares but refuses to run, before anything starts.
