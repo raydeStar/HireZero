@@ -439,10 +439,10 @@ public sealed class WikiPublicationTests : IDisposable
     public async Task TheWikiPilotAddsNoGeneralHttpClientFactory()
     {
         var previous = (
-            Held: Environment.GetEnvironmentVariable(HeldWorkspace.Variable),
+            Held: Environment.GetEnvironmentVariable(ExecutionHold.Variable),
             Wiki: Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI")
         );
-        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        Environment.SetEnvironmentVariable(ExecutionHold.Variable, "0");
         Environment.SetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI", "1");
         try
         {
@@ -460,7 +460,7 @@ public sealed class WikiPublicationTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous.Held);
+            Environment.SetEnvironmentVariable(ExecutionHold.Variable, previous.Held);
             Environment.SetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI", previous.Wiki);
         }
     }

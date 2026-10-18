@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api } from "../shell/api";
+import { api } from "../lib/api";
 import type { IntegrationStatus } from "./api";
 
 type Microsoft = {

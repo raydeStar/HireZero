@@ -14,7 +14,7 @@ static class BrowserQueueFixture
             || !Path.GetFileName(root).StartsWith("hirezero-manual-ui-", StringComparison.Ordinal)
         )
             throw new ArgumentException("Browser fixture requires its disposable temporary root.");
-        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        Environment.SetEnvironmentVariable(ExecutionHold.Variable, "0");
         var mode = Environment.GetEnvironmentVariable("HIREZERO_BROWSER_SYNTHETIC_MODE") ?? "company-measured-success";
         if (mode is not ("company-measured-success" or "company-conversation-browser"))
             throw new ArgumentException("Choose a compiled browser fixture mode.");

@@ -173,7 +173,7 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
                 )
                     throw new WorkspaceException("Runtime outcome, route or repository changes need reconciliation.");
                 var usage = run
-                    .Events.Where(e => e.Type == BudgetLedger.CodingUsage)
+                    .Events.Where(e => e.Type == CodingEvents.Usage)
                     .Select(e => JsonDocument.Parse(e.DataJson).RootElement.GetProperty("tokens").GetInt64())
                     .LastOrDefault(-1);
                 if (usage < 0 || usage > limits.Tokens)

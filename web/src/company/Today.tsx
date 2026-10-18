@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../shell/api";
+import { api } from "../lib/api";
 
 type Need = { kind: string; title: string; detail: string; employeeId?: string; taskId?: string };
 type CompanyToday = { day: string; needsYou: Need[]; happened: Record<string, number>; events: number };

@@ -207,4 +207,27 @@ public sealed partial class ArchitectureTests
 
     [GeneratedRegex("from \"\\.\\./roles/(?!company\")")]
     private static partial Regex RoleFolderImport();
+
+    // The company path stands apart from the legacy profiles (Phase 2B.5j), so they can be retired without touching it:
+    // its code names no legacy profile, gateway, meter or role catalog, and its web UI imports nothing from the shell.
+    [Fact]
+    public void TheCompanyPathNamesNoLegacyPiece()
+    {
+        var code = Directory
+            .EnumerateFiles(Path.Combine(Repository, "src"), "Company*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar))
+            .Where(path => LegacyPiece().IsMatch(File.ReadAllText(path)))
+            .Select(Path.GetFileName);
+        Assert.Empty(code);
+        var web = Directory
+            .EnumerateFiles(Path.Combine(Repository, "web", "src", "company"))
+            .Where(path => File.ReadAllText(path).Contains("../shell/", StringComparison.Ordinal))
+            .Select(Path.GetFileName);
+        Assert.Empty(web);
+    }
+
+    [GeneratedRegex(
+        @"\b(HeldWorkspace|DeveloperWorkspace|RecoveryWorkspace|BudgetLedger|UsageMeter|IModelGateway|IRole|RoleCatalog)\b"
+    )]
+    private static partial Regex LegacyPiece();
 }

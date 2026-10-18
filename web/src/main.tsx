@@ -7,9 +7,8 @@ import "./styles/app.css";
 import "./styles/views.css";
 import "./styles/shell.css";
 import "./styles/workspace.css";
-import { HireZeroWorkspace, applyTheme } from "./shell/Workspace";
-import { preference } from "./shell/api";
-import { api } from "./shell/api";
+import { HireZeroWorkspace } from "./shell/Workspace";
+import { api, applyTheme, preference } from "./lib/api";
 import { CompanyWorkspace } from "./company/CompanyWorkspace";
 
 applyTheme(preference("theme", "system"));

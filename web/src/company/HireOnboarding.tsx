@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api } from "../shell/api";
+import { api } from "../lib/api";
 import { command, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
 
 type Draft = {

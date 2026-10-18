@@ -74,7 +74,7 @@ public sealed class LiveCodingTests : IDisposable
 
     private static long Usage(CodingRun run) =>
         JsonDocument
-            .Parse(run.Events.Last(e => e.Type == BudgetLedger.CodingUsage).DataJson)
+            .Parse(run.Events.Last(e => e.Type == CodingEvents.Usage).DataJson)
             .RootElement.GetProperty("tokens")
             .GetInt64();
 

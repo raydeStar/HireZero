@@ -186,8 +186,8 @@ public sealed class Microsoft365CompanyTests : IDisposable
     [Fact]
     public async Task TheHostReportsEachIntegrationAndWhy()
     {
-        var previous = Environment.GetEnvironmentVariable(HeldWorkspace.Variable);
-        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        var previous = Environment.GetEnvironmentVariable(ExecutionHold.Variable);
+        Environment.SetEnvironmentVariable(ExecutionHold.Variable, "0");
         try
         {
             await using var app = CompanyWorkspace.TryCreate(
@@ -236,7 +236,7 @@ public sealed class Microsoft365CompanyTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
+            Environment.SetEnvironmentVariable(ExecutionHold.Variable, previous);
         }
     }
 
@@ -381,8 +381,8 @@ public sealed class Microsoft365CompanyTests : IDisposable
     [Fact]
     public async Task ConfiguredAzureDevOpsAddsNoGeneralHttpClientFactory()
     {
-        var previous = Environment.GetEnvironmentVariable(HeldWorkspace.Variable);
-        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        var previous = Environment.GetEnvironmentVariable(ExecutionHold.Variable);
+        Environment.SetEnvironmentVariable(ExecutionHold.Variable, "0");
         var host = Path.Combine(_root.Path, "host");
         Directory.CreateDirectory(host);
         File.WriteAllText(
@@ -408,7 +408,7 @@ public sealed class Microsoft365CompanyTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
+            Environment.SetEnvironmentVariable(ExecutionHold.Variable, previous);
         }
     }
 

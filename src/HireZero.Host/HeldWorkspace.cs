@@ -3,17 +3,11 @@ using HireZero.Core;
 // A separate composition root: held startup never constructs normal providers, stores or workers.
 public static class HeldWorkspace
 {
-    public const string Variable = "HIREZERO_EXECUTION_HOLD";
+    public const string Variable = ExecutionHold.Variable;
     public const string Message =
         "Execution is held for verification. Tasks and approvals have not been resumed. The owner must approve resumption after verification.";
 
-    public static bool Requested(string? value) =>
-        value switch
-        {
-            null or "" or "0" => false,
-            "1" => true,
-            _ => throw new InvalidOperationException(Variable + " must be 1 or 0."),
-        };
+    public static bool Requested(string? value) => ExecutionHold.Requested(value);
 
     public static WebApplication? TryCreate(
         string[] args,

@@ -43,7 +43,7 @@ public static class CompanyWorkspace
             throw new InvalidOperationException("Company local mode requires explicit local owner mode.");
         if (fixtureUrl is null && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("HIREZERO_DATA_ROOT")))
             throw new InvalidOperationException("Select an explicit new HIREZERO_DATA_ROOT for company-local mode.");
-        if (HeldWorkspace.Requested(Environment.GetEnvironmentVariable(HeldWorkspace.Variable)))
+        if (ExecutionHold.Requested(Environment.GetEnvironmentVariable(ExecutionHold.Variable)))
             throw new InvalidOperationException(
                 "Execution hold takes precedence. Use the held profile or explicitly select company-local with a separate data root."
             );

@@ -1,3 +1,4 @@
+import { applyTheme } from "../lib/api";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   Columns2,
@@ -80,10 +81,7 @@ function useWide(query: string) {
   }, [query]);
   return wide;
 }
-export function applyTheme(theme: ThemeChoice) {
-  document.documentElement.dataset.theme =
-    theme === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : theme;
-}
+export { applyTheme };
 
 /** marketing-hire's rail, Chat/Work shell and cockpit, bound to scoped development records. */
 export function HireZeroWorkspace() {

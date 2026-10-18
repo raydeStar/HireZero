@@ -22,6 +22,12 @@ public sealed record CodingRunRequest(
 // "warning", "progress" or "usage" (DataJson: {tokens}, the turn's total as the runner reported it). Events are what the worker actually did, not what it claims.
 public sealed record CodingEvent(string Type, string Message, string DataJson, string At);
 
+public static class CodingEvents
+{
+    // The turn's total token usage, as the runner reported it.
+    public const string Usage = "usage";
+}
+
 // State: queued, running, completed, failed, canceled, interrupted. An interrupted run is never replayed automatically.
 public sealed record CodingRun(
     string Id,

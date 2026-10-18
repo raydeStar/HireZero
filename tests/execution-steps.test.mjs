@@ -32,7 +32,7 @@ function render(
     exports,
     require: (name) =>
       name === 'react' ? react
-      : name === '../shell/api' ? { api: async () => detail }
+      : name === '../lib/api' ? { api: async () => detail }
       : name === './api' ? { executionStep: async (step, id) => steps.push([step, id]) }
       : { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }), Fragment: 'fragment' },
   });

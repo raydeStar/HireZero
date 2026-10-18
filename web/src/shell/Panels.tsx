@@ -8,7 +8,8 @@ import { AccessSection } from "./Access";
 const roleName = (role: string) =>
   role === "boss" || role === "manager" ? "Boss" : role === "trusted" ? "Trusted" : "Visitor";
 
-export type ThemeChoice = "light" | "dark" | "system";
+import type { ThemeChoice } from "../lib/api";
+export type { ThemeChoice };
 interface DialogProps {
   title: string;
   onClose: () => void;

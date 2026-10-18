@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../shell/api";
+import { api } from "../lib/api";
 import type { Snapshot, Work } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
 import { ArtifactHandoff } from "./ArtifactHandoff";

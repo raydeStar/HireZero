@@ -326,7 +326,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                 if (method == "thread/tokenUsage/updated")
                 {
                     var total = p.GetProperty("tokenUsage").GetProperty("total").GetProperty("totalTokens").GetInt64();
-                    Event(BudgetLedger.CodingUsage, "Reported usage.", new { tokens = total });
+                    Event(CodingEvents.Usage, "Reported usage.", new { tokens = total });
                     // A soft stop: usage is reported after the fact, so a turn can overshoot before this fires.
                     if (total >= limits.Tokens)
                         throw new WorkspaceException("Reported usage reached the approved limit; the run stopped.");

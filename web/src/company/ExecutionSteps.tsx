@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { api } from "../shell/api";
+import { api } from "../lib/api";
 import { executionStep, type ExecutionStep, type Work } from "./api";
 
 type Grant = {

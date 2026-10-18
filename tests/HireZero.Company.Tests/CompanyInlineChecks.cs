@@ -573,8 +573,8 @@ public static class CompanyInlineChecks
 
     public static async Task HttpChecks(string root, Action<bool, string> check)
     {
-        var previous = Environment.GetEnvironmentVariable(HeldWorkspace.Variable);
-        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        var previous = Environment.GetEnvironmentVariable(ExecutionHold.Variable);
+        Environment.SetEnvironmentVariable(ExecutionHold.Variable, "0");
         try
         {
             var data = Path.Combine(root, "host");
@@ -663,7 +663,7 @@ public static class CompanyInlineChecks
         }
         finally
         {
-            Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
+            Environment.SetEnvironmentVariable(ExecutionHold.Variable, previous);
         }
     }
 }

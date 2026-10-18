@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { api } from "../shell/api";
+import { api } from "../lib/api";
 import { command, type MeasuredEntry, type Work } from "./api";
 
 type Packet = {

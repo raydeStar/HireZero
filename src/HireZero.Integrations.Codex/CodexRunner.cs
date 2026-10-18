@@ -889,14 +889,7 @@ public sealed class CodexStream(string? expectedTurnId = null, string? expectedT
                 );
                 return Tokens is { } used
                     ? new(
-                        [
-                            done,
-                            (
-                                BudgetLedger.CodingUsage,
-                                "Used " + used.ToString("N0") + " tokens.",
-                                new { tokens = used }
-                            ),
-                        ],
+                        [done, (CodingEvents.Usage, "Used " + used.ToString("N0") + " tokens.", new { tokens = used })],
                         null
                     )
                     : new([done], null);

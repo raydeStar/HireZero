@@ -43,7 +43,7 @@ public sealed record BudgetStatus(
 
 public sealed class BudgetLedger
 {
-    public const string CodingUsage = "usage";
+    public const string CodingUsage = CodingEvents.Usage;
     private readonly string _path;
     private readonly object _gate = new();
     private readonly RequestStore? _requests;

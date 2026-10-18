@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api } from "../shell/api";
+import { api } from "../lib/api";
 import { BrandMark } from "../components/BrandMark";
 import { panels } from "../roles/company";
 import { command, type Snapshot, type Employee, type ThreadDetail, type Event, type TaskSpec } from "./api";

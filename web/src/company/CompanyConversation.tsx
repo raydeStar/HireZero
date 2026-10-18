@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowUp, MessageSquareText } from "lucide-react";
-import { api } from "../shell/api";
+import { api } from "../lib/api";
 import { skillInput } from "../roles/company";
 import { EmployeeActions } from "./EmployeeActions";
 import type { Employee, Event, Snapshot, ThreadDetail, Work } from "./api";

@@ -310,8 +310,8 @@ public sealed class EmployeeActionTests : IDisposable
     [Fact]
     public async Task EndpointRunsTheActionOnceAndAuditsItsReads()
     {
-        var previous = Environment.GetEnvironmentVariable(HeldWorkspace.Variable);
-        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        var previous = Environment.GetEnvironmentVariable(ExecutionHold.Variable);
+        Environment.SetEnvironmentVariable(ExecutionHold.Variable, "0");
         try
         {
             await using var app = CompanyWorkspace.TryCreate(
@@ -360,7 +360,7 @@ public sealed class EmployeeActionTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
+            Environment.SetEnvironmentVariable(ExecutionHold.Variable, previous);
         }
     }
 }

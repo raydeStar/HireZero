@@ -1,4 +1,4 @@
-import { api, ApiError } from "../shell/api";
+import { api, ApiError } from "../lib/api";
 export type Employee = {
   id: string;
   departmentId: string;
