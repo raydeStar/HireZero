@@ -339,6 +339,7 @@ public sealed partial class CompanyStore
                         r.OnboardingFields,
                         r.MeasuredSkills,
                         r.ExecutionSkills,
+                        r.PublishingSkills,
                         summary = r.Manifest?.Summary,
                         onboarding = r.Manifest is { Onboarding: var o }
                             ? new
@@ -407,6 +408,7 @@ public sealed partial class CompanyStore
             attempts,
             handoffs = All<CompanyHandoff>(db).Where(h => h.TargetTaskId == id).ToArray(),
             executions = All<CompanyExecutionGrant>(db).Where(g => g.TaskId == id).ToArray(),
+            publications = All<CompanyPublication>(db).Where(p => p.TaskId == id).ToArray(),
             contexts = All<CompanyContext>(db)
                 .Where(c => attempts.Any(a => a.ContextId == c.Id))
                 .Select(c => new

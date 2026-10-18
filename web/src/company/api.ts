@@ -32,6 +32,7 @@ export type Work = {
   kind?: string;
   modelRoute?: string | null;
   runtime?: string | null;
+  resource?: string | null;
 };
 export type Artifact = {
   id: string;
@@ -90,6 +91,7 @@ export type Role = {
   onboardingFields: string[];
   measuredSkills?: string[];
   executionSkills?: string[];
+  publishingSkills?: string[];
   summary?: string | null;
   onboarding?: RoleOnboarding | null;
   tools?: { id: string; risk: "read" | "write" | "external" | "spend"; purpose: string }[] | null;
@@ -256,4 +258,11 @@ export function runAction(
     skill: action,
     body: JSON.stringify(input),
   });
+}
+
+// One step of reviewed execution (docs/adr/0012-company-publication.md). Steps are single use in the store, so a
+// retried request is refused instead of repeated; refresh the task to see where it stands.
+export type ExecutionStep = "prepare" | "run" | "propose" | "publish" | "reconcile";
+export function executionStep(step: ExecutionStep, id: string) {
+  return api<unknown>("/company/executions/" + step + "/" + encodeURIComponent(id), "POST", {});
 }

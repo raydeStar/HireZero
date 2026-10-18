@@ -18,6 +18,7 @@ public sealed record CompanyRole(
     public bool CompanyOverview { get; init; }
     public string[] ExecutionSkills { get; init; } = [];
     public string[] MeasuredSkills { get; init; } = [];
+    public string[] PublishingSkills { get; init; } = [];
     public EmployeeManifest? Manifest { get; init; }
 
     public static CompanyRole From(IEmployeeModule module)
@@ -37,6 +38,7 @@ public sealed record CompanyRole(
             CompanyOverview = manifest.Capabilities.CompanyOverview,
             ExecutionSkills = manifest.SkillIds(SkillMode.Execution),
             MeasuredSkills = manifest.SkillIds(SkillMode.Measured),
+            PublishingSkills = [.. manifest.Skills.Where(s => s.Publishes).Select(s => s.Id)],
             Manifest = manifest,
         };
     }

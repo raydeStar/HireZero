@@ -84,6 +84,12 @@ skill. `PullRequestEvidenceAction` is the example. Use actions to read; leave ju
 Skill modes decide which gates apply: `Text` for ordinary internal work, `Measured` for the one-job queue with exact
 packet review, `Execution` for work that needs an execution grant (requires `Capabilities.WorkspaceClaims`).
 
+Execution skills run through `IEmployeeModule.ExecuteAsync`, one step at a time: prepare, run, and for a skill marked
+`Publishes`, propose, publish and reconcile ([ADR 0012](adr/0012-company-publication.md)). To publish, propose the
+exact local calls with `CompanyStore.ProposePublication`. After the owner approves, claim it, run those calls with a
+`company-publication` authority, bind your one external call, and finish it. An external call whose outcome you can't
+confirm is left unknown; reconcile it only by reading. `CompanyPullRequestFix` is the example.
+
 The catalog validates the manifest at startup and refuses duplicate ids, malformed ids, missing onboarding fields
 and unsupported contract versions.
 

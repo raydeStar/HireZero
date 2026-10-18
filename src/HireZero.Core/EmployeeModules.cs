@@ -26,6 +26,16 @@ public interface IEmployeeModule
         CancellationToken token
     ) => throw new WorkspaceException("This employee has no such action.", 404);
 
+    // One step of reviewed execution for an Execution-mode skill (docs/adr/0012-company-publication.md). The id is the
+    // task for Prepare, the execution grant for Run and Propose, and the publication for Publish and Reconcile. Each
+    // step is single use in the store, so a retried request is refused rather than repeated.
+    Task<object> ExecuteAsync(
+        ExecutionStep step,
+        string id,
+        CompanyExecutionServices services,
+        CancellationToken token
+    ) => throw new WorkspaceException("This employee has no reviewed execution.", 404);
+
     // Services and endpoints for the legacy Developer profile. Removed when that profile retires.
     IRole? LegacyRole => null;
 }
@@ -77,7 +87,11 @@ public enum SkillMode
     Execution,
 }
 
-public sealed record EmployeeSkill(string Id, string Name, string Description, SkillMode Mode = SkillMode.Text);
+public sealed record EmployeeSkill(string Id, string Name, string Description, SkillMode Mode = SkillMode.Text)
+{
+    // An Execution skill whose reviewed result the module can publish (docs/adr/0012-company-publication.md).
+    public bool Publishes { get; init; }
+}
 
 // Skills the company itself orchestrates. An employee opts in by declaring them.
 public static class PlatformSkills
@@ -218,6 +232,10 @@ public static partial class EmployeeModuleCatalog
             "action fields need distinct lowercase ids and a bound of at most 4000 characters."
         );
         Require(
+            manifest.Skills.All(s => !s.Publishes || s.Mode == SkillMode.Execution),
+            "only execution skills can publish."
+        );
+        Require(
             !manifest.Capabilities.WorkspaceClaims || manifest.Skills.Any(s => s.Mode == SkillMode.Execution),
             "workspace claims need an execution skill."
         );
@@ -229,3 +247,16 @@ public static partial class EmployeeModuleCatalog
     [GeneratedRegex("^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)+$")]
     private static partial Regex ToolIdentifier();
 }
+
+public enum ExecutionStep
+{
+    Prepare,
+    Run,
+    Propose,
+    Publish,
+    Reconcile,
+}
+
+// What a module's reviewed execution may use: the store, the tool registry (audited, with the publication verifier)
+// and, when the host has a qualified one, a coding runner factory.
+public sealed record CompanyExecutionServices(CompanyStore Store, ToolRegistry Tools, ICompanyCodingFactory? Coding);

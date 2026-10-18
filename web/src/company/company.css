@@ -892,3 +892,11 @@
   gap: 0.5rem;
   margin: 0.75rem 0;
 }
+
+.co-execution,
+.co-execution form,
+.co-step {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}

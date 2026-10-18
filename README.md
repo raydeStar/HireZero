@@ -16,7 +16,7 @@ Today's employees are **Developer** (GitHub PR review and fixes), **Marketing** 
 **CEO** (plans and meetings). Where this is going is in the [roadmap](docs/ROADMAP.md).
 
 > Status: development. Automatic model execution is off by default; the company workspace offers explicitly
-> approved one-turn replies and drafts through a pinned runtime. See the [latest report](docs/PHASE2B5B1_REPORT.md).
+> approved one-turn replies and drafts through a pinned runtime. See the [latest report](docs/PHASE2B5B2_REPORT.md).
 
 ## Requirements
 

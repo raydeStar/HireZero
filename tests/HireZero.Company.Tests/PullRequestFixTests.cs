@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using HireZero.Core;
 using HireZero.Integrations.Codex;
@@ -6,7 +8,10 @@ using HireZero.Integrations.Git;
 using HireZero.Roles.Developer;
 using HireZero.Tools.Git;
 using HireZero.Tools.GitHub;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.DependencyInjection;
 
 // The company Developer's pull request fix (docs/adr/0012-company-publication.md): reviewed execution in the owner's
 // checkout of the PR head, then one commit of exactly the reviewed files and one leased push, each authorized by the
@@ -96,9 +101,15 @@ public sealed class PullRequestFixTests : IDisposable
 
     private ToolRegistry Registry(CompanyStore store)
     {
-        var registry = new ToolRegistry(store, [store.PublicationAuthority]).AddGitTools(
-            new GitCheckoutInspector(GitPath)
-        );
+        var registry = new ToolRegistry(store, [store.PublicationAuthority]);
+        Handlers(registry);
+        return registry;
+    }
+
+    // Real git and the checkout tools; a fake push that moves the fake remote branch; fake GitHub reads.
+    private void Handlers(ToolRegistry registry)
+    {
+        registry.AddGitTools(new GitCheckoutInspector(GitPath));
         registry.Register(GitCommands.Read, (c, _) => Git(c.Root!, c.Args));
         registry.Register(
             GitCommands.Write,
@@ -134,11 +145,26 @@ public sealed class PullRequestFixTests : IDisposable
                     }
                 )
         );
-        return registry;
+    }
+
+    private CompanyCodingFactory Coding()
+    {
+        var fake = Path.GetFullPath(
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "../../../../HireZero.FakeCodex/bin/Debug/net10.0/HireZero.FakeCodex.exe"
+            )
+        );
+        return new(
+            Path.Combine(_root.Path, "coding.sqlite"),
+            fake,
+            Path.Combine(_root.Path, "scoped-runtime"),
+            CompanyCodingFactory.Identity(fake)
+        );
     }
 
     // A hired Developer, approved evidence for PR 7 at the checkout's head, and a pr-fix task on the owner's checkout.
-    private async Task<Fix> Assign()
+    private async Task<Fix> Assign(CompanyStore? existing = null, ToolRegistry? tools = null)
     {
         Directory.CreateDirectory(Checkout);
         await Git(Checkout, "init", "-q");
@@ -151,7 +177,9 @@ public sealed class PullRequestFixTests : IDisposable
         var head = (await Git(Checkout, "rev-parse", "HEAD")).Trim();
         _remoteHead = head;
 
-        var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
+        var store =
+            existing
+            ?? new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
         var department = Apply<CompanyDepartment>(store, Cmd("department.create") with { Name = "Engineering" });
         var employee = Apply<CompanyEmployee>(
             store,
@@ -238,20 +266,8 @@ public sealed class PullRequestFixTests : IDisposable
                 Body = Checkout,
             }
         );
-        var fake = Path.GetFullPath(
-            Path.Combine(
-                AppContext.BaseDirectory,
-                "../../../../HireZero.FakeCodex/bin/Debug/net10.0/HireZero.FakeCodex.exe"
-            )
-        );
-        var coding = new CompanyCodingFactory(
-            Path.Combine(_root.Path, "coding.sqlite"),
-            fake,
-            Path.Combine(_root.Path, "scoped-runtime"),
-            CompanyCodingFactory.Identity(fake)
-        );
-        var registry = Registry(store);
-        return new(store, new(store, registry, coding), registry, employee, task, head);
+        var registry = tools ?? Registry(store);
+        return new(store, new(store, registry, Coding()), registry, employee, task, head);
     }
 
     // The fix ran under an approved grant and its publication is proposed; nothing is approved for publication yet.
@@ -457,5 +473,105 @@ public sealed class PullRequestFixTests : IDisposable
         await Git(Checkout, "checkout", "--", "Quote.cs");
         var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
         Assert.Equal(fix.Head, grant.Revision);
+    }
+
+    // Without a qualified coding runner the module prepares but refuses to run, before anything starts.
+    [Fact]
+    public async Task WithoutARunnerExecutionIsPreparedButNotRun()
+    {
+        var fix = await Assign();
+        var module = new DeveloperModule();
+        var services = new CompanyExecutionServices(fix.Store, fix.Registry, null);
+        var grant = (CompanyExecutionGrant)
+            await module.ExecuteAsync(ExecutionStep.Prepare, fix.Task.Id, services, Token);
+        grant = Approve<CompanyExecutionGrant>(fix.Store, "execution.review", grant.Id, grant.Version, grant.Digest);
+        await Assert.ThrowsAsync<WorkspaceException>(() =>
+            module.ExecuteAsync(ExecutionStep.Run, grant.Id, services, Token)
+        );
+        Assert.Equal(
+            ("approved", (string?)null),
+            (fix.Store.Execution(grant.Id).State, fix.Store.Execution(grant.Id).RunId)
+        );
+        Assert.False(File.Exists(Path.Combine(Checkout, "fixture-change.txt")));
+        await Assert.ThrowsAsync<WorkspaceException>(() =>
+            module.ExecuteAsync(ExecutionStep.Propose, grant.Id, services, Token)
+        );
+    }
+
+    // The company host drives every step through the employee's module; each step is single use.
+    [Fact]
+    public async Task TheHostRunsEachStepOnceThroughTheModule()
+    {
+        var previous = Environment.GetEnvironmentVariable(HeldWorkspace.Variable);
+        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        try
+        {
+            await using var app = CompanyWorkspace.TryCreate(
+                [CompanyWorkspace.Flag],
+                Owner,
+                true,
+                Path.Combine(_root.Path, "host"),
+                fixtureUrl: "http://127.0.0.1:0",
+                fixtureTools: Handlers,
+                fixtureCoding: Coding()
+            )!;
+            var store = app.Services.GetRequiredService<CompanyStore>();
+            var fix = await Assign(store, app.Services.GetRequiredService<ToolRegistry>());
+            await app.StartAsync(Token);
+            var address = app
+                .Services.GetRequiredService<IServer>()
+                .Features.Get<IServerAddressesFeature>()!
+                .Addresses.Single();
+            using var client = new HttpClient(new HttpClientHandler { UseProxy = false })
+            {
+                BaseAddress = new Uri(address),
+            };
+            client.DefaultRequestHeaders.Host = "127.0.0.1:5065";
+            client.DefaultRequestHeaders.Add("Origin", "http://127.0.0.1:5065");
+            client.DefaultRequestHeaders.Add("X-Dev-Request", "1");
+            async Task<(HttpStatusCode Status, string Body)> Step(string step, string id)
+            {
+                using var response = await client.PostAsJsonAsync(
+                    "/api/company/executions/" + step + "/" + id,
+                    new { },
+                    Token
+                );
+                return (response.StatusCode, await response.Content.ReadAsStringAsync(Token));
+            }
+            T Ok<T>((HttpStatusCode Status, string Body) reply)
+            {
+                Assert.True(reply.Status == HttpStatusCode.OK, reply.Body);
+                return CompanyJson.Decode<T>(reply.Body);
+            }
+
+            Assert.Equal(HttpStatusCode.NotFound, (await Step("launch", fix.Task.Id)).Status);
+            var grant = Ok<CompanyExecutionGrant>(await Step("prepare", fix.Task.Id));
+            Assert.InRange((int)(await Step("run", grant.Id)).Status, 400, 499);
+            Approve<CompanyExecutionGrant>(store, "execution.review", grant.Id, grant.Version, grant.Digest);
+            Assert.Equal("completed", Ok<CompanyExecutionGrant>(await Step("run", grant.Id)).State);
+            Assert.InRange((int)(await Step("run", grant.Id)).Status, 400, 499);
+            var publication = Ok<CompanyPublication>(await Step("propose", grant.Id));
+            Assert.InRange((int)(await Step("propose", grant.Id)).Status, 400, 499);
+            ApproveAll(fix, publication);
+            Assert.Equal("published", Ok<CompanyPublication>(await Step("publish", publication.Id)).State);
+            Assert.InRange((int)(await Step("publish", publication.Id)).Status, 400, 499);
+            Assert.Single(_pushes);
+            var detail = JsonSerializer.SerializeToElement(store.TaskDetail(fix.Task.Id), CompanyJson.Options);
+            Assert.Equal("published", detail.GetProperty("publications")[0].GetProperty("state").GetString());
+            var role = JsonSerializer
+                .SerializeToElement(store.Dashboard(), CompanyJson.Options)
+                .GetProperty("roles")
+                .EnumerateArray()
+                .Single(r => r.GetProperty("id").GetString() == "developer");
+            Assert.Equal(
+                [DeveloperModule.Fix],
+                role.GetProperty("publishingSkills").EnumerateArray().Select(e => e.GetString()!)
+            );
+            await app.StopAsync(Token);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
+        }
     }
 }

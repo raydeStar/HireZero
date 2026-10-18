@@ -3,9 +3,10 @@ import { api } from "../shell/api";
 import type { Snapshot, Work } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
 import { ArtifactHandoff } from "./ArtifactHandoff";
+import { ExecutionSteps } from "./ExecutionSteps";
 const reasonLabels: Record<string, string> = {
   "handoff-awaiting-approval": "Assigned from an approved handoff. Separate execution approval is required.",
-  "execution-unavailable": "Repository execution is unavailable. This task is saved for review.",
+  "execution-unavailable": "Reviewed execution needs a granted checkout and your approval of its exact proposal.",
   // Tasks saved before the reason was made role-neutral.
   "developer-execution-unavailable": "Repository execution is unavailable. This task is saved for review.",
   "provider-unavailable": "Live model execution is unavailable. Your task is saved.",
@@ -143,7 +144,18 @@ export function ConversationJob({
           refresh={refresh}
         />
       )}
-      {t.skill === "developer-work" && <CodeReview taskId={t.id} />}
+      {employeeRole?.executionSkills?.includes(t.skill) && (
+        <>
+          <ExecutionSteps
+            task={t}
+            publishes={!!employeeRole.publishingSkills?.includes(t.skill)}
+            busy={busy}
+            run={run}
+            refresh={refresh}
+          />
+          <CodeReview taskId={t.id} />
+        </>
+      )}
       {t.modelRoute && t.kind !== "action" && (
         <p className="co-muted">
           {t.runtime}: {t.modelRoute.replace("openai/", "")}

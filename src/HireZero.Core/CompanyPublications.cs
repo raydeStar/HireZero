@@ -45,6 +45,9 @@ public sealed partial class CompanyStore
             {
                 var g = Need<CompanyExecutionGrant>(db, proposal.GrantId);
                 var a = Need<CompanyArtifact>(db, proposal.ArtifactId);
+                var task = Need<CompanyTask>(db, g.TaskId);
+                if (!Role(Need<CompanyEmployee>(db, g.EmployeeId).RoleId).PublishingSkills.Contains(task.Skill))
+                    throw new WorkspaceException("This skill's results are not published.");
                 if (
                     g.State != "completed"
                     || g.Review is not { Files.Length: > 0 } review

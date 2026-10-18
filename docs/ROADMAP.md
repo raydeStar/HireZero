@@ -132,7 +132,7 @@ features in 2B.5 rather than twice.
 - **2B.5b1 (done):** the PR fix as an execution skill. A reviewed fix runs in an approved checkout of the PR head,
   then commits and pushes through `git.write` and `git.push`, each call authorized once by your publication approval
   ([ADR 0012](adr/0012-company-publication.md)). Fixture runner only.
-- **2B.5b2:** the company host and UI drive it: endpoints to prepare, run, publish and reconcile, approval buttons
+- **2B.5b2 (done):** the company host and UI drive it: endpoints to prepare, run, publish and reconcile, approval buttons
   for the grant and the publication, and the diff review for every execution skill.
 - **2B.5b3:** a qualified live coding runner for company execution, sized for real fixes, then the fix loop.
 - **2B.5c:** wiki drafts, request preparation and Trusted Postgres as Developer skills and actions.

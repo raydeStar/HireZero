@@ -19,7 +19,8 @@ public static class CompanyWorkspace
         IModelProvider? fixture = null,
         string? fixtureUrl = null,
         string? fixtureWebRoot = null,
-        Action<ToolRegistry>? fixtureTools = null
+        Action<ToolRegistry>? fixtureTools = null,
+        ICompanyCodingFactory? fixtureCoding = null
     )
     {
         if (!args.Contains(Flag))
@@ -109,14 +110,15 @@ public static class CompanyWorkspace
             );
             builder.Services.AddSingleton(store);
             // Tools employees may call, audited in the company store (docs/adr/0007-tool-registry.md).
-            var tools = new ToolRegistry(store);
+            // The only verifier is the publication's: a write or push runs only as a call of an approved
+            // publication (docs/adr/0012-company-publication.md); every other write is refused.
+            var tools = new ToolRegistry(store, [store.PublicationAuthority]);
             if (fixtureTools is not null)
                 fixtureTools(tools);
             else
             {
                 if (GitToolRegistration.FindGit() is { } git)
                     tools.AddGitTools(new GitCheckoutInspector(git));
-                // Read-only GitHub CLI tools for employee actions; there are no verifiers, so every write is refused.
                 new GitHubCli().Register(tools);
             }
             builder.Services.AddSingleton(tools);
@@ -271,6 +273,38 @@ public static class CompanyWorkspace
                         );
                     }
                     return Results.Ok(store.TaskDetail(task.Id));
+                }
+            );
+            // One step of reviewed execution, run by the module of the employee the work belongs to. Each step is
+            // single use in the store; a failure after anything was sent is recorded as unknown and never repeated.
+            app.MapPost(
+                "/api/company/executions/{step}/{id}",
+                async (string step, string id, CancellationToken token) =>
+                {
+                    if (!Enum.TryParse<ExecutionStep>(step, true, out var parsed) || !step.All(char.IsAsciiLetter))
+                        return Results.NotFound();
+                    var employeeId = parsed switch
+                    {
+                        ExecutionStep.Prepare => store.Work(id).EmployeeId,
+                        ExecutionStep.Run or ExecutionStep.Propose => store.Execution(id).EmployeeId,
+                        _ => store.Publication(id).EmployeeId,
+                    };
+                    var employee = store.EmployeeOf(employeeId);
+                    var module = HostEmployees.Modules.Single(m => m.Manifest.Id == employee.RoleId);
+                    try
+                    {
+                        return Results.Ok(
+                            await module.ExecuteAsync(parsed, id, new(store, tools, fixtureCoding), token)
+                        );
+                    }
+                    catch (Exception error) when (error is not (WorkspaceException or OutOfMemoryException))
+                    {
+                        // The store already recorded the outcome; internals are not reported.
+                        return Results.Json(
+                            new { error = "The step stopped unexpectedly (" + error.GetType().Name + ")." },
+                            statusCode: 502
+                        );
+                    }
                 }
             );
             app.MapGet(

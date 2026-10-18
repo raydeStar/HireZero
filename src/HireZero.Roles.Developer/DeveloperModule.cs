@@ -56,7 +56,10 @@ public sealed class DeveloperModule : IEmployeeModule
                     "Pull request fix",
                     "Fix a pull request's findings in an approved checkout of its head; you review the diff and approve its push.",
                     SkillMode.Execution
-                ),
+                )
+                {
+                    Publishes = true,
+                },
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -150,6 +153,71 @@ public sealed class DeveloperModule : IEmployeeModule
         action == PullRequestEvidenceAction.Id
             ? PullRequestEvidenceAction.RunAsync(input, tools, DateTimeOffset.UtcNow, token)
             : throw new WorkspaceException("This employee has no such action.", 404);
+
+    public async Task<object> ExecuteAsync(
+        ExecutionStep step,
+        string id,
+        CompanyExecutionServices services,
+        CancellationToken token
+    )
+    {
+        var store = services.Store;
+        var taskId = step switch
+        {
+            ExecutionStep.Prepare => id,
+            ExecutionStep.Run or ExecutionStep.Propose => store.Execution(id).TaskId,
+            _ => store.Publication(id).TaskId,
+        };
+        var task = store.Work(taskId);
+        var coding = services.Coding ?? UnavailableCoding.Instance;
+        if (task.Skill == Work)
+        {
+            var bridge = new CompanyDeveloperBridge(
+                store,
+                services.Tools.For(Manifest, task.EmployeeId, task.Id),
+                coding
+            );
+            return step switch
+            {
+                ExecutionStep.Prepare => await bridge.PrepareAsync(
+                    task.Id,
+                    task.Resource ?? throw new WorkspaceException("Grant a checkout first."),
+                    true,
+                    token
+                ),
+                ExecutionStep.Run => await Run(bridge.ExecuteFixtureAsync(id, token), store, id),
+                _ => throw new WorkspaceException("Reviewed implementation work is not published."),
+            };
+        }
+        if (task.Skill != Fix)
+            throw new WorkspaceException("This skill has no reviewed execution.", 404);
+        var fix = new CompanyPullRequestFix(store, services.Tools, coding);
+        return step switch
+        {
+            ExecutionStep.Prepare => await fix.PrepareAsync(task.Id, token),
+            ExecutionStep.Run => await Run(fix.ExecuteFixtureAsync(id, token), store, id),
+            ExecutionStep.Propose => await fix.ProposePublicationAsync(id, token),
+            ExecutionStep.Publish => await fix.PublishAsync(id, token),
+            _ => await fix.ReconcileAsync(id, token),
+        };
+    }
+
+    private static async Task<object> Run(Task run, CompanyStore store, string grantId)
+    {
+        await run;
+        return store.Execution(grantId);
+    }
+
+    // Company execution without a qualified coding runner: preparing works, running is refused before anything starts.
+    private sealed class UnavailableCoding : ICompanyCodingFactory
+    {
+        public static readonly UnavailableCoding Instance = new();
+
+        public bool FixtureQualified => false;
+
+        public ICodingRunner Create(CompanyExecutionGrant grant, Func<bool> mayStart) =>
+            throw new WorkspaceException("No qualified coding runner is available.");
+    }
 
     public IRole? LegacyRole => new DeveloperRole();
 }
