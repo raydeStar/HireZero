@@ -35,3 +35,4 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 | [PHASE2B5B2_REPORT](PHASE2B5B2_REPORT.md) | Phase 2B.5b2: the host drives reviewed execution |
 | [PHASE2B5B3A_REPORT](PHASE2B5B3A_REPORT.md) | Phase 2B.5b3a: execution limits approved with the grant |
 | [PHASE2B5B3B_REPORT](PHASE2B5B3B_REPORT.md) | Phase 2B.5b3b: live coding runner on a pinned Codex |
+| [CODEX_SANDBOX_PROBE](CODEX_SANDBOX_PROBE.md) | Live step 1: MXC sandbox probe of the pinned Codex 0.163, no model call |

@@ -88,6 +88,11 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         var scratch = Path.Combine(Path.GetFullPath(_options.ScratchRoot), "coding-" + Guid.NewGuid().ToString("N"));
         var temp = Path.Combine(scratch, "temp");
         Directory.CreateDirectory(temp);
+        // Git inside the sandbox must not read the owner's profile configuration, which the sandbox denies and git
+        // treats as fatal (live probe, 2026-10-18): it gets an empty configuration in the run's scratch folder.
+        var gitConfig = Path.Combine(temp, "gitconfig");
+        File.WriteAllText(gitConfig, "");
+        Directory.CreateDirectory(Path.Combine(scratch, "config"));
         var filesystem = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [Path.GetFullPath(_grant.Workspace)] = _grant.AllowWrite ? "write" : "read",
@@ -106,7 +111,14 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                 _options.SyntheticMode,
                 scratch,
                 CodexAppServer.Arguments(Profile, filesystem, CodexAppServer.CodingFeatures),
-                new Dictionary<string, string> { ["TEMP"] = temp, ["TMP"] = temp },
+                new Dictionary<string, string>
+                {
+                    ["TEMP"] = temp,
+                    ["TMP"] = temp,
+                    ["GIT_CONFIG_GLOBAL"] = gitConfig,
+                    ["GIT_CONFIG_NOSYSTEM"] = "1",
+                    ["XDG_CONFIG_HOME"] = Path.Combine(scratch, "config"),
+                },
                 lineLimit: 4 * 1024 * 1024
             );
             using var preflight = CancellationTokenSource.CreateLinkedTokenSource(_cancel.Token);

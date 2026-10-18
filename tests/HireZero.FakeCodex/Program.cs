@@ -184,6 +184,12 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || Environment.GetEnvironmentVariable("OPENAI_API_KEY") is not null
                 || Environment.GetEnvironmentVariable("TEMP") is not { } temp
                 || !temp.StartsWith(Directory.GetCurrentDirectory(), StringComparison.OrdinalIgnoreCase)
+                || OperatingSystem.IsWindows()
+                    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SystemDrive"))
+                || Environment.GetEnvironmentVariable("GIT_CONFIG_NOSYSTEM") != "1"
+                || Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL") is not { } gitConfig
+                || !gitConfig.StartsWith(Directory.GetCurrentDirectory(), StringComparison.OrdinalIgnoreCase)
+                || !File.Exists(gitConfig)
             )
                 throw new Exception("Invalid live coding envelope");
             Wire(JsonSerializer.Serialize(new { profile, home }));

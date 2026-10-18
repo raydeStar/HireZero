@@ -83,8 +83,7 @@ tools/Start-CompanyLocal.ps1 -DataRoot <new folder> -Codex -CodexExecutable <pin
 Each step uses your Codex sign-in, and steps 2 and 3 use included usage. AGENTS.md keeps them out of routine
 checks, so each needs your explicit go-ahead.
 
-1. **Sandbox probe, no model.** `command/exec` under `hirezero_execution` on the pinned 0.163 binary. A write inside
-   the checkout must succeed; a write beside it and a network call must fail; reads must match the named folders.
+1. **Sandbox probe, no model.** Done 2026-10-18. It found and fixed two environment bugs, after which every check passed: [CODEX_SANDBOX_PROBE](CODEX_SANDBOX_PROBE.md).
 2. **One coding turn** on a fictional temporary repository, with low limits. It confirms the thread's reported
    sandbox shape for a write profile, the item types 0.163 actually emits, usage reporting, termination and the
    diff review. Anything unexpected is refused rather than accepted, so this is where a protocol difference would

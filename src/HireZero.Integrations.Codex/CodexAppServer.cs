@@ -44,6 +44,8 @@ internal sealed class CodexAppServer : IAsyncDisposable
                 new[]
                 {
                     "PATH",
+                    // MXC refuses to start any sandboxed command without it (live probe, 2026-10-18).
+                    "SystemDrive",
                     "SystemRoot",
                     "WINDIR",
                     "USERPROFILE",
