@@ -48,6 +48,14 @@ internal sealed class CodexAppServer : IAsyncDisposable
                     "SystemDrive",
                     "SystemRoot",
                     "WINDIR",
+                    "ComSpec",
+                    "PATHEXT",
+                    // Machine locations only: NuGet resolves its defaults and machine-wide configuration from these and
+                    // fails without them (live pr-fix, 2026-10-18).
+                    "ProgramFiles",
+                    "ProgramFiles(x86)",
+                    "ProgramW6432",
+                    "ProgramData",
                     "USERPROFILE",
                     "HOMEDRIVE",
                     "HOMEPATH",

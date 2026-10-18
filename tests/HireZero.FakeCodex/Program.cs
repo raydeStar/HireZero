@@ -190,7 +190,12 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || Environment.GetEnvironmentVariable("TEMP") is not { } temp
                 || !temp.StartsWith(Directory.GetCurrentDirectory(), StringComparison.OrdinalIgnoreCase)
                 || OperatingSystem.IsWindows()
-                    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SystemDrive"))
+                    && (
+                        string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SystemDrive"))
+                        // NuGet needs the machine locations to restore at all.
+                        || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ProgramFiles(x86)"))
+                        || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ProgramData"))
+                    )
                 || Environment.GetEnvironmentVariable("GIT_CONFIG_NOSYSTEM") != "1"
                 || Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL") is not { } gitConfig
                 || !gitConfig.StartsWith(Directory.GetCurrentDirectory(), StringComparison.OrdinalIgnoreCase)
