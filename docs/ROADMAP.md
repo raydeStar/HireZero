@@ -134,7 +134,11 @@ features in 2B.5 rather than twice.
   ([ADR 0012](adr/0012-company-publication.md)). Fixture runner only.
 - **2B.5b2 (done):** the company host and UI drive it: endpoints to prepare, run, publish and reconcile, approval buttons
   for the grant and the publication, and the diff review for every execution skill.
-- **2B.5b3:** a qualified live coding runner for company execution, sized for real fixes, then the fix loop.
+- **2B.5b3a (done):** execution limits are approved with the grant and size its reservation
+  ([ADR 0013](adr/0013-execution-limits-approved-with-the-grant.md)).
+- **2B.5b3b:** a qualified live Codex coding runner for company execution (pinned runtime, MXC sandbox scoped to the
+  checkout, network off, preflight as for measured replies), after your decisions on limits, read scope and the pin.
+  Then the fix loop.
 - **2B.5c:** wiki drafts, request preparation and Trusted Postgres as Developer skills and actions.
 - **2B.5d to 2B.5i:** each legacy-only feature as an optional integration
   ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core: Microsoft

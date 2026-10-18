@@ -12,6 +12,7 @@ type Grant = {
   route: string;
   expiresAt: string;
   review: null | { digest: string; files: { path: string }[] };
+  bounds?: { tokens: number; seconds: number; effort: string };
 };
 type Publication = {
   id: string;
@@ -108,6 +109,12 @@ export function ExecutionSteps({
             Execution {grant.state} · revision {grant.revision.slice(0, 12)} · {grant.route.replace("openai/", "")}
             {grant.state === "proposed" && " · expires " + new Date(grant.expiresAt).toLocaleTimeString()}
           </p>
+          {grant.bounds && (
+            <small>
+              Limits: {grant.bounds.tokens.toLocaleString()} tokens · {grant.bounds.seconds} seconds ·{" "}
+              {grant.bounds.effort} effort
+            </small>
+          )}
           {grant.state === "proposed" && (
             <div className="co-actions">
               <button

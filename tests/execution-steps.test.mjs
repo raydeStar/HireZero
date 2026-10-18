@@ -48,7 +48,7 @@ function render(detail, { resource = 'C:/fictional/checkout', state = 'blocked',
     walk(node.props?.children);
   })(tree);
   const text = (node) =>
-    typeof node === 'string' ? node
+    typeof node === 'string' || typeof node === 'number' ? String(node)
     : Array.isArray(node) ? node.map(text).join('')
     : node && typeof node === 'object' ? text(node.props?.children)
     : '';
@@ -72,8 +72,13 @@ test('a task without a checkout offers only the checkout grant', () => {
 });
 
 test('a proposed grant is approved at its exact digest', async () => {
-  const view = render({ executions: [grant('proposed')], publications: [] });
+  const view = render({
+    executions: [grant('proposed', { bounds: { tokens: 8000, seconds: 900, effort: 'medium' } })],
+    publications: [],
+  });
   assert.equal(view.button('Prepare'), undefined);
+  assert.match(view.text, /900 seconds/);
+  assert.match(view.text, /medium effort/);
   view.button('Approve this execution').props.onClick();
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(JSON.parse(JSON.stringify(view.commands)), [

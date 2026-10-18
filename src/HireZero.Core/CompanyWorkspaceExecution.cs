@@ -2,6 +2,21 @@ using Microsoft.Data.Sqlite;
 
 namespace HireZero.Core;
 
+// The bounds of one execution run, approved with its grant: the reservation is sized from Tokens, the run is stopped
+// after Seconds, and Effort is passed to the coding runtime. Defaults are the host's; Ceiling is a sanity bound.
+public sealed record CompanyExecutionLimits(int Tokens, int Seconds, string Effort)
+{
+    public static readonly CompanyExecutionLimits Pilot = new(5000, 20, "low");
+    public static readonly CompanyExecutionLimits Ceiling = new(1_000_000, 3600, "high");
+
+    public bool Within() =>
+        Tokens > 0
+        && Tokens <= Ceiling.Tokens
+        && Seconds > 0
+        && Seconds <= Ceiling.Seconds
+        && Effort is "low" or "medium" or "high";
+}
+
 public sealed record CompanyWorkspaceProposal(
     string AttemptId,
     string Workspace,
@@ -9,7 +24,8 @@ public sealed record CompanyWorkspaceProposal(
     string Fingerprint,
     string ContextDigest,
     string Route,
-    bool AllowWrite = false
+    bool AllowWrite = false,
+    CompanyExecutionLimits? Limits = null
 );
 
 public sealed record CompanyExecutionGrant(
@@ -28,8 +44,14 @@ public sealed record CompanyExecutionGrant(
     DateTimeOffset ExpiresAt,
     string? RunId = null,
     int Version = 1,
-    CompanyRepositoryReview? Review = null
-);
+    CompanyRepositoryReview? Review = null,
+    CompanyExecutionLimits? Limits = null,
+    DateTimeOffset? DispatchedAt = null
+)
+{
+    // Grants recorded before limits were approved with them ran under the pilot limits.
+    public CompanyExecutionLimits Bounds => Limits ?? CompanyExecutionLimits.Pilot;
+}
 
 public sealed record CompanyRepositorySnapshot(string Workspace, string Revision, string Fingerprint);
 
@@ -44,7 +66,8 @@ public sealed record CompanyRepositoryReview(
 
 public interface ICompanyCodingFactory
 {
-    bool FixtureQualified { get; }
+    // True only for a runner the host has qualified: the synthetic fixture in tests, or a pinned, verified runtime.
+    bool Qualified { get; }
     ICodingRunner Create(CompanyExecutionGrant grant, Func<bool> mayStart);
 }
 
@@ -73,6 +96,10 @@ public sealed partial class CompanyStore
                 Text(proposal.Revision, 80);
                 Text(proposal.Fingerprint, 80);
                 Text(proposal.Route, 100);
+                var limits = proposal.Limits ?? ExecutionDefaults;
+                if (!limits.Within())
+                    throw new WorkspaceException("Execution limits are outside the allowed bounds.", 422);
+                proposal = proposal with { Limits = limits };
                 if (All<CompanyExecutionGrant>(db).Any(g => g.AttemptId == a.Id))
                     throw new WorkspaceException("This attempt already has an execution proposal.");
                 var id = Id();
@@ -90,7 +117,8 @@ public sealed partial class CompanyStore
                     proposal.AllowWrite,
                     digest,
                     "proposed",
-                    Clock().AddMinutes(10)
+                    Clock().AddMinutes(10),
+                    Limits: limits
                 );
                 Save(db, grant, id, task.Id, employee.Id, grant.State);
                 Event(
@@ -129,6 +157,22 @@ public sealed partial class CompanyStore
             throw new WorkspaceException("Approve the exact current, unexpired execution proposal.");
         g = g with { State = "approved", Version = g.Version + 1 };
         Save(db, g, g.Id, g.TaskId, g.EmployeeId, g.State, g.Version);
+        // Approving the exact limits is the work's allowance for this run; company, department and employee budgets
+        // still cap it.
+        var task = Need<CompanyTask>(db, g.TaskId);
+        var root = Need<CompanyBudget>(db, task.RootId);
+        if (root.Limit < root.Used + root.Reserved + g.Bounds.Tokens)
+        {
+            root = root with { Limit = root.Used + root.Reserved + g.Bounds.Tokens, Version = root.Version + 1 };
+            Save(db, root, root.Id, version: root.Version);
+            Event(
+                db,
+                "budget.changed",
+                root.Id,
+                g.EmployeeId,
+                "The approved execution limits set this work's allowance."
+            );
+        }
         Event(
             db,
             "execution.approved",
@@ -164,8 +208,13 @@ public sealed partial class CompanyStore
         using var db = Open();
         var g = Need<CompanyExecutionGrant>(db, id);
         var a = Need<CompanyAttempt>(db, g.AttemptId);
+        // An approved grant must start before its proposal expires; a dispatched run may last its approved time.
+        var until =
+            g.State == "dispatched" && g.DispatchedAt is { } started
+                ? started.AddSeconds(g.Bounds.Seconds + 60)
+                : g.ExpiresAt;
         return (g.State is "approved" or "dispatched")
-            && Clock() < g.ExpiresAt
+            && Clock() < until
             && Current(db, a)
             && a.ContextId is not null
             && g.ContextDigest == CompanyJson.Digest(Need<CompanyContext>(db, a.ContextId))
@@ -186,10 +235,10 @@ public sealed partial class CompanyStore
                     || Clock() >= g.ExpiresAt
                     || a.ContextId is null
                     || g.ContextDigest != CompanyJson.Digest(Need<CompanyContext>(db, a.ContextId))
-                    || !Reserve(db, a)
+                    || !Reserve(db, a, g.Bounds.Tokens)
                 )
                     return false;
-                g = g with { State = "dispatched", Version = g.Version + 1 };
+                g = g with { State = "dispatched", DispatchedAt = Clock(), Version = g.Version + 1 };
                 Save(db, g, g.Id, g.TaskId, g.EmployeeId, g.State, g.Version);
                 return true;
             }

@@ -12,7 +12,7 @@ public sealed class CompanyCodingFactory(
     string fixtureMode = "scoped-success"
 ) : ICompanyCodingFactory
 {
-    public bool FixtureQualified => true;
+    public bool Qualified => true;
 
     public ICodingRunner Create(CompanyExecutionGrant grant, Func<bool> mayStart)
     {

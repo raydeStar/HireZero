@@ -574,4 +574,75 @@ public sealed class PullRequestFixTests : IDisposable
             Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
         }
     }
+
+    private CompanyStore Store(CompanyExecutionLimits limits, Func<DateTimeOffset>? clock = null) =>
+        new(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions())
+        {
+            ExecutionDefaults = limits,
+            Clock = clock ?? (() => DateTimeOffset.UtcNow),
+        };
+
+    // The owner approves the run's limits with the grant, and its reservation is sized from them.
+    [Fact]
+    public async Task LimitsAreApprovedWithTheGrantAndSizeItsReservation()
+    {
+        var limits = new CompanyExecutionLimits(8000, 120, "medium");
+        var fix = await Assign(Store(limits));
+        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
+        Assert.Equal(limits, grant.Limits);
+        Approve<CompanyExecutionGrant>(fix.Store, "execution.review", grant.Id, grant.Version, grant.Digest);
+        await fix.Developer.ExecuteFixtureAsync(grant.Id, Token);
+        Assert.Equal("completed", fix.Store.Execution(grant.Id).State);
+        var budgets = JsonSerializer
+            .SerializeToElement(fix.Store.Dashboard(), CompanyJson.Options)
+            .GetProperty("budgets")
+            .EnumerateArray()
+            .Single(b => b.GetProperty("id").GetString() == "employee:" + fix.Employee.Id);
+        Assert.Equal(0, budgets.GetProperty("reserved").GetInt64());
+        Assert.InRange(budgets.GetProperty("used").GetInt64(), 1, 8000);
+    }
+
+    // A run whose limits exceed the employee's budget is never started.
+    [Fact]
+    public async Task ARunLargerThanTheBudgetIsNotSent()
+    {
+        var fix = await Assign(Store(new(30000, 120, "medium")));
+        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
+        Approve<CompanyExecutionGrant>(fix.Store, "execution.review", grant.Id, grant.Version, grant.Digest);
+        await Assert.ThrowsAsync<WorkspaceException>(() => fix.Developer.ExecuteFixtureAsync(grant.Id, Token));
+        Assert.Equal(
+            ("not_sent", (string?)null),
+            (fix.Store.Execution(grant.Id).State, fix.Store.Execution(grant.Id).RunId)
+        );
+        Assert.False(File.Exists(Path.Combine(Checkout, "fixture-change.txt")));
+    }
+
+    [Fact]
+    public async Task LimitsAboveTheCeilingAreRefused()
+    {
+        var fix = await Assign(Store(new(2_000_000, 120, "medium")));
+        await Assert.ThrowsAsync<WorkspaceException>(() => fix.Developer.PrepareAsync(fix.Task.Id, Token));
+        Assert.False(new CompanyExecutionLimits(1000, 120, "extreme").Within());
+        Assert.False(new CompanyExecutionLimits(1000, 7200, "low").Within());
+    }
+
+    // A run approved near the end of its proposal window may still last its approved time, and no longer; usage up to
+    // its reservation settles.
+    [Fact]
+    public async Task ADispatchedRunLastsItsApprovedTimeAndSettlesWithinItsReservation()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var fix = await Assign(Store(new(8000, 900, "medium"), () => now));
+        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
+        now = now.AddMinutes(9);
+        Approve<CompanyExecutionGrant>(fix.Store, "execution.review", grant.Id, grant.Version, grant.Digest);
+        Assert.True(fix.Store.DispatchExecution(grant.Id));
+        now = now.AddMinutes(11);
+        Assert.True(fix.Store.ExecutionCurrent(grant.Id));
+        fix.Store.BindExecution(grant.Id, "fixture-run");
+        fix.Store.Finish(grant.AttemptId, new("Fictional result", 7000, "codex:fixture-run"));
+        Assert.Equal("awaiting_review", fix.Store.Work(fix.Task.Id).State);
+        now = now.AddMinutes(6);
+        Assert.False(fix.Store.ExecutionCurrent(grant.Id));
+    }
 }

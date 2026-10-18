@@ -213,7 +213,7 @@ public sealed class DeveloperModule : IEmployeeModule
     {
         public static readonly UnavailableCoding Instance = new();
 
-        public bool FixtureQualified => false;
+        public bool Qualified => false;
 
         public ICodingRunner Create(CompanyExecutionGrant grant, Func<bool> mayStart) =>
             throw new WorkspaceException("No qualified coding runner is available.");

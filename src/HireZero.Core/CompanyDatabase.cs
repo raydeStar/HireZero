@@ -13,6 +13,9 @@ public sealed partial class CompanyStore
     public CompanyModelRouting ModelRouting { get; }
     public string? MeasuredRuntimeIdentity { get; }
     public SemaphoreSlim ProviderGate { get; } = new(1, 1);
+
+    // The limits proposed with each execution grant unless the module asks for others; the owner approves them.
+    public CompanyExecutionLimits ExecutionDefaults { get; init; } = CompanyExecutionLimits.Pilot;
     private static readonly Dictionary<Type, string> Tables = new()
     {
         [typeof(CompanyDepartment)] = "co_departments",

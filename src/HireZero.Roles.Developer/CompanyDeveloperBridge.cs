@@ -51,7 +51,7 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
 
     public async Task ExecuteFixtureAsync(string grantId, CancellationToken token = default)
     {
-        if (!factory.FixtureQualified)
+        if (!factory.Qualified)
             throw new WorkspaceException("Live Developer runtime qualification is unavailable.");
         await store.ProviderGate.WaitAsync(token);
         try
@@ -92,11 +92,12 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
             CodingRun? run = null;
             try
             {
+                var limits = grant.Bounds;
                 run = coding.Start(
-                    new(grant.Workspace, prompt, null, grant.Route, "low", false, AllowWrite: grant.AllowWrite)
+                    new(grant.Workspace, prompt, null, grant.Route, limits.Effort, false, AllowWrite: grant.AllowWrite)
                 );
                 store.BindExecution(grantId, run.Id);
-                var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+                var deadline = DateTimeOffset.UtcNow.AddSeconds(limits.Seconds);
                 while ((run = coding.Find(run.Id)!)?.State is "queued" or "running")
                 {
                     if (
@@ -132,7 +133,7 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
                     .Events.Where(e => e.Type == BudgetLedger.CodingUsage)
                     .Select(e => JsonDocument.Parse(e.DataJson).RootElement.GetProperty("tokens").GetInt64())
                     .LastOrDefault(-1);
-                if (usage < 0 || usage > 5000)
+                if (usage < 0 || usage > limits.Tokens)
                     throw new WorkspaceException("Complete bounded coding usage was not confirmed.");
                 var review = await tools.InvokeAsync(
                     GitTools.ReviewCheckout,

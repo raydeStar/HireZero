@@ -280,7 +280,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    private bool Reserve(SqliteConnection db, CompanyAttempt a)
+    private bool Reserve(SqliteConnection db, CompanyAttempt a, long? execution = null)
     {
         if (a.Phase != "claimed" || !Current(db, a) || a.ContextId is null)
             return false;
@@ -309,7 +309,7 @@ public sealed partial class CompanyStore
                 ?? new("department:" + employee.DepartmentId, 50000),
             Find<CompanyBudget>(db, "employee:" + employee.Id) ?? new("employee:" + employee.Id, 25000),
         ];
-        var amount = a.Measured?.Policy.PlanningTokens ?? CompanyTokenLimits.Total;
+        var amount = execution ?? a.Measured?.Policy.PlanningTokens ?? CompanyTokenLimits.Total;
         if (scopes.Any(b => b.Used + b.Reserved + amount > b.Limit))
             return false;
         foreach (var b in scopes)
@@ -520,7 +520,12 @@ public sealed partial class CompanyStore
                     );
                 if (
                     reply.TotalTokens < 0
-                    || reply.TotalTokens > (a.Measured?.Policy.PlanningTokens ?? CompanyTokenLimits.Total)
+                    || reply.TotalTokens
+                        > (
+                            a.Measured?.Policy.PlanningTokens
+                            ?? Find<CompanyReservation>(db, a.Id)?.Amount
+                            ?? CompanyTokenLimits.Total
+                        )
                 )
                     throw new ModelTransportException(
                         "Observed usage exceeds its reservation; reconciliation required.",
