@@ -200,7 +200,8 @@
       "hirezero.integrations.azuredevops": {
         "type": "Project",
         "dependencies": {
-          "HireZero.Core": "[1.0.0, )"
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.AzureDevOps": "[1.0.0, )"
         }
       },
       "hirezero.integrations.codex": {
@@ -230,6 +231,12 @@
         }
       },
       "hirezero.tools.agentapps": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.azuredevops": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

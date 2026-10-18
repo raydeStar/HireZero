@@ -68,6 +68,12 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.tools.azuredevops": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
       "hirezero.tools.git": {
         "type": "Project",
         "dependencies": {

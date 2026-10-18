@@ -1,5 +1,6 @@
 using HireZero.Roles.Developer;
 using HireZero.Tools.AgentApps;
+using HireZero.Tools.AzureDevOps;
 using HireZero.Tools.Git;
 using HireZero.Tools.GitHub;
 using HireZero.Tools.Jev;
@@ -100,6 +101,12 @@ public sealed class DeveloperModule : IEmployeeModule
                 {
                     Publishes = true,
                 },
+                new(
+                    CompanyPullRequestAttention.Skill,
+                    "Pull request attention",
+                    "Rank your open pull requests from an approved Azure DevOps read: problem and next step for each.",
+                    SkillMode.Measured
+                ),
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -170,6 +177,12 @@ public sealed class DeveloperModule : IEmployeeModule
                     "List recent coding-agent sessions when the owner asks."
                 ),
                 new(AgentAppsTools.CheckSteer.Id, ToolRisk.Read, "Check that a session can take a message now."),
+                new(AzureDevOpsTools.Status.Id, ToolRisk.Read, "Show whether Azure DevOps is configured."),
+                new(
+                    AzureDevOpsTools.Attention.Id,
+                    ToolRisk.Read,
+                    "Read your open Azure DevOps pull requests when you ask."
+                ),
                 new(
                     AgentAppsTools.SendReadOnly.Id,
                     ToolRisk.External,
@@ -193,6 +206,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 CompanyWiki.Definition,
                 CompanyInbox.Definition,
                 CompanySessions.Definition,
+                CompanyPullRequestAttention.Definition,
             ],
             DisplayOrder = 20,
         };
@@ -206,6 +220,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyWiki.Draft => CompanyWiki.DraftInstructions,
             CompanyInbox.Triage => CompanyInbox.TriageInstructions,
             CompanySteer.Skill => CompanySteer.Instructions,
+            CompanyPullRequestAttention.Skill => CompanyPullRequestAttention.Instructions,
             _ => Manifest.Instructions,
         };
 
@@ -226,6 +241,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyWiki.ReadAction => CompanyWiki.ReadAsync(input, tools, token),
             CompanyInbox.ReadAction => CompanyInbox.ReadAsync(input, tools, token),
             CompanySessions.ReadAction => CompanySessions.ReadAsync(input, tools, token),
+            CompanyPullRequestAttention.ReadAction => CompanyPullRequestAttention.ReadAsync(input, tools, token),
             _ => throw new WorkspaceException("This employee has no such action.", 404),
         };
 

@@ -218,6 +218,9 @@ public sealed class Microsoft365CompanyTests : IDisposable
             Assert.False(microsoft.GetProperty("active").GetBoolean());
             Assert.Equal("Add your Microsoft app (client) ID.", microsoft.GetProperty("reason").GetString());
             Assert.Contains(integrations, i => i.GetProperty("id").GetString() == "live-coding");
+            var azure = integrations.Single(i => i.GetProperty("id").GetString() == "azure-devops");
+            Assert.False(azure.GetProperty("active").GetBoolean());
+            Assert.Contains("azure-devops.json", azure.GetProperty("reason").GetString());
             var agentApps = integrations.Single(i => i.GetProperty("id").GetString() == "agent-apps");
             Assert.False(agentApps.GetProperty("active").GetBoolean());
             Assert.Contains("agent-apps.json", agentApps.GetProperty("reason").GetString());
@@ -297,5 +300,115 @@ public sealed class Microsoft365CompanyTests : IDisposable
             )
         );
         Assert.Single(requests);
+    }
+
+    // Azure DevOps pull requests are read only when the owner starts the action; the result is reviewed evidence and
+    // the ranking skill needs it approved.
+    [Fact]
+    public async Task AzureDevOpsPullRequestsBecomeReviewedEvidence()
+    {
+        var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
+        var registry = new ToolRegistry(store);
+        var requests = new List<HireZero.Tools.AzureDevOps.AttentionRequest>();
+        registry.Register(
+            HireZero.Tools.AzureDevOps.AzureDevOpsTools.Attention,
+            (request, _) =>
+            {
+                requests.Add(request);
+                return Task.FromResult(
+                    new[]
+                    {
+                        new HireZero.Tools.AzureDevOps.PullRequestAttention(
+                            "north",
+                            7,
+                            "Bound fictional batches",
+                            "Northwind.API",
+                            "Northwind.API",
+                            "fix/7",
+                            "dev",
+                            false,
+                            "succeeded",
+                            ["Build"],
+                            [],
+                            1,
+                            ["Build failing", "1 open thread"],
+                            "https://example.invalid/pull/7"
+                        ),
+                    }
+                );
+            }
+        );
+        var (developer, thread) = Hire(store);
+        var action = Apply<CompanyTask>(
+            store,
+            Cmd("action.start") with
+            {
+                EmployeeId = developer.Id,
+                ThreadId = thread.Id,
+                Skill = CompanyPullRequestAttention.ReadAction,
+                Body = JsonSerializer.Serialize(new { organization = "all" }),
+            }
+        );
+        var output = await Module.RunActionAsync(
+            CompanyPullRequestAttention.ReadAction,
+            new Dictionary<string, string> { ["organization"] = "all" },
+            registry.For(Module.Manifest, developer.Id, action.Id).ReadOnly(),
+            Token
+        );
+        Assert.Equal([new HireZero.Tools.AzureDevOps.AttentionRequest(null, 25)], requests);
+        var evidence = store.CompleteAction(action.Id, output);
+        Assert.Equal(("needs_review", "action:ado-pulls"), (evidence.State, evidence.Provenance));
+        Assert.Contains("Needs you: Build failing; 1 open thread", evidence.Body);
+        Assert.Throws<WorkspaceException>(() =>
+            store.Apply(
+                Cmd("task.create") with
+                {
+                    EmployeeId = developer.Id,
+                    ThreadId = thread.Id,
+                    Skill = CompanyPullRequestAttention.Skill,
+                    Body = "Rank what needs me.",
+                    Evidence = [evidence.Id],
+                }
+            )
+        );
+        var role = store.Roles.Single(r => r.Id == "developer");
+        Assert.Contains(CompanyPullRequestAttention.Skill, role.MeasuredSkills);
+        Assert.DoesNotContain(CompanyPullRequestAttention.Skill, role.PublishingSkills);
+    }
+
+    // With Azure DevOps configured, the company host registers its tools and still offers no general HTTP client
+    // factory; nothing is read until the owner starts the action.
+    [Fact]
+    public async Task ConfiguredAzureDevOpsAddsNoGeneralHttpClientFactory()
+    {
+        var previous = Environment.GetEnvironmentVariable(HeldWorkspace.Variable);
+        Environment.SetEnvironmentVariable(HeldWorkspace.Variable, "0");
+        var host = Path.Combine(_root.Path, "host");
+        Directory.CreateDirectory(host);
+        File.WriteAllText(
+            Path.Combine(host, "azure-devops.json"),
+            JsonSerializer.Serialize(new { organizations = new[] { "north" } })
+        );
+        try
+        {
+            await using var app = CompanyWorkspace.TryCreate(
+                [CompanyWorkspace.Flag],
+                Owner,
+                true,
+                host,
+                fixtureUrl: "http://127.0.0.1:0"
+            )!;
+            Assert.Null(app.Services.GetService<IHttpClientFactory>());
+            Assert.True(
+                app.Services.GetRequiredService<ToolRegistry>()
+                    .Has(HireZero.Tools.AzureDevOps.AzureDevOpsTools.Attention.Id)
+            );
+            await app.StartAsync(Token);
+            await app.StopAsync(Token);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
+        }
     }
 }

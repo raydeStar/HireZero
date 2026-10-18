@@ -16,8 +16,10 @@ public static class ThreadTitles
         RegexOptions.IgnoreCase,
         Timeout
     );
-    static readonly Regex AzureDevOps = new(
-        @"https?://(?:dev\.azure\.com/[^/\s]+|[\w-]+\.visualstudio\.com)/[^/\s]+/_git/([^/\s?#]+)(?:/pullrequest/(\d+))?[^\s]*",
+
+    // Hosted Git services that address a repository as .../_git/{repository} and a pull request below it.
+    static readonly Regex GitPath = new(
+        @"https?://[^/\s]+(?:/[^/\s]+)*?/_git/([^/\s?#]+)(?:/pullrequest/(\d+))?[^\s]*",
         RegexOptions.IgnoreCase,
         Timeout
     );
@@ -37,7 +39,7 @@ public static class ThreadTitles
                         ? match.Groups[1].Value + " #" + match.Groups[2].Value
                         : match.Groups[1].Value
             );
-            text = AzureDevOps.Replace(
+            text = GitPath.Replace(
                 text,
                 match =>
                     match.Groups[2].Success

@@ -159,9 +159,11 @@ features in 2B.5 rather than twice.
   ([ADR 0016](adr/0016-publishing-one-approved-call.md)).
 - **2B.5e2 (done):** read-only steering of a listed session as an owner-approved, one-call publication, using the
   owner's installed app; the legacy steering code and its Core vocabulary moved into the integration.
-- **2B.5f to 2B.5i:** each legacy-only feature as an optional integration
+- **2B.5f (done):** Azure DevOps as an optional, read-only integration (`ado-pulls` action, `pr-attention` skill,
+  configured in `azure-devops.json`), with its remote-URL format, sharing rule and title pattern moved out of Core.
+- **2B.5g to 2B.5i:** each legacy-only feature as an optional integration
   ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core:
-  Azure DevOps, Jev triage, tailnet multi-user access and the daily brief.
+  Jev triage, tailnet multi-user access and the daily brief.
 - **2B.5j:** merge the Developer panels into the company UI and give modules their own storage migrations. Then
   retire `IRole`, `roles.json`, `IModelGateway`, `UsageMeter`, the Developer, Recovery and Held profiles and
   `web/src/shell`.

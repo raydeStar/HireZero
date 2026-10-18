@@ -49,7 +49,7 @@ public static class WorkLogChecks
                         "API",
                         "Opened !8027 Exclude AssetChat assets in API",
                         null,
-                        new GitOrigin(GitOrigin.AzureDevOps, "north", "API", "API")
+                        new GitOrigin("azure-devops", "north", "API", "API", true)
                     ),
                     new(
                         from.AddHours(16).ToString("O"),

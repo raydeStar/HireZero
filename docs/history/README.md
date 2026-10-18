@@ -41,3 +41,4 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 | [PHASE2B5D1_REPORT](PHASE2B5D1_REPORT.md) | Phase 2B.5d1: Microsoft 365 intake as an optional integration |
 | [PHASE2B5E1_REPORT](PHASE2B5E1_REPORT.md) | Phase 2B.5e1: read-only agent sessions and one-call publications |
 | [PHASE2B5E2_REPORT](PHASE2B5E2_REPORT.md) | Phase 2B.5e2: read-only session steering as an approved publication |
+| [PHASE2B5F_REPORT](PHASE2B5F_REPORT.md) | Phase 2B.5f: Azure DevOps as an optional, read-only integration |

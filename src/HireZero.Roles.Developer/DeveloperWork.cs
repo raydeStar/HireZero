@@ -329,7 +329,7 @@ public sealed class DeveloperProjectContext(GitHubReviewStore store, GitHubRevie
 
     public async Task<ContextSection[]> ContributeAsync(ProjectRef project, Audience audience, CancellationToken token)
     {
-        if (project.Repository is not { } repository || project.Origin?.Host == GitOrigin.AzureDevOps)
+        if (project.Repository is not { } repository || project.Origin is { Host: not GitOrigin.GitHub })
             return [];
         var sections = new List<ContextSection>();
         static int Progress(PullRequestWorkflow w) =>

@@ -9,6 +9,7 @@
     <Using Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../HireZero.Tools.AzureDevOps/HireZero.Tools.AzureDevOps.csproj" />
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
     <ProjectReference Include="../HireZero.Tools.AgentApps/HireZero.Tools.AgentApps.csproj" />
     <ProjectReference Include="../HireZero.Tools.Microsoft365/HireZero.Tools.Microsoft365.csproj" />

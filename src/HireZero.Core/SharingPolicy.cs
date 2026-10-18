@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace HireZero.Core;
 
 // What may reach the owner's boss at all. Only projects whose repository belongs to one of the listed organizations
-// (default: the organization named like the owner's login domain, e.g. Example for @example.invalid; an Azure DevOps
-// organization that is a short form of it, like exam, counts too) and that the owner hasn't hidden. Personal
+// (default: the organization named like the owner's login domain, e.g. Example for @example.invalid; on hosts whose
+// organization names are abbreviated, a short form of it, like exam, counts too) and that the owner hasn't hidden. Personal
 // repositories and loose folders never appear. OwnerName is how the boss panel refers to the owner.
 public sealed record SharingSettings(string[] BossOrganizations, string[] HiddenProjects, string? OwnerName = null);
 
@@ -76,8 +76,8 @@ public sealed class SharingPolicy(string dataRoot, string ownerLogin, string? de
             )
         )
             return false;
-        // An Azure DevOps organization is often a short form of the company name ("exam" for Example).
-        var devops = origin.Host == GitOrigin.AzureDevOps;
+        // Some hosts' organization names are short forms of the company name ("exam" for Example).
+        var devops = origin.AbbreviatedOrganization;
         return settings.BossOrganizations.Any(allowed =>
             allowed.Equals(origin.Organization, StringComparison.OrdinalIgnoreCase)
             || devops

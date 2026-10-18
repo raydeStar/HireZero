@@ -14,7 +14,7 @@ public sealed class AzureDevOpsProjectContext(AzureDevOpsClient client) : IProje
 
     public async Task<ContextSection[]> ContributeAsync(ProjectRef project, Audience audience, CancellationToken token)
     {
-        if (project.Origin is not { Host: GitOrigin.AzureDevOps, Project: { } adoProject } origin)
+        if (project.Origin is not { Host: AzureDevOpsOriginFormat.Host, Project: { } adoProject } origin)
             return [];
         var key = origin.Organization + "/" + adoProject + "/" + origin.Name;
         if (!_cache.TryGetValue(key, out var cached) || DateTimeOffset.UtcNow - cached.At > CacheFor)
@@ -170,7 +170,7 @@ public sealed class AzureDevOpsWatcher(
                         : working
                             .Projects()
                             .Select(project => project.Origin)
-                            .Where(origin => origin?.Host == GitOrigin.AzureDevOps)
+                            .Where(origin => origin?.Host == AzureDevOpsOriginFormat.Host)
                             .Select(origin => origin!.Organization)
                 )
                 .Where(AzureDevOpsClient.ValidOrganization)
@@ -286,7 +286,7 @@ public sealed class AzureDevOpsWorkLog(AzureDevOpsClient client, AzureDevOpsWatc
                                 + pr.Target
                                 + ")",
                             pr.Url,
-                            new GitOrigin(GitOrigin.AzureDevOps, organization, pr.Project, pr.Repository)
+                            new GitOrigin(AzureDevOpsOriginFormat.Host, organization, pr.Project, pr.Repository, true)
                         )
                     );
             foreach (var pr in await client.PullRequestsBetweenAsync(organization, me, "closed", from, to, token))
@@ -306,7 +306,7 @@ public sealed class AzureDevOpsWorkLog(AzureDevOpsClient client, AzureDevOpsWatc
                                 + pr.Target
                                 + ")",
                             pr.Url,
-                            new GitOrigin(GitOrigin.AzureDevOps, organization, pr.Project, pr.Repository)
+                            new GitOrigin(AzureDevOpsOriginFormat.Host, organization, pr.Project, pr.Repository, true)
                         )
                     );
         }
@@ -315,7 +315,7 @@ public sealed class AzureDevOpsWorkLog(AzureDevOpsClient client, AzureDevOpsWatc
 
     public async Task<WorkLogDetail?> DetailAsync(WorkLogEntry entry, CancellationToken token)
     {
-        if (entry.Origin is not { Host: GitOrigin.AzureDevOps } origin || entry.Url is not { } url)
+        if (entry.Origin is not { Host: AzureDevOpsOriginFormat.Host } origin || entry.Url is not { } url)
             return null;
         var match = System.Text.RegularExpressions.Regex.Match(
             url,
@@ -384,6 +384,7 @@ public static class AzureDevOpsServices
 {
     public static IServiceCollection AddAzureDevOps(this IServiceCollection services)
     {
+        GitRemote.Register(new AzureDevOpsOriginFormat());
         services
             .AddHttpClient("azure-devops", client => client.Timeout = TimeSpan.FromSeconds(20))
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });

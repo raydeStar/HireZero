@@ -60,7 +60,11 @@ public sealed class AzureDevOpsClient(IHttpClientFactory clients)
     private (string Value, DateTimeOffset Expires)? _token;
     private readonly ConcurrentDictionary<string, (string Id, string Name)> _me = new(StringComparer.OrdinalIgnoreCase);
     public Func<CancellationToken, Task<(string Value, DateTimeOffset Expires)>> TokenSource { get; init; } =
-        AzureCliTokenAsync;
+        token => AzureCliTokenAsync(null, token);
+
+    // Tokens from a chosen Azure CLI (the company workspace names it in azure-devops.json); null uses the default.
+    public static Func<CancellationToken, Task<(string Value, DateTimeOffset Expires)>> AzureCli(string? command) =>
+        token => AzureCliTokenAsync(command, token);
 
     public static bool ValidOrganization(string organization) => Organization.IsMatch(organization);
 
@@ -82,10 +86,14 @@ public sealed class AzureDevOpsClient(IHttpClientFactory clients)
         }
     }
 
-    static async Task<(string Value, DateTimeOffset Expires)> AzureCliTokenAsync(CancellationToken token)
+    static async Task<(string Value, DateTimeOffset Expires)> AzureCliTokenAsync(
+        string? chosen,
+        CancellationToken token
+    )
     {
         var command =
-            Environment.GetEnvironmentVariable("HIREZERO_AZ")
+            chosen
+            ?? Environment.GetEnvironmentVariable("HIREZERO_AZ")
             ?? (
                 File.Exists(@"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd")
                     ? @"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd"

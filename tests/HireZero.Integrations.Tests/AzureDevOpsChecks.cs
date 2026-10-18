@@ -7,7 +7,7 @@ using HireZero.Integrations.AzureDevOps;
 // Azure DevOps against a fake REST API and a fake token: no network, no az sign-in.
 public static class AzureDevOpsChecks
 {
-    sealed class FakeDevOps : HttpMessageHandler, IHttpClientFactory
+    internal sealed class FakeDevOps : HttpMessageHandler, IHttpClientFactory
     {
         public List<string> Urls = [];
         public string? LastAuthorization;
@@ -98,10 +98,11 @@ public static class AzureDevOpsChecks
 
     public static async Task RunAsync(Action<bool, string> check)
     {
+        GitRemote.Register(new AzureDevOpsOriginFormat());
         check(
             GitRemote.Parse("https://north@dev.azure.com/north/North%20DevOps%20Platform/_git/Northwind.MyNorthwind")
                 is {
-                    Host: GitOrigin.AzureDevOps,
+                    Host: AzureDevOpsOriginFormat.Host,
                     Organization: "north",
                     Project: "North DevOps Platform",
                     Name: "Northwind.MyNorthwind"
@@ -190,7 +191,7 @@ public static class AzureDevOpsChecks
             [],
             DateTimeOffset.UtcNow.ToString("O"),
             2,
-            new GitOrigin(GitOrigin.AzureDevOps, "north", "Northwind.API", "Northwind.API")
+            new GitOrigin(AzureDevOpsOriginFormat.Host, "north", "Northwind.API", "Northwind.API", true)
         );
         var context = new AzureDevOpsProjectContext(client);
         var owner = string.Join(
@@ -248,7 +249,7 @@ public static class AzureDevOpsChecks
                 && !sharing.SharesWithBoss(
                     project with
                     {
-                        Origin = new GitOrigin(GitOrigin.AzureDevOps, "someone", "P", "R"),
+                        Origin = new GitOrigin(AzureDevOpsOriginFormat.Host, "someone", "P", "R", true),
                     }
                 ),
             "The company's Azure DevOps organization (north for northwind.example) is shared with a boss; others aren't."

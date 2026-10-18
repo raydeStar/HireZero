@@ -1,5 +1,6 @@
 using HireZero.Core;
 using HireZero.Integrations.AgentApps;
+using HireZero.Integrations.AzureDevOps;
 using HireZero.Integrations.Codex;
 using HireZero.Integrations.Git;
 using HireZero.Integrations.GitHub;
@@ -165,6 +166,10 @@ public static class CompanyWorkspace
             var agentApps = AgentAppsToolProvider.Company(root);
             if (fixtureTools is null && agentApps.Status().Active)
                 agentApps.Register(tools);
+            // Azure DevOps, only for the organizations the owner lists in azure-devops.json; read-only, no watch.
+            var azureDevOps = new AzureDevOpsToolProvider(root);
+            if (fixtureTools is null && azureDevOps.Status().Active)
+                azureDevOps.Register(tools);
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
             app.Use(
@@ -245,6 +250,7 @@ public static class CompanyWorkspace
                 [
                     microsoft.Status(),
                     agentApps.Status(),
+                    azureDevOps.Status(),
                     new(
                         "wiki",
                         "Synthetic Wiki",

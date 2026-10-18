@@ -2,21 +2,37 @@ using System.Text.RegularExpressions;
 
 namespace HireZero.Core;
 
-// Where a checkout's origin lives. GitHub: Organization is the owner, Project is null. Azure DevOps: organization,
-// project and repository (URL-decoded). Never carries credentials.
-public sealed record GitOrigin(string Host, string Organization, string? Project, string Name)
+// Where a checkout's origin lives. Host is "github" or the host an integration's origin format names; Organization is
+// the owner or organization and Project an optional grouping. AbbreviatedOrganization marks hosts whose organization
+// names are often short forms of a company name. Never carries credentials.
+public sealed record GitOrigin(
+    string Host,
+    string Organization,
+    string? Project,
+    string Name,
+    bool AbbreviatedOrganization = false
+)
 {
-    public const string GitHub = "github",
-        AzureDevOps = "azure-devops";
+    public const string GitHub = "github";
 
-    // The short form used across HireZero: owner/name on GitHub, project/name on Azure DevOps.
+    // The short form used across HireZero: owner/name, or project/name where the host groups repositories.
     public string Slug => (Project ?? Organization) + "/" + Name;
+}
+
+// A remote URL format an integration understands, such as a hosted Git service that groups repositories in projects.
+public interface IGitOriginFormat
+{
+    GitOrigin? Parse(string url);
 }
 
 // The origin of a checkout, read from its git config (worktrees follow their commondir).
 public static class GitRemote
 {
     static readonly TimeSpan Limit = TimeSpan.FromMilliseconds(50);
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, IGitOriginFormat> Formats = new();
+
+    // Integrations register the formats they understand; anything else is read GitHub-style.
+    public static void Register(IGitOriginFormat format) => Formats.TryAdd(format.GetType(), format);
 
     public static string? Repository(string? folder) => Origin(folder)?.Slug;
 
@@ -60,47 +76,19 @@ public static class GitRemote
     {
         try
         {
-            // https://[user@]dev.azure.com/org/project/_git/repo, git@ssh.dev.azure.com:v3/org/project/repo, https://org.visualstudio.com/[DefaultCollection/]project/_git/repo
-            var devops = Regex.Match(
-                url,
-                @"dev\.azure\.com/([^/]+)/([^/]+)/_git/([^/?#]+?)(?:\.git)?/?$",
-                RegexOptions.IgnoreCase,
-                Limit
-            );
-            if (!devops.Success)
-                devops = Regex.Match(
-                    url,
-                    @"ssh\.dev\.azure\.com:v3/([^/]+)/([^/]+)/([^/?#]+?)/?$",
-                    RegexOptions.IgnoreCase,
-                    Limit
-                );
-            if (devops.Success)
-                return new(
-                    GitOrigin.AzureDevOps,
-                    Decode(devops.Groups[1].Value),
-                    Decode(devops.Groups[2].Value),
-                    Decode(devops.Groups[3].Value)
-                );
-            var legacy = Regex.Match(
-                url,
-                @"//(?:[^@/]+@)?([A-Za-z0-9-]+)\.visualstudio\.com/(?:DefaultCollection/)?([^/]+)/_git/([^/?#]+?)/?$",
-                RegexOptions.IgnoreCase,
-                Limit
-            );
-            if (legacy.Success)
-                return new(
-                    GitOrigin.AzureDevOps,
-                    legacy.Groups[1].Value,
-                    Decode(legacy.Groups[2].Value),
-                    Decode(legacy.Groups[3].Value)
-                );
+            foreach (var format in Formats.Values)
+                if (format.Parse(url) is { } known)
+                    return known;
             var github = Regex.Match(
                 url,
                 @"[:/]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(\.git)?/?$",
                 RegexOptions.None,
                 Limit
             );
-            return github.Success ? new(GitOrigin.GitHub, github.Groups[1].Value, null, github.Groups[2].Value) : null;
+            // An owner starting with "_" is a path segment of another host's format, never a GitHub owner.
+            return github.Success && !github.Groups[1].Value.StartsWith('_')
+                ? new(GitOrigin.GitHub, github.Groups[1].Value, null, github.Groups[2].Value)
+                : null;
         }
         catch (Exception error) when (error is RegexMatchTimeoutException or ArgumentException)
         {
@@ -108,8 +96,8 @@ public static class GitRemote
         }
     }
 
-    // Names may be URL-encoded ("exam%20DevOps%20Platform"); anything that could split a path is refused.
-    static string Decode(string value)
+    // Names may be URL-encoded ("North%20Platform"); anything that could split a path is refused.
+    public static string DecodeName(string value)
     {
         var decoded = Uri.UnescapeDataString(value).Trim();
         if (decoded.Length == 0 || decoded.Length > 200 || decoded.IndexOfAny(['/', '\\', '?', '#', '\r', '\n']) >= 0)
