@@ -214,7 +214,8 @@
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
-          "HireZero.Integrations.Codex": "[1.0.0, )"
+          "HireZero.Integrations.Codex": "[1.0.0, )",
+          "HireZero.Tools.AgentApps": "[1.0.0, )"
         }
       },
       "hirezero.integrations.azuredevops": {
@@ -301,6 +302,7 @@
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.AgentApps": "[1.0.0, )",
           "HireZero.Tools.Git": "[1.0.0, )",
           "HireZero.Tools.GitHub": "[1.0.0, )",
           "HireZero.Tools.Jev": "[1.0.0, )",
@@ -311,6 +313,12 @@
         }
       },
       "hirezero.roles.marketing": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.agentapps": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

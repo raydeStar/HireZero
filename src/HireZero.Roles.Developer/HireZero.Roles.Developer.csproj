@@ -10,6 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <ProjectReference Include="../HireZero.Tools.AgentApps/HireZero.Tools.AgentApps.csproj" />
     <ProjectReference Include="../HireZero.Tools.Microsoft365/HireZero.Tools.Microsoft365.csproj" />
     <ProjectReference Include="../HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
     <ProjectReference Include="../HireZero.Tools.GitHub/HireZero.Tools.GitHub.csproj" />

@@ -8,7 +8,15 @@ namespace HireZero.Core;
 // once the source's artifact is approved. Each local write is then authorized only as the next proposed call, and the
 // single external call (such as a push) only after the module binds it, once. An external call whose outcome is not
 // confirmed becomes unknown and is never replayed.
-public sealed record CompanyPublicationProposal(string? GrantId, string ArtifactId, string Summary, string[] Calls);
+// External is the digest of the one external call when it is known up front (a publication with no local calls,
+// such as sending a message); the owner then approves that exact call (docs/adr/0016-publishing-one-approved-call.md).
+public sealed record CompanyPublicationProposal(
+    string? GrantId,
+    string ArtifactId,
+    string Summary,
+    string[] Calls,
+    string? External = null
+);
 
 public sealed record CompanyPublication(
     string Id,
@@ -23,6 +31,7 @@ public sealed record CompanyPublication(
     string State,
     DateTimeOffset ExpiresAt,
     int Used = 0,
+    string? ApprovedExternal = null,
     string? Result = null,
     string? ExternalDigest = null,
     bool ExternalSent = false,
@@ -73,10 +82,14 @@ public sealed partial class CompanyStore
                     reviewDigest = review.Digest;
                 }
                 if (
-                    proposal.Calls.Length is 0 or > 8
-                    || proposal.Calls.Any(c => c.Length != 64 || !c.All(Uri.IsHexDigit))
+                    proposal.Calls.Length > 8
+                    || proposal.Calls.Any(c => !Hex(c))
+                    || proposal.External is { } external && !Hex(external)
+                    || proposal.Calls.Length == 0 && proposal.External is null
                 )
-                    throw new WorkspaceException("A publication needs between one and eight exact call digests.");
+                    throw new WorkspaceException(
+                        "A publication needs up to eight exact local call digests, or its one approved external call."
+                    );
                 if (
                     All<CompanyPublication>(db)
                         .Any(p =>
@@ -98,7 +111,8 @@ public sealed partial class CompanyStore
                     proposal.Calls,
                     CompanyJson.Digest(proposal with { Summary = summary }),
                     "proposed",
-                    Clock().AddHours(1)
+                    Clock().AddHours(1),
+                    ApprovedExternal: proposal.External
                 );
                 Save(db, p, id, p.TaskId, p.EmployeeId, p.State, p.Version);
                 Event(db, "publication.proposed", id, p.EmployeeId, "Publication proposed: " + summary);
@@ -182,13 +196,10 @@ public sealed partial class CompanyStore
             () =>
             {
                 var p = Need<CompanyPublication>(db, id);
-                if (
-                    p.State != "committing"
-                    || p.Used != p.Calls.Length
-                    || externalDigest.Length != 64
-                    || !externalDigest.All(Uri.IsHexDigit)
-                )
+                if (p.State != "committing" || p.Used != p.Calls.Length || !Hex(externalDigest))
                     throw new WorkspaceException("Every approved local call must run before the external call.");
+                if (p.ApprovedExternal is not null && externalDigest != p.ApprovedExternal)
+                    throw new WorkspaceException("The external call is not the one the owner approved.");
                 return Put(
                     db,
                     p with
@@ -220,7 +231,7 @@ public sealed partial class CompanyStore
                     return p;
                 var state =
                     p.ExternalSent ? (confirmed ? "published" : "unknown")
-                    : landed && confirmed && p.Used == p.Calls.Length ? "published"
+                    : landed && confirmed && p.Calls.Length > 0 && p.Used == p.Calls.Length ? "published"
                     : "failed";
                 return Put(
                     db,
@@ -287,6 +298,8 @@ public sealed partial class CompanyStore
             && a.State is "needs_review" or "approved"
             && task.State is not ("canceled" or "superseded");
     }
+
+    private static bool Hex(string digest) => digest.Length == 64 && digest.All(Uri.IsHexDigit);
 
     private CompanyPublication Put(SqliteConnection db, CompanyPublication p, string text)
     {

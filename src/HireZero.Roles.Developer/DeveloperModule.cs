@@ -1,4 +1,5 @@
 using HireZero.Roles.Developer;
+using HireZero.Tools.AgentApps;
 using HireZero.Tools.Git;
 using HireZero.Tools.GitHub;
 using HireZero.Tools.Jev;
@@ -153,6 +154,12 @@ public sealed class DeveloperModule : IEmployeeModule
                 new(Microsoft365Tools.Status.Id, ToolRisk.Read, "Show whether Microsoft 365 is connected."),
                 new(Microsoft365Tools.ReadMail.Id, ToolRisk.Read, "Read recent inbox messages when the owner asks."),
                 new(Microsoft365Tools.ReadTeams.Id, ToolRisk.Read, "Read recent Teams messages when the owner asks."),
+                new(AgentAppsTools.Status.Id, ToolRisk.Read, "Show which coding-agent apps can be listed."),
+                new(
+                    AgentAppsTools.ListSessions.Id,
+                    ToolRisk.Read,
+                    "List recent coding-agent sessions when the owner asks."
+                ),
             ],
             Kpis =
             [
@@ -165,7 +172,13 @@ public sealed class DeveloperModule : IEmployeeModule
                 new("diffs-accepted", "Diffs accepted", "count", "Reviewed checkout diffs the owner accepted."),
             ],
             Capabilities = new() { WorkspaceClaims = true },
-            Actions = [PullRequestEvidenceAction.Definition, CompanyWiki.Definition, CompanyInbox.Definition],
+            Actions =
+            [
+                PullRequestEvidenceAction.Definition,
+                CompanyWiki.Definition,
+                CompanyInbox.Definition,
+                CompanySessions.Definition,
+            ],
             DisplayOrder = 20,
         };
 
@@ -196,6 +209,7 @@ public sealed class DeveloperModule : IEmployeeModule
             ),
             CompanyWiki.ReadAction => CompanyWiki.ReadAsync(input, tools, token),
             CompanyInbox.ReadAction => CompanyInbox.ReadAsync(input, tools, token),
+            CompanySessions.ReadAction => CompanySessions.ReadAsync(input, tools, token),
             _ => throw new WorkspaceException("This employee has no such action.", 404),
         };
 

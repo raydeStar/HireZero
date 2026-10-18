@@ -67,6 +67,12 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"
         }
+      },
+      "hirezero.tools.agentapps": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
       }
     }
   }

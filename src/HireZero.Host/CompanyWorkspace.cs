@@ -1,4 +1,5 @@
 using HireZero.Core;
+using HireZero.Integrations.AgentApps;
 using HireZero.Integrations.Codex;
 using HireZero.Integrations.Git;
 using HireZero.Integrations.GitHub;
@@ -160,6 +161,10 @@ public static class CompanyWorkspace
                 Microsoft();
             if (wiki)
                 WikiRegistration.CompanyProvider().Register(tools);
+            // Coding-agent session listing, only for the apps the owner lists in agent-apps.json.
+            var agentApps = AgentAppsToolProvider.Company(root);
+            if (fixtureTools is null && agentApps.Status().Active)
+                agentApps.Register(tools);
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
             app.Use(
@@ -239,6 +244,7 @@ public static class CompanyWorkspace
             IntegrationStatus[] Integrations() =>
                 [
                     microsoft.Status(),
+                    agentApps.Status(),
                     new(
                         "wiki",
                         "Synthetic Wiki",

@@ -464,4 +464,46 @@ public sealed class WikiPublicationTests : IDisposable
             Environment.SetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI", previous.Wiki);
         }
     }
+
+    // A publication with no local calls (docs/adr/0016-publishing-one-approved-call.md): the one external call is
+    // approved up front, authorized once, and nothing can be recorded as landed without it.
+    [Fact]
+    public async Task AnExternalOnlyPublicationSendsOnlyTheApprovedCallOnce()
+    {
+        var company = await Hire();
+        var store = company.Store;
+        var call = new WikiCall("publication", "POST", "api/review/" + Guid.NewGuid(), "{}");
+        var digest = ToolRegistry.Digest(WikiTools.Publish, call);
+        var draft = Draft(company, Content());
+        Assert.Throws<WorkspaceException>(() => store.ProposePublication(new(null, draft.Id, "Nothing to send", [])));
+        Assert.Throws<WorkspaceException>(() =>
+            store.ProposePublication(new(null, draft.Id, "Bad digest", [], "not-a-digest"))
+        );
+        var publication = ApprovePublication(
+            company,
+            store.ProposePublication(new(null, draft.Id, "Send one approved call", [], digest))
+        );
+        Assert.Equal(digest, publication.ApprovedExternal);
+        store.ClaimPublication(publication.Id);
+        var other = ToolRegistry.Digest(WikiTools.Publish, call with { Path = "api/review/" + Guid.NewGuid() });
+        Assert.Throws<WorkspaceException>(() => store.BindPublication(publication.Id, "result", other));
+        store.BindPublication(publication.Id, "result", digest);
+        var tools = company.Registry.For(Module.Manifest, company.Developer.Id, draft.TaskId);
+        var authority = new ToolAuthority(CompanyStore.PublicationAuthorityKind, publication.Id);
+        await Assert.ThrowsAnyAsync<Exception>(() => tools.InvokeAsync(WikiTools.Publish, call, Token, authority));
+        await Assert.ThrowsAsync<ToolRefusedException>(() =>
+            tools.InvokeAsync(WikiTools.Publish, call, Token, authority)
+        );
+        Assert.Single(_approvals);
+        Assert.Equal("unknown", store.FinishPublication(publication.Id, false, "The fictional send failed.").State);
+
+        // Without its external call, a publication with no local calls cannot be recorded as landed.
+        var second = Draft(company, Content(key: "quote-currency"));
+        var unsent = ApprovePublication(
+            company,
+            store.ProposePublication(new(null, second.Id, "Send another approved call", [], digest))
+        );
+        store.ClaimPublication(unsent.Id);
+        Assert.Equal("failed", store.FinishPublication(unsent.Id, true, "Claimed landed.", landed: true).State);
+    }
 }

@@ -218,6 +218,9 @@ public sealed class Microsoft365CompanyTests : IDisposable
             Assert.False(microsoft.GetProperty("active").GetBoolean());
             Assert.Equal("Add your Microsoft app (client) ID.", microsoft.GetProperty("reason").GetString());
             Assert.Contains(integrations, i => i.GetProperty("id").GetString() == "live-coding");
+            var agentApps = integrations.Single(i => i.GetProperty("id").GetString() == "agent-apps");
+            Assert.False(agentApps.GetProperty("active").GetBoolean());
+            Assert.Contains("agent-apps.json", agentApps.GetProperty("reason").GetString());
             var setup = JsonDocument
                 .Parse(await client.GetStringAsync("/api/connections/microsoft", Token))
                 .RootElement;
@@ -232,5 +235,67 @@ public sealed class Microsoft365CompanyTests : IDisposable
         {
             Environment.SetEnvironmentVariable(HeldWorkspace.Variable, previous);
         }
+    }
+
+    // Agent sessions are listed only when the owner starts the action; the listing is reviewed evidence.
+    [Fact]
+    public async Task AgentSessionsAreListedAsReviewedEvidence()
+    {
+        var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
+        var registry = new ToolRegistry(store);
+        var requests = new List<HireZero.Tools.AgentApps.SessionListRequest>();
+        registry.Register(
+            HireZero.Tools.AgentApps.AgentAppsTools.ListSessions,
+            (request, _) =>
+            {
+                requests.Add(request);
+                return Task.FromResult(
+                    new[]
+                    {
+                        new HireZero.Tools.AgentApps.SessionSummary(
+                            "claude:s-1",
+                            "claude",
+                            "Fictional rounding fix",
+                            "quotes-service",
+                            "owner/quotes",
+                            "fix/rounding",
+                            "idle",
+                            "2026-10-18T08:00:00Z",
+                            []
+                        ),
+                    }
+                );
+            }
+        );
+        var (developer, thread) = Hire(store);
+        var action = Apply<CompanyTask>(
+            store,
+            Cmd("action.start") with
+            {
+                EmployeeId = developer.Id,
+                ThreadId = thread.Id,
+                Skill = CompanySessions.ReadAction,
+                Body = JsonSerializer.Serialize(new { app = "claude" }),
+            }
+        );
+        var output = await Module.RunActionAsync(
+            CompanySessions.ReadAction,
+            new Dictionary<string, string> { ["app"] = "claude" },
+            registry.For(Module.Manifest, developer.Id, action.Id).ReadOnly(),
+            Token
+        );
+        Assert.Equal([new HireZero.Tools.AgentApps.SessionListRequest("claude", 25)], requests);
+        var evidence = store.CompleteAction(action.Id, output);
+        Assert.Equal(("needs_review", "action:agent-sessions"), (evidence.State, evidence.Provenance));
+        Assert.Contains("Folder: quotes-service", evidence.Body);
+        await Assert.ThrowsAsync<WorkspaceException>(() =>
+            Module.RunActionAsync(
+                CompanySessions.ReadAction,
+                new Dictionary<string, string> { ["app"] = "cursor" },
+                registry.For(Module.Manifest).ReadOnly(),
+                Token
+            )
+        );
+        Assert.Single(requests);
     }
 }

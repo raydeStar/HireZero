@@ -39,3 +39,4 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 | [PHASE2B5C1_REPORT](PHASE2B5C1_REPORT.md) | Phase 2B.5c1: request preparation as a measured skill |
 | [PHASE2B5C2_REPORT](PHASE2B5C2_REPORT.md) | Phase 2B.5c2: Wiki drafts published from an approved artifact |
 | [PHASE2B5D1_REPORT](PHASE2B5D1_REPORT.md) | Phase 2B.5d1: Microsoft 365 intake as an optional integration |
+| [PHASE2B5E1_REPORT](PHASE2B5E1_REPORT.md) | Phase 2B.5e1: read-only agent sessions and one-call publications |

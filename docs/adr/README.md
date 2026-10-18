@@ -20,3 +20,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0013](0013-execution-limits-approved-with-the-grant.md) | Execution limits are approved with the grant | Accepted |
 | [0014](0014-pinned-codex-runtime.md) | Live company coding runs on a pinned Codex runtime | Accepted |
 | [0015](0015-publishing-an-approved-artifact.md) | Publishing an approved artifact | Accepted |
+| [0016](0016-publishing-one-approved-call.md) | Publishing one approved external call | Accepted |

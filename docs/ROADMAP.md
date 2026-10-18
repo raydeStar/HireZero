@@ -154,9 +154,14 @@ features in 2B.5 rather than twice.
   setup on the company overview, an integrations status list, and a test keeping Microsoft 365 names out of Core.
 - **2B.5d2 (needs your decision):** replying to a message as a publication sourced from an approved reply. It needs
   the `Mail.Send` permission, which the legacy integration never requested, and a publication with no local call.
-- **2B.5e to 2B.5i:** each legacy-only feature as an optional integration
+- **2B.5e1 (done):** read-only coding-agent session listing as an optional integration (`agent-sessions` action,
+  off until apps are listed in `agent-apps.json`), and publications with one approved external call
+  ([ADR 0016](adr/0016-publishing-one-approved-call.md)).
+- **2B.5e2 (needs your decisions):** steering a session as an owner-approved publication, with the legacy steering
+  code and its Core vocabulary moving into the integration.
+- **2B.5f to 2B.5i:** each legacy-only feature as an optional integration
   ([ADR 0009](adr/0009-legacy-features-are-optional-integrations.md)), taking its vocabulary out of Core:
-  coding-agent session steering, Azure DevOps, Jev triage, tailnet multi-user access and the daily brief.
+  Azure DevOps, Jev triage, tailnet multi-user access and the daily brief.
 - **2B.5j:** merge the Developer panels into the company UI and give modules their own storage migrations. Then
   retire `IRole`, `roles.json`, `IModelGateway`, `UsageMeter`, the Developer, Recovery and Held profiles and
   `web/src/shell`.

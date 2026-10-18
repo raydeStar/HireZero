@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
     <ProjectReference Include="../../src/HireZero.Tools.Microsoft365/HireZero.Tools.Microsoft365.csproj" />
+    <ProjectReference Include="../../src/HireZero.Tools.AgentApps/HireZero.Tools.AgentApps.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.AgentApps/HireZero.Integrations.AgentApps.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.AzureDevOps/HireZero.Integrations.AzureDevOps.csproj" />

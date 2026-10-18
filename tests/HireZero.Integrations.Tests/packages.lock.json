@@ -193,7 +193,8 @@
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
-          "HireZero.Integrations.Codex": "[1.0.0, )"
+          "HireZero.Integrations.Codex": "[1.0.0, )",
+          "HireZero.Tools.AgentApps": "[1.0.0, )"
         }
       },
       "hirezero.integrations.azuredevops": {
@@ -226,6 +227,12 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.Wiki": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.agentapps": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.tools.microsoft365": {
