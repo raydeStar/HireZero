@@ -66,7 +66,9 @@ is approved can it be evidence for a skill such as `pr-review`. Models themselve
 Reviewed execution can be published ([ADR 0012](adr/0012-company-publication.md)). The module proposes the exact
 local calls and one external call. The owner approves that publication after the change itself, and the
 `company-publication` verifier authorizes each call once, in order. The Developer's `pr-fix` uses this to commit a
-reviewed fix and push it to the pull request's branch with a lease on the reviewed head.
+reviewed fix and push it to the pull request's branch with a lease on the reviewed head. A measured skill's approved
+artifact can be published the same way ([ADR 0015](adr/0015-publishing-an-approved-artifact.md)): the Developer's
+`wiki-draft` contributes and then publishes one Wiki entry.
 
 On the web, `web/src/roles/company.ts` collects every `web/src/roles/<id>/company.tsx` and renders a contribution
 only where the module's manifest declares the slot (`skill-input:<skill>` for structured input editors, named

@@ -3,7 +3,7 @@ import { api } from "../shell/api";
 import type { Snapshot, Work } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
 import { ArtifactHandoff } from "./ArtifactHandoff";
-import { ExecutionSteps } from "./ExecutionSteps";
+import { ArtifactPublication, ExecutionSteps } from "./ExecutionSteps";
 const reasonLabels: Record<string, string> = {
   "handoff-awaiting-approval": "Assigned from an approved handoff. Separate execution approval is required.",
   "execution-unavailable": "Reviewed execution needs a granted checkout and your approval of its exact proposal.",
@@ -141,6 +141,15 @@ export function ConversationJob({
           available={!!snapshot.capabilities.measuredOneJob}
           busy={busy}
           prepare={run}
+          refresh={refresh}
+        />
+      )}
+      {employeeRole?.publishingSkills?.includes(t.skill) && !employeeRole.executionSkills?.includes(t.skill) && (
+        <ArtifactPublication
+          task={t}
+          artifacts={d.artifacts.filter((a) => a.taskId === t.id)}
+          busy={busy}
+          run={run}
           refresh={refresh}
         />
       )}

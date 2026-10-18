@@ -120,7 +120,9 @@ public sealed class CompanyPullRequestFix(CompanyStore store, ToolRegistry regis
     public async Task<CompanyPublication> PublishAsync(string publicationId, CancellationToken token = default)
     {
         var publication = store.Publication(publicationId);
-        var grant = store.Execution(publication.GrantId);
+        var grant = store.Execution(
+            publication.GrantId ?? throw new WorkspaceException("This publication is not a pull request fix.")
+        );
         var task = store.Work(publication.TaskId);
         var target = TargetOf(task);
         var tools = Tools(task.EmployeeId, task.Id);

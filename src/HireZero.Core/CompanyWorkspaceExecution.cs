@@ -192,6 +192,12 @@ public sealed partial class CompanyStore
         return Need<CompanyExecutionGrant>(db, id);
     }
 
+    public CompanyExecutionGrant? FindExecution(string id)
+    {
+        using var db = Open();
+        return Find<CompanyExecutionGrant>(db, id);
+    }
+
     public CompanyTask Work(string id)
     {
         using var db = Open();

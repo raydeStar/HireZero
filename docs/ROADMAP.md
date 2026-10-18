@@ -143,7 +143,7 @@ features in 2B.5 rather than twice.
   for each step. Then the fix loop.
 - **2B.5c1 (done):** request preparation as the `request-prep` measured skill over approved evidence. The legacy
   stage board retires with the legacy profile; your approved artifact is the record.
-- **2B.5c2:** wiki drafts. A `wiki-read` action for evidence, a measured `wiki-draft` skill, and a publication
+- **2B.5c2 (done, see [ADR 0015](adr/0015-publishing-an-approved-artifact.md)):** wiki drafts. A `wiki-read` action for evidence, a measured `wiki-draft` skill, and a publication
   sourced from the approved draft artifact (contribute, then publish once; no automatic retry). Synthetic projects
   only.
 - **Trusted Postgres moves to the live-coding track** (after 2B.5b3 qualification). It is part of the coding

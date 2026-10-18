@@ -66,22 +66,22 @@ public static partial class WikiDraftPolicy
         && value.ResolutionNote.Length <= 1000;
 
     public static bool CanSubmit(WikiDraft draft) =>
-        ValidContent(draft.Content)
-        && !draft.Content.Conflict
-        && !draft.Content.MissingInformation
-        && !ScreenPattern()
-            .IsMatch(
-                string.Join(
-                    '\n',
-                    draft.Content.Title,
-                    draft.Content.Body,
-                    draft.Content.Reason,
-                    draft.Content.SourceNote
-                )
-            )
+        Publishable(draft.Content)
         && draft.Destination.Synthetic
         && draft.Destination.WikiProjectId.StartsWith("synthetic-", StringComparison.Ordinal)
         && (draft.Before is null || draft.Before.Supported && draft.Before.Status == "current");
+
+    // Valid, resolved content with no credential, email or instruction-like text.
+    public static bool Publishable(WikiDraftContent? content) =>
+        ValidContent(content)
+        && !content!.Conflict
+        && !content.MissingInformation
+        && !ScreenPattern().IsMatch(string.Join('\n', content.Title, content.Body, content.Reason, content.SourceNote));
+
+    public static bool SyntheticProject(string? project) =>
+        project is { Length: > 10 and <= 100 }
+        && project.StartsWith("synthetic-", StringComparison.Ordinal)
+        && KeyPattern().IsMatch(project);
 
     public static bool Editable(string status) => status == "draft";
 

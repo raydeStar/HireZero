@@ -159,68 +159,149 @@ export function ExecutionSteps({
           )}
         </div>
       )}
-      {publication && (
-        <div className="co-step">
-          <p>
-            Publication {publication.state}: {publication.summary}
-          </p>
-          {publication.result && <small>Commit {publication.result.slice(0, 12)}</small>}
-          {publication.reason && <p className="co-muted">{publication.reason}</p>}
-          {publication.state === "proposed" && (
-            <>
-              <p className="co-muted">Approve the change's artifact first, then this publication.</p>
-              <div className="co-actions">
-                <button
-                  className="co-primary"
-                  disabled={disabled}
-                  type="button"
-                  onClick={() =>
-                    void command("publication.review", {
-                      id: publication.id,
-                      expectedVersion: publication.version,
-                      digest: publication.digest,
-                      decision: "approve",
-                    })
-                  }
-                >
-                  Approve this publication
-                </button>
-                <button
-                  disabled={disabled}
-                  type="button"
-                  onClick={() =>
-                    void command("publication.review", {
-                      id: publication.id,
-                      expectedVersion: publication.version,
-                      decision: "revoke",
-                    })
-                  }
-                >
-                  Revoke
-                </button>
-              </div>
-            </>
-          )}
-          {publication.state === "approved" && (
+      {publication && publicationControls(publication, disabled, step, command)}
+    </section>
+  );
+}
+
+// The publication's next allowed step: approve or revoke at the exact digest, publish once, or check an unknown outcome.
+// A plain function (not a component) so it renders inline in both panels.
+function publicationControls(
+  publication: Publication,
+  disabled: boolean,
+  step: (name: ExecutionStep, id: string) => Promise<void>,
+  command: (action: string, fields: Record<string, unknown>) => Promise<void>,
+) {
+  return (
+    <div className="co-step">
+      <p>
+        Publication {publication.state}: {publication.summary}
+      </p>
+      {publication.result && <small>Result {publication.result.slice(0, 12)}</small>}
+      {publication.reason && <p className="co-muted">{publication.reason}</p>}
+      {publication.state === "proposed" && (
+        <>
+          <p className="co-muted">Approve the reviewed artifact first, then this publication.</p>
+          <div className="co-actions">
             <button
               className="co-primary"
               disabled={disabled}
               type="button"
-              onClick={() => void step("publish", publication.id)}
+              onClick={() =>
+                void command("publication.review", {
+                  id: publication.id,
+                  expectedVersion: publication.version,
+                  digest: publication.digest,
+                  decision: "approve",
+                })
+              }
             >
-              Publish once
+              Approve this publication
             </button>
-          )}
-          {publication.state === "unknown" && (
-            <>
-              <p className="co-muted">The outcome is unknown and will not be retried. Checking only reads.</p>
-              <button disabled={disabled} type="button" onClick={() => void step("reconcile", publication.id)}>
-                Check whether it was published
-              </button>
-            </>
-          )}
-        </div>
+            <button
+              disabled={disabled}
+              type="button"
+              onClick={() =>
+                void command("publication.review", {
+                  id: publication.id,
+                  expectedVersion: publication.version,
+                  decision: "revoke",
+                })
+              }
+            >
+              Revoke
+            </button>
+          </div>
+        </>
       )}
+      {publication.state === "approved" && (
+        <button
+          className="co-primary"
+          disabled={disabled}
+          type="button"
+          onClick={() => void step("publish", publication.id)}
+        >
+          Publish once
+        </button>
+      )}
+      {publication.state === "unknown" && (
+        <>
+          <p className="co-muted">The outcome is unknown and will not be retried. Checking only reads.</p>
+          <button disabled={disabled} type="button" onClick={() => void step("reconcile", publication.id)}>
+            Check whether it was published
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Publishing an approved artifact, such as a Wiki draft (docs/adr/0015-publishing-an-approved-artifact.md): propose it
+// once it is approved, then approve and publish the exact publication.
+export function ArtifactPublication({
+  task: t,
+  artifacts,
+  busy,
+  run,
+  refresh,
+}: {
+  task: Work;
+  artifacts: { id: string; state: string; provenance: string }[];
+  busy: boolean;
+  run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
+  refresh: () => Promise<void>;
+}) {
+  const [detail, setDetail] = useState<{ publications?: (Publication & { artifactId: string })[] } | null>(null),
+    [error, setError] = useState(""),
+    [working, setWorking] = useState(false);
+  const load = useCallback(
+    () =>
+      api<{ publications?: (Publication & { artifactId: string })[] }>("/company/tasks/" + t.id)
+        .then((result) => setDetail(result))
+        .catch((e: Error) => setError(e.message)),
+    [t.id],
+  );
+  useEffect(() => {
+    void load();
+  }, [load, t.version]);
+  async function step(name: ExecutionStep, id: string) {
+    setWorking(true);
+    setError("");
+    try {
+      await executionStep(name, id);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setWorking(false);
+      await refresh();
+      await load();
+    }
+  }
+  async function command(action: string, fields: Record<string, unknown>) {
+    await run(action, fields);
+    await load();
+  }
+  const publications = detail?.publications ?? [],
+    publication = publications.filter((p) => started.includes(p.state)).at(-1),
+    disabled = busy || working,
+    ready = artifacts.filter(
+      (a) =>
+        a.state === "approved" &&
+        !a.provenance.startsWith("action:") &&
+        !publications.some((p) => p.artifactId === a.id && started.includes(p.state)),
+    );
+  return (
+    <section className="co-execution" aria-label="Publication">
+      <h4>Publication</h4>
+      {error && <p role="alert">{error}</p>}
+      {!publication &&
+        ready.map((a) => (
+          <button key={a.id} disabled={disabled} type="button" onClick={() => void step("propose", a.id)}>
+            Propose publication
+          </button>
+        ))}
+      {!publication && ready.length === 0 && <p className="co-muted">Approve the draft to publish it.</p>}
+      {publication && publicationControls(publication, disabled, step, command)}
     </section>
   );
 }

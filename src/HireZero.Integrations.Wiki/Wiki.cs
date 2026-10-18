@@ -40,6 +40,10 @@ public sealed class WikiToolProvider(IHttpClientFactory clients) : IToolProvider
                 request.Headers.Add("Origin", WikiRegistration.Origin().GetLeftPart(UriPartial.Authority));
             if (call.Csrf is { Length: > 0 } csrf)
                 request.Headers.Add("X-CSRF-TOKEN", csrf);
+            // Without a caller token, the session's own token is read here, so an approved call's input (and its
+            // digest) does not depend on a per-session value.
+            else if (call.Method == "POST" && !path.StartsWith("api/pilot/session?", StringComparison.Ordinal))
+                request.Headers.Add("X-CSRF-TOKEN", await SessionTokenAsync(client, token));
             if (call.JsonBody is not null)
                 request.Content = new StringContent(call.JsonBody, System.Text.Encoding.UTF8, "application/json");
             using var response = await AgentEffectBoundary.Start(() => client.SendAsync(request, token));
@@ -50,6 +54,24 @@ public sealed class WikiToolProvider(IHttpClientFactory clients) : IToolProvider
         {
             throw new ToolFailureException("unavailable", "The Wiki is unavailable or the request outcome is unknown.");
         }
+    }
+
+    private static async Task<string> SessionTokenAsync(HttpClient client, CancellationToken token)
+    {
+        using var response = await client.GetAsync("api/session", token);
+        var body = await ReadBoundedAsync(response, token);
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(body);
+            if (
+                response.IsSuccessStatusCode
+                && json.RootElement.TryGetProperty("csrf", out var csrf)
+                && csrf.GetString() is { Length: > 0 } value
+            )
+                return value;
+        }
+        catch (System.Text.Json.JsonException) { }
+        throw new ToolFailureException("refused", "The Wiki session has no request token; nothing was sent.", 409);
     }
 
     // Reads at most 2 MB of the response body.

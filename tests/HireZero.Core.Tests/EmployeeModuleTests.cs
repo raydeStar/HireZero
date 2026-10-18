@@ -82,8 +82,24 @@ public sealed class EmployeeModuleTests
             Manifest() with
             {
                 Actions = [new("gather", "Unbounded", "x", [new("field", "Field", 100000)])],
+            },
+            Manifest() with
+            {
+                // Only execution and measured skills can publish.
+                Skills = [new("draft", "Draft", "Draft text.") { Publishes = true }],
             }
         );
+
+    [Fact]
+    public void MeasuredSkillsMayPublishTheirApprovedArtifact()
+    {
+        var manifest = Manifest() with
+        {
+            Skills = [new("draft", "Draft", "Draft text.", SkillMode.Measured) { Publishes = true }],
+        };
+        EmployeeModuleCatalog.Validate([new Module(manifest)]);
+        Assert.Equal(["draft"], CompanyRole.From(new Module(manifest)).PublishingSkills);
+    }
 
     [Theory]
     [MemberData(nameof(Invalid))]

@@ -219,6 +219,19 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"
         }
+      },
+      "hirezero.integrations.wiki": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Wiki": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.wiki": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
       }
     }
   }

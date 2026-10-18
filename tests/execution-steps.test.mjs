@@ -11,7 +11,10 @@ const code = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
 
-function render(detail, { resource = 'C:/fictional/checkout', state = 'blocked', publishes = true } = {}) {
+function render(
+  detail,
+  { resource = 'C:/fictional/checkout', state = 'blocked', publishes = true, component = 'ExecutionSteps', artifacts = [] } = {},
+) {
   const slots = [detail, '', '', false];
   let cursor = 0;
   const commands = [], steps = [];
@@ -33,9 +36,10 @@ function render(detail, { resource = 'C:/fictional/checkout', state = 'blocked',
       : name === './api' ? { executionStep: async (step, id) => steps.push([step, id]) }
       : { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }), Fragment: 'fragment' },
   });
-  const tree = exports.ExecutionSteps({
+  const tree = exports[component]({
     task: { id: 'task-1', version: 3, state, resource },
     publishes,
+    artifacts,
     busy: false,
     run: async (action, fields) => commands.push([action, fields]),
     refresh: async () => {},
@@ -120,10 +124,40 @@ test('an approved publication publishes once; an unknown one is only checked', a
 test('a proposed publication is approved at its exact digest after the change', async () => {
   const done = grant('completed', { review: { digest: 'r', files: [{ path: 'Quote.cs' }] } });
   const view = render({ executions: [done], publications: [publication('proposed')] });
-  assert.match(view.text, /Approve the change's artifact first/);
+  assert.match(view.text, /Approve the reviewed artifact first/);
   view.button('Approve this publication').props.onClick();
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(JSON.parse(JSON.stringify(view.commands)), [
     ['publication.review', { id: 'pub-1', expectedVersion: 4, digest: 'p'.repeat(64), decision: 'approve' }],
   ]);
 });
+
+test('an approved draft, not gathered evidence, can be proposed for publication', async () => {
+  const artifacts = [
+    { id: 'evidence', state: 'approved', provenance: 'action:wiki-read' },
+    { id: 'draft', state: 'approved', provenance: 'model-output' },
+  ];
+  const view = render({ publications: [] }, { component: 'ArtifactPublication', artifacts });
+  // Only the draft gets a button; the gathered evidence does not.
+  const propose = view.nodes.filter((n) => n.type === 'button');
+  assert.equal(propose.length, 1);
+  propose[0].props.onClick();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(view.steps, [['propose', 'draft']]);
+  const waiting = render({ publications: [] }, { component: 'ArtifactPublication', artifacts: [{ ...artifacts[1], state: 'needs_review' }] });
+  assert.equal(waiting.button('Propose publication'), undefined);
+  assert.match(waiting.text, /Approve the draft/);
+});
+
+test('an artifact publication uses the same exact-digest controls', async () => {
+  const artifacts = [{ id: 'draft', state: 'approved', provenance: 'model-output' }];
+  const view = render(
+    { publications: [{ ...publication('approved'), artifactId: 'draft' }] },
+    { component: 'ArtifactPublication', artifacts },
+  );
+  assert.equal(view.button('Propose publication'), undefined);
+  view.button('Publish once').props.onClick();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(view.steps, [['publish', 'pub-1']]);
+});
+

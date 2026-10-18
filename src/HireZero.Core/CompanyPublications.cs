@@ -2,16 +2,17 @@ using Microsoft.Data.Sqlite;
 
 namespace HireZero.Core;
 
-// Publishing a reviewed execution's changes (docs/adr/0012-company-publication.md). The module proposes the exact local
-// write calls (such as staging and committing) and describes where the result goes; the owner approves that proposal
-// once the change's artifact is approved. Each local write is then authorized only as the next proposed call, and the
+// Publishing reviewed work (docs/adr/0012-company-publication.md, docs/adr/0015-publishing-an-approved-artifact.md).
+// The source is either a reviewed execution's changes (a grant) or an approved artifact, such as a Wiki draft. The
+// module proposes the exact local write calls and describes where the result goes; the owner approves that proposal
+// once the source's artifact is approved. Each local write is then authorized only as the next proposed call, and the
 // single external call (such as a push) only after the module binds it, once. An external call whose outcome is not
 // confirmed becomes unknown and is never replayed.
-public sealed record CompanyPublicationProposal(string GrantId, string ArtifactId, string Summary, string[] Calls);
+public sealed record CompanyPublicationProposal(string? GrantId, string ArtifactId, string Summary, string[] Calls);
 
 public sealed record CompanyPublication(
     string Id,
-    string GrantId,
+    string? GrantId,
     string TaskId,
     string EmployeeId,
     string ArtifactId,
@@ -43,35 +44,56 @@ public sealed partial class CompanyStore
             db,
             () =>
             {
-                var g = Need<CompanyExecutionGrant>(db, proposal.GrantId);
                 var a = Need<CompanyArtifact>(db, proposal.ArtifactId);
-                var task = Need<CompanyTask>(db, g.TaskId);
-                if (!Role(Need<CompanyEmployee>(db, g.EmployeeId).RoleId).PublishingSkills.Contains(task.Skill))
+                var task = Need<CompanyTask>(db, a.TaskId);
+                if (!Role(Need<CompanyEmployee>(db, a.EmployeeId).RoleId).PublishingSkills.Contains(task.Skill))
                     throw new WorkspaceException("This skill's results are not published.");
-                if (
-                    g.State != "completed"
-                    || g.Review is not { Files.Length: > 0 } review
-                    || a.TaskId != g.TaskId
-                    || !a.Body.Contains(review.Digest, StringComparison.Ordinal)
-                    || a.State is not ("needs_review" or "approved")
-                )
-                    throw new WorkspaceException("Only a completed, reviewed change can be proposed for publication.");
+                if (a.State is not ("needs_review" or "approved") || task.State is "canceled" or "superseded")
+                    throw new WorkspaceException("Only reviewable work can be proposed for publication.");
+                string reviewDigest;
+                if (proposal.GrantId is null)
+                {
+                    // An approved artifact is published as it stands; its exact digest is what the owner reviews.
+                    if (a.Provenance.StartsWith("action:", StringComparison.Ordinal))
+                        throw new WorkspaceException("Gathered evidence is not published.");
+                    reviewDigest = a.Digest;
+                }
+                else
+                {
+                    var g = Need<CompanyExecutionGrant>(db, proposal.GrantId);
+                    if (
+                        g.State != "completed"
+                        || g.Review is not { Files.Length: > 0 } review
+                        || a.TaskId != g.TaskId
+                        || !a.Body.Contains(review.Digest, StringComparison.Ordinal)
+                    )
+                        throw new WorkspaceException(
+                            "Only a completed, reviewed change can be proposed for publication."
+                        );
+                    reviewDigest = review.Digest;
+                }
                 if (
                     proposal.Calls.Length is 0 or > 8
                     || proposal.Calls.Any(c => c.Length != 64 || !c.All(Uri.IsHexDigit))
                 )
                     throw new WorkspaceException("A publication needs between one and eight exact call digests.");
-                if (All<CompanyPublication>(db).Any(p => p.GrantId == g.Id && p.State is not ("revoked" or "failed")))
-                    throw new WorkspaceException("This change already has a publication.");
+                if (
+                    All<CompanyPublication>(db)
+                        .Any(p =>
+                            (proposal.GrantId is null ? p.ArtifactId == a.Id : p.GrantId == proposal.GrantId)
+                            && p.State is not ("revoked" or "failed")
+                        )
+                )
+                    throw new WorkspaceException("This work already has a publication.");
                 var summary = Text(proposal.Summary, 600);
                 var id = Id();
                 var p = new CompanyPublication(
                     id,
-                    g.Id,
-                    g.TaskId,
-                    g.EmployeeId,
+                    proposal.GrantId,
+                    a.TaskId,
+                    a.EmployeeId,
                     a.Id,
-                    review.Digest,
+                    reviewDigest,
                     summary,
                     proposal.Calls,
                     CompanyJson.Digest(proposal with { Summary = summary }),
@@ -184,7 +206,9 @@ public sealed partial class CompanyStore
 
     // Records how a started publication ended. Without the external call it can only fail; once that call was
     // authorized it is either confirmed published or unknown, never retried.
-    public CompanyPublication FinishPublication(string id, bool confirmed, string? reason = null)
+    // Landed means the destination completed the publication on a local call (for example a Wiki that approves a
+    // proposal on submission), so no external call was needed; it is published only when confirmed.
+    public CompanyPublication FinishPublication(string id, bool confirmed, string? reason = null, bool landed = false)
     {
         using var db = Open();
         return Transaction(
@@ -195,9 +219,9 @@ public sealed partial class CompanyStore
                 if (p.State is not ("committing" or "pushing"))
                     return p;
                 var state =
-                    !p.ExternalSent ? "failed"
-                    : confirmed ? "published"
-                    : "unknown";
+                    p.ExternalSent ? (confirmed ? "published" : "unknown")
+                    : landed && confirmed && p.Used == p.Calls.Length ? "published"
+                    : "failed";
                 return Put(
                     db,
                     p with
@@ -256,10 +280,10 @@ public sealed partial class CompanyStore
     // The change the owner approved is still the one recorded: the grant's review and the approved artifact.
     private static bool Unchanged(SqliteConnection db, CompanyPublication p)
     {
-        var g = Need<CompanyExecutionGrant>(db, p.GrantId);
         var a = Need<CompanyArtifact>(db, p.ArtifactId);
         var task = Need<CompanyTask>(db, p.TaskId);
-        return g.Review?.Digest == p.ReviewDigest
+        var reviewed = p.GrantId is null ? a.Digest : Need<CompanyExecutionGrant>(db, p.GrantId).Review?.Digest;
+        return reviewed == p.ReviewDigest
             && a.State is "needs_review" or "approved"
             && task.State is not ("canceled" or "superseded");
     }

@@ -26,9 +26,10 @@ public interface IEmployeeModule
         CancellationToken token
     ) => throw new WorkspaceException("This employee has no such action.", 404);
 
-    // One step of reviewed execution for an Execution-mode skill (docs/adr/0012-company-publication.md). The id is the
-    // task for Prepare, the execution grant for Run and Propose, and the publication for Publish and Reconcile. Each
-    // step is single use in the store, so a retried request is refused rather than repeated.
+    // One step of reviewed execution or publication (docs/adr/0012-company-publication.md). The id is the task for
+    // Prepare, the execution grant for Run, the grant or (for a skill that publishes an approved artifact) the artifact
+    // for Propose, and the publication for Publish and Reconcile. Each step is single use in the store, so a retried
+    // request is refused rather than repeated.
     Task<object> ExecuteAsync(
         ExecutionStep step,
         string id,
@@ -89,7 +90,8 @@ public enum SkillMode
 
 public sealed record EmployeeSkill(string Id, string Name, string Description, SkillMode Mode = SkillMode.Text)
 {
-    // An Execution skill whose reviewed result the module can publish (docs/adr/0012-company-publication.md).
+    // A skill whose reviewed result the module can publish: an execution's changes or a measured skill's approved
+    // artifact (docs/adr/0012-company-publication.md, docs/adr/0015-publishing-an-approved-artifact.md).
     public bool Publishes { get; init; }
 }
 
@@ -232,8 +234,8 @@ public static partial class EmployeeModuleCatalog
             "action fields need distinct lowercase ids and a bound of at most 4000 characters."
         );
         Require(
-            manifest.Skills.All(s => !s.Publishes || s.Mode == SkillMode.Execution),
-            "only execution skills can publish."
+            manifest.Skills.All(s => !s.Publishes || s.Mode is SkillMode.Execution or SkillMode.Measured),
+            "only execution and measured skills can publish."
         );
         Require(
             !manifest.Capabilities.WorkspaceClaims || manifest.Skills.Any(s => s.Mode == SkillMode.Execution),

@@ -379,7 +379,7 @@ public sealed class PullRequestFixTests : IDisposable
         var tools = fix.Registry.For(DeveloperModule.Shared, fix.Employee.Id, fix.Task.Id);
         var token = TestContext.Current.CancellationToken;
         var add = new GitCommand(
-            fix.Store.Execution(publication.GrantId).Workspace,
+            fix.Store.Execution(publication.GrantId!).Workspace,
             ["add", "--", "fixture-change.txt"]
         );
 
@@ -568,7 +568,7 @@ public sealed class PullRequestFixTests : IDisposable
                 .EnumerateArray()
                 .Single(r => r.GetProperty("id").GetString() == "developer");
             Assert.Equal(
-                [DeveloperModule.Fix],
+                [DeveloperModule.Fix, CompanyWiki.Draft],
                 role.GetProperty("publishingSkills").EnumerateArray().Select(e => e.GetString()!)
             );
             await app.StopAsync(Token);

@@ -2,6 +2,7 @@ using HireZero.Core;
 using HireZero.Integrations.Codex;
 using HireZero.Integrations.Git;
 using HireZero.Integrations.GitHub;
+using HireZero.Integrations.Wiki;
 
 // Explicit composition profile. Native Codex inspection is opt-in; legacy workers are never registered.
 public static class CompanyWorkspace
@@ -143,7 +144,14 @@ public static class CompanyWorkspace
             builder.Services.AddSingleton<IModelProvider>(model);
             builder.Services.AddSingleton<CompanyScheduler>();
             builder.Services.AddHostedService(s => s.GetRequiredService<CompanyScheduler>());
+            // The synthetic Wiki pilot, only when it is switched on (docs/adr/0015-publishing-an-approved-artifact.md).
+            var wiki = fixtureTools is null && Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1";
+            if (wiki)
+                builder.Services.AddWiki();
             var app = builder.Build();
+            if (wiki)
+                foreach (var provider in app.Services.GetServices<IToolProvider>())
+                    provider.Register(tools);
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
             app.Use(
@@ -306,7 +314,8 @@ public static class CompanyWorkspace
                     var employeeId = parsed switch
                     {
                         ExecutionStep.Prepare => store.Work(id).EmployeeId,
-                        ExecutionStep.Run or ExecutionStep.Propose => store.Execution(id).EmployeeId,
+                        ExecutionStep.Run => store.Execution(id).EmployeeId,
+                        ExecutionStep.Propose => store.FindExecution(id)?.EmployeeId ?? store.Artifact(id).EmployeeId,
                         _ => store.Publication(id).EmployeeId,
                     };
                     var employee = store.EmployeeOf(employeeId);

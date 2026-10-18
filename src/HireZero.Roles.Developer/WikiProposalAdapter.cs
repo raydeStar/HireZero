@@ -214,13 +214,19 @@ public sealed class WikiProposalAdapter(ToolRegistry? registry = null)
         );
         if (json.RootElement.ValueKind != JsonValueKind.Array)
             throw new WikiAdapterException(503);
+        return ParseTargets(json.RootElement, project.WikiProjectId);
+    }
+
+    // The supported, current knowledge of one project, from a GET api/knowledge reply.
+    public static WikiTarget[] ParseTargets(JsonElement knowledge, string projectId)
+    {
         var result = new List<WikiTarget>();
-        foreach (var value in json.RootElement.EnumerateArray().Take(40))
+        foreach (var value in knowledge.EnumerateArray().Take(40))
         {
             var entry = value.GetProperty("entry");
             var revision = value.GetProperty("revision");
             if (
-                entry.GetProperty("project").GetString() != project.WikiProjectId
+                entry.GetProperty("project").GetString() != projectId
                 || entry.GetProperty("area").GetString() != "engineering"
             )
                 continue;

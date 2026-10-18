@@ -74,6 +74,15 @@ public sealed class DeveloperModule : IEmployeeModule
                     "Find a request's scope gaps from approved evidence: stage, blocker, next action and questions.",
                     SkillMode.Measured
                 ),
+                new(
+                    CompanyWiki.Draft,
+                    "Wiki draft",
+                    "Draft one Wiki knowledge entry from an approved Wiki read; you approve it before it is published once.",
+                    SkillMode.Measured
+                )
+                {
+                    Publishes = true,
+                },
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -146,7 +155,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 new("diffs-accepted", "Diffs accepted", "count", "Reviewed checkout diffs the owner accepted."),
             ],
             Capabilities = new() { WorkspaceClaims = true },
-            Actions = [PullRequestEvidenceAction.Definition],
+            Actions = [PullRequestEvidenceAction.Definition, CompanyWiki.Definition],
             DisplayOrder = 20,
         };
 
@@ -156,6 +165,7 @@ public sealed class DeveloperModule : IEmployeeModule
             Review => ReviewInstructions,
             Fix => FixInstructions,
             Prepare => PrepareInstructions,
+            CompanyWiki.Draft => CompanyWiki.DraftInstructions,
             _ => Manifest.Instructions,
         };
 
@@ -165,9 +175,17 @@ public sealed class DeveloperModule : IEmployeeModule
         IToolbox tools,
         CancellationToken token
     ) =>
-        action == PullRequestEvidenceAction.Id
-            ? PullRequestEvidenceAction.RunAsync(input, tools, DateTimeOffset.UtcNow, token)
-            : throw new WorkspaceException("This employee has no such action.", 404);
+        action switch
+        {
+            PullRequestEvidenceAction.Id => PullRequestEvidenceAction.RunAsync(
+                input,
+                tools,
+                DateTimeOffset.UtcNow,
+                token
+            ),
+            CompanyWiki.ReadAction => CompanyWiki.ReadAsync(input, tools, token),
+            _ => throw new WorkspaceException("This employee has no such action.", 404),
+        };
 
     public async Task<object> ExecuteAsync(
         ExecutionStep step,
@@ -180,7 +198,8 @@ public sealed class DeveloperModule : IEmployeeModule
         var taskId = step switch
         {
             ExecutionStep.Prepare => id,
-            ExecutionStep.Run or ExecutionStep.Propose => store.Execution(id).TaskId,
+            ExecutionStep.Run => store.Execution(id).TaskId,
+            ExecutionStep.Propose => store.FindExecution(id)?.TaskId ?? store.Artifact(id).TaskId,
             _ => store.Publication(id).TaskId,
         };
         var task = store.Work(taskId);
@@ -202,6 +221,17 @@ public sealed class DeveloperModule : IEmployeeModule
                 ),
                 ExecutionStep.Run => await Run(bridge.ExecuteFixtureAsync(id, token), store, id),
                 _ => throw new WorkspaceException("Reviewed implementation work is not published."),
+            };
+        }
+        if (task.Skill == CompanyWiki.Draft)
+        {
+            var wiki = new CompanyWikiPublication(store, services.Tools);
+            return step switch
+            {
+                ExecutionStep.Propose => await wiki.ProposeAsync(id, token),
+                ExecutionStep.Publish => await wiki.PublishAsync(id, token),
+                ExecutionStep.Reconcile => await wiki.ReconcileAsync(id, token),
+                _ => throw new WorkspaceException("A Wiki draft is published, not executed."),
             };
         }
         if (task.Skill != Fix)
