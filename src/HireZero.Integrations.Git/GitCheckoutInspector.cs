@@ -69,6 +69,7 @@ public sealed class GitCheckoutInspector(string gitExecutable)
                 Resolve(parts[1]);
             }
             var current = new Dictionary<string, string>(blobs.Comparer);
+            var ignored = await IgnoredAsync(root, token);
             var stack = new Stack<string>();
             stack.Push(root);
             var visited = 0;
@@ -76,7 +77,7 @@ public sealed class GitCheckoutInspector(string gitExecutable)
                 foreach (var file in Directory.EnumerateFileSystemEntries(folder))
                 {
                     token.ThrowIfCancellationRequested();
-                    if (folder == root && Path.GetFileName(file) == ".git")
+                    if (folder == root && Path.GetFileName(file) == ".git" || Ignored(ignored, root, file))
                         continue;
                     if (++visited > 2000)
                         throw new WorkspaceException("Checkout exceeds the bounded review scope.");
@@ -247,6 +248,33 @@ public sealed class GitCheckoutInspector(string gitExecutable)
         }
     }
 
+    // Untracked paths the checkout's own ignore rules exclude (build output such as obj/), whole folders collapsed. They
+    // are never staged, so neither the fingerprint nor the review covers them; tracked files are never in this list.
+    private async Task<HashSet<string>> IgnoredAsync(string root, CancellationToken token)
+    {
+        var listed = Encoding.UTF8.GetString(
+            await ReadGit(
+                root,
+                1024 * 1024,
+                false,
+                token,
+                "ls-files",
+                "--others",
+                "--ignored",
+                "--exclude-standard",
+                "--directory",
+                "-z"
+            )
+        );
+        return new HashSet<string>(
+            listed.Split('\0', StringSplitOptions.RemoveEmptyEntries).Select(p => p.TrimEnd('/')),
+            OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal
+        );
+    }
+
+    private static bool Ignored(HashSet<string> ignored, string root, string path) =>
+        ignored.Count > 0 && ignored.Contains(Path.GetRelativePath(root, path).Replace('\\', '/'));
+
     private static string BlobId(byte[] content, int length)
     {
         using var hash =
@@ -324,10 +352,11 @@ public sealed class GitCheckoutInspector(string gitExecutable)
         long total = 0;
         int count = 0;
         var files = new List<string>();
+        var ignored = await IgnoredAsync(root, token);
         while (stack.TryPop(out var directory))
             foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
             {
-                if (directory == root && Path.GetFileName(entry) == ".git")
+                if (directory == root && Path.GetFileName(entry) == ".git" || Ignored(ignored, root, entry))
                     continue;
                 var attributes = File.GetAttributes(entry);
                 if ((attributes & FileAttributes.ReparsePoint) != 0)

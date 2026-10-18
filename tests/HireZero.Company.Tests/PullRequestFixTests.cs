@@ -479,14 +479,20 @@ public sealed class PullRequestFixTests : IDisposable
         Assert.Equal(fix.Head, grant.Revision);
     }
 
-    // Git can call a checkout clean while it holds files the review would attribute to the run (here an excluded file);
-    // the work is refused before anything is sent.
+    // Git can call a checkout clean while a file differs from the commit (here a skip-worktree edit); the review would
+    // attribute it to the run, so the work is refused before anything is sent. Ignored build output is never staged, so
+    // it is left out of the review.
     [Fact]
     public async Task ACheckoutWhoseFilesDifferFromItsCommitIsRefusedBeforeARun()
     {
         var fix = await Assign();
-        await File.AppendAllTextAsync(Path.Combine(Checkout, ".git", "info", "exclude"), "local.txt\n", Token);
-        await File.WriteAllTextAsync(Path.Combine(Checkout, "local.txt"), "Fictional local note\n", Token);
+        await File.AppendAllTextAsync(Path.Combine(Checkout, ".git", "info", "exclude"), "obj/\n", Token);
+        Directory.CreateDirectory(Path.Combine(Checkout, "obj"));
+        await File.WriteAllTextAsync(Path.Combine(Checkout, "obj", "build.json"), "{}\n", Token);
+        Assert.Empty((await new GitCheckoutInspector(GitPath).ReviewAsync(Checkout, fix.Head, Token)).Files);
+
+        await Git(Checkout, "update-index", "--skip-worktree", "Quote.cs");
+        await File.AppendAllTextAsync(Path.Combine(Checkout, "Quote.cs"), "// unreviewed\n", Token);
         Assert.Equal("", (await Git(Checkout, "status", "--porcelain")).Trim());
         var refusal = await Assert.ThrowsAsync<WorkspaceException>(() =>
             fix.Developer.PrepareAsync(fix.Task.Id, Token)
