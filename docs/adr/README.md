@@ -33,3 +33,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0026](0026-container-and-releases.md) | Container, releases and advisories | Accepted |
 | [0027](0027-secrets-from-files.md) | Secrets from files, vault-neutral | Accepted |
 | [0028](0028-typed-settings.md) | Typed settings | Accepted |
+| [0029](0029-marketing-analytics-reads.md) | Marketing analytics reads | Accepted |

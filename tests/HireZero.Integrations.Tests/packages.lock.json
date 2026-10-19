@@ -210,6 +210,13 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.google": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Analytics": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.jev": {
         "type": "Project",
         "dependencies": {
@@ -245,6 +252,12 @@
         }
       },
       "hirezero.tools.agentapps": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.analytics": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

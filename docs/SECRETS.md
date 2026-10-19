@@ -82,6 +82,7 @@ flowchart LR
 | `HIREZERO_OPENROUTER_API_KEY` or `OPENROUTER_API_KEY` | The OpenRouter model provider | The provider is unavailable | Change the file; the next call uses it |
 | `HIREZERO_JEV_API_KEY` or `TYPESAFE_API_KEY` | The Jev choice service | Jev is unavailable | Change the file |
 | `HIREZERO_SEMAFORGE_API_KEY` | SemaForge | SemaForge is unavailable | Change the file |
+| `HIREZERO_GOOGLE_SERVICE_ACCOUNT` | The Google service account key (JSON) for read-only GA4 and Search Console | Google analytics is unavailable | Add a new key to the service account, update the file, delete the old key |
 
 At startup, the log lists each configured secret, where it came from and how stored keys are protected. It never
 shows a value:

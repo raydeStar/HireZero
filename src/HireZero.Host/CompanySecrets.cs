@@ -16,6 +16,7 @@ public static class CompanySecrets
         "HIREZERO_JEV_API_KEY",
         "TYPESAFE_API_KEY",
         "HIREZERO_SEMAFORGE_API_KEY",
+        HireZero.Integrations.Google.GoogleAnalyticsProvider.KeySecret,
     ];
 
     public static IEnumerable<string> Report(SecretSource? secrets = null)

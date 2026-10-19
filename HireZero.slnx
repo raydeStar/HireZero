@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/HireZero.Core/HireZero.Core.csproj" />
     <Project Path="src/HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
+    <Project Path="src/HireZero.Integrations.Google/HireZero.Integrations.Google.csproj" />
     <Project Path="src/HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />
     <Project Path="src/HireZero.Integrations.OpenRouter/HireZero.Integrations.OpenRouter.csproj" />
     <Project Path="src/HireZero.Integrations.Codex/HireZero.Integrations.Codex.csproj" />
@@ -21,6 +22,7 @@
     <Project Path="src/HireZero.Tools.Node/HireZero.Tools.Node.csproj" />
     <Project Path="src/HireZero.Tools.SemaForge/HireZero.Tools.SemaForge.csproj" />
     <Project Path="src/HireZero.Tools.AgentApps/HireZero.Tools.AgentApps.csproj" />
+    <Project Path="src/HireZero.Tools.Analytics/HireZero.Tools.Analytics.csproj" />
     <Project Path="src/HireZero.Tools.AzureDevOps/HireZero.Tools.AzureDevOps.csproj" />
     <Project Path="src/HireZero.Tools.Microsoft365/HireZero.Tools.Microsoft365.csproj" />
     <Project Path="src/HireZero.Tools.Wiki/HireZero.Tools.Wiki.csproj" />

@@ -115,6 +115,12 @@ public sealed class CompanySettings
             "1 turns on the synthetic Wiki pilot.",
             (s, v) => s.SyntheticWiki = Flag(v)
         ),
+        new(
+            "HIREZERO_SYNTHETIC_ANALYTICS",
+            "Integrations",
+            "1 serves fictional analytics data when Google is not connected.",
+            (s, v) => s.SyntheticAnalytics = Flag(v)
+        ),
     ];
 
     public string? DataRoot { get; private set; }
@@ -135,6 +141,7 @@ public sealed class CompanySettings
     public string? CodexHome { get; private set; }
     public string[] CodingRead { get; private set; } = [];
     public bool SyntheticWiki { get; private set; }
+    public bool SyntheticAnalytics { get; private set; }
 
     // Where each set value came from: "environment" or the settings file. Values are not repeated here.
     public IReadOnlyDictionary<string, string> Sources { get; private set; } = new Dictionary<string, string>();

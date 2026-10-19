@@ -311,6 +311,7 @@
           "HireZero.Integrations.Codex": "[1.0.0, )",
           "HireZero.Integrations.Git": "[1.0.0, )",
           "HireZero.Integrations.GitHub": "[1.0.0, )",
+          "HireZero.Integrations.Google": "[1.0.0, )",
           "HireZero.Integrations.Jev": "[1.0.0, )",
           "HireZero.Integrations.Microsoft365": "[1.0.0, )",
           "HireZero.Integrations.Node": "[1.0.0, )",
@@ -362,6 +363,13 @@
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.Git": "[1.0.0, )",
           "HireZero.Tools.GitHub": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.google": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Analytics": "[1.0.0, )"
         }
       },
       "hirezero.integrations.jev": {
@@ -444,10 +452,17 @@
       "hirezero.roles.marketing": {
         "type": "Project",
         "dependencies": {
-          "HireZero.Core": "[1.0.0, )"
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Analytics": "[1.0.0, )"
         }
       },
       "hirezero.tools.agentapps": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.analytics": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

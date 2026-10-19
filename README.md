@@ -78,6 +78,12 @@ it with `sh tools/start-company-local.sh --data-root <dir>`. `tools/Check-Adviso
 advisories and fails on any without a decision in `docs/security/advisories.json`
 ([ADR 0026](docs/adr/0026-container-and-releases.md)).
 
+### Marketing analytics
+
+Marketing reads traffic and search performance from Google Analytics 4 and Search Console, or from fictional data
+with `HIREZERO_SYNTHETIC_ANALYTICS=1`, and writes KPI digests from the evidence you approve.
+[docs/ANALYTICS.md](docs/ANALYTICS.md) shows how to connect Google step by step.
+
 ### Settings
 
 Settings are environment variables or keys in a JSON file named by `HIREZERO_SETTINGS_FILE`, with the same names.

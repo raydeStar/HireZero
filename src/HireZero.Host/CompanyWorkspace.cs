@@ -222,6 +222,15 @@ public static class CompanyWorkspace
             var openRouter = new OpenRouterToolProvider(root);
             if (fixtureTools is null && openRouter.Status().Active)
                 openRouter.Register(tools);
+            // Analytics for Marketing (docs/adr/0029-marketing-analytics-reads.md): Google when google.json and its key
+            // are set, otherwise the fictional stand-in when it is switched on. Read-only, owner-started.
+            var google = new HireZero.Integrations.Google.GoogleAnalyticsProvider(root);
+            var syntheticAnalytics = settings.SyntheticAnalytics
+                ? new HireZero.Integrations.Google.SyntheticAnalyticsProvider()
+                : null;
+            IToolProvider? analytics = google.Status().Active ? google : syntheticAnalytics;
+            if (fixtureTools is null)
+                analytics?.Register(tools);
             // Every company in this data root runs with its own store, tool registry and scheduler over the same
             // database (docs/adr/0021-companies-per-data-root.md). The first company's runtime is the one above.
             void RegisterTools(ToolRegistry registry)
@@ -248,6 +257,7 @@ public static class CompanyWorkspace
                     jev.Register(registry);
                 if (openRouter.Status().Active)
                     openRouter.Register(registry);
+                analytics?.Register(registry);
             }
             var runtimes = new System.Collections.Concurrent.ConcurrentDictionary<string, CompanyRuntime>(
                 StringComparer.Ordinal
@@ -417,6 +427,14 @@ public static class CompanyWorkspace
                     azureDevOps.Status(),
                     jev.Status(),
                     openRouter.Status(),
+                    google.Status(),
+                    syntheticAnalytics?.Status()
+                        ?? new(
+                            "synthetic-analytics",
+                            "Synthetic analytics",
+                            false,
+                            "Set HIREZERO_SYNTHETIC_ANALYTICS=1 for fictional analytics data."
+                        ),
                     new(
                         "wiki",
                         "Synthetic Wiki",

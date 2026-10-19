@@ -1,4 +1,5 @@
 using HireZero.Roles.Marketing;
+using HireZero.Tools.Analytics;
 
 [assembly: EmployeeModule(typeof(MarketingModule))]
 
@@ -12,7 +13,7 @@ public sealed class MarketingModule : IEmployeeModule
         new(
             "marketing",
             "Marketing",
-            "Campaign briefs and versioned drafts for your review. No publishing or outreach.",
+            "Campaign briefs, drafts and KPI digests from your analytics, for your review. No publishing, outreach or spend.",
             "1.0.0",
             MarketingText.Instructions,
             [
@@ -21,6 +22,12 @@ public sealed class MarketingModule : IEmployeeModule
                     Draft,
                     "Campaign draft",
                     "Draft an asset from a versioned campaign brief for internal review.",
+                    SkillMode.Measured
+                ),
+                new(
+                    MarketingAnalytics.Digest,
+                    "KPI digest",
+                    "Write a KPI digest from approved analytics evidence: what changed, unusual days, next checks.",
                     SkillMode.Measured
                 ),
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
@@ -44,6 +51,13 @@ public sealed class MarketingModule : IEmployeeModule
             )
         )
         {
+            Tools =
+            [
+                new(AnalyticsTools.Status.Id, ToolRisk.Read, "Show which analytics source is connected."),
+                new(AnalyticsTools.Traffic.Id, ToolRisk.Read, "Read website traffic when you ask for analytics."),
+                new(AnalyticsTools.Search.Id, ToolRisk.Read, "Read search performance when you ask for analytics."),
+            ],
+            Actions = [MarketingAnalytics.Definition],
             Kpis =
             [
                 new("drafts-approved", "Drafts approved", "count", "Drafts the owner approved without revision."),
@@ -57,5 +71,20 @@ public sealed class MarketingModule : IEmployeeModule
         skill == Draft ? new MarketingBriefPolicy().Validate(input) : input;
 
     public string InstructionsFor(string skill) =>
-        skill == Draft ? MarketingText.DraftInstructions : MarketingText.Instructions;
+        skill switch
+        {
+            Draft => MarketingText.DraftInstructions,
+            MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
+            _ => MarketingText.Instructions,
+        };
+
+    public Task<string> RunActionAsync(
+        string action,
+        IReadOnlyDictionary<string, string> input,
+        IToolbox tools,
+        CancellationToken token
+    ) =>
+        action == MarketingAnalytics.ReadAction
+            ? MarketingAnalytics.ReadAsync(input, tools, DateOnly.FromDateTime(DateTime.UtcNow), token)
+            : throw new WorkspaceException("This employee has no such action.", 404);
 }
