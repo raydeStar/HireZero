@@ -128,6 +128,11 @@
         "resolved": "5.0.0",
         "contentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
       },
+      "Npgsql": {
+        "type": "Transitive",
+        "resolved": "10.0.3",
+        "contentHash": "7nb5YzXuvWWJxB0J8DiyL3we+X4FOctZrt0fIBnucOIaIevFEEwGQVZKtiu9olXdlNAK1eNgqSral6r/jlhI4w=="
+      },
       "OpenTelemetry": {
         "type": "Transitive",
         "resolved": "1.20.0",
@@ -311,6 +316,7 @@
           "HireZero.Integrations.Node": "[1.0.0, )",
           "HireZero.Integrations.OpenClaw": "[1.0.0, )",
           "HireZero.Integrations.OpenRouter": "[1.0.0, )",
+          "HireZero.Integrations.Postgres": "[1.0.0, )",
           "HireZero.Integrations.SemaForge": "[1.0.0, )",
           "HireZero.Integrations.Wiki": "[1.0.0, )",
           "HireZero.Roles.Ceo": "[1.0.0, )",
@@ -390,6 +396,13 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.OpenRouter": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.postgres": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "Npgsql": "[10.0.3, )"
         }
       },
       "hirezero.integrations.semaforge": {

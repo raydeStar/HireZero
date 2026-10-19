@@ -1,11 +1,11 @@
-using Microsoft.Data.Sqlite;
+using System.Data.Common;
 
 namespace HireZero.Core;
 
 // All company mutations, their operation receipt and feed events commit together. This module does not migrate legacy tables.
 public sealed partial class CompanyStore
 {
-    private readonly string _path;
+    private readonly StoreDatabase _database;
     private readonly CompanyRole[] _roles;
     public Func<DateTimeOffset> Clock { get; init; } = () => DateTimeOffset.UtcNow;
 
@@ -65,11 +65,21 @@ public sealed partial class CompanyStore
         string? measuredRuntimeIdentity = null,
         string companyId = DefaultCompanyId
     )
+        : this(new SqliteStoreDatabase(path), owner, roles, routing, measuredRuntimeIdentity, companyId) { }
+
+    public CompanyStore(
+        StoreDatabase database,
+        string owner,
+        CompanyRole[] roles,
+        CompanyModelRouting? routing = null,
+        string? measuredRuntimeIdentity = null,
+        string companyId = DefaultCompanyId
+    )
     {
         if (!CompanyIdPattern().IsMatch(companyId))
             throw new ArgumentException("A company id is lowercase letters, digits and dashes.");
         CompanyId = companyId;
-        _path = path;
+        _database = database;
         _owner = owner;
         _roles = roles;
         ModelRouting = routing ?? new();
@@ -77,21 +87,22 @@ public sealed partial class CompanyStore
         MeasuredRuntimeIdentity = measuredRuntimeIdentity;
         if (roles.Select(r => r.Id).Distinct().Count() != roles.Length)
             throw new InvalidOperationException("Duplicate role definition.");
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         using var db = Open();
-        Transaction(
-            db,
+        // Schema changes exclude every writer of every company in the database.
+        db.Transaction(
+            "schema",
             () =>
             {
-                Sql(
-                    db,
-                    "CREATE TABLE IF NOT EXISTS company_schema_migrations(version INTEGER PRIMARY KEY, checksum TEXT NOT NULL)"
-                );
-                var migrations = Rows(
-                    db,
-                    "SELECT version,checksum FROM company_schema_migrations",
-                    r => (r.GetInt32(0), r.GetString(1))
-                );
+                // Builds before the one migration framework kept the company's steps in their own ledger.
+                if (_database.TableExists(db, "company_schema_migrations"))
+                {
+                    SchemaMigrations.EnsureLedger(db);
+                    Sql(
+                        db,
+                        "INSERT INTO module_schema_migrations(owner,version,checksum) SELECT 'company',version,checksum FROM company_schema_migrations"
+                    );
+                    Sql(db, "DROP TABLE company_schema_migrations");
+                }
                 string[] schemas =
                 [
                     Schema(),
@@ -103,25 +114,17 @@ public sealed partial class CompanyStore
                     "ALTER TABLE co_company ADD COLUMN name TEXT;",
                     AuditSchema,
                 ];
-                if (
-                    migrations.Any(m =>
-                        m.Item1 < 1 || m.Item1 > schemas.Length || m.Item2 != ContentGuard.Digest(schemas[m.Item1 - 1])
-                    ) || migrations.OrderBy(m => m.Item1).Where((m, i) => m.Item1 != i + 1).Any()
-                )
+                try
+                {
+                    SchemaMigrations.Apply(db, "company", schemas);
+                }
+                catch (InvalidOperationException)
+                {
                     throw new WorkspaceException(
                         "Company schema is newer or its migration checksum changed. No work started."
                     );
-                for (var i = migrations.Length; i < schemas.Length; i++)
-                {
-                    Sql(db, schemas[i]);
-                    Sql(
-                        db,
-                        "INSERT INTO company_schema_migrations VALUES($0,$1)",
-                        i + 1,
-                        ContentGuard.Digest(schemas[i])
-                    );
                 }
-                Sql(db, "INSERT OR IGNORE INTO co_company(id,owner) VALUES($0,$1)", CompanyId, owner);
+                Sql(db, "INSERT INTO co_company(id,owner) VALUES($0,$1) ON CONFLICT(id) DO NOTHING", CompanyId, owner);
                 if (Scalar(db, "SELECT owner FROM co_company WHERE id=$0", CompanyId) != owner)
                     throw new WorkspaceException("This company belongs to another owner.", 403);
                 // The company's first owner is the identity that created it (docs/adr/0020).
@@ -187,72 +190,21 @@ public sealed partial class CompanyStore
         return string.Join(";\n", statements) + ";";
     }
 
-    private SqliteConnection Open()
-    {
-        var db = new SqliteConnection(
-            new SqliteConnectionStringBuilder
-            {
-                DataSource = _path,
-                Pooling = false,
-                ForeignKeys = true,
-                DefaultTimeout = 5,
-            }.ToString()
-        );
-        db.Open();
-        return db;
-    }
+    public StoreDatabase Database => _database;
 
-    private static SqliteCommand Command(SqliteConnection db, string sql, params object?[] values)
-    {
-        var command = db.CreateCommand();
-        command.CommandText = sql;
-        for (var i = 0; i < values.Length; i++)
-            command.Parameters.AddWithValue("$" + i, values[i] ?? DBNull.Value);
-        return command;
-    }
+    private StoreConnection Open() => new(_database.Open(), _database);
 
-    private static void Sql(SqliteConnection db, string sql, params object?[] values)
-    {
-        using var c = Command(db, sql, values);
-        c.ExecuteNonQuery();
-    }
+    private static void Sql(StoreConnection db, string sql, params object?[] values) => db.Execute(sql, values);
 
-    private static string? Scalar(SqliteConnection db, string sql, params object?[] values)
-    {
-        using var c = Command(db, sql, values);
-        return c.ExecuteScalar()?.ToString();
-    }
+    private static string? Scalar(StoreConnection db, string sql, params object?[] values) => db.Scalar(sql, values);
 
-    private static T[] Rows<T>(SqliteConnection db, string sql, Func<SqliteDataReader, T> read, params object?[] values)
-    {
-        using var c = Command(db, sql, values);
-        using var r = c.ExecuteReader();
-        var rows = new List<T>();
-        while (r.Read())
-            rows.Add(read(r));
-        return [.. rows];
-    }
+    private static T[] Rows<T>(StoreConnection db, string sql, Func<DbDataReader, T> read, params object?[] values) =>
+        db.Rows(sql, read, values);
 
-    private static T Transaction<T>(SqliteConnection db, Func<T> action)
-    {
-        Sql(db, "BEGIN IMMEDIATE");
-        CompanyTelemetry.BeginTransaction();
-        try
-        {
-            var result = action();
-            Sql(db, "COMMIT");
-            CompanyTelemetry.Commit();
-            return result;
-        }
-        catch
-        {
-            CompanyTelemetry.Discard();
-            Sql(db, "ROLLBACK");
-            throw;
-        }
-    }
+    // Writes to one company exclude each other; other companies in the same database are not held up.
+    private T Transaction<T>(StoreConnection db, Func<T> action) => db.Transaction(CompanyId, action);
 
-    private T[] All<T>(SqliteConnection db) =>
+    private T[] All<T>(StoreConnection db) =>
         Rows(
             db,
             $"SELECT payload FROM {Tables[typeof(T)]} WHERE company_id=$0 ORDER BY rowid",
@@ -260,7 +212,7 @@ public sealed partial class CompanyStore
             CompanyId
         );
 
-    private T? Find<T>(SqliteConnection db, string? id)
+    private T? Find<T>(StoreConnection db, string? id)
         where T : class =>
         id is null
             ? null
@@ -273,11 +225,11 @@ public sealed partial class CompanyStore
                 )
                 .SingleOrDefault();
 
-    private T Need<T>(SqliteConnection db, string? id)
+    private T Need<T>(StoreConnection db, string? id)
         where T : class => Find<T>(db, id) ?? throw new WorkspaceException("Record not found in this company.", 404);
 
     private void Save<T>(
-        SqliteConnection db,
+        StoreConnection db,
         T value,
         string id,
         string? parent = null,
@@ -289,7 +241,7 @@ public sealed partial class CompanyStore
         AuditTransition(db, value, id, state);
         Sql(
             db,
-            $"INSERT INTO {Tables[typeof(T)]} VALUES($0,$1,$2,$3,$4,$5,$6) ON CONFLICT(company_id,id) DO UPDATE SET parent_id=excluded.parent_id,employee_id=excluded.employee_id,state=excluded.state,revision=excluded.revision,payload=excluded.payload",
+            $"INSERT INTO {Tables[typeof(T)]}(id,company_id,parent_id,employee_id,state,revision,payload) VALUES($0,$1,$2,$3,$4,$5,$6) ON CONFLICT(company_id,id) DO UPDATE SET parent_id=excluded.parent_id,employee_id=excluded.employee_id,state=excluded.state,revision=excluded.revision,payload=excluded.payload",
             id,
             CompanyId,
             parent,
@@ -300,7 +252,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    private void Event(SqliteConnection db, string type, string id, string? employee, string text)
+    private void Event(StoreConnection db, string type, string id, string? employee, string text)
     {
         Sql(
             db,
@@ -339,18 +291,18 @@ public sealed partial class CompanyStore
     private CompanyRole Role(string? id) =>
         _roles.SingleOrDefault(r => r.Id == id) ?? throw new WorkspaceException("Unknown role definition.", 422);
 
-    private void Put(SqliteConnection db, CompanyEmployee e) =>
+    private void Put(StoreConnection db, CompanyEmployee e) =>
         Save(db, e, e.Id, e.DepartmentId, state: e.State, version: e.Version);
 
-    private void Put(SqliteConnection db, CompanyTask t) =>
+    private void Put(StoreConnection db, CompanyTask t) =>
         Save(db, t, t.Id, t.ThreadId, t.EmployeeId, t.State, t.Version);
 
-    private void Put(SqliteConnection db, CompanyAttempt a) =>
+    private void Put(StoreConnection db, CompanyAttempt a) =>
         Save(db, a, a.Id, a.TaskId, a.EmployeeId, a.Phase, a.Version);
 
-    private void Put(SqliteConnection db, CompanyMeeting m) => Save(db, m, m.Id, state: m.State, version: m.Version);
+    private void Put(StoreConnection db, CompanyMeeting m) => Save(db, m, m.Id, state: m.State, version: m.Version);
 
-    private void Put(SqliteConnection db, CompanyPlan p) => Save(db, p, p.Id, state: p.State, version: p.Version);
+    private void Put(StoreConnection db, CompanyPlan p) => Save(db, p, p.Id, state: p.State, version: p.Version);
 
     public object Dashboard()
     {

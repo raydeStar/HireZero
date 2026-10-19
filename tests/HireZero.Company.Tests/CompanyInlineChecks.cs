@@ -10,7 +10,8 @@ using Microsoft.Data.Sqlite;
 // Company identity, isolation, concurrency, fencing, budget, CEO and meeting checks, plus the HTTP profile checks.
 public static class CompanyInlineChecks
 {
-    public static async Task RunAsync(string root)
+    // Runs on SQLite unless a database is given, so the same checks cover every store database (docs/adr/0025).
+    public static async Task RunAsync(string root, StoreDatabase? database = null)
     {
         var count = 0;
         void Check(bool condition, string text)
@@ -31,7 +32,7 @@ public static class CompanyInlineChecks
                 return true;
             }
         }
-        var path = Path.Combine(root, "company.sqlite");
+        var path = database ?? new SqliteStoreDatabase(Path.Combine(root, "company.sqlite"));
         var store = new CompanyStore(path, "owner@example.invalid", CompanyWorkspace.Definitions());
         T Apply<T>(CompanyCommand c) => CompanyJson.Decode<T>(store.Apply(c));
         CompanyCommand Cmd(string action) => new(Guid.NewGuid().ToString("D"), action);
@@ -555,13 +556,8 @@ public static class CompanyInlineChecks
             Refused(() => new CompanyStore(path, "other@example.invalid", CompanyWorkspace.Definitions())),
             "Another owner cannot open the company."
         );
-        using (var db = new SqliteConnection("Data Source=" + path + ";Pooling=False"))
-        {
-            db.Open();
-            using var q = db.CreateCommand();
-            q.CommandText = "UPDATE company_schema_migrations SET checksum='modified'";
-            q.ExecuteNonQuery();
-        }
+        using (var db = new StoreConnection(path.Open(), path))
+            db.Execute("UPDATE module_schema_migrations SET checksum='modified' WHERE owner='company'");
         Check(
             Refused(() => new CompanyStore(path, "owner@example.invalid", CompanyWorkspace.Definitions())),
             "Changed migration checksum is refused."

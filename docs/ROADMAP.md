@@ -201,7 +201,10 @@ features in 2B.5 rather than twice.
   calls and requests (tagged with their company); metrics for jobs and their duration, tool calls by outcome, model
   calls and tokens per company and employee, and coding runs. Counted only after commit, identifiers only, exported
   over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
-- SQLite for single-machine installs, Postgres for hosted; one migration framework.
+- **One schema, two databases (done, [ADR 0025](adr/0025-one-schema-two-databases.md)):** SQLite for
+  single-machine installs, PostgreSQL for hosted ones (`HIREZERO_DATABASE`), through one store seam that translates the
+  portable statements; one migration framework and ledger for the company and every module; per-company write
+  exclusion on both.
 - Container image, cross-platform launcher, CI running only offline checks, signed releases, SBOM, dependency
   advisories triaged.
 

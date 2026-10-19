@@ -10,6 +10,7 @@
     <ProjectReference Include="../HireZero.Integrations.Git/HireZero.Integrations.Git.csproj" />
     <ProjectReference Include="../HireZero.Integrations.GitHub/HireZero.Integrations.GitHub.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Node/HireZero.Integrations.Node.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Postgres/HireZero.Integrations.Postgres.csproj" />
     <ProjectReference Include="../HireZero.Integrations.SemaForge/HireZero.Integrations.SemaForge.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />

@@ -1,10 +1,8 @@
-using Microsoft.Data.Sqlite;
-
 namespace HireZero.Core;
 
 public sealed partial class CompanyStore
 {
-    private CompanyPlan CreatePlan(SqliteConnection db, CompanyCommand c)
+    private CompanyPlan CreatePlan(StoreConnection db, CompanyCommand c)
     {
         var ceo = Need<CompanyEmployee>(db, c.EmployeeId);
         if (!Role(ceo.RoleId).Skills.Contains(PlatformSkills.CompanyPlan) || ceo.State != "active")
@@ -73,7 +71,7 @@ public sealed partial class CompanyStore
         return p;
     }
 
-    private CompanyPlan ChangePlan(SqliteConnection db, CompanyCommand c)
+    private CompanyPlan ChangePlan(StoreConnection db, CompanyCommand c)
     {
         var p = Need<CompanyPlan>(db, c.Id);
         Version(p.Version, c.ExpectedVersion);
@@ -119,7 +117,7 @@ public sealed partial class CompanyStore
         return p;
     }
 
-    private CompanyMeeting CreateMeeting(SqliteConnection db, CompanyCommand c)
+    private CompanyMeeting CreateMeeting(StoreConnection db, CompanyCommand c)
     {
         var participants = c.Participants ?? [];
         if (
@@ -163,7 +161,7 @@ public sealed partial class CompanyStore
         return m;
     }
 
-    private CompanyMeeting ChangeMeeting(SqliteConnection db, CompanyCommand c)
+    private CompanyMeeting ChangeMeeting(StoreConnection db, CompanyCommand c)
     {
         var m = Need<CompanyMeeting>(db, c.Id);
         Version(m.Version, c.ExpectedVersion);
@@ -240,7 +238,7 @@ public sealed partial class CompanyStore
         return m;
     }
 
-    private CompanyMeeting QueueMeetingTurn(SqliteConnection db, CompanyMeeting m)
+    private CompanyMeeting QueueMeetingTurn(StoreConnection db, CompanyMeeting m)
     {
         if (m.Turns.Length >= m.Participants.Length * 2)
         {

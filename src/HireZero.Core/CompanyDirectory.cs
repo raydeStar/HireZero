@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Microsoft.Data.Sqlite;
 
 namespace HireZero.Core;
 
@@ -13,21 +12,19 @@ public sealed partial class CompanyStore
     [GeneratedRegex("^[a-z0-9][a-z0-9-]{0,62}$")]
     private static partial Regex CompanyIdPattern();
 
-    public static CompanyListing[] Companies(string path)
+    public static CompanyListing[] Companies(string path) => Companies(new SqliteStoreDatabase(path));
+
+    public static CompanyListing[] Companies(StoreDatabase database)
     {
-        if (!File.Exists(path))
+        if (!database.Exists)
             return [];
-        using var db = new SqliteConnection(
-            new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString()
+        using var db = new StoreConnection(database.Open(), database);
+        if (!database.TableExists(db, "co_company"))
+            return [];
+        return db.Rows(
+            "SELECT id, owner, name FROM co_company ORDER BY id",
+            r => new CompanyListing(r.GetString(0), r.IsDBNull(2) ? "Company" : r.GetString(2), r.GetString(1))
         );
-        db.Open();
-        using var read = db.CreateCommand();
-        read.CommandText = "SELECT id, owner, name FROM co_company ORDER BY id";
-        using var rows = read.ExecuteReader();
-        var result = new List<CompanyListing>();
-        while (rows.Read())
-            result.Add(new(rows.GetString(0), rows.IsDBNull(2) ? "Company" : rows.GetString(2), rows.GetString(1)));
-        return [.. result];
     }
 
     // This company's display name.

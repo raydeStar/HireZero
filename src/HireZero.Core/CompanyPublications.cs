@@ -1,5 +1,3 @@
-using Microsoft.Data.Sqlite;
-
 namespace HireZero.Core;
 
 // Publishing reviewed work (docs/adr/0012-company-publication.md, docs/adr/0015-publishing-an-approved-artifact.md).
@@ -145,7 +143,7 @@ public sealed partial class CompanyStore
         return [.. All<CompanyArtifact>(db).Where(a => a.TaskId == taskId)];
     }
 
-    private CompanyPublication ReviewPublication(SqliteConnection db, CompanyCommand c)
+    private CompanyPublication ReviewPublication(StoreConnection db, CompanyCommand c)
     {
         var p = Need<CompanyPublication>(db, c.Id);
         Version(p.Version, c.ExpectedVersion);
@@ -279,7 +277,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    private void RecoverPublications(SqliteConnection db)
+    private void RecoverPublications(StoreConnection db)
     {
         foreach (var p in All<CompanyPublication>(db).Where(p => p.State is "committing" or "pushing"))
             Put(
@@ -295,7 +293,7 @@ public sealed partial class CompanyStore
     }
 
     // The change the owner approved is still the one recorded: the grant's review and the approved artifact.
-    private bool Unchanged(SqliteConnection db, CompanyPublication p)
+    private bool Unchanged(StoreConnection db, CompanyPublication p)
     {
         var a = Need<CompanyArtifact>(db, p.ArtifactId);
         var task = Need<CompanyTask>(db, p.TaskId);
@@ -307,7 +305,7 @@ public sealed partial class CompanyStore
 
     private static bool Hex(string digest) => digest.Length == 64 && digest.All(Uri.IsHexDigit);
 
-    private CompanyPublication Put(SqliteConnection db, CompanyPublication p, string text)
+    private CompanyPublication Put(StoreConnection db, CompanyPublication p, string text)
     {
         Save(db, p, p.Id, p.TaskId, p.EmployeeId, p.State, p.Version);
         Event(db, "publication." + p.State, p.Id, p.EmployeeId, text);

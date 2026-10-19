@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Data.Sqlite;
 
 namespace HireZero.Core;
 
@@ -31,7 +30,7 @@ public sealed partial class CompanyStore
     {
         if (_auditKey is not null)
             return _auditKey;
-        var file = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(_path))!, "audit.key");
+        var file = Path.Combine(_database.KeyDirectory, "audit.key");
         lock (AuditKeyGate)
         {
             if (!File.Exists(file))
@@ -61,7 +60,7 @@ public sealed partial class CompanyStore
     }
 
     // Appends one entry in the caller's transaction. The first entry of a chain notes how much history predates it.
-    private void Audit(SqliteConnection db, string kind, string subject, object body)
+    private void Audit(StoreConnection db, string kind, string subject, object body)
     {
         var last = Rows(
                 db,
@@ -88,7 +87,7 @@ public sealed partial class CompanyStore
         Append(db, last.Seq + 1, kind, subject, CompanyJson.Encode(body), last.Hash);
     }
 
-    private string Append(SqliteConnection db, long seq, string kind, string subject, string body, string previous)
+    private string Append(StoreConnection db, long seq, string kind, string subject, string body, string previous)
     {
         var at = Clock().ToString("O");
         var actor = CurrentActor.Value?.Subject ?? CompanyActor.System;
@@ -156,7 +155,7 @@ public sealed partial class CompanyStore
     }
 
     // State changes of attempts and execution grants are model calls and coding runs in the chain.
-    private void AuditTransition<T>(SqliteConnection db, T value, string id, string state)
+    private void AuditTransition<T>(StoreConnection db, T value, string id, string state)
     {
         var (kind, table) = value switch
         {

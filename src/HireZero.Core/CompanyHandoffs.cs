@@ -1,10 +1,8 @@
-using Microsoft.Data.Sqlite;
-
 namespace HireZero.Core;
 
 public sealed partial class CompanyStore
 {
-    private object AssignHandoff(SqliteConnection db, CompanyCommand command)
+    private object AssignHandoff(StoreConnection db, CompanyCommand command)
     {
         var artifact = Need<CompanyArtifact>(db, command.Id);
         Version(artifact.Version, command.ExpectedVersion);
@@ -61,7 +59,7 @@ public sealed partial class CompanyStore
         return new { handoff, task };
     }
 
-    private CompanyHandoff RevokeHandoff(SqliteConnection db, CompanyCommand command)
+    private CompanyHandoff RevokeHandoff(StoreConnection db, CompanyCommand command)
     {
         var handoff = Need<CompanyHandoff>(db, command.Id);
         Version(handoff.Version, command.ExpectedVersion);
@@ -84,7 +82,7 @@ public sealed partial class CompanyStore
         return handoff;
     }
 
-    private bool HandoffsCurrent(SqliteConnection db, CompanyTask task, int depth) =>
+    private bool HandoffsCurrent(StoreConnection db, CompanyTask task, int depth) =>
         All<CompanyHandoff>(db)
             .Where(h => h.TargetTaskId == task.Id)
             .All(h =>

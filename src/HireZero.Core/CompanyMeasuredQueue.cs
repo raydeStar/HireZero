@@ -1,5 +1,4 @@
 using System.Text;
-using Microsoft.Data.Sqlite;
 
 namespace HireZero.Core;
 
@@ -51,7 +50,7 @@ public sealed partial class CompanyStore
         return TextCall(db, Need<CompanyAttempt>(db, attempt));
     }
 
-    private ModelCall TextCall(SqliteConnection db, CompanyAttempt attempt)
+    private ModelCall TextCall(StoreConnection db, CompanyAttempt attempt)
     {
         var context = Need<CompanyContext>(db, attempt.ContextId);
         var task = Need<CompanyTask>(db, attempt.TaskId);
@@ -103,7 +102,7 @@ public sealed partial class CompanyStore
             }
         );
 
-    private object PrepareConversation(SqliteConnection db, CompanyCommand command)
+    private object PrepareConversation(StoreConnection db, CompanyCommand command)
     {
         if (MeasuredRuntimeIdentity is null)
             throw new WorkspaceException("A pinned measured runtime is required for one conversational reply.");
@@ -159,7 +158,7 @@ public sealed partial class CompanyStore
         };
     }
 
-    private CompanyAttempt PrepareMeasured(SqliteConnection db, CompanyCommand command)
+    private CompanyAttempt PrepareMeasured(StoreConnection db, CompanyCommand command)
     {
         if (MeasuredRuntimeIdentity is null)
             throw new WorkspaceException("Select a pinned measured-capable runtime before preparing one job.");
@@ -240,7 +239,7 @@ public sealed partial class CompanyStore
         return attempt;
     }
 
-    private bool MeasuredCurrent(SqliteConnection db, CompanyAttempt attempt)
+    private bool MeasuredCurrent(StoreConnection db, CompanyAttempt attempt)
     {
         if (
             attempt.Measured is not { } job
@@ -262,7 +261,7 @@ public sealed partial class CompanyStore
             && KnowledgeCurrent(db, call.Context, Need<CompanyTask>(db, attempt.TaskId));
     }
 
-    private CompanyAttempt StartMeasured(SqliteConnection db, CompanyCommand command)
+    private CompanyAttempt StartMeasured(StoreConnection db, CompanyCommand command)
     {
         var attempt = Need<CompanyAttempt>(db, command.Id);
         Version(attempt.Version, command.ExpectedVersion);
@@ -316,7 +315,7 @@ public sealed partial class CompanyStore
         return new { attempt, call = TextCall(db, attempt) };
     }
 
-    private void ExpireMeasured(SqliteConnection db)
+    private void ExpireMeasured(StoreConnection db)
     {
         foreach (
             var attempt in All<CompanyAttempt>(db)

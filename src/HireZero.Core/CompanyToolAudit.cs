@@ -37,7 +37,7 @@ public sealed partial class CompanyStore : IToolAudit
         );
     }
 
-    private void RecordIn(Microsoft.Data.Sqlite.SqliteConnection db, ToolCallRecord record)
+    private void RecordIn(StoreConnection db, ToolCallRecord record)
     {
         Sql(
             db,

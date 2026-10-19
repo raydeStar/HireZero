@@ -1,5 +1,4 @@
 using System.Net.Mail;
-using Microsoft.Data.Sqlite;
 
 namespace HireZero.Core;
 
@@ -67,7 +66,7 @@ public sealed partial class CompanyStore
     }
 
     // member.invite: Body is the email, Decision the role.
-    private CompanyMember InviteMember(SqliteConnection db, CompanyCommand c)
+    private CompanyMember InviteMember(StoreConnection db, CompanyCommand c)
     {
         var address = Normal(c.Body) ?? throw new WorkspaceException("Invite a valid email address.", 422);
         if (!CompanyRoles.All.Contains(c.Decision))
@@ -81,7 +80,7 @@ public sealed partial class CompanyStore
     }
 
     // member.role (Decision is the new role) and member.revoke; the company always keeps an active owner.
-    private CompanyMember ChangeMember(SqliteConnection db, CompanyCommand c, bool revoke)
+    private CompanyMember ChangeMember(StoreConnection db, CompanyCommand c, bool revoke)
     {
         var member = Need<CompanyMember>(db, Text(c.Id, 400));
         Version(member.Version, c.ExpectedVersion);

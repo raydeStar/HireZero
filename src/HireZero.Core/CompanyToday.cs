@@ -1,5 +1,3 @@
-using Microsoft.Data.Sqlite;
-
 namespace HireZero.Core;
 
 // One thing waiting on the owner, with what to open to act on it. Key is stable while the item waits, so the owner can
@@ -32,7 +30,7 @@ public sealed partial class CompanyStore
     private static readonly string[] Priorities = ["high", "normal", "low"];
 
     // owner.mark: Id is a waiting item's key, Decision its priority, Body an optional yyyy-MM-dd day to snooze it until.
-    private CompanyOwnerMark MarkNeed(SqliteConnection db, CompanyCommand c)
+    private CompanyOwnerMark MarkNeed(StoreConnection db, CompanyCommand c)
     {
         var id = Text(c.Id, 120);
         if (!Priorities.Contains(c.Decision))

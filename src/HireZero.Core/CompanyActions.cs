@@ -10,7 +10,7 @@ public sealed partial class CompanyStore
     public const string ActionKind = "action";
     public const string Gathering = "gathering";
 
-    private CompanyTask StartAction(Microsoft.Data.Sqlite.SqliteConnection db, CompanyCommand c)
+    private CompanyTask StartAction(StoreConnection db, CompanyCommand c)
     {
         var employee = Need<CompanyEmployee>(db, Text(c.EmployeeId, 64));
         var action =
@@ -133,7 +133,7 @@ public sealed partial class CompanyStore
     }
 
     // An action interrupted by a restart did not finish. It only read, so the owner may simply run it again.
-    private void RecoverActions(Microsoft.Data.Sqlite.SqliteConnection db)
+    private void RecoverActions(StoreConnection db)
     {
         foreach (var task in All<CompanyTask>(db).Where(t => t.Kind == ActionKind && t.State == Gathering))
         {

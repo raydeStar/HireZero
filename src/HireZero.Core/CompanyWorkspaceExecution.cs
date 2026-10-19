@@ -1,5 +1,3 @@
-using Microsoft.Data.Sqlite;
-
 namespace HireZero.Core;
 
 // The bounds of one execution run, approved with its grant: the reservation is sized from Tokens, the run is stopped
@@ -142,7 +140,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    private CompanyExecutionGrant ReviewExecution(SqliteConnection db, CompanyCommand command)
+    private CompanyExecutionGrant ReviewExecution(StoreConnection db, CompanyCommand command)
     {
         var g = Need<CompanyExecutionGrant>(db, command.Id);
         Version(g.Version, command.ExpectedVersion);

@@ -56,6 +56,14 @@ For real clients, run the host behind HTTPS with members signing in through any 
 
 Owners invite members by email as owner, approver or viewer; a viewer only reads.
 
+### Database
+
+Company data lives in `workspace.sqlite` in the data root. A hosted install can keep it in PostgreSQL instead, by
+setting `HIREZERO_DATABASE` to an Npgsql connection string
+([ADR 0025](docs/adr/0025-one-schema-two-databases.md)). The audit key and other per-machine files stay in the data
+root either way. The PostgreSQL checks run only when `HIREZERO_TEST_POSTGRES` names a disposable server; each test
+uses its own schema and drops it afterwards.
+
 ### Telemetry
 
 Traces and metrics (employee jobs, tool calls, model calls and tokens per company and employee) are exported over

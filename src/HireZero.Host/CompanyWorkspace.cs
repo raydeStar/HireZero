@@ -38,7 +38,8 @@ public static class CompanyWorkspace
         string? fixtureWebRoot = null,
         Action<ToolRegistry>? fixtureTools = null,
         ICompanyCodingFactory? fixtureCoding = null,
-        HostedOptions? fixtureHosted = null
+        HostedOptions? fixtureHosted = null,
+        StoreDatabase? fixtureDatabase = null
     )
     {
         // Local mode is the one-person, loopback-only owner; hosted mode signs members in through OIDC (ADR 0020).
@@ -82,13 +83,15 @@ public static class CompanyWorkspace
         else
             builder.ListenLoopbackOnly(uri, uri.Port, 16_384);
         Directory.CreateDirectory(root);
-        var database = Path.Combine(root, "workspace.sqlite");
-        if (File.Exists(database))
+        var file = Path.Combine(root, "workspace.sqlite");
+        // SQLite in the data root unless a server database is configured (docs/adr/0025-one-schema-two-databases.md).
+        var database = fixtureDatabase ?? CompanyDatabases.FromEnvironment(root, file);
+        if (database is SqliteStoreDatabase && File.Exists(file))
         {
             using var check = new Microsoft.Data.Sqlite.SqliteConnection(
                 new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
                 {
-                    DataSource = database,
+                    DataSource = file,
                     Mode = Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly,
                     Pooling = false,
                 }.ToString()
@@ -150,7 +153,7 @@ public static class CompanyWorkspace
                     : throw new InvalidOperationException("Live company coding is not qualified: " + live.Refusal);
             }
             var store = new CompanyStore(
-                Path.Combine(root, "workspace.sqlite"),
+                database,
                 owner,
                 Definitions(),
                 routing,
@@ -172,7 +175,7 @@ public static class CompanyWorkspace
                 new HireZero.Integrations.Node.NpmInstaller().Register(tools);
                 new HireZero.Integrations.Node.TrustedPostgresToolchain(root).Register(tools);
                 // Its per-repository test profiles, in company storage; saved only as an owner-approved publication.
-                new HireZero.Integrations.Node.TrustedPostgresProfiles(database).Register(tools);
+                new HireZero.Integrations.Node.TrustedPostgresProfiles(file).Register(tools);
             }
             builder.Services.AddSingleton(tools);
             builder.Services.AddSingleton<IModelProvider>(model);
@@ -187,6 +190,8 @@ public static class CompanyWorkspace
             var membership = new CompanyMembership();
             builder.Services.AddSingleton(membership);
             var app = builder.Build();
+            if (fixtureDatabase is null && database is IDisposable owned)
+                app.Lifetime.ApplicationStopped.Register(owned.Dispose);
             var microsoft = app.Services.GetRequiredService<Microsoft365ToolProvider>();
             System.Collections.Concurrent.ConcurrentDictionary<string, CompanyRuntime>? openRuntimes = null;
             void Microsoft()

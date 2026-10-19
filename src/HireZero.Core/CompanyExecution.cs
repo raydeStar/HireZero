@@ -1,5 +1,3 @@
-using Microsoft.Data.Sqlite;
-
 namespace HireZero.Core;
 
 public sealed partial class CompanyStore
@@ -27,14 +25,14 @@ public sealed partial class CompanyStore
         return All<CompanyEmployee>(db).Where(e => e.State == "active").Select(e => e.Id).ToArray();
     }
 
-    private bool ParentValid(SqliteConnection db, CompanyTask t) =>
+    private bool ParentValid(StoreConnection db, CompanyTask t) =>
         (t.PlanId is null || Find<CompanyPlan>(db, t.PlanId) is { State: "executing" } p && Clock() < p.Deadline)
         && (
             t.MeetingId is null
             || Find<CompanyMeeting>(db, t.MeetingId) is { State: "in_progress" } m && Clock() < m.Deadline
         );
 
-    private bool KnowledgeCurrent(SqliteConnection db, CompanyContext context, CompanyTask t, int depth = 0) =>
+    private bool KnowledgeCurrent(StoreConnection db, CompanyContext context, CompanyTask t, int depth = 0) =>
         depth < 16
         && (
             t.MeetingId is not null
@@ -46,7 +44,7 @@ public sealed partial class CompanyStore
             Find<CompanyArtifact>(db, e.Id) is { State: "approved" } a && a.Digest == e.Digest
         );
 
-    private bool Current(SqliteConnection db, CompanyAttempt a)
+    private bool Current(StoreConnection db, CompanyAttempt a)
     {
         var t = Need<CompanyTask>(db, a.TaskId);
         var e = Need<CompanyEmployee>(db, a.EmployeeId);
@@ -64,7 +62,7 @@ public sealed partial class CompanyStore
     }
 
     private CompanyAttempt? Claim(
-        SqliteConnection db,
+        StoreConnection db,
         string employee,
         bool providerAvailable,
         string? taskId = null,
@@ -139,7 +137,7 @@ public sealed partial class CompanyStore
         return Transaction(db, () => Capture(db, attemptId));
     }
 
-    private CompanyContext Capture(SqliteConnection db, string attemptId)
+    private CompanyContext Capture(StoreConnection db, string attemptId)
     {
         var a = Need<CompanyAttempt>(db, attemptId);
         if (a.Phase != "claimed" || !Current(db, a))
@@ -280,7 +278,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    private bool Reserve(SqliteConnection db, CompanyAttempt a, long? execution = null)
+    private bool Reserve(StoreConnection db, CompanyAttempt a, long? execution = null)
     {
         if (a.Phase != "claimed" || !Current(db, a) || a.ContextId is null)
             return false;
@@ -381,7 +379,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    private void Release(SqliteConnection db, string attempt, long? actual = 0)
+    private void Release(StoreConnection db, string attempt, long? actual = 0)
     {
         var reservation = Find<CompanyReservation>(db, attempt);
         if (reservation is not { State: "reserved" })

@@ -2,7 +2,7 @@ namespace HireZero.Core;
 
 public sealed partial class CompanyStore
 {
-    private object Apply(Microsoft.Data.Sqlite.SqliteConnection db, CompanyCommand c)
+    private object Apply(StoreConnection db, CompanyCommand c)
     {
         switch (c.Action)
         {
@@ -510,12 +510,7 @@ public sealed partial class CompanyStore
         }
     }
 
-    private CompanyMessage Message(
-        Microsoft.Data.Sqlite.SqliteConnection db,
-        CompanyThread t,
-        string author,
-        string body
-    )
+    private CompanyMessage Message(StoreConnection db, CompanyThread t, string author, string body)
     {
         var seq =
             All<CompanyMessage>(db).Where(m => m.ThreadId == t.Id).Select(m => m.Sequence).DefaultIfEmpty(0).Max() + 1;
@@ -524,7 +519,7 @@ public sealed partial class CompanyStore
         return m;
     }
 
-    private void Evidence(Microsoft.Data.Sqlite.SqliteConnection db, string[] ids)
+    private void Evidence(StoreConnection db, string[] ids)
     {
         if (ids.Length > 12 || ids.Distinct().Count() != ids.Length)
             throw new WorkspaceException("Select at most 12 distinct artifacts.", 422);
@@ -534,7 +529,7 @@ public sealed partial class CompanyStore
     }
 
     private CompanyTask NewTask(
-        Microsoft.Data.Sqlite.SqliteConnection db,
+        StoreConnection db,
         string employee,
         string thread,
         string skill,
@@ -626,7 +621,7 @@ public sealed partial class CompanyStore
         return task;
     }
 
-    private void Stop(Microsoft.Data.Sqlite.SqliteConnection db, CompanyTask task, string state, string reason)
+    private void Stop(StoreConnection db, CompanyTask task, string state, string reason)
     {
         if (task.State is "completed" or "canceled" or "superseded")
             throw new WorkspaceException("The task is already terminal.");

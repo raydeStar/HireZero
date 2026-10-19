@@ -36,6 +36,9 @@ with the optional pinned Codex connection (`--company-codex`) and live coding (`
 `HIREZERO_EXECUTION_HOLD=1`. Phase 2B.5j retired the developer, recovery and held profiles
 ([ADR 0019](adr/0019-retiring-the-legacy-profiles.md)). The host binds loopback only and ignores endpoint
 configuration from args, appsettings or environment; listener plumbing lives in `LocalHosting.cs`.
+Company data goes through Core's `StoreDatabase` seam: SQLite by default, or PostgreSQL
+(`HireZero.Integrations.Postgres`) when `HIREZERO_DATABASE` is set; `CompanyDatabases.cs` chooses
+([ADR 0025](adr/0025-one-schema-two-databases.md)).
 
 ## Employees
 
@@ -130,9 +133,11 @@ assemblies' metadata.
 
 ## Storage
 
-One SQLite database per data root (`workspace.sqlite`), accessed with ADO.NET. The company schema uses versioned,
-checksummed migrations (`Core/CompanyDatabase.cs`); modules and integrations version their own tables through
-`ModuleStorage` ([ADR 0018](adr/0018-module-storage-migrations.md)). Small JSON files in the data root hold optional
+Company data is in one SQLite database per data root (`workspace.sqlite`), or in PostgreSQL for hosted installs,
+accessed with ADO.NET through `Core/StoreDatabase.cs` ([ADR 0025](adr/0025-one-schema-two-databases.md)). One
+migration framework (`SchemaMigrations`) versions the company schema and every module's tables in one checksummed
+ledger. Modules and integrations with per-machine SQLite files use it through `ModuleStorage`
+([ADR 0018](adr/0018-module-storage-migrations.md)). Small JSON files in the data root hold optional
 integration settings (`agent-apps.json`, `azure-devops.json`, `openrouter.json`).
 
 ## Frontend

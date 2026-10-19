@@ -51,7 +51,10 @@ public sealed class CompanyTenancyTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ARequestActsInTheCompanyItNames()
+    public Task ARequestActsInTheCompanyItNames() => RequestsActInTheCompanyTheyName(_root.Path);
+
+    // Also run on PostgreSQL by StoreDatabaseTests (docs/adr/0025).
+    internal static async Task RequestsActInTheCompanyTheyName(string root, StoreDatabase? database = null)
     {
         var previous = Environment.GetEnvironmentVariable(ExecutionHold.Variable);
         Environment.SetEnvironmentVariable(ExecutionHold.Variable, "0");
@@ -61,10 +64,11 @@ public sealed class CompanyTenancyTests : IAsyncDisposable
                 [CompanyWorkspace.Flag],
                 Owner,
                 true,
-                Path.Combine(_root.Path, "host"),
+                Path.Combine(root, "host"),
                 new UnavailableModelProvider(),
                 fixtureUrl: "http://127.0.0.1:0",
-                fixtureTools: _ => { }
+                fixtureTools: _ => { },
+                fixtureDatabase: database
             )!;
             await app.StartAsync(Token);
             var address = app

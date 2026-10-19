@@ -8,7 +8,7 @@ public sealed class CompanySuite
     }
 
     [Fact]
-    public Task Inline() => InRoot(CompanyInlineChecks.RunAsync);
+    public Task Inline() => InRoot(root => CompanyInlineChecks.RunAsync(root));
 
     [Fact]
     public Task Security() => InRoot(root => SecurityChecks.RunAsync(root, Verify.Check));
