@@ -922,6 +922,13 @@
   padding: 0 1rem;
 }
 
+.co-companies form,
+.co-companies label {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
 .co-members ul,
 .co-today ul,
 .co-integrations ul {

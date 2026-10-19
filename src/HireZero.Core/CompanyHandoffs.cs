@@ -84,7 +84,7 @@ public sealed partial class CompanyStore
         return handoff;
     }
 
-    private static bool HandoffsCurrent(SqliteConnection db, CompanyTask task, int depth) =>
+    private bool HandoffsCurrent(SqliteConnection db, CompanyTask task, int depth) =>
         All<CompanyHandoff>(db)
             .Where(h => h.TargetTaskId == task.Id)
             .All(h =>

@@ -295,7 +295,7 @@ public sealed partial class CompanyStore
     }
 
     // The change the owner approved is still the one recorded: the grant's review and the approved artifact.
-    private static bool Unchanged(SqliteConnection db, CompanyPublication p)
+    private bool Unchanged(SqliteConnection db, CompanyPublication p)
     {
         var a = Need<CompanyArtifact>(db, p.ArtifactId);
         var task = Need<CompanyTask>(db, p.TaskId);

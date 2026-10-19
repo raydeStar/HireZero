@@ -34,7 +34,7 @@ public sealed partial class CompanyStore
             || Find<CompanyMeeting>(db, t.MeetingId) is { State: "in_progress" } m && Clock() < m.Deadline
         );
 
-    private static bool KnowledgeCurrent(SqliteConnection db, CompanyContext context, CompanyTask t, int depth = 0) =>
+    private bool KnowledgeCurrent(SqliteConnection db, CompanyContext context, CompanyTask t, int depth = 0) =>
         depth < 16
         && (
             t.MeetingId is not null
@@ -381,7 +381,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    private static void Release(SqliteConnection db, string attempt, long? actual = 0)
+    private void Release(SqliteConnection db, string attempt, long? actual = 0)
     {
         var reservation = Find<CompanyReservation>(db, attempt);
         if (reservation is not { State: "reserved" })

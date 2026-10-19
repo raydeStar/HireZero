@@ -10,6 +10,7 @@ export class ApiError extends Error {
     super(message);
   }
 }
+export const company = () => preference<string>("company", "");
 export type ApiOptions = { timeoutMs?: number; correlationId?: string };
 export async function api<T>(path: string, method = "GET", body?: unknown, options: ApiOptions = {}): Promise<T> {
   const correlation = options.correlationId || (method === "GET" ? undefined : crypto.randomUUID());
@@ -20,14 +21,17 @@ export async function api<T>(path: string, method = "GET", body?: unknown, optio
       method,
       cache: "no-store",
       signal: controller.signal,
-      headers:
-        method === "GET" && !correlation
-          ? undefined
+      // The company this browser works in (docs/adr/0021); none means the data root's first company.
+      headers: {
+        ...(company() ? { "X-HireZero-Company": company() } : {}),
+        ...(method === "GET" && !correlation
+          ? {}
           : {
               "Content-Type": "application/json",
               "X-Dev-Request": "1",
               ...(correlation ? { "X-HireZero-Request-Id": correlation } : {}),
-            },
+            }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const received = response.headers.get("X-HireZero-Request-Id") || correlation;

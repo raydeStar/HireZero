@@ -189,7 +189,8 @@ features in 2B.5 rather than twice.
   viewer roles enforced by one table in Core; invitations by email; hosted mode behind HTTPS with generic OIDC
   sign-in (code flow with PKCE, any compliant provider); the acting member recorded on every event; a sign-in
   screen and members panel. See [the report](history/PHASE3_IDENTITY_REPORT.md).
-- Tenancy: multiple companies per data root, each request acting in one company its member belongs to.
+- **Tenancy (done, [ADR 0021](adr/0021-companies-per-data-root.md)):** several companies per data root, each
+  with its own store, tools, scheduler and members; a request names its company, and owners create companies.
 - Tailnet multi-user access (from 2B.5h), on the hosted identity model.
 - Tamper-evident audit log of approvals, tool calls and model calls, with export.
 - Configuration through `IOptions`; secrets from a vault/Key Vault instead of DPAPI files.

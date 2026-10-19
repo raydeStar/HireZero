@@ -8,7 +8,12 @@ public sealed partial class CompanyStore
     private readonly string _path;
     private readonly CompanyRole[] _roles;
     public Func<DateTimeOffset> Clock { get; init; } = () => DateTimeOffset.UtcNow;
-    public const string CompanyId = "local-company";
+
+    // The company a data root starts with; more can be created beside it (docs/adr/0021-companies-per-data-root.md).
+    public const string DefaultCompanyId = "local-company";
+
+    // Every query is scoped to this company; other companies' rows in the same database are invisible.
+    public string CompanyId { get; }
     public CompanyRole[] Roles => _roles;
     public CompanyModelRouting ModelRouting { get; }
     public string? MeasuredRuntimeIdentity { get; }
@@ -57,9 +62,13 @@ public sealed partial class CompanyStore
         string owner,
         CompanyRole[] roles,
         CompanyModelRouting? routing = null,
-        string? measuredRuntimeIdentity = null
+        string? measuredRuntimeIdentity = null,
+        string companyId = DefaultCompanyId
     )
     {
+        if (!CompanyIdPattern().IsMatch(companyId))
+            throw new ArgumentException("A company id is lowercase letters, digits and dashes.");
+        CompanyId = companyId;
         _path = path;
         _owner = owner;
         _roles = roles;
@@ -91,6 +100,7 @@ public sealed partial class CompanyStore
                     "CREATE TABLE co_publications(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id),FOREIGN KEY(company_id,parent_id) REFERENCES co_tasks(company_id,id),FOREIGN KEY(company_id,employee_id) REFERENCES co_employees(company_id,id));",
                     "CREATE TABLE co_owner_marks(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
                     "CREATE TABLE co_members(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
+                    "ALTER TABLE co_company ADD COLUMN name TEXT;",
                 ];
                 if (
                     migrations.Any(m =>
@@ -110,7 +120,7 @@ public sealed partial class CompanyStore
                         ContentGuard.Digest(schemas[i])
                     );
                 }
-                Sql(db, "INSERT OR IGNORE INTO co_company VALUES($0,$1)", CompanyId, owner);
+                Sql(db, "INSERT OR IGNORE INTO co_company(id,owner) VALUES($0,$1)", CompanyId, owner);
                 if (Scalar(db, "SELECT owner FROM co_company WHERE id=$0", CompanyId) != owner)
                     throw new WorkspaceException("This company belongs to another owner.", 403);
                 // The company's first owner is the identity that created it (docs/adr/0020).
@@ -238,7 +248,7 @@ public sealed partial class CompanyStore
         }
     }
 
-    private static T[] All<T>(SqliteConnection db) =>
+    private T[] All<T>(SqliteConnection db) =>
         Rows(
             db,
             $"SELECT payload FROM {Tables[typeof(T)]} WHERE company_id=$0 ORDER BY rowid",
@@ -246,7 +256,7 @@ public sealed partial class CompanyStore
             CompanyId
         );
 
-    private static T? Find<T>(SqliteConnection db, string? id)
+    private T? Find<T>(SqliteConnection db, string? id)
         where T : class =>
         id is null
             ? null
@@ -259,10 +269,10 @@ public sealed partial class CompanyStore
                 )
                 .SingleOrDefault();
 
-    private static T Need<T>(SqliteConnection db, string? id)
+    private T Need<T>(SqliteConnection db, string? id)
         where T : class => Find<T>(db, id) ?? throw new WorkspaceException("Record not found in this company.", 404);
 
-    private static void Save<T>(
+    private void Save<T>(
         SqliteConnection db,
         T value,
         string id,
@@ -313,20 +323,18 @@ public sealed partial class CompanyStore
     private CompanyRole Role(string? id) =>
         _roles.SingleOrDefault(r => r.Id == id) ?? throw new WorkspaceException("Unknown role definition.", 422);
 
-    private static void Put(SqliteConnection db, CompanyEmployee e) =>
+    private void Put(SqliteConnection db, CompanyEmployee e) =>
         Save(db, e, e.Id, e.DepartmentId, state: e.State, version: e.Version);
 
-    private static void Put(SqliteConnection db, CompanyTask t) =>
+    private void Put(SqliteConnection db, CompanyTask t) =>
         Save(db, t, t.Id, t.ThreadId, t.EmployeeId, t.State, t.Version);
 
-    private static void Put(SqliteConnection db, CompanyAttempt a) =>
+    private void Put(SqliteConnection db, CompanyAttempt a) =>
         Save(db, a, a.Id, a.TaskId, a.EmployeeId, a.Phase, a.Version);
 
-    private static void Put(SqliteConnection db, CompanyMeeting m) =>
-        Save(db, m, m.Id, state: m.State, version: m.Version);
+    private void Put(SqliteConnection db, CompanyMeeting m) => Save(db, m, m.Id, state: m.State, version: m.Version);
 
-    private static void Put(SqliteConnection db, CompanyPlan p) =>
-        Save(db, p, p.Id, state: p.State, version: p.Version);
+    private void Put(SqliteConnection db, CompanyPlan p) => Save(db, p, p.Id, state: p.State, version: p.Version);
 
     public object Dashboard()
     {

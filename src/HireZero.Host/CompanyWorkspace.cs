@@ -180,13 +180,21 @@ public static class CompanyWorkspace
             var wiki = fixtureTools is null && Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1";
             // Microsoft 365: owner-started reads only, no polling; its tools register once a client ID is saved.
             builder.Services.AddMicrosoft365Company(root);
+            builder.Services.AddHttpContextAccessor();
+            var membership = new CompanyMembership();
+            builder.Services.AddSingleton(membership);
             var app = builder.Build();
             var microsoft = app.Services.GetRequiredService<Microsoft365ToolProvider>();
+            System.Collections.Concurrent.ConcurrentDictionary<string, CompanyRuntime>? openRuntimes = null;
             void Microsoft()
             {
-                if (fixtureTools is null)
-                    microsoft.RegisterOnce(tools);
+                if (fixtureTools is not null)
+                    return;
+                microsoft.RegisterOnce(tools);
+                foreach (var runtime in RuntimesOpen())
+                    microsoft.RegisterOnce(runtime.Tools);
             }
+            IEnumerable<CompanyRuntime> RuntimesOpen() => openRuntimes?.Values ?? [];
             if (app.Services.GetRequiredService<MicrosoftStore>().Settings().ClientId is { Length: > 0 })
                 Microsoft();
             if (wiki)
@@ -207,6 +215,76 @@ public static class CompanyWorkspace
             var openRouter = new OpenRouterToolProvider(root);
             if (fixtureTools is null && openRouter.Status().Active)
                 openRouter.Register(tools);
+            // Every company in this data root runs with its own store, tool registry and scheduler over the same
+            // database (docs/adr/0021-companies-per-data-root.md). The first company's runtime is the one above.
+            void RegisterTools(ToolRegistry registry)
+            {
+                if (fixtureTools is not null)
+                {
+                    fixtureTools(registry);
+                    return;
+                }
+                if (GitToolRegistration.FindGit() is { } found)
+                    registry.AddGitTools(new GitCheckoutInspector(found));
+                new GitHubCli().Register(registry);
+                new HireZero.Integrations.Node.NpmInstaller().Register(registry);
+                new HireZero.Integrations.Node.TrustedPostgresToolchain(root).Register(registry);
+                if (app.Services.GetRequiredService<MicrosoftStore>().Settings().ClientId is { Length: > 0 })
+                    microsoft.RegisterOnce(registry);
+                if (wiki)
+                    WikiRegistration.CompanyProvider().Register(registry);
+                if (agentApps.Status().Active)
+                    agentApps.Register(registry);
+                if (azureDevOps.Status().Active)
+                    azureDevOps.Register(registry);
+                if (jev.Status().Active)
+                    jev.Register(registry);
+                if (openRouter.Status().Active)
+                    openRouter.Register(registry);
+            }
+            var runtimes = new System.Collections.Concurrent.ConcurrentDictionary<string, CompanyRuntime>(
+                StringComparer.Ordinal
+            );
+            runtimes[store.CompanyId] = new(store, tools, app.Services.GetRequiredService<CompanyScheduler>());
+            openRuntimes = runtimes;
+            CompanyRuntime Open(string id) =>
+                runtimes.GetOrAdd(
+                    id,
+                    key =>
+                    {
+                        var listing =
+                            CompanyStore.Companies(database).SingleOrDefault(c => c.Id == key)
+                            ?? throw new WorkspaceException("No such company.", 404);
+                        var companyStore = new CompanyStore(
+                            database,
+                            listing.Creator,
+                            Definitions(),
+                            routing,
+                            (model as IMeasuredModelProvider)?.RuntimeIdentity,
+                            key
+                        );
+                        var registry = new ToolRegistry(companyStore, [companyStore.PublicationAuthority]);
+                        RegisterTools(registry);
+                        var scheduler = new CompanyScheduler(companyStore, model);
+                        _ = scheduler.StartAsync(app.Lifetime.ApplicationStopping);
+                        app.Lifetime.ApplicationStopping.Register(() =>
+                            scheduler.StopAsync(CancellationToken.None).Wait()
+                        );
+                        return new(companyStore, registry, scheduler);
+                    }
+                );
+            // Hosted sign-in binds a waiting invitation in whichever company issued it.
+            membership.SignIn = (subject, email, verified, name) =>
+                CompanyStore
+                    .Companies(database)
+                    .Select(c => Open(c.Id).Store.SignIn(subject, email, verified, name))
+                    .ToArray()
+                    .FirstOrDefault(a => a is not null);
+            var accessor = app.Services.GetRequiredService<IHttpContextAccessor>();
+            CompanyRuntime Runtime() =>
+                accessor.HttpContext?.Items["company"] as CompanyRuntime ?? runtimes[CompanyStore.DefaultCompanyId];
+            CompanyStore Store() => Runtime().Store;
+            ToolRegistry Tools() => Runtime().Tools;
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
             if (hosted is not null)
@@ -268,7 +346,10 @@ public static class CompanyWorkspace
                         // command is checked again against its own action in the store (docs/adr/0020).
                         if (c.Request.Path.StartsWithSegments("/api") && c.Items["login"] is string)
                         {
-                            var actor = store.Actor((string)c.Items["login"]!);
+                            var company = c.Request.Headers["X-HireZero-Company"].FirstOrDefault();
+                            var runtime = Open(string.IsNullOrEmpty(company) ? CompanyStore.DefaultCompanyId : company);
+                            c.Items["company"] = runtime;
+                            var actor = runtime.Store.Actor((string)c.Items["login"]!);
                             c.Items["role"] = actor.Role;
                             if (c.Request.Method is not ("GET" or "HEAD") && RouteRole(c.Request.Path) is { } required)
                                 CompanyAccess.Demand(actor, required, "change " + c.Request.Path);
@@ -339,8 +420,8 @@ public static class CompanyWorkspace
                     new(
                         "git",
                         "Git",
-                        tools.Has("git.read"),
-                        tools.Has("git.read") ? "Git is available." : "Git was not found."
+                        Tools().Has("git.read"),
+                        Tools().Has("git.read") ? "Git is available." : "Git was not found."
                     ),
                     new(
                         "live-coding",
@@ -371,14 +452,15 @@ public static class CompanyWorkspace
                                 meetingsEnabled = true,
                                 legacyDeveloperAvailable = false,
                                 integrations = Integrations(),
-                                tools = tools.Contracts.Select(c => new
-                                {
-                                    c.Id,
-                                    risk = c.Risk.ToString().ToLowerInvariant(),
-                                    c.Description,
-                                }),
+                                tools = Tools()
+                                    .Contracts.Select(c => new
+                                    {
+                                        c.Id,
+                                        risk = c.Risk.ToString().ToLowerInvariant(),
+                                        c.Description,
+                                    }),
                             },
-                            data = store.Dashboard(),
+                            data = Store().Dashboard(),
                         }
                     )
             );
@@ -389,9 +471,70 @@ public static class CompanyWorkspace
                         ? Results.Ok(await connection.InspectAsync(token))
                         : Results.Json(new { error = "Select the explicit Codex connection profile." }, statusCode: 503)
             );
-            app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(store.ToolCalls(limit ?? 100)));
+            app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(Store().ToolCalls(limit ?? 100)));
             // Members and their roles, for every member to see (docs/adr/0020).
-            app.MapGet("/api/company/members", () => Results.Ok(store.Members()));
+            app.MapGet("/api/company/members", () => Results.Ok(Store().Members()));
+            // The companies the signed-in member belongs to; an owner creates another, and becomes its owner
+            // (docs/adr/0021-companies-per-data-root.md).
+            app.MapGet(
+                "/api/companies",
+                (HttpContext context) =>
+                {
+                    var subject = (string)context.Items["login"]!;
+                    var mine = new List<object>();
+                    foreach (var listing in CompanyStore.Companies(database))
+                    {
+                        var companyStore = Open(listing.Id).Store;
+                        try
+                        {
+                            mine.Add(
+                                new
+                                {
+                                    id = listing.Id,
+                                    name = companyStore.Name(),
+                                    role = companyStore.Actor(subject).Role,
+                                }
+                            );
+                        }
+                        catch (WorkspaceException) { }
+                    }
+                    return Results.Ok(mine);
+                }
+            );
+            app.MapPost(
+                "/api/companies",
+                (CompanyName body, HttpContext context) =>
+                {
+                    var subject = (string)context.Items["login"]!;
+                    var id = CompanyStore.NewCompanyId();
+                    var created = new CompanyStore(
+                        database,
+                        subject,
+                        Definitions(),
+                        routing,
+                        (model as IMeasuredModelProvider)?.RuntimeIdentity,
+                        id
+                    );
+                    created.Rename(body.Name ?? "");
+                    Open(id);
+                    return Results.Ok(
+                        new
+                        {
+                            id,
+                            name = created.Name(),
+                            role = CompanyRoles.Owner,
+                        }
+                    );
+                }
+            );
+            app.MapPost(
+                "/api/company/name",
+                (CompanyName body) =>
+                {
+                    Store().Rename(body.Name ?? "");
+                    return Results.Ok(new { name = Store().Name() });
+                }
+            );
             // GitHub sign-in through the GitHub CLI's own browser flow (ported from the legacy profile, 2B.5j). The
             // owner's click starts it on this computer; HireZero never sees a password or token.
             var gitHubSignIn = new GitHubSignIn();
@@ -420,7 +563,7 @@ public static class CompanyWorkspace
                         var local = value.ToDateTime(TimeOnly.MinValue);
                         return new(local, zone.GetUtcOffset(local));
                     }
-                    return Results.Ok(store.Today(date.ToString("yyyy-MM-dd"), At(date), At(date.AddDays(1))));
+                    return Results.Ok(Store().Today(date.ToString("yyyy-MM-dd"), At(date), At(date.AddDays(1))));
                 }
             );
             // Runs a declared employee action once (docs/adr/0011-employee-actions.md). A retried request returns the
@@ -434,11 +577,11 @@ public static class CompanyWorkspace
                         Action = "action.start",
                     };
                     var task = CompanyJson.Decode<CompanyTask>(
-                        store.Apply(command, (string)context.Items["login"]!, out var fresh)
+                        Store().Apply(command, (string)context.Items["login"]!, out var fresh)
                     );
                     if (!fresh)
-                        return Results.Ok(store.TaskDetail(task.Id));
-                    var employee = store.EmployeeOf(task.EmployeeId);
+                        return Results.Ok(Store().TaskDetail(task.Id));
+                    var employee = Store().EmployeeOf(task.EmployeeId);
                     var module = HostEmployees.Modules.Single(m => m.Manifest.Id == employee.RoleId);
                     var input = CompanyJson.Decode<Dictionary<string, string>>(task.Input);
                     try
@@ -446,22 +589,23 @@ public static class CompanyWorkspace
                         var output = await module.RunActionAsync(
                             task.Skill,
                             input,
-                            tools.For(module.Manifest, employee.Id, task.Id).ReadOnly(),
+                            Tools().For(module.Manifest, employee.Id, task.Id).ReadOnly(),
                             token
                         );
-                        store.CompleteAction(task.Id, output);
+                        Store().CompleteAction(task.Id, output);
                     }
                     catch (Exception error) when (error is not OutOfMemoryException)
                     {
                         // Expected refusals keep their message; anything else is reported without internals.
-                        store.FailAction(
-                            task.Id,
-                            error is WorkspaceException or ModelUnavailableException
-                                ? error.Message
-                                : "The action failed unexpectedly (" + error.GetType().Name + ")."
-                        );
+                        Store()
+                            .FailAction(
+                                task.Id,
+                                error is WorkspaceException or ModelUnavailableException
+                                    ? error.Message
+                                    : "The action failed unexpectedly (" + error.GetType().Name + ")."
+                            );
                     }
-                    return Results.Ok(store.TaskDetail(task.Id));
+                    return Results.Ok(Store().TaskDetail(task.Id));
                 }
             );
             // One step of reviewed execution, run by the module of the employee the work belongs to. Each step is
@@ -474,16 +618,17 @@ public static class CompanyWorkspace
                         return Results.NotFound();
                     var employeeId = parsed switch
                     {
-                        ExecutionStep.Prepare => store.Work(id).EmployeeId,
-                        ExecutionStep.Run => store.Execution(id).EmployeeId,
-                        ExecutionStep.Propose => store.FindExecution(id)?.EmployeeId ?? store.Artifact(id).EmployeeId,
-                        _ => store.Publication(id).EmployeeId,
+                        ExecutionStep.Prepare => Store().Work(id).EmployeeId,
+                        ExecutionStep.Run => Store().Execution(id).EmployeeId,
+                        ExecutionStep.Propose => Store().FindExecution(id)?.EmployeeId
+                            ?? Store().Artifact(id).EmployeeId,
+                        _ => Store().Publication(id).EmployeeId,
                     };
-                    var employee = store.EmployeeOf(employeeId);
+                    var employee = Store().EmployeeOf(employeeId);
                     var module = HostEmployees.Modules.Single(m => m.Manifest.Id == employee.RoleId);
                     try
                     {
-                        return Results.Ok(await module.ExecuteAsync(parsed, id, new(store, tools, coding), token));
+                        return Results.Ok(await module.ExecuteAsync(parsed, id, new(Store(), Tools(), coding), token));
                     }
                     catch (Exception error) when (error is not (WorkspaceException or OutOfMemoryException))
                     {
@@ -497,18 +642,20 @@ public static class CompanyWorkspace
             );
             app.MapGet(
                 "/api/company/feed",
-                (long? after, int? limit) => Results.Ok(store.Feed(after ?? 0, limit ?? 100))
+                (long? after, int? limit) => Results.Ok(Store().Feed(after ?? 0, limit ?? 100))
             );
             app.MapGet(
                 "/api/company/employees/{employee}/threads/{thread}",
-                (string employee, string thread) => Results.Ok(store.Thread(employee, thread))
+                (string employee, string thread) => Results.Ok(Store().Thread(employee, thread))
             );
-            app.MapGet("/api/company/tasks/{id}", (string id) => Results.Ok(store.TaskDetail(id)));
-            app.MapGet("/api/company/measured/{id}", (string id) => Results.Ok(store.MeasuredDetail(id)));
+            app.MapGet("/api/company/tasks/{id}", (string id) => Results.Ok(Store().TaskDetail(id)));
+            app.MapGet("/api/company/measured/{id}", (string id) => Results.Ok(Store().MeasuredDetail(id)));
             app.MapGet(
                 "/api/company/operations/{id}",
                 (string id) =>
-                    store.Operation(id) is { } result ? Results.Content(result, "application/json") : Results.NotFound()
+                    Store().Operation(id) is { } result
+                        ? Results.Content(result, "application/json")
+                        : Results.NotFound()
             );
             app.MapPost(
                 "/api/company/commands",
@@ -518,15 +665,18 @@ public static class CompanyWorkspace
                     var subject = (string)context.Items["login"]!;
                     if (command.Action == "measured.run")
                     {
-                        CompanyAccess.Demand(store.Actor(subject), CompanyAccess.Required(command.Action), "run work");
+                        CompanyAccess.Demand(
+                            Store().Actor(subject),
+                            CompanyAccess.Required(command.Action),
+                            "run work"
+                        );
                         if (model is not IMeasuredModelProvider measured)
                             throw new WorkspaceException("A pinned measured runtime is not configured.");
-                        var receipt = await app
-                            .Services.GetRequiredService<CompanyScheduler>()
-                            .RunMeasuredOnceAsync(command, measured, app.Lifetime.ApplicationStopping);
+                        var receipt = await Runtime()
+                            .Scheduler.RunMeasuredOnceAsync(command, measured, app.Lifetime.ApplicationStopping);
                         return Results.Content(receipt, "application/json");
                     }
-                    return Results.Content(store.Apply(command, subject, out _), "application/json");
+                    return Results.Content(Store().Apply(command, subject, out _), "application/json");
                 }
             );
             if (hosted is not null)

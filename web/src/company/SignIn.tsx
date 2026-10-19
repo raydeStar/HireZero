@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { api } from "../lib/api";
+import { api, ApiError, company, savePreference } from "../lib/api";
 
 export type Session = { login?: string; role?: string; signedIn?: boolean; accessMode?: string };
 
@@ -11,7 +11,15 @@ export function SignInGate({ children }: { children: (session: Session) => React
   useEffect(() => {
     api<Session>("/session")
       .then(setSession)
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => {
+        // A remembered company that is gone, or no longer yours, falls back to the first company.
+        if (e instanceof ApiError && (e.status === 403 || e.status === 404) && company()) {
+          savePreference("company", "");
+          window.location.reload();
+          return;
+        }
+        setError(e.message);
+      });
   }, []);
   if (error) return <p role="alert">{error}</p>;
   if (!session) return null;

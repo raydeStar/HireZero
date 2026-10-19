@@ -143,8 +143,8 @@ public static class CompanyHosting
                         context.Fail("The provider did not identify the user.");
                         return Task.CompletedTask;
                     }
-                    var store = context.HttpContext.RequestServices.GetRequiredService<CompanyStore>();
-                    var actor = store.SignIn(
+                    var membership = context.HttpContext.RequestServices.GetRequiredService<CompanyMembership>();
+                    var actor = membership.SignIn!(
                         issuer + "|" + sub,
                         Claim("email"),
                         string.Equals(Claim("email_verified"), "true", StringComparison.OrdinalIgnoreCase),
@@ -222,3 +222,14 @@ public static class CompanyHosting
             ? context.User.FindFirst(HostedOptions.SubjectClaim)?.Value
             : null;
 }
+
+// One company's runtime in this host: its store, tool registry and scheduler.
+public sealed record CompanyRuntime(CompanyStore Store, ToolRegistry Tools, CompanyScheduler Scheduler);
+
+// Hosted sign-in across the data root's companies, set once their runtimes exist.
+public sealed class CompanyMembership
+{
+    public Func<string, string?, bool, string?, CompanyActor?>? SignIn { get; set; }
+}
+
+public sealed record CompanyName(string? Name);

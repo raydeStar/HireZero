@@ -25,3 +25,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0018](0018-module-storage-migrations.md) | Module storage migrations | Accepted |
 | [0019](0019-retiring-the-legacy-profiles.md) | Retiring the legacy profiles | Accepted |
 | [0020](0020-members-roles-and-sign-in.md) | Members, roles and sign-in | Accepted |
+| [0021](0021-companies-per-data-root.md) | Companies per data root | Accepted |

@@ -10,6 +10,7 @@ import { Integrations } from "./Integrations";
 import { Today } from "./Today";
 import { Budgets } from "./Budgets";
 import { Members } from "./Members";
+import { Companies } from "./Companies";
 import "./company.css";
 type ConversationRoute = { tab: string; selected: string; thread: string };
 function readRoute(): ConversationRoute {
@@ -301,6 +302,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
         <p className="co-muted">
           You have final authority. CEO plans and Board decisions remain subject to your review.
         </p>
+        <Companies role={memberRole} version={d.cursor ?? 0} />
         <Today version={d.cursor ?? 0} busy={busy} run={run} />
         <Budgets budgets={d.budgets} departments={d.departments} employees={d.employees} busy={busy} run={run} />
         <Members role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
