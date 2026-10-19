@@ -1,0 +1,218 @@
+using System.Net;
+using System.Text;
+using System.Text.Json;
+using HireZero.Core;
+using HireZero.Integrations.Google;
+using HireZero.Tools.Advertising;
+
+// Google Ads behind the ads.* contracts (docs/adr/0032-google-ads-provider.md), against a fake handler with fictional
+// API responses: a refresh-token sign-in at Google's token endpoint only, read queries it composes itself with the
+// developer token and manager headers, money converted from micros, and refusals before anything is sent.
+public sealed class GoogleAdsProviderTests : IDisposable
+{
+    private readonly string _root = Path.Combine(Path.GetTempPath(), "google-ads-" + Guid.NewGuid().ToString("N"));
+
+    public GoogleAdsProviderTests() => Directory.CreateDirectory(_root);
+
+    public void Dispose() => Directory.Delete(_root, true);
+
+    private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    private static readonly Dictionary<string, string> Secrets = new()
+    {
+        [GoogleAdsProvider.DeveloperTokenSecret] = "fictional-developer-token",
+        [GoogleAdsProvider.ClientSecretSecret] = "fictional-client-secret",
+        [GoogleAdsProvider.RefreshTokenSecret] = "fictional-refresh-token",
+    };
+
+    private sealed class Fake : HttpMessageHandler
+    {
+        public readonly List<(string Url, Dictionary<string, string> Headers, string Body)> Requests = [];
+        public HttpStatusCode SearchStatus = HttpStatusCode.OK;
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken token
+        )
+        {
+            var url = request.RequestUri!.ToString();
+            var body = await request.Content!.ReadAsStringAsync(token);
+            Requests.Add((url, request.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value)), body));
+            string json;
+            var status = HttpStatusCode.OK;
+            if (url == GoogleServiceAccount.TokenEndpoint)
+                json = """{"access_token":"fictional-access","expires_in":3600}""";
+            else if (SearchStatus != HttpStatusCode.OK)
+            {
+                status = SearchStatus;
+                json = """{"error":{"code":403,"message":"fictional","status":"PERMISSION_DENIED"}}""";
+            }
+            else if (body.Contains("FROM campaign", StringComparison.Ordinal))
+                json = """
+                    {"results":[
+                      {"campaign":{"resourceName":"customers/1234567890/campaigns/111","id":"111","name":"Fictional search","status":"ENABLED"},
+                       "metrics":{"impressions":"5000","clicks":"250","costMicros":"312500000","conversions":12.5,"conversionsValue":1500.0}},
+                      {"campaign":{"resourceName":"customers/1234567890/campaigns/222","id":"222","name":"Fictional video","status":"PAUSED"},
+                       "metrics":{"impressions":"9000","clicks":"40","costMicros":"20000000"}}]}
+                    """;
+            else if (body.Contains("segments.date,", StringComparison.Ordinal))
+                json = """
+                    {"results":[
+                      {"segments":{"date":"2026-03-01"},"metrics":{"impressions":"7000","clicks":"150","costMicros":"170000000","conversions":6.0,"conversionsValue":700.0}},
+                      {"segments":{"date":"2026-03-02"},"metrics":{"impressions":"7000","clicks":"140","costMicros":"162500000","conversions":6.5,"conversionsValue":800.0}}]}
+                    """;
+            else
+                json = """
+                    {"results":[{"customer":{"resourceName":"customers/1234567890","currencyCode":"EUR"},
+                      "metrics":{"impressions":"14000","clicks":"290","costMicros":"332500000","conversions":12.5,"conversionsValue":1500.0}}]}
+                    """;
+            return new(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+        }
+    }
+
+    private static readonly EmployeeManifest Manifest = new(
+        "ads-test",
+        "Ads test",
+        "Fictional manifest declaring the ads tools.",
+        "1.0.0",
+        "Fictional instructions.",
+        [new("chat", "Conversation", "Fictional.")],
+        new("Fictional", "Ads tester", "Fictional.", [new("purpose", "Fictional purpose.")], "Fictional.")
+    )
+    {
+        Tools =
+        [
+            new(AdsTools.Status.Id, ToolRisk.Read, "Status."),
+            new(AdsTools.Performance.Id, ToolRisk.Read, "Performance."),
+        ],
+    };
+
+    private (IToolbox Tools, Fake Fake, GoogleAdsProvider Provider) Create(Dictionary<string, string>? secrets = null)
+    {
+        var fake = new Fake();
+        var values = secrets ?? Secrets;
+        var provider = new GoogleAdsProvider(_root, name => values.GetValueOrDefault(name), fake);
+        var registry = new ToolRegistry(new MemoryToolAudit());
+        provider.Register(registry);
+        return (registry.For(Manifest), fake, provider);
+    }
+
+    private void Configure(object settings) =>
+        File.WriteAllText(Path.Combine(_root, "google-ads.json"), JsonSerializer.Serialize(settings));
+
+    private static readonly DateOnly Start = new(2026, 3, 1);
+    private static readonly DateOnly End = new(2026, 3, 2);
+
+    [Fact]
+    public async Task NothingIsSentUntilTheAccountClientAndSecretsAreSet()
+    {
+        var (tools, fake, provider) = Create();
+        Assert.Contains("customerId", provider.Status().Reason);
+        Configure(new { customerId = "123-456-7890" });
+        Assert.Contains("clientId", provider.Status().Reason);
+        Configure(
+            new
+            {
+                customerId = "123-456-7890",
+                clientId = "fictional.apps.example.invalid",
+                apiVersion = "latest",
+            }
+        );
+        Assert.Contains("apiVersion", provider.Status().Reason);
+        Configure(new { customerId = "123-456-7890", clientId = "fictional.apps.example.invalid" });
+        var partial = Create(new() { [GoogleAdsProvider.DeveloperTokenSecret] = "fictional" });
+        Assert.Contains(GoogleAdsProvider.RefreshTokenSecret, partial.Provider.Status().Reason);
+        await Assert.ThrowsAsync<ToolFailureException>(() =>
+            partial.Tools.InvokeAsync(AdsTools.Performance, new(Start, End, "campaign", 10), Token)
+        );
+        Assert.True(provider.Status().Active);
+        Assert.Empty(fake.Requests);
+        Assert.Empty(partial.Fake.Requests);
+    }
+
+    [Fact]
+    public async Task CampaignsAreReadWithReadQueriesTheProviderComposes()
+    {
+        var (tools, fake, _) = Create();
+        Configure(
+            new
+            {
+                customerId = "123-456-7890",
+                loginCustomerId = "999-888-7777",
+                clientId = "fictional.apps.example.invalid",
+            }
+        );
+
+        var report = await tools.InvokeAsync(AdsTools.Performance, new(Start, End, "campaign", 10), Token);
+
+        Assert.Equal(("Google Ads account 123-456-7890", "EUR"), (report.Source, report.Currency));
+        Assert.Equal(new AdsRow("total", null, null, 14000, 290, 332.5m, 12.5, 1500m), report.Totals);
+        Assert.Equal(new AdsRow("111", "Fictional search", "enabled", 5000, 250, 312.5m, 12.5, 1500m), report.Rows[0]);
+        Assert.Equal(("paused", 20m, 0.0), (report.Rows[1].Status, report.Rows[1].Spend, report.Rows[1].Conversions));
+
+        var signIn = fake.Requests[0];
+        Assert.Equal(GoogleServiceAccount.TokenEndpoint, signIn.Url);
+        Assert.Contains("grant_type=refresh_token", signIn.Body);
+        Assert.Contains("refresh_token=fictional-refresh-token", signIn.Body);
+        foreach (var (url, headers, body) in fake.Requests.Skip(1))
+        {
+            Assert.Equal(
+                $"https://googleads.googleapis.com/{GoogleAdsProvider.DefaultApiVersion}/customers/1234567890/googleAds:search",
+                url
+            );
+            Assert.Equal("fictional-developer-token", headers["developer-token"]);
+            Assert.Equal("9998887777", headers["login-customer-id"]);
+            Assert.Equal("Bearer fictional-access", headers["Authorization"]);
+            var query = JsonDocument.Parse(body).RootElement.GetProperty("query").GetString()!;
+            Assert.StartsWith("SELECT ", query, StringComparison.Ordinal);
+            Assert.Contains("segments.date BETWEEN '2026-03-01' AND '2026-03-02'", query);
+        }
+        Assert.Contains("LIMIT 10", fake.Requests[^1].Body);
+        Assert.Single(fake.Requests, r => r.Url == GoogleServiceAccount.TokenEndpoint);
+    }
+
+    [Fact]
+    public async Task DaysAreReadInOrderAndAnApiVersionCanBeNamed()
+    {
+        var (tools, fake, _) = Create();
+        Configure(
+            new
+            {
+                customerId = "1234567890",
+                clientId = "fictional.apps.example.invalid",
+                apiVersion = "v99",
+            }
+        );
+
+        var report = await tools.InvokeAsync(AdsTools.Performance, new(Start, End, "date", 31), Token);
+
+        Assert.Equal(["2026-03-01", "2026-03-02"], report.Rows.Select(r => r.Key));
+        Assert.Equal(332.5m, report.Rows.Sum(r => r.Spend));
+        Assert.All(fake.Requests.Skip(1), r => Assert.Contains("/v99/customers/1234567890/", r.Url));
+        Assert.DoesNotContain(fake.Requests, r => r.Headers.ContainsKey("login-customer-id"));
+    }
+
+    [Fact]
+    public async Task BadRequestsAreRefusedAndApiErrorsReportedOnce()
+    {
+        var (tools, fake, _) = Create();
+        Configure(new { customerId = "1234567890", clientId = "fictional.apps.example.invalid" });
+        Assert.Equal(
+            422,
+            (
+                await Assert.ThrowsAsync<ToolFailureException>(() =>
+                    tools.InvokeAsync(AdsTools.Performance, new(Start, End, "keyword", 10), Token)
+                )
+            ).Status
+        );
+        Assert.Empty(fake.Requests);
+
+        fake.SearchStatus = HttpStatusCode.Forbidden;
+        var failure = await Assert.ThrowsAsync<ToolFailureException>(() =>
+            tools.InvokeAsync(AdsTools.Performance, new(Start, End, "campaign", 10), Token)
+        );
+        Assert.Contains("HTTP 403, PERMISSION_DENIED", failure.Message);
+        Assert.Single(fake.Requests, r => r.Url.Contains("googleAds:search", StringComparison.Ordinal));
+        Assert.DoesNotContain("fictional-client-secret", failure.Message);
+    }
+}

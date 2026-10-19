@@ -62,8 +62,52 @@ Marketing can review ad performance ([ADR 0031](adr/0031-ads-read-contracts.md))
 3. Approve the result, then run **Ads review**. It writes the review and at most three proposals. It cannot change
    anything. Changing a campaign, budget or bid will need its own approval, and is not possible yet.
 
-No real ads platform is connected yet. Try it with `HIREZERO_SYNTHETIC_ADS=1`, which serves fictional campaigns in
-XTS, the currency code reserved for testing.
+Google Ads is the first real platform ([ADR 0032](adr/0032-google-ads-provider.md)). Until it is connected, try ads
+with `HIREZERO_SYNTHETIC_ADS=1`, which serves fictional campaigns in XTS, the currency code reserved for testing.
+
+### Connect Google Ads
+
+Google Ads needs three things besides your account: a developer token, an OAuth client, and a refresh token from a
+user who can only read.
+
+1. **Developer token.** In the Google Ads manager account you use for API access, open *Admin › API Center* and
+   request a token. A new token works only with test accounts. Apply for *Basic access* to read real accounts.
+2. **OAuth client.** In a Google Cloud project:
+   - turn on the *Google Ads API*;
+   - create an OAuth client under *APIs & Services › Credentials*. The *Desktop app* type is simplest.
+
+   Note its client id and client secret.
+3. **A read-only user.** In the Google Ads account, invite a Google user with *Read only* access. Google's Ads scope
+   cannot be limited to reading, so this user is what keeps HireZero from ever being able to spend.
+4. **Refresh token.** Sign in as that read-only user through your OAuth client, asking for the scope
+   `https://www.googleapis.com/auth/adwords`, and keep the refresh token. Google's client libraries include a small
+   example for this. The OAuth 2.0 Playground also works with your own client.
+5. **Tell HireZero where to read.** Create `google-ads.json` in the data root:
+
+   ```json
+   {
+     "customerId": "123-456-7890",
+     "loginCustomerId": "111-222-3333",
+     "clientId": "your-client-id.apps.googleusercontent.com"
+   }
+   ```
+
+   - `customerId` is the ads account to read.
+   - `loginCustomerId` is only needed when access comes through a manager account.
+   - `apiVersion` (for example `"v23"`) may be added when Google retires the default version.
+6. **Secrets.** Supply `HIREZERO_GOOGLE_ADS_DEVELOPER_TOKEN`, `HIREZERO_GOOGLE_ADS_CLIENT_SECRET` and
+   `HIREZERO_GOOGLE_ADS_REFRESH_TOKEN`, preferably as mounted files ([SECRETS.md](SECRETS.md)). Restart HireZero.
+7. Check *Integrations*: **Google Ads** should be active and name the account and API version.
+
+HireZero only sends read queries it composes itself (`SELECT … FROM campaign` and `FROM customer`) to the Google Ads
+search endpoint, and signs in only at `oauth2.googleapis.com`.
+
+| You see | Meaning |
+| --- | --- |
+| "Set the secrets …" | One or more of the three secrets is missing |
+| "Google Ads could not be read (HTTP 403, PERMISSION_DENIED)" | The user lacks access to the account, the developer token lacks production access, or `loginCustomerId` is needed |
+| "… could not sign in (invalid_grant)" | The refresh token was revoked or expired; authorize again |
+| "Google Ads could not be read (HTTP 404 …)" or `UNIMPLEMENTED` | The API version was retired; set a newer `apiVersion` |
 
 ## Try it with fictional data
 

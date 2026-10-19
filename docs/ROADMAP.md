@@ -230,7 +230,9 @@ features in 2B.5 rather than twice.
   - **Ads reads (done, [ADR 0031](adr/0031-ads-read-contracts.md)):** neutral `ads.*` Read contracts with
     fictional fixtures in XTS; an owner-started read deriving CTR, CPC, CPA and ROAS, flagging unusual days and
     listing campaigns that need attention by fixed rules; a measured ads review skill that only proposes changes.
-  - Still to come: a real ads platform behind the same contracts; ad changes as owner-approved publications;
-    email/CRM.
+  - **Google Ads (done, [ADR 0032](adr/0032-google-ads-provider.md)):** the first real provider behind `ads.*`:
+    read queries it composes itself, refresh-token sign-in with a read-only user, secrets for the developer token,
+    client secret and refresh token, and an API version the owner can move.
+  - Still to come: ad changes as owner-approved publications; email/CRM.
 - A third employee (Support or Finance/Ops) built only from a new module folder, as the proof that the platform
   scales by hiring.

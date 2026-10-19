@@ -12,6 +12,7 @@
     <ProjectReference Include="../../src/HireZero.Tools.OpenRouter/HireZero.Tools.OpenRouter.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.Google/HireZero.Integrations.Google.csproj" />
+    <ProjectReference Include="../../src/HireZero.Tools.Advertising/HireZero.Tools.Advertising.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="../xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

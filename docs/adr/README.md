@@ -36,3 +36,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0029](0029-marketing-analytics-reads.md) | Marketing analytics reads | Accepted |
 | [0030](0030-ab-test-design-and-significance.md) | A/B test design and significance | Accepted |
 | [0031](0031-ads-read-contracts.md) | Ads read contracts | Accepted |
+| [0032](0032-google-ads-provider.md) | Google Ads provider | Accepted |

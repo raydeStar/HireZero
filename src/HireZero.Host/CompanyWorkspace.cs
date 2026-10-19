@@ -231,13 +231,15 @@ public static class CompanyWorkspace
             IToolProvider? analytics = google.Status().Active ? google : syntheticAnalytics;
             if (fixtureTools is null)
                 analytics?.Register(tools);
-            // Ads for Marketing (docs/adr/0031-ads-read-contracts.md): read-only contracts, served for now by the
-            // fictional stand-in when it is switched on.
+            // Ads for Marketing (docs/adr/0031-ads-read-contracts.md, docs/adr/0032-google-ads-provider.md): Google Ads
+            // when google-ads.json and its secrets are set, otherwise the fictional stand-in when it is switched on.
+            var googleAds = new HireZero.Integrations.Google.GoogleAdsProvider(root);
             var syntheticAds = settings.SyntheticAds
                 ? new HireZero.Integrations.Synthetic.SyntheticAdsProvider()
                 : null;
+            IToolProvider? ads = googleAds.Status().Active ? googleAds : syntheticAds;
             if (fixtureTools is null)
-                syntheticAds?.Register(tools);
+                ads?.Register(tools);
             // Every company in this data root runs with its own store, tool registry and scheduler over the same
             // database (docs/adr/0021-companies-per-data-root.md). The first company's runtime is the one above.
             void RegisterTools(ToolRegistry registry)
@@ -265,7 +267,7 @@ public static class CompanyWorkspace
                 if (openRouter.Status().Active)
                     openRouter.Register(registry);
                 analytics?.Register(registry);
-                syntheticAds?.Register(registry);
+                ads?.Register(registry);
             }
             var runtimes = new System.Collections.Concurrent.ConcurrentDictionary<string, CompanyRuntime>(
                 StringComparer.Ordinal
@@ -443,6 +445,7 @@ public static class CompanyWorkspace
                             false,
                             "Set HIREZERO_SYNTHETIC_ANALYTICS=1 for fictional analytics data."
                         ),
+                    googleAds.Status(),
                     syntheticAds?.Status()
                         ?? new(
                             "synthetic-ads",

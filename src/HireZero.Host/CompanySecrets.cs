@@ -17,6 +17,9 @@ public static class CompanySecrets
         "TYPESAFE_API_KEY",
         "HIREZERO_SEMAFORGE_API_KEY",
         HireZero.Integrations.Google.GoogleAnalyticsProvider.KeySecret,
+        HireZero.Integrations.Google.GoogleAdsProvider.DeveloperTokenSecret,
+        HireZero.Integrations.Google.GoogleAdsProvider.ClientSecretSecret,
+        HireZero.Integrations.Google.GoogleAdsProvider.RefreshTokenSecret,
     ];
 
     public static IEnumerable<string> Report(SecretSource? secrets = null)
