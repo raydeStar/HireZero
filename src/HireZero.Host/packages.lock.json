@@ -316,6 +316,12 @@
           "HireZero.Tools.Analytics": "[1.0.0, )"
         }
       },
+      "hirezero.roles.support": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
       "hirezero.tools.advertising": {
         "type": "Project",
         "dependencies": {

@@ -238,5 +238,7 @@ features in 2B.5 rather than twice.
     re-check; budgets move at most half per step and never when shared; Google Ads changes use a separate, opt-in
     editing identity; unknown outcomes are settled only by reading.
   - Still to come: email/CRM.
-- A third employee (Support or Finance/Ops) built only from a new module folder, as the proof that the platform
-  scales by hiring.
+- **Third employee: Support (done, [ADR 0034](adr/0034-support-employee.md)):** added only as
+  `src/HireZero.Roles.Support` and `web/src/roles/support`. It drafts customer replies, triage and help articles
+  from messages redacted by a deterministic intake action, which also flags legal, security and privacy requests
+  for a person. Finance/Ops can follow the same way.

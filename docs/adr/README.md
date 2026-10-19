@@ -38,3 +38,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0031](0031-ads-read-contracts.md) | Ads read contracts | Accepted |
 | [0032](0032-google-ads-provider.md) | Google Ads provider | Accepted |
 | [0033](0033-approved-ad-changes.md) | Approved ad changes | Accepted |
+| [0034](0034-support-employee.md) | Support, the third employee | Accepted |

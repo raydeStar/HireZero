@@ -46,7 +46,8 @@ Each kind of employee is one `IEmployeeModule` (`Core/EmployeeModules.cs`) in it
 assembly ([ADR 0002](adr/0002-employee-module-contract.md)). Its manifest declares identity, instructions, skills
 and their modes, tools, KPIs, onboarding copy, capabilities and UI slots. Host references every role project with a
 wildcard and `EmployeeModuleCatalog.Discover` finds the modules at startup
-([ADR 0006](adr/0006-compiled-in-module-discovery.md)).
+([ADR 0006](adr/0006-compiled-in-module-discovery.md)). Support was added this way with no edit outside
+`src/HireZero.Roles.Support` and `web/src/roles/support` ([ADR 0034](adr/0034-support-employee.md)).
 
 - The company workspace projects each module into its internal `CompanyRole` (`CompanyRole.From`) and serves the
   manifest's hiring copy, tools, KPIs and UI slots to the web.
