@@ -151,7 +151,8 @@ public sealed class SupportModuleTests : IDisposable
         );
         var input = new Dictionary<string, string>
         {
-            ["messages"] = "I think I was hacked, call me on +44 20 7946 0000",
+            ["messages"] =
+                "I think I was hacked, call me on +44 20 7946 0000 or jo@example.invalid, card 4111 1111 1111 1111",
         };
         var task = CompanyJson.Decode<CompanyTask>(
             store.Apply(
@@ -164,10 +165,15 @@ public sealed class SupportModuleTests : IDisposable
                 }
             )
         );
+        // Nothing raw is stored: the module redacts action input before the task is saved (owner walkthrough).
+        Assert.DoesNotContain("7946", task.Input);
+        Assert.DoesNotContain("jo@example.invalid", task.Input);
+        Assert.DoesNotContain("4111", task.Input);
         var registry = new ToolRegistry(store);
+        // As the host does, the action runs on the stored input.
         var output = await new SupportModule().RunActionAsync(
             SupportIntake.Action,
-            input,
+            CompanyJson.Decode<Dictionary<string, string>>(store.Work(task.Id).Input),
             registry.For(new SupportModule().Manifest, employee.Id, task.Id).ReadOnly(),
             TestContext.Current.CancellationToken
         );
@@ -175,6 +181,7 @@ public sealed class SupportModuleTests : IDisposable
 
         Assert.Equal("action:support-intake", artifact.Provenance);
         Assert.Contains("[phone]", artifact.Body);
+        Assert.Contains("- Redacted: 1 email(s), 1 phone number(s), 1 card number(s)", artifact.Body);
         Assert.Contains("security - needs a person", artifact.Body);
         Assert.Empty(store.ToolCalls());
     }

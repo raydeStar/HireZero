@@ -10,8 +10,8 @@ public interface IEmployeeModule
 {
     EmployeeManifest Manifest { get; }
 
-    // Validates structured skill input before it is saved and returns its normalized form. Throw WorkspaceException
-    // to refuse it.
+    // Validates structured skill input, and action input (a JSON object of the action's fields), before it is saved,
+    // and returns its normalized form. Throw WorkspaceException to refuse it.
     string ValidateInput(string skill, string input) => input;
 
     // The system instructions for one skill; the manifest's base instructions unless a skill needs its own.

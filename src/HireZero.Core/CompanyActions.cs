@@ -16,7 +16,10 @@ public sealed partial class CompanyStore
         var action =
             Role(employee.RoleId).Manifest?.Actions.SingleOrDefault(a => a.Id == c.Skill)
             ?? throw new WorkspaceException("This employee has no such action.", 404);
+        // The module normalizes action input before anything is stored, as it does for skill input, so a module that
+        // redacts (Support) never has the raw text saved or shown (owner walkthrough, 2026-10-19).
         var input = ActionInput(action, c.Body);
+        input = Role(employee.RoleId).ValidateInput?.Invoke(action.Id, input) ?? input;
         var task = NewTask(
             db,
             employee.Id,

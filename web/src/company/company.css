@@ -479,13 +479,14 @@
   min-width: 0;
   min-height: 0;
   flex: 1;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .co-conversation-context {
   padding: 10px 24px;
   border-bottom: 1px solid var(--fe-line);
   background: var(--fe-surface);
-  max-height: 32vh;
+  max-height: 22vh;
   overflow: auto;
   flex: 0 0 auto;
 }
@@ -514,8 +515,11 @@
 .co-conversation-context details textarea {
   min-height: 70px;
 }
+/* The transcript always keeps room to read what is being authorized; on very short screens the whole column scrolls
+   rather than squeezing it (owner walkthrough, 2026-10-19). */
 .co-workspace .fe-chat-scroll {
-  min-height: 0;
+  min-height: min(300px, 38vh);
+  flex: 1 1 auto;
 }
 .co-workspace .fe-msg-content p {
   white-space: pre-wrap;
@@ -584,7 +588,7 @@
 .co-workspace .co-conversation-composer {
   background: var(--fe-bg);
   padding-top: 10px;
-  max-height: 45vh;
+  max-height: 30vh;
   overflow: auto;
   flex: 0 0 auto;
 }
@@ -630,7 +634,7 @@
 .co-workspace .co-brief-composer,
 .co-workspace .co-evidence {
   margin: 0;
-  max-height: 23vh;
+  max-height: 20vh;
   overflow: auto;
 }
 .co-brief-composer label {
