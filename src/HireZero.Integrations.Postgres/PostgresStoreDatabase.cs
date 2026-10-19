@@ -18,9 +18,29 @@ public sealed partial class PostgresStoreDatabase : StoreDatabase, IDisposable
     private readonly string _keyDirectory;
     private readonly ConcurrentDictionary<string, string> _translated = new(StringComparer.Ordinal);
 
-    public PostgresStoreDatabase(string connectionString, string keyDirectory)
+    public const string PasswordVariable = "HIREZERO_DATABASE_PASSWORD";
+
+    // With a password source, the connection string carries no password: new connections use the current one,
+    // re-read every refresh interval, so a rotated password is picked up without a restart (docs/adr/0027).
+    public PostgresStoreDatabase(
+        string connectionString,
+        string keyDirectory,
+        Func<string?>? password = null,
+        TimeSpan? refresh = null
+    )
     {
-        _source = NpgsqlDataSource.Create(connectionString);
+        var builder = new NpgsqlDataSourceBuilder(connectionString);
+        if (password is not null)
+            builder.UsePeriodicPasswordProvider(
+                (_, _) =>
+                    ValueTask.FromResult(
+                        password()
+                            ?? throw new InvalidOperationException(PasswordVariable + " is configured but empty.")
+                    ),
+                refresh ?? TimeSpan.FromMinutes(5),
+                TimeSpan.FromSeconds(10)
+            );
+        _source = builder.Build();
         _keyDirectory = Path.GetFullPath(keyDirectory);
     }
 

@@ -23,7 +23,10 @@ public sealed class StoreDatabaseTests : IAsyncDisposable
             _postgres.Dispose();
             await using var admin = new NpgsqlConnection(Server);
             await admin.OpenAsync();
-            await using var drop = new NpgsqlCommand($"DROP SCHEMA IF EXISTS {_schema} CASCADE", admin);
+            await using var drop = new NpgsqlCommand(
+                $"DROP SCHEMA IF EXISTS {_schema} CASCADE; DROP ROLE IF EXISTS {_schema}_role",
+                admin
+            );
             await drop.ExecuteNonQueryAsync();
         }
         SqliteConnection.ClearAllPools();
@@ -43,6 +46,14 @@ public sealed class StoreDatabaseTests : IAsyncDisposable
             new NpgsqlConnectionStringBuilder(Server) { SearchPath = _schema }.ToString(),
             _root.Path
         );
+    }
+
+    private static void Admin(string sql)
+    {
+        using var admin = new NpgsqlConnection(Server);
+        admin.Open();
+        using var command = new NpgsqlCommand(sql, admin);
+        command.ExecuteNonQuery();
     }
 
     private static CompanyCommand Cmd(string action) => new(Guid.NewGuid().ToString("D"), action);
@@ -170,5 +181,60 @@ public sealed class StoreDatabaseTests : IAsyncDisposable
             );
         Assert.False(first.VerifyAudit().Intact);
         Assert.True(second.VerifyAudit().Intact);
+    }
+
+    // The password is a secret file, not part of the connection string; rotating the role's password and the file
+    // together keeps the host connecting, with no restart (docs/adr/0027-secrets-from-files.md).
+    [Fact]
+    public void ARotatedDatabasePasswordIsPickedUpWithoutARestart()
+    {
+        Postgres();
+        var role = _schema + "_role";
+        string NewPassword() => Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        var password = NewPassword();
+        Admin($"CREATE ROLE {role} LOGIN PASSWORD '{password}'; GRANT ALL ON SCHEMA {_schema} TO {role}");
+        var file = Path.Combine(_root.Path, "database-password");
+        File.WriteAllText(file, password + "\n");
+        var secrets = new SecretSource(
+            name => name == PostgresStoreDatabase.PasswordVariable + "_FILE" ? file : null,
+            []
+        );
+        var connection = new NpgsqlConnectionStringBuilder(Server)
+        {
+            Username = role,
+            Password = null,
+            SearchPath = _schema,
+            Pooling = false,
+        }.ToString();
+        using var database = new PostgresStoreDatabase(
+            connection,
+            _root.Path,
+            () => secrets.Read(PostgresStoreDatabase.PasswordVariable),
+            TimeSpan.FromMilliseconds(200)
+        );
+        var store = new CompanyStore(database, Owner, CompanyWorkspace.Definitions());
+        store.Apply(Cmd("department.create") with { Name = "Before rotation" });
+
+        var rotated = NewPassword();
+        Admin($"ALTER ROLE {role} PASSWORD '{rotated}'");
+        File.WriteAllText(file, rotated + "\n");
+        // The server really checks passwords: the old one no longer opens a connection.
+        Assert.ThrowsAny<NpgsqlException>(() =>
+        {
+            using var old = new NpgsqlConnection(
+                new NpgsqlConnectionStringBuilder(connection) { Password = password }.ToString()
+            );
+            old.Open();
+        });
+        Thread.Sleep(TimeSpan.FromSeconds(1));
+        store.Apply(Cmd("department.create") with { Name = "After rotation" });
+
+        Assert.Equal(
+            2,
+            JsonSerializer
+                .SerializeToElement(store.Dashboard(), CompanyJson.Options)
+                .GetProperty("departments")
+                .GetArrayLength()
+        );
     }
 }

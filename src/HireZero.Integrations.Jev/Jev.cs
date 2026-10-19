@@ -5,15 +5,12 @@ using HireZero.Tools.Jev;
 
 namespace HireZero.Integrations.Jev;
 
-// Jev (TypeSafe systemone): cheap structured choices. The key stays server-side in an environment variable.
+// Jev (TypeSafe systemone): cheap structured choices. The key stays server-side, read as a secret (docs/SECRETS.md).
 public sealed class JevClient(IHttpClientFactory clients)
 {
     public static string? Key()
     {
-        var key =
-            Environment.GetEnvironmentVariable("HIREZERO_JEV_API_KEY")
-            ?? Environment.GetEnvironmentVariable("HIREZERO_JEV_API_KEY")
-            ?? Environment.GetEnvironmentVariable("TYPESAFE_API_KEY");
+        var key = SecretSource.Default.Read("HIREZERO_JEV_API_KEY") ?? SecretSource.Default.Read("TYPESAFE_API_KEY");
         return !string.IsNullOrWhiteSpace(key) && !key.Contains('\r') && !key.Contains('\n') ? key.Trim() : null;
     }
 

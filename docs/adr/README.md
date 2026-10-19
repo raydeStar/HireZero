@@ -31,3 +31,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0024](0024-opentelemetry-traces-and-metrics.md) | OpenTelemetry traces and metrics | Accepted |
 | [0025](0025-one-schema-two-databases.md) | One schema, two databases | Accepted |
 | [0026](0026-container-and-releases.md) | Container, releases and advisories | Accepted |
+| [0027](0027-secrets-from-files.md) | Secrets from files, vault-neutral | Accepted |

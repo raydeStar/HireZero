@@ -196,7 +196,11 @@ features in 2B.5 rather than twice.
 - **Tamper-evident audit log (done, [ADR 0022](adr/0022-tamper-evident-audit-log.md)):** a keyed hash chain per
   company of every event (each approval with its actor), tool call, model call and coding run; verify in the
   workspace and export as NDJSON ending with the verified head.
-- Configuration through `IOptions`; secrets from a vault/Key Vault instead of DPAPI files.
+- **Secrets from files, vault-neutral (done, [ADR 0027](adr/0027-secrets-from-files.md),
+  [guide](SECRETS.md)):** every secret is read by name from a mounted file, systemd credential or the
+  environment, so any vault delivers it through its agent or CSI driver; rotation without restarts for the OIDC
+  secret, API keys and database password; stored token keys wrapped by a key-encryption key on every OS; a shared
+  audit key for hosts on one database. Still open: non-secret configuration through typed `IOptions`.
 - **OpenTelemetry (done, [ADR 0024](adr/0024-opentelemetry-traces-and-metrics.md)):** spans for employee jobs, tool
   calls and requests (tagged with their company); metrics for jobs and their duration, tool calls by outcome, model
   calls and tokens per company and employee, and coding runs. Counted only after commit, identifiers only, exported

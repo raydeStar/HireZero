@@ -7,7 +7,7 @@ using HireZero.Tools.OpenRouter;
 namespace HireZero.Integrations.OpenRouter;
 
 // The openrouter.* tools (docs/adr/0009-legacy-features-are-optional-integrations.md): one structured choice from the
-// owner's chosen model through OpenRouter. The key stays in the environment (HIREZERO_OPENROUTER_API_KEY or
+// owner's chosen model through OpenRouter. The key is a secret, a mounted file or the environment (HIREZERO_OPENROUTER_API_KEY or
 // OPENROUTER_API_KEY), the model id in <data root>/openrouter.json, so no model id or secret lives in source. Each call
 // has a tiny reply budget and no tools; nothing is retried.
 public sealed partial class OpenRouterToolProvider(
@@ -25,8 +25,7 @@ public sealed partial class OpenRouterToolProvider(
     public static string? Key()
     {
         var value =
-            Environment.GetEnvironmentVariable("HIREZERO_OPENROUTER_API_KEY")
-            ?? Environment.GetEnvironmentVariable("OPENROUTER_API_KEY");
+            SecretSource.Default.Read("HIREZERO_OPENROUTER_API_KEY") ?? SecretSource.Default.Read("OPENROUTER_API_KEY");
         return !string.IsNullOrWhiteSpace(value) && !value.Contains('\r') && !value.Contains('\n')
             ? value.Trim()
             : null;

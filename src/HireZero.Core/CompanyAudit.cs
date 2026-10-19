@@ -25,7 +25,8 @@ public sealed partial class CompanyStore
     private const string Genesis = "0000000000000000000000000000000000000000000000000000000000000000";
     private byte[]? _auditKey;
 
-    // The chain's key lives beside the database, never in it; it is created once per data root.
+    // The chain's key never lives in the database. A mounted secret supplies it where several hosts share one
+    // database (docs/adr/0027); otherwise it is created once per data root beside the database.
     private byte[] AuditKey()
     {
         if (_auditKey is not null)
@@ -33,6 +34,15 @@ public sealed partial class CompanyStore
         var file = Path.Combine(_database.KeyDirectory, "audit.key");
         lock (AuditKeyGate)
         {
+            if (_database.AuditKey is { } secret)
+            {
+                var supplied = ParseAuditKey(secret);
+                if (File.Exists(file) && !ParseAuditKey(File.ReadAllText(file)).AsSpan().SequenceEqual(supplied))
+                    throw new InvalidOperationException(
+                        "The audit key secret differs from the audit.key already in the data root, so the existing chain would not verify. Supply that key as the secret. Nothing was started."
+                    );
+                return _auditKey = supplied;
+            }
             if (!File.Exists(file))
                 File.WriteAllText(file, Convert.ToHexString(RandomNumberGenerator.GetBytes(32)));
             var key = Convert.FromHexString(File.ReadAllText(file).Trim());
@@ -43,6 +53,18 @@ public sealed partial class CompanyStore
     }
 
     private static readonly object AuditKeyGate = new();
+
+    private static byte[] ParseAuditKey(string text)
+    {
+        try
+        {
+            var key = Convert.FromHexString(text.Trim());
+            if (key.Length == 32)
+                return key;
+        }
+        catch (FormatException) { }
+        throw new InvalidOperationException("An audit key is 64 hexadecimal characters. Nothing was started.");
+    }
 
     private string AuditHash(
         long seq,

@@ -78,6 +78,13 @@ it with `sh tools/start-company-local.sh --data-root <dir>`. `tools/Check-Adviso
 advisories and fails on any without a decision in `docs/security/advisories.json`
 ([ADR 0026](docs/adr/0026-container-and-releases.md)).
 
+### Secrets
+
+Every secret (OIDC client secret, database password, API keys, key-encryption and audit keys) can come from a
+mounted file instead of an environment variable: set `NAME_FILE`, or use Docker secrets or systemd credentials.
+Any vault can deliver them that way. [docs/SECRETS.md](docs/SECRETS.md) explains the whole design, with recipes
+for Docker, Kubernetes, systemd and Vault/OpenBao.
+
 ### Telemetry
 
 Traces and metrics (employee jobs, tool calls, model calls and tokens per company and employee) are exported over

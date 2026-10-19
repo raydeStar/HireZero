@@ -184,12 +184,15 @@ public static class CompanyWorkspace
             // The synthetic Wiki pilot, only when it is switched on (docs/adr/0015-publishing-an-approved-artifact.md).
             var wiki = fixtureTools is null && Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1";
             // Microsoft 365: owner-started reads only, no polling; its tools register once a client ID is saved.
+            builder.Services.AddCompanyKeyProtection(root);
             builder.Services.AddMicrosoft365Company(root);
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddCompanyTelemetry(CompanyTelemetryHosting.Enabled);
             var membership = new CompanyMembership();
             builder.Services.AddSingleton(membership);
             var app = builder.Build();
+            foreach (var line in CompanySecrets.Report())
+                app.Logger.LogInformation("{Secret}", line);
             if (fixtureDatabase is null && database is IDisposable owned)
                 app.Lifetime.ApplicationStopped.Register(owned.Dispose);
             var microsoft = app.Services.GetRequiredService<Microsoft365ToolProvider>();

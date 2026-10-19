@@ -29,7 +29,7 @@ public sealed class SemaForgeToolProvider(IHttpClientFactory clients) : IToolPro
         try
         {
             using var client = clients.CreateClient(Client);
-            if (Environment.GetEnvironmentVariable("HIREZERO_SEMAFORGE_API_KEY") is { Length: > 0 } key)
+            if (SecretSource.Default.Read("HIREZERO_SEMAFORGE_API_KEY") is { Length: > 0 } key)
                 client.DefaultRequestHeaders.Add("X-SemaForge-Api-Key", key);
             using var request = new HttpRequestMessage(new HttpMethod(call.Method), call.Path);
             if (call.JsonBody is not null)

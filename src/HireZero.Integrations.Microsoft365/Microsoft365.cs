@@ -640,7 +640,8 @@ public static class Microsoft365Services
     // to the connector, so the company profile still offers no general HTTP client factory.
     public static IServiceCollection AddMicrosoft365Company(this IServiceCollection services, string dataRoot)
     {
-        AddProtection(services, dataRoot);
+        // Token encryption uses the host's Data Protection keys and their protection (docs/adr/0027).
+        services.AddDataProtection();
         services.AddSingleton(new MicrosoftStore(dataRoot));
         services.AddSingleton(MicrosoftOptions.Company);
         services.AddSingleton(provider => new MicrosoftConnector(
@@ -662,16 +663,6 @@ public static class Microsoft365Services
                 BaseAddress = name == "graph" ? new Uri("https://graph.microsoft.com/") : null,
                 Timeout = TimeSpan.FromSeconds(30),
             };
-    }
-
-    private static void AddProtection(IServiceCollection services, string dataRoot)
-    {
-        var keys = services
-            .AddDataProtection()
-            .SetApplicationName("HireZero")
-            .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataRoot, "keys")));
-        if (OperatingSystem.IsWindows())
-            keys.ProtectKeysWithDpapi();
     }
 
     // Setup endpoints. Configured runs after the owner saves a client ID (the company workspace registers its tools

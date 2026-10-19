@@ -25,6 +25,9 @@ public sealed record HostedOptions(
     public const string SubjectClaim = "hirezero:subject";
 
     // Read from the environment; the client secret and certificate password never come from a file in the repo.
+    public const string ClientSecretVariable = "HIREZERO_OIDC_CLIENT_SECRET";
+
+    // Secrets are read through SecretSource, so each can be a mounted file (docs/adr/0027-secrets-from-files.md).
     public static HostedOptions FromEnvironment()
     {
         string Need(string name) =>
@@ -36,7 +39,7 @@ public sealed record HostedOptions(
             new Uri(Need("HIREZERO_LISTEN")),
             Need("HIREZERO_OIDC_AUTHORITY"),
             Need("HIREZERO_OIDC_CLIENT_ID"),
-            Environment.GetEnvironmentVariable("HIREZERO_OIDC_CLIENT_SECRET"),
+            SecretSource.Default.Read(ClientSecretVariable),
             Environment
                 .GetEnvironmentVariable("HIREZERO_OIDC_SCOPES")
                 ?.Split(' ', StringSplitOptions.RemoveEmptyEntries),
@@ -44,7 +47,7 @@ public sealed record HostedOptions(
                 ? IPAddress.Parse(proxy)
                 : null,
             Environment.GetEnvironmentVariable("HIREZERO_TLS_CERTIFICATE"),
-            Environment.GetEnvironmentVariable("HIREZERO_TLS_CERTIFICATE_PASSWORD")
+            SecretSource.Default.Read("HIREZERO_TLS_CERTIFICATE_PASSWORD")
         ).Validated();
     }
 
@@ -132,6 +135,14 @@ public static class CompanyHosting
                 oidc.Scope.Clear();
                 foreach (var scope in options.Scopes ?? ["openid", "profile", "email"])
                     oidc.Scope.Add(scope);
+                // The client secret is read again for every code exchange, so a rotated secret file applies at once.
+                if (options.ClientSecret is not null)
+                    oidc.Events.OnAuthorizationCodeReceived = context =>
+                    {
+                        if (SecretSource.Default.Read(HostedOptions.ClientSecretVariable) is { } current)
+                            context.TokenEndpointRequest!.ClientSecret = current;
+                        return Task.CompletedTask;
+                    };
                 oidc.Events.OnTokenValidated = context =>
                 {
                     var principal = context.Principal!;

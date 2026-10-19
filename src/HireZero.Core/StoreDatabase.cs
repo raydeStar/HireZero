@@ -12,6 +12,10 @@ public abstract class StoreDatabase
     // The directory holding the files that must not live inside the database, such as the audit key.
     public abstract string KeyDirectory { get; }
 
+    // The audit chain's key from a secret (64 hex characters), for databases shared by several hosts; without one
+    // it is a file in KeyDirectory (docs/adr/0027).
+    public string? AuditKey { get; init; }
+
     // False only when nothing has been created yet, so listing companies never creates a database.
     public virtual bool Exists => true;
 

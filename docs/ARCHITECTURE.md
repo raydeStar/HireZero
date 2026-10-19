@@ -137,7 +137,9 @@ Company data is in one SQLite database per data root (`workspace.sqlite`), or in
 accessed with ADO.NET through `Core/StoreDatabase.cs` ([ADR 0025](adr/0025-one-schema-two-databases.md)). One
 migration framework (`SchemaMigrations`) versions the company schema and every module's tables in one checksummed
 ledger. Modules and integrations with per-machine SQLite files use it through `ModuleStorage`
-([ADR 0018](adr/0018-module-storage-migrations.md)). Small JSON files in the data root hold optional
+([ADR 0018](adr/0018-module-storage-migrations.md)). Secrets are read by name through Core's `SecretSource` (a mounted
+file, a credentials directory, then the environment), and stored token keys are wrapped by a key-encryption key
+([ADR 0027](adr/0027-secrets-from-files.md), [docs/SECRETS.md](SECRETS.md)). Small JSON files in the data root hold optional
 integration settings (`agent-apps.json`, `azure-devops.json`, `openrouter.json`).
 
 ## Frontend
