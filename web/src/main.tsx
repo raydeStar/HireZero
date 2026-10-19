@@ -7,12 +7,9 @@ import "./styles/app.css";
 import "./styles/views.css";
 import "./styles/shell.css";
 import "./styles/workspace.css";
-import { HireZeroWorkspace } from "./shell/Workspace";
-import { api, applyTheme, preference } from "./lib/api";
+import { applyTheme, preference } from "./lib/api";
 import { CompanyWorkspace } from "./company/CompanyWorkspace";
 
 applyTheme(preference("theme", "system"));
 const root = createRoot(document.getElementById("root")!);
-api<{ companyEnabled?: boolean }>("/session")
-  .then((session) => root.render(session.companyEnabled ? <CompanyWorkspace /> : <HireZeroWorkspace />))
-  .catch(() => root.render(<HireZeroWorkspace />));
+root.render(<CompanyWorkspace />);

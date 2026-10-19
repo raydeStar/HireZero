@@ -22,8 +22,8 @@ Today's employees are **Developer** (GitHub PR review and fixes), **Marketing** 
 
 - Windows with PowerShell 7 (the launchers are Windows-only for now).
 - .NET SDK 10 (any 10.0 feature band) and Node.js 22+ with npm.
-- Optional, for live model replies: your own model sign-in and the pinned agent runtime (OpenClaw needs Node 24.16+,
-  installed per data root by `tools/Install-OpenClawRuntime.ps1`). No credentials or runtimes ship with this repo.
+- Optional, for live model replies and coding: the pinned Codex runtime and your own dedicated sign-in folder. No
+  credentials or runtimes ship with this repo.
 - At least 10 GiB free disk space before building.
 
 ## Build and run
@@ -35,33 +35,17 @@ dotnet build HireZero.slnx
 ./tools/Start-CompanyLocal.ps1 -DataRoot <new absolute directory>
 ```
 
-Open <http://127.0.0.1:5065/>. The company workspace needs a fresh data root and refuses an existing legacy
-database. Stop it with Ctrl+C.
-
-### Startup profiles
-
-The host has one profile per composition root, selected explicitly ([architecture](docs/ARCHITECTURE.md)):
-
-| Profile | Start with | What it serves |
-| --- | --- | --- |
-| Company | `tools/Start-CompanyLocal.ps1 -DataRoot <dir>` | The multi-employee company workspace on port 5065 |
-| Developer | `tools/Start-HireZero.ps1` | The original single-agent Developer workspace on port 5064 (retired in Phase 1) |
-| Recovery | `tools/Start-Home.ps1` | Developer UI with text-only chat and read-only PR discovery |
-| Held | `HIREZERO_EXECUTION_HOLD=1` | Read-only status while execution is held for verification |
+Open <http://127.0.0.1:5065/>. The company workspace is the only startup profile: it needs explicit local owner mode
+and a data root, and refuses an existing legacy database. While `HIREZERO_EXECUTION_HOLD=1` is set it refuses to
+start, so nothing resumes until you clear the hold. Stop it with Ctrl+C.
 
 ### Pinned agent runtime
 
-`runtime/openclaw/package.json` and its lockfile pin the OpenClaw runtime (currently 2026.10.4). Install it into a
-data root with:
-
-```powershell
-./tools/Install-OpenClawRuntime.ps1 -DataRoot <data root> -NodePath <node 24.16+ executable>
-./tools/OpenClawSignIn.ps1 -Owner -DataRoot <data root>
-```
-
-The host refuses to start an OpenClaw runtime whose version differs from the pin
-([ADR 0004](docs/adr/0004-pinned-agent-runtimes.md)). Complete any sign-in yourself in the browser; never paste
-credentials into chat or copy auth files between machines.
+`runtime/codex/pin.json` pins the Codex runtime used for live replies and coding
+([ADR 0014](docs/adr/0014-pinned-codex-runtime.md)). Start with `-Codex` (and `-Coding` for live coding runs),
+naming the pinned executable, its reviewed identity and your dedicated sign-in folder. The host refuses a runtime
+that does not match the pin ([ADR 0004](docs/adr/0004-pinned-agent-runtimes.md)). Complete any sign-in yourself in
+the browser; never paste credentials into chat or copy auth files between machines.
 
 ### Model routes
 
@@ -79,9 +63,9 @@ dotnet test --project tests/HireZero.Core.Tests            # one project
 dotnet csharpier check .                                   # C# formatting (dotnet tool restore once)
 npm run typecheck --prefix web
 npm run format:check --prefix web
-node --test tests/*.test.mjs                               # frontend and hook unit tests
+node --test tests/*.test.mjs                               # frontend unit tests
 node tests/company-browser-smoke.mjs                       # headless Chrome smoke tests (build first)
-pwsh tests/launcher.test.ps1                               # launcher tests (mocked processes)
+pwsh tests/company-launcher.test.ps1                       # launcher test (mocked process)
 ```
 
 Use the smallest set that covers a change. Apply formatting with `dotnet csharpier format .` and
@@ -95,12 +79,12 @@ Use the smallest set that covers a change. Apply formatting with `dotnet csharpi
 | `src/HireZero.Roles.*` | Employees: Developer, Marketing, CEO |
 | `src/HireZero.Tools.*` | Tool contracts shared by roles and integrations |
 | `src/HireZero.Integrations.*` | External systems: Git and GitHub CLI, npm, model runtimes, Microsoft 365, Azure DevOps |
-| `src/HireZero.Host` | Composition roots (startup profiles) |
-| `web/` | React frontend (`company/` workspace, `roles/` employee panels, `shell/` legacy Developer UI) |
+| `src/HireZero.Host` | The company workspace's composition root |
+| `web/` | React frontend (`company/` workspace, `roles/` employee panels, `lib/` shared client) |
 | `runtime/` | Pinned external agent runtimes |
 | `config/` | Model route catalog |
 | `tests/` | xUnit projects, Node and browser smoke tests, fixtures |
-| `tools/` | Launchers, runtime installer, sign-in helpers |
+| `tools/` | The company launcher and setup helpers |
 | `docs/` | [Roadmap](docs/ROADMAP.md), [architecture](docs/ARCHITECTURE.md), [decisions](docs/adr/), [history](docs/history/) |
 
 ## Contributing

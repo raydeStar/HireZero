@@ -143,3 +143,59 @@ public static partial class WikiDraftPolicy
     )]
     private static partial Regex ScreenPattern();
 }
+
+public static class WikiTargets
+{
+    // The supported, current knowledge of one project, from a GET api/knowledge reply.
+    public static WikiTarget[] ParseTargets(JsonElement knowledge, string projectId)
+    {
+        var result = new List<WikiTarget>();
+        foreach (var value in knowledge.EnumerateArray().Take(40))
+        {
+            var entry = value.GetProperty("entry");
+            var revision = value.GetProperty("revision");
+            if (
+                entry.GetProperty("project").GetString() != projectId
+                || entry.GetProperty("area").GetString() != "engineering"
+            )
+                continue;
+            bool extended = new[]
+            {
+                "product",
+                "customerCategory",
+                "versionFrom",
+                "versionBefore",
+                "parentEntryId",
+            }.Any(key => entry.TryGetProperty(key, out var field) && field.ValueKind != JsonValueKind.Null);
+            var kind = entry.GetProperty("kind").GetString()!;
+            bool linkedSources =
+                revision.TryGetProperty("sourceDependencies", out var dependencies)
+                && dependencies.ValueKind == JsonValueKind.Array
+                && dependencies.GetArrayLength() > 0;
+            bool supported =
+                !extended
+                && !linkedSources
+                && entry.GetProperty("version").GetInt32() == revision.GetProperty("version").GetInt32()
+                && kind is "Rule" or "Project" or "Gotcha" or "Artifact";
+            var status = value.GetProperty("status").GetString()!;
+            if (value.TryGetProperty("reportedConcerns", out var concerns) && concerns.GetInt32() > 0)
+                status = "reported-concerns";
+            result.Add(
+                new(
+                    entry.GetProperty("id").GetString()!,
+                    revision.GetProperty("id").GetString()!,
+                    entry.GetProperty("knowledgeKey").GetString()!,
+                    kind,
+                    revision.GetProperty("title").GetString()!,
+                    revision.GetProperty("body").GetString()!,
+                    entry.GetProperty("version").GetInt32(),
+                    status,
+                    entry.GetProperty("environment").GetString()!,
+                    entry.GetProperty("region").GetString()!,
+                    supported
+                )
+            );
+        }
+        return [.. result];
+    }
+}

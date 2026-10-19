@@ -163,21 +163,19 @@ public sealed partial class ArchitectureTests
         );
     }
 
-    // Only the legacy Developer and Recovery profiles may name a role until they retire (docs/ROADMAP.md).
+    // The host composes employees only through module discovery; it names no role.
     [Fact]
-    public void CompanyProfileNamesNoRole()
+    public void TheHostNamesNoRole()
     {
-        string[] legacy = ["DeveloperWorkspace.cs", "RecoveryWorkspace.cs", "ResetQueuedWork.cs"];
         var offenders = Directory
             .EnumerateFiles(Path.Combine(Repository, "src", "HireZero.Host"), "*.cs")
-            .Where(path => !legacy.Contains(Path.GetFileName(path)))
             .Where(path => File.ReadAllText(path).Contains("HireZero.Roles", StringComparison.Ordinal))
             .Select(Path.GetFileName);
         Assert.Empty(offenders);
     }
 
     // Core knows no product an integration serves (docs/adr/0009). Each port to an optional integration adds its names
-    // here: Microsoft 365 (2B.5d), session steering (2B.5e), Azure DevOps (2B.5f), Jev (2B.5g); tailnet access follows.
+    // here: Microsoft 365 (2B.5d), session steering (2B.5e), Azure DevOps (2B.5f), Jev (2B.5g), agent sessions (2B.5j).
     [Fact]
     public void CoreNamesNoIntegrationProduct()
     {
@@ -189,7 +187,7 @@ public sealed partial class ArchitectureTests
     }
 
     [GeneratedRegex(
-        @"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com|SessionSteering|ISessionDriver|SteerRequest|AzureDevOps|Azure DevOps|dev\.azure\.com|visualstudio\.com|Jev|TypeSafe|OpenRouter|openrouter\.ai)\b"
+        @"\b(Microsoft365|Microsoft 365|Outlook|Teams|graph\.microsoft\.com|SessionSteering|ISessionDriver|SteerRequest|AgentSession|ISessionSource|SessionActivity|AzureDevOps|Azure DevOps|dev\.azure\.com|visualstudio\.com|Jev|TypeSafe|OpenRouter|openrouter\.ai)\b"
     )]
     private static partial Regex IntegrationProduct();
 

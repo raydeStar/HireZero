@@ -14,7 +14,7 @@ public sealed class MarketingModule : IEmployeeModule
             "Marketing",
             "Campaign briefs and versioned drafts for your review. No publishing or outreach.",
             "1.0.0",
-            MarketingRole.Instructions,
+            MarketingText.Instructions,
             [
                 new(PlatformSkills.Chat, "Conversation", "Discuss marketing work from approved context."),
                 new(
@@ -57,7 +57,5 @@ public sealed class MarketingModule : IEmployeeModule
         skill == Draft ? new MarketingBriefPolicy().Validate(input) : input;
 
     public string InstructionsFor(string skill) =>
-        skill == Draft ? MarketingRole.DraftInstructions : MarketingRole.Instructions;
-
-    public IRole? LegacyRole => new MarketingRole();
+        skill == Draft ? MarketingText.DraftInstructions : MarketingText.Instructions;
 }

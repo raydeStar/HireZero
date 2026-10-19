@@ -153,14 +153,6 @@ public sealed class ClaudeSessionDriver(CodingRunStore store, string? command = 
             if (events.Count > 300)
                 events.RemoveAt(0);
             run = store.Save(run with { Events = [.. events], UpdatedAt = DateTimeOffset.UtcNow.ToString("O") });
-            AgentActivity.Note(
-                message,
-                data is not null
-                && JsonSerializer.SerializeToElement(data) is { ValueKind: JsonValueKind.Object } json
-                && json.TryGetProperty("command", out var raw)
-                    ? "Claude ran: " + raw.GetString()
-                    : null
-            );
         }
         var start = new ProcessStartInfo(_command)
         {

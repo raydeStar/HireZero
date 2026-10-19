@@ -552,97 +552,6 @@ public sealed class MicrosoftConnector(
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }
 
-// Polls Outlook every minute and Teams every two minutes while connected; each message goes through intake.
-public sealed class MicrosoftPoller(
-    MicrosoftStore store,
-    MicrosoftConnector connector,
-    IntakePipeline intake,
-    AgentWorker worker,
-    ILogger<MicrosoftPoller> log
-) : BackgroundService
-{
-    private DateTimeOffset _lastTeams = DateTimeOffset.MinValue;
-    private readonly SemaphoreSlim _now = new(0);
-
-    public void SyncNow()
-    {
-        if (_now.CurrentCount == 0)
-            _now.Release();
-    }
-
-    public async Task<int> SyncAsync(bool includeTeams, CancellationToken token)
-    {
-        if (store.Account() is null || store.Settings().ClientId is null)
-            return 0;
-        var settings = store.Settings();
-        var messages = new List<GraphMessage>();
-        try
-        {
-            if (settings.Mail)
-                messages.AddRange(await connector.ReadMailAsync(token));
-            if (settings.Teams && includeTeams)
-            {
-                messages.AddRange(await connector.ReadTeamsAsync(token));
-                _lastTeams = DateTimeOffset.UtcNow;
-            }
-        }
-        catch (Exception error)
-            when (error
-                    is WorkspaceException
-                        or HttpRequestException
-                        or JsonException
-                        or CryptographicException
-                        or TaskCanceledException
-                && !token.IsCancellationRequested
-            )
-        {
-            var account = store.Account();
-            if (account is not null)
-                store.SaveAccount(
-                    account with
-                    {
-                        LastError = error is WorkspaceException known
-                            ? known.Message
-                            : "Microsoft 365 couldn't be read; it will try again.",
-                    }
-                );
-            log.LogWarning(error, "Microsoft 365 sync failed.");
-            return 0;
-        }
-        foreach (var message in messages.OrderBy(item => item.ReceivedAt))
-            await intake.ProcessAsync(
-                new InboundMessage(
-                    message.Source,
-                    message.ExternalId,
-                    message.ThreadKey,
-                    message.From,
-                    message.Subject,
-                    message.Body,
-                    message.ReceivedAt
-                ),
-                token
-            );
-        if (messages.Count > 0)
-        {
-            AgentActivity.Note("Read " + messages.Count + " new Microsoft 365 message(s) into the inbox.");
-            worker.Wake();
-        }
-        return messages.Count;
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await Task.Delay(TimeSpan.FromSeconds(8), stoppingToken);
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            // Graph can only push change notifications to a public HTTPS endpoint, so a local workspace polls with delta queries:
-            // mail every 30 seconds, Teams every minute, on shift or not.
-            await SyncAsync(DateTimeOffset.UtcNow - _lastTeams >= TimeSpan.FromSeconds(60), stoppingToken);
-            await _now.WaitAsync(TimeSpan.FromSeconds(30), stoppingToken).ContinueWith(_ => { }, TaskScheduler.Default);
-        }
-    }
-}
-
 // The m365.* tools (docs/adr/0009-legacy-features-are-optional-integrations.md): owner-started, read-only reads that
 // never move the legacy sync cursor, and a status that says why the integration is not active.
 public sealed class Microsoft365ToolProvider(MicrosoftStore store, MicrosoftConnector connector)
@@ -765,29 +674,6 @@ public static class Microsoft365Services
             keys.ProtectKeysWithDpapi();
     }
 
-    public static IServiceCollection AddMicrosoft365(this IServiceCollection services, string dataRoot)
-    {
-        AddConnector(services, dataRoot);
-        services.AddSingleton<MicrosoftPoller>();
-        return services.AddHostedService(provider => provider.GetRequiredService<MicrosoftPoller>());
-    }
-
-    private static void AddConnector(IServiceCollection services, string dataRoot)
-    {
-        AddProtection(services, dataRoot);
-        services.AddHttpClient(
-            "graph",
-            client =>
-            {
-                client.BaseAddress = new Uri("https://graph.microsoft.com/");
-                client.Timeout = TimeSpan.FromSeconds(30);
-            }
-        );
-        services.AddHttpClient("microsoft-identity", client => client.Timeout = TimeSpan.FromSeconds(30));
-        services.AddSingleton(new MicrosoftStore(dataRoot));
-        services.AddSingleton<MicrosoftConnector>();
-    }
-
     // Setup endpoints. Configured runs after the owner saves a client ID (the company workspace registers its tools
     // then); the sync endpoint exists only where the legacy poller runs.
     public static void MapMicrosoft365(this WebApplication app, Action? configured = null)
@@ -853,17 +739,6 @@ public static class Microsoft365Services
             (HttpContext context, MicrosoftConnector connector) =>
                 Owner(context) ? Results.Ok(new { url = connector.Begin() }) : Results.StatusCode(403)
         );
-        if (app.Services.GetService<MicrosoftPoller>() is not null)
-            app.MapPost(
-                "/api/connections/microsoft/sync",
-                (HttpContext context, MicrosoftPoller poller) =>
-                {
-                    if (!Owner(context))
-                        return Results.StatusCode(403);
-                    poller.SyncNow();
-                    return Results.Ok(new { queued = true });
-                }
-            );
         app.MapDelete(
             "/api/connections/microsoft",
             (HttpContext context, MicrosoftStore store) =>
@@ -891,7 +766,6 @@ public static class Microsoft365Services
                 try
                 {
                     await connector.CompleteAsync(code, state, token);
-                    context.RequestServices.GetService<MicrosoftPoller>()?.SyncNow();
                     return Results.Redirect(options.ReturnTo + "connected");
                 }
                 catch (WorkspaceException failure)

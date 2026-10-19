@@ -6,10 +6,10 @@ This describes HireZero as it is today, including the known gaps, and points at 
 ## Layers
 
 ```
-Host (composition roots, one per startup profile)
+Host (the company workspace's composition root)
  ├── Roles            src/HireZero.Roles.{Developer,Marketing,Ceo}   web/src/roles/*
- ├── Integrations     src/HireZero.Integrations.{Git,GitHub,Node,SemaForge,Wiki,Jev,Tailscale,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps}
- ├── Tool contracts   src/HireZero.Tools.{Git,GitHub,Node,SemaForge,Wiki,Jev}   (referenced by roles and integrations)
+ ├── Integrations     src/HireZero.Integrations.{Git,GitHub,Node,SemaForge,Wiki,Jev,OpenRouter,OpenClaw,Codex,AgentApps,Microsoft365,AzureDevOps}
+ ├── Tool contracts   src/HireZero.Tools.*   (referenced by roles and integrations)
  └── Core             src/HireZero.Core
 ```
 
@@ -20,29 +20,22 @@ integrations reference Core, tool contracts and (for AgentApps) Codex, and only 
 
 Architecture tests (`tests/HireZero.Host.Tests/ArchitectureTests.cs`) enforce the assembly references, that every
 role project ships one discovered module, that every declared tool has a contract with the same risk, and that the
-company profile and shared company UI name no role.
+host and shared company UI name no role, and that company code names no retired legacy piece.
 
 Core starts no process and roles open no HTTP client; architecture tests check both, in assembly metadata.
 
-Known remaining vocabulary in Core, all in legacy-only features that move out in Phase 2B.5: work-log PR fields,
-owner-task PR classification, thread-title URL rules, wiki notice kinds, Codex and Claude session names, and
-GitHub/Azure DevOps remote parsing used for boss sharing (`GitRemote.cs`).
+Known remaining vocabulary in Core: GitHub and Azure DevOps remote parsing (`GitRemote.cs`), behind its
+origin-format port.
 
-## Startup profiles
+## Startup
 
-`src/HireZero.Host/Program.cs` reads the owner and data root, then selects exactly one profile. Each profile is its
-own composition root, so a restricted profile never constructs the services it must not use. Shared listener and
-request-boundary plumbing lives in `LocalHosting.cs`.
-
-| Profile | Selected by | Composition root | Notes |
-| --- | --- | --- | --- |
-| Company | `--company-local` | `CompanyWorkspace.cs` | Departments, employees, conversations, tasks, artifacts, plans, meetings. Port 5065. Optional pinned Codex connection (`--company-codex`). |
-| Recovery | `HIREZERO_DISCOVERY_ONLY=1` | `RecoveryWorkspace.cs` | Developer UI with fresh-message text chat and read-only PR discovery. |
-| Held | `HIREZERO_EXECUTION_HOLD=1` | `HeldWorkspace.cs` | Status only; every mutation refused. |
-| Developer | default | `DeveloperWorkspace.cs` | The original single-agent workspace with roles hired through `roles.json`. Retired in Phase 1. |
-
-All profiles bind loopback only and ignore endpoint configuration from args, appsettings or environment. The
-Developer profile can additionally listen on a tailnet address and identify callers through Tailscale.
+`src/HireZero.Host/Program.cs` reads the owner and data root and starts the company workspace
+(`CompanyWorkspace.cs`): departments, employees, conversations, tasks, artifacts, plans and meetings on port 5065,
+with the optional pinned Codex connection (`--company-codex`) and live coding (`--company-coding`). It needs
+`--company-local`, explicit local owner mode and an explicit data root, and refuses to start while
+`HIREZERO_EXECUTION_HOLD=1`. Phase 2B.5j retired the developer, recovery and held profiles
+([ADR 0019](adr/0019-retiring-the-legacy-profiles.md)). The host binds loopback only and ignores endpoint
+configuration from args, appsettings or environment; listener plumbing lives in `LocalHosting.cs`.
 
 ## Employees
 
@@ -56,8 +49,6 @@ wildcard and `EmployeeModuleCatalog.Discover` finds the modules at startup
   manifest's hiring copy, tools, KPIs and UI slots to the web.
 - Platform skills that the company orchestrates (`chat`, `meeting-turn`, `meeting-chair`, `company-plan`) are
   named by `PlatformSkills`; all other skills are opaque to Core.
-- `IRole` (`Core/Roles.cs`) remains only for the legacy Developer and Recovery profiles; a module exposes it as
-  `LegacyRole`. It is removed with those profiles in Phase 2.
 
 Employees can also declare read-only actions ([ADR 0011](adr/0011-employee-actions.md)). For example, the Developer's
 `pr-evidence` action gathers a PR through `github.read`. Its output is an artifact for owner review, and only once it
@@ -68,7 +59,9 @@ local calls and one external call. The owner approves that publication after the
 `company-publication` verifier authorizes each call once, in order. The Developer's `pr-fix` uses this to commit a
 reviewed fix and push it to the pull request's branch with a lease on the reviewed head. A measured skill's approved
 artifact can be published the same way ([ADR 0015](adr/0015-publishing-an-approved-artifact.md)): the Developer's
-`wiki-draft` contributes and then publishes one Wiki entry.
+`wiki-draft` contributes and then publishes one Wiki entry. A role may also declare an action whose reading names
+one exact step ([ADR 0017](adr/0017-publishing-a-step-from-an-action.md)), such as the Developer's `pr-step` (merge,
+re-run, rebase) and `postgres-setup`.
 
 On the web, `web/src/roles/company.ts` collects every `web/src/roles/<id>/company.tsx` and renders a contribution
 only where the module's manifest declares the slot (`skill-input:<skill>` for structured input editors, named
@@ -103,7 +96,8 @@ Today's tools:
 | `git.read`, `github.read`, `github.sign-in-status` | Read | `Integrations.GitHub` |
 | `git.write` | Write | `Integrations.GitHub` |
 | `git.push`, `github.write`, `github.sign-in` | External | `Integrations.GitHub` |
-| `npm.install-pinned` | Write | `Integrations.Node` |
+| `npm.install-pinned`, `postgres.prepare-runner` / `postgres.status` | Write / Read | `Integrations.Node` |
+| `agentapps.sessions.list`, `agentapps.sessions.activity`, `agentapps.session.check` / `agentapps.session.send` | Read / External | `Integrations.AgentApps` |
 | `semaforge.read` / `semaforge.write` | Read / Write | `Integrations.SemaForge` |
 | `wiki.read`, `wiki.origin` / `wiki.contribute` / `wiki.publish` | Read / Write / External | `Integrations.Wiki` |
 | `jev.classify`, `jev.status` | Read (classification text leaves to the configured classifier) | `Integrations.Jev` |
@@ -111,32 +105,20 @@ Today's tools:
 Integrations contribute tools through `IToolProvider`. `AddToolRegistry()` composes the providers, the
 verifiers and the audit.
 
-Authorities in use:
-
-- `developer-workflow`: an approved PR workflow in scope. It is checked against the workflow's claimed approval
-  and its own commit, branch and pull request.
-- `developer-loop`: an active fix loop's Codex review request.
-- `developer-fix-cancel`: a fix cancelling its own SemaForge runs. This is always allowed, because cancelling only
-  stops work.
-- `developer-wiki-draft`: a reserved draft submitting its own proposal, or approving its own revision while
-  publishing.
-- `owner-request`: the owner's HTTP request, valid only while that request is in flight.
-- `owner-action`: the owner's click, approving one exact call.
+The one authority in use is `company-publication`: an approved publication authorizes each of its exact calls once,
+in order ([ADR 0012](adr/0012-company-publication.md)). Every other write is refused.
 
 Roles neither start processes nor open HTTP clients, and Core starts none; architecture tests check this in the
-assemblies' metadata. Platform infrastructure that is not an employee capability, such as identifying tailnet callers
-(`Integrations.Tailscale`), is an integration behind a Core port rather than a tool.
+assemblies' metadata.
 
 ## Model runtimes and routes
 
 - **Routes**: `config/model-routes.json` maps purposes (`company.text`, `developer.escalation`, ...) to model ids
   and display names. It is embedded in Core and read through `ModelRoutes`; `HIREZERO_MODEL_ROUTES` can name an
   owner-maintained override file. No model id appears in source ([ADR 0008](adr/0008-model-routes.md)).
-- **OpenClaw** (`Integrations.OpenClaw`): a local gateway exposing chat completions; used by the Developer and
-  Recovery profiles. Its version is pinned in `runtime/openclaw` and verified before any process starts
-  ([ADR 0004](adr/0004-pinned-agent-runtimes.md)).
-- **Codex** (`Integrations.Codex`): app-server over stdio; used by the company workspace for measured one-turn work
-  and by Developer coding runs. The executable is pinned by a reviewed bundle identity hash.
+- **Codex** (`Integrations.Codex`): app-server over stdio; used for measured one-turn work and live coding runs. The
+  executable is pinned in `runtime/codex` and by a reviewed bundle identity hash
+  ([ADR 0004](adr/0004-pinned-agent-runtimes.md), [ADR 0014](adr/0014-pinned-codex-runtime.md)).
 
 - **Provider contract**: `IModelProvider` and `IMeasuredModelProvider` (`Core/ModelProviders.cs`,
   [ADR 0010](adr/0010-model-provider-contract.md)).
@@ -145,27 +127,23 @@ assemblies' metadata. Platform infrastructure that is not an employee capability
     termination or usage is unconfirmed.
   - Implementations: `CompanyCodexConnection` (measured), `ScopedCompanyText` and `UnavailableModelProvider`. Adding
     a vendor: [ADDING_A_MODEL_PROVIDER.md](ADDING_A_MODEL_PROVIDER.md).
-- **Legacy contracts**: `IModelGateway` (OpenClaw text) and `ICodingRunner` (Codex coding runs) serve the Developer
-  profile only and retire with it in Phase 2B.5. Their usage goes to the budget ledger, which flags anything the
-  provider didn't report.
 
 ## Storage
 
-One SQLite database per data root (`workspace.sqlite`), accessed with ADO.NET. The company workspace uses
-versioned, checksummed migrations (`Core/CompanyDatabase.cs`); older stores create tables on construction and
-alter them ad hoc. Small JSON files in the data root hold role hiring, access, brief, intake and sharing settings.
+One SQLite database per data root (`workspace.sqlite`), accessed with ADO.NET. The company schema uses versioned,
+checksummed migrations (`Core/CompanyDatabase.cs`); modules and integrations version their own tables through
+`ModuleStorage` ([ADR 0018](adr/0018-module-storage-migrations.md)). Small JSON files in the data root hold optional
+integration settings (`agent-apps.json`, `azure-devops.json`, `openrouter.json`).
 
 ## Frontend
 
 React 19 + Vite, built into the Host's `wwwroot`. `web/src/main.tsx` renders the company workspace
-(`web/src/company`) when the session reports company mode, otherwise the legacy Developer shell
-(`web/src/shell`). Employee UI lives under `web/src/roles/<id>`: `company.tsx` contributes to the company
-workspace through manifest-declared slots, and the Developer folder also holds the legacy shell's panels
-(registered in `web/src/roles/index.ts`). Phase 2 merges the remaining Developer panels into the company workspace.
+(`web/src/company`); the shared API client and preferences are in `web/src/lib`. Employee UI lives under
+`web/src/roles/<id>/company.tsx` and contributes to the company workspace through manifest-declared slots.
 
 ## Tests
 
 xUnit v3 on Microsoft.Testing.Platform ([ADR 0005](adr/0005-offline-checks-on-xunit.md)). Each historical check
-group is one test; new tests should be ordinary focused facts (see `tests/HireZero.Integrations.Tests/
-OpenClawRuntimeTests.cs`). The company test executable also hosts the fixtures used by the headless Chrome smoke
+group is one test; new tests should be ordinary focused facts (see `tests/HireZero.Company.Tests/
+PullRequestStepTests.cs`). The company test executable also hosts the fixtures used by the headless Chrome smoke
 tests in `tests/*-browser-smoke.mjs`.

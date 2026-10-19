@@ -1,94 +1,11 @@
 using System.Text.Json;
 using HireZero.Roles.Developer;
 
-// Preparation, Jev and Wiki draft policy checks.
+// Wiki draft policy checks.
 public static class PolicyInlineChecks
 {
     public static void Run()
     {
-        var cases = new (string Text, bool Valid)[]
-        {
-            (
-                """{"stage":"gathering","blocker":"Missing reproduction steps","nextAction":"Ask for a failing example","questions":["Which environment reproduces it?"]}""",
-                true
-            ),
-            ("""{"stage":"ready","blocker":"","nextAction":"Owner reviews scope","questions":[]}""", true),
-            ("""{"stage":"deploy","blocker":"","nextAction":"Deploy","questions":[]}""", false),
-            ("""{"stage":"scoping","blocker":"Unclear scope","nextAction":"","questions":[]}""", false),
-            ("""{"stage":"scoping","nextAction":"Ask for scope","questions":[]}""", false),
-            ("""{"stage":"scoping","blocker":"Unclear scope","nextAction":"Ask","questions":[null]}""", false),
-            ("null", false),
-            ("I think the work is ready.", false),
-            (
-                JsonSerializer.Serialize(
-                    new
-                    {
-                        stage = "scoping",
-                        blocker = new string('x', 1001),
-                        nextAction = "Ask",
-                        questions = Array.Empty<string>(),
-                    }
-                ),
-                false
-            ),
-            (
-                JsonSerializer.Serialize(
-                    new
-                    {
-                        stage = "scoping",
-                        blocker = "",
-                        nextAction = "Ask",
-                        questions = Enumerable.Repeat("Question?", 6).ToArray(),
-                    }
-                ),
-                false
-            ),
-        };
-        foreach (var test in cases)
-            if ((PreparationAdvice.Parse(test.Text) is not null) != test.Valid)
-                throw new InvalidOperationException(
-                    "Preparation policy accepted an unsafe or uncertain response, or rejected a valid one."
-                );
-        Console.WriteLine($"PASS {cases.Length} bounded preparation policy checks");
-        var routes = new (string Text, string? Route, string? Candidate)[]
-        {
-            ("""{"answers":{"route":{"choice":"new","confidence":0.92}}}""", "new", null),
-            ("""{"answers":{"route":{"choice":"new","confidence":0.4}}}""", "uncertain", null),
-            ("""{"answers":{"route":{"choice":"new"}}}""", "uncertain", null),
-            (
-                """{"answers":{"route":{"choice":"existing","confidence":0.95},"match":{"choice":"tracked","confidence":0.91}}}""",
-                "existing",
-                "tracked"
-            ),
-            (
-                """{"answers":{"route":{"choice":"existing","confidence":0.95},"match":{"choice":"foreign","confidence":0.91}}}""",
-                "uncertain",
-                null
-            ),
-            (
-                """{"answers":{"route":{"choice":"existing","confidence":0.95},"match":{"choice":"tracked","confidence":0.3}}}""",
-                "uncertain",
-                null
-            ),
-            ("""{"answers":{"route":{"choice":"delete","confidence":0.95}}}""", null, null),
-            ("""{"answers":{"route":{"choice":"new","confidence":2}}}""", "uncertain", null),
-            ("""{"answers":{}}""", null, null),
-            ("null", null, null),
-            ("[]", null, null),
-            ("""{"answers":null}""", null, null),
-            ("""{"answers":{"route":42}}""", null, null),
-            ("""{"answers":{"route":{"choice":"existing","confidence":0.95},"match":null}}""", "uncertain", null),
-        };
-        foreach (var test in routes)
-        {
-            using var document = JsonDocument.Parse(test.Text);
-            var result = TriageDecision.Parse(document.RootElement, ["tracked"]);
-            if (result.Route != test.Route || result.CandidateRequestId != test.Candidate)
-                throw new InvalidOperationException(
-                    "Jev triage accepted an uncertain or unrelated task recommendation."
-                );
-        }
-        Console.WriteLine($"PASS {routes.Length} Jev response and uncertainty checks");
         var wikiContent = new WikiDraftContent(
             "acceptance",
             "Rule",

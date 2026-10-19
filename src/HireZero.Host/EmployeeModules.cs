@@ -6,7 +6,4 @@ public static class HostEmployees
     private static readonly Lazy<IEmployeeModule[]> Discovered = new(() => EmployeeModuleCatalog.Discover());
 
     public static IEmployeeModule[] Modules => Discovered.Value;
-
-    // Roles the legacy Developer and Recovery profiles can hire (roles.json). Removed with those profiles.
-    public static IRole[] LegacyRoles() => [.. Modules.Select(m => m.LegacyRole).OfType<IRole>()];
 }

@@ -1,5 +1,5 @@
-// Profile dispatcher. Each profile is a separate composition root (see docs/ARCHITECTURE.md):
-// company (--company-local), recovery (HIREZERO_DISCOVERY_ONLY=1), held (HIREZERO_EXECUTION_HOLD=1), developer (default).
+// The company workspace is the only profile (Phase 2B.5j retired the developer, recovery and held profiles). It starts
+// with --company-local, explicit local owner mode and an explicit HIREZERO_DATA_ROOT; see README.
 var localOwnerEnabled = Environment.GetEnvironmentVariable("HIREZERO_LOCAL_OWNER") == "1";
 var ownerLogin = Environment.GetEnvironmentVariable("HIREZERO_OWNER_LOGIN")?.Trim().ToLowerInvariant();
 if (string.IsNullOrWhiteSpace(ownerLogin) && localOwnerEnabled)
@@ -11,17 +11,9 @@ if (string.IsNullOrWhiteSpace(ownerLogin))
 var dataRoot =
     Environment.GetEnvironmentVariable("HIREZERO_DATA_ROOT")
     ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".hirezero");
-if (args.Contains("--reset-queued-work"))
-{
-    if (!localOwnerEnabled)
-        throw new InvalidOperationException("Reset requires explicit local owner mode.");
-    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(ResetQueuedWork.Run(dataRoot)));
-    return;
-}
 var app =
     CompanyWorkspace.TryCreate(args, ownerLogin, localOwnerEnabled, dataRoot)
-    ?? RecoveryWorkspace.TryCreate(args, ownerLogin, localOwnerEnabled, dataRoot)
-    // The hold branches before role registration, stores, provider preparation or recovery.
-    ?? HeldWorkspace.TryCreate(args, ownerLogin, localOwnerEnabled, dataRoot)
-    ?? await DeveloperWorkspace.CreateAsync(args, ownerLogin, localOwnerEnabled, dataRoot);
+    ?? throw new InvalidOperationException(
+        "Start the company workspace with --company-local (see README). The legacy profiles were retired."
+    );
 app.Run();

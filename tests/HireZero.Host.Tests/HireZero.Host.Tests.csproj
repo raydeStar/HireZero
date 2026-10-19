@@ -6,9 +6,6 @@
     <ProjectReference Include="../../src/HireZero.Host/HireZero.Host.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="../HireZero.Developer.Tests/SyntheticGitHub.cs" Link="SyntheticGitHub.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="../xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -395,6 +395,4 @@ public sealed class DeveloperModule : IEmployeeModule
         public ICodingRunner Create(CompanyExecutionGrant grant, Func<bool> mayStart) =>
             throw new WorkspaceException("No qualified coding runner is available.");
     }
-
-    public IRole? LegacyRole => new DeveloperRole();
 }

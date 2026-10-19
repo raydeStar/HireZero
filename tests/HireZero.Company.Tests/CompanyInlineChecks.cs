@@ -586,8 +586,7 @@ public static class CompanyInlineChecks
                 fixtureUrl: "http://127.0.0.1:0"
             )!;
             check(
-                app.Services.GetService<IModelGateway>() is null
-                    && app.Services.GetService<ICodingRunner>() is null
+                app.Services.GetService<ICodingRunner>() is null
                     && app.Services.GetService<IHttpClientFactory>() is null,
                 "Company-local profile registers no legacy/runtime clients or runners."
             );

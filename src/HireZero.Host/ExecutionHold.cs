@@ -1,5 +1,5 @@
-// The execution hold switch (HIREZERO_EXECUTION_HOLD): 1 starts the held profile, which resumes nothing until the owner
-// verifies; the company workspace refuses to start while it is set.
+// The execution hold switch (HIREZERO_EXECUTION_HOLD): while it is 1 the workspace refuses to start, so nothing resumes
+// until the owner clears it.
 public static class ExecutionHold
 {
     public const string Variable = "HIREZERO_EXECUTION_HOLD";

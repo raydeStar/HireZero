@@ -1,7 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <Compile Include="../../src/HireZero.Roles.Developer/PreparationAdvice.cs" Link="PreparationAdvice.cs" />
-    <Compile Include="../../src/HireZero.Roles.Developer/TriageDecision.cs" Link="TriageDecision.cs" />
     <Compile Include="../../src/HireZero.Roles.Developer/WikiDraft.cs" Link="WikiDraft.cs" />
   </ItemGroup>
   <ItemGroup>

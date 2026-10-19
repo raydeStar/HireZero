@@ -127,7 +127,6 @@ public sealed class CodexRunner : ICodingRunner, ICodingRunLifecycle, IDisposabl
             }
             try
             {
-                using var execution = AgentActivity.Begin("coding:" + run.Id);
                 await ExecuteAsync(run, request, cancel.Token);
             }
             finally
@@ -171,7 +170,6 @@ public sealed class CodexRunner : ICodingRunner, ICodingRunLifecycle, IDisposabl
             if (events.Count > 300)
                 events.RemoveAt(0);
             run = _store.Save(run with { Events = [.. events], UpdatedAt = Now() });
-            AgentActivity.Note(message, CommandOf(data) is { } raw ? "Codex ran: " + raw : null);
         }
         Process? process = null;
         string? thread = null,

@@ -45,7 +45,7 @@ public static class CompanyWorkspace
             throw new InvalidOperationException("Select an explicit new HIREZERO_DATA_ROOT for company-local mode.");
         if (ExecutionHold.Requested(Environment.GetEnvironmentVariable(ExecutionHold.Variable)))
             throw new InvalidOperationException(
-                "Execution hold takes precedence. Use the held profile or explicitly select company-local with a separate data root."
+                "Execution is held (HIREZERO_EXECUTION_HOLD=1). Nothing starts until the owner clears the hold."
             );
         var url = fixtureUrl ?? "http://127.0.0.1:5065";
         var uri = LocalHosting.LoopbackUri(url, "Company mode must use a loopback listener.");

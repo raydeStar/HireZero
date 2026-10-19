@@ -298,26 +298,3 @@ public sealed class ClaudeSessionSource(string? projectsRoot = null) : ISessionS
             ? item.GetString()
             : null;
 }
-
-public static class AgentAppServices
-{
-    public static IServiceCollection AddAgentApps(this IServiceCollection services) =>
-        // A host can register a preferred Codex source under the key "codex-preferred" (OpenClaw's catalog); the direct
-        // app-server reader stays as its fallback.
-        services
-            .AddSingleton<CodexSessionSource>()
-            .AddSingleton<ISessionSource>(provider =>
-                provider.GetKeyedService<ISessionSource>("codex-preferred") is { } preferred
-                    ? new FallbackSessionSource(preferred, provider.GetRequiredService<CodexSessionSource>())
-                    : provider.GetRequiredService<CodexSessionSource>()
-            )
-            .AddSingleton<ISessionSource>(new ClaudeSessionSource())
-            .AddSingleton<ISessionActivityReader, CodexActivityReader>()
-            .AddSingleton<ISessionActivityReader, ClaudeActivityReader>()
-            .AddSingleton<ISessionNarrator>(new ClaudeNarrator())
-            .AddSingleton<ISessionNarrator, CodexNarrator>()
-            .AddSingleton<ISessionDriver, CodexSessionDriver>()
-            .AddSingleton<ISessionDriver>(provider => new ClaudeSessionDriver(
-                provider.GetRequiredService<CodingRunStore>()
-            ));
-}

@@ -173,9 +173,13 @@ features in 2B.5 rather than twice.
   Developer's `session-brief` action (one day of agent-session counts, no transcripts) and the measured `day-brief`
   skill. See [the report](history/PHASE2B5I_REPORT.md).
 - **2B.5h (moved to Phase 3):** tailnet multi-user access belongs with real users, sign-in and roles.
-- **2B.5j:** merge the Developer panels into the company UI and give modules their own storage migrations. Then
-  retire `IRole`, `roles.json`, `IModelGateway`, `UsageMeter`, the Developer, Recovery and Held profiles and
-  `web/src/shell`.
+- **2B.5j (done, see [ADR 0019](adr/0019-retiring-the-legacy-profiles.md)):** the company path stands apart from the
+  legacy code; modules version their own storage ([ADR 0018](adr/0018-module-storage-migrations.md)); the budget
+  panel, GitHub sign-in, review queue (`pr-queue`), owner tasks and work log (on Today) and Trusted PostgreSQL setup
+  (`postgres-setup`) are ported; session hooks, shift proposals, backlog and rule-based intake are dropped. The
+  developer, recovery and held profiles, `IRole`, `roles.json`, `IModelGateway`, `UsageMeter`, the OpenClaw
+  gateway and `web/src/shell` are retired. Deferred: long-term memory, and Trusted PostgreSQL inside live coding
+  runs.
 
 **After 2B:** expose and consume tools over MCP.
 

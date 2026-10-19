@@ -58,7 +58,7 @@ public sealed class CompanyPullRequestFix(CompanyStore store, ToolRegistry regis
             )
             || number <= 0
             || head is not [{ } sha]
-            || !PullRequestPolicy.Sha(sha)
+            || !GitHubReviewPolicy.Sha(sha)
         )
             throw new WorkspaceException("The evidence does not identify one pull request head.");
         return new(repository, number, sha);
@@ -96,7 +96,7 @@ public sealed class CompanyPullRequestFix(CompanyStore store, ToolRegistry regis
             throw new WorkspaceException("The fix did not run at the reviewed pull request head.");
         foreach (var file in review.Files)
         {
-            if (!GitHubPublication.SafePath(file.Path))
+            if (!GitHubReviewPolicy.SafePath(file.Path))
                 throw new WorkspaceException("A changed file is outside the publishable scope: " + file.Path);
             if (ContentGuard.Clean(file.Patch, 70000).Flags.Contains(ContentGuard.Redacted))
                 throw new WorkspaceException("A changed file contains a credential-like value: " + file.Path);
@@ -151,7 +151,7 @@ public sealed class CompanyPullRequestFix(CompanyStore store, ToolRegistry regis
             await tools.InvokeAsync(GitCommands.Write, calls[1], CancellationToken.None, authority);
             var commit = (await Read(tools, grant.Workspace, "rev-parse", "HEAD")).Trim();
             if (
-                !PullRequestPolicy.Sha(commit)
+                !GitHubReviewPolicy.Sha(commit)
                 || (await Read(tools, grant.Workspace, "rev-parse", "HEAD^")).Trim() != grant.Revision
                 || !Names(await Read(tools, grant.Workspace, "diff", "--name-only", "-z", "HEAD^", "HEAD"))
                     .SequenceEqual(paths)

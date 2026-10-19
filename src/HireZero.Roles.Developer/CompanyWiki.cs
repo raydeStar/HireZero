@@ -356,7 +356,7 @@ internal sealed class WikiSession(
         var knowledge = await GetAsync("api/knowledge?project=" + Uri.EscapeDataString(project));
         if (knowledge.ValueKind != JsonValueKind.Array)
             throw new WorkspaceException("The Wiki returned an unrecognized knowledge list.", 502);
-        return WikiProposalAdapter.ParseTargets(knowledge, project);
+        return WikiTargets.ParseTargets(knowledge, project);
     }
 
     private async Task SignInAsync()

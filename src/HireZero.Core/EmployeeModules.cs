@@ -36,9 +36,6 @@ public interface IEmployeeModule
         CompanyExecutionServices services,
         CancellationToken token
     ) => throw new WorkspaceException("This employee has no reviewed execution.", 404);
-
-    // Services and endpoints for the legacy Developer profile. Removed when that profile retires.
-    IRole? LegacyRole => null;
 }
 
 [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
