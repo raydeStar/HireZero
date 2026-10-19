@@ -101,6 +101,7 @@ public sealed partial class CompanyStore
                     "CREATE TABLE co_owner_marks(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
                     "CREATE TABLE co_members(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
                     "ALTER TABLE co_company ADD COLUMN name TEXT;",
+                    AuditSchema,
                 ];
                 if (
                     migrations.Any(m =>
@@ -282,6 +283,7 @@ public sealed partial class CompanyStore
         int version = 1
     )
     {
+        AuditTransition(db, value, id, state);
         Sql(
             db,
             $"INSERT INTO {Tables[typeof(T)]} VALUES($0,$1,$2,$3,$4,$5,$6) ON CONFLICT(company_id,id) DO UPDATE SET parent_id=excluded.parent_id,employee_id=excluded.employee_id,state=excluded.state,revision=excluded.revision,payload=excluded.payload",
@@ -307,6 +309,17 @@ public sealed partial class CompanyStore
                     Actor = CurrentActor.Value?.Subject ?? CompanyActor.System,
                 }
             )
+        );
+        Audit(
+            db,
+            "event",
+            id,
+            new
+            {
+                type,
+                employee,
+                text,
+            }
         );
     }
 

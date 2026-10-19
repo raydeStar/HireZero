@@ -192,7 +192,9 @@ features in 2B.5 rather than twice.
 - **Tenancy (done, [ADR 0021](adr/0021-companies-per-data-root.md)):** several companies per data root, each
   with its own store, tools, scheduler and members; a request names its company, and owners create companies.
 - Tailnet multi-user access (from 2B.5h), on the hosted identity model.
-- Tamper-evident audit log of approvals, tool calls and model calls, with export.
+- **Tamper-evident audit log (done, [ADR 0022](adr/0022-tamper-evident-audit-log.md)):** a keyed hash chain per
+  company of every event (each approval with its actor), tool call, model call and coding run; verify in the
+  workspace and export as NDJSON ending with the verified head.
 - Configuration through `IOptions`; secrets from a vault/Key Vault instead of DPAPI files.
 - OpenTelemetry traces and metrics: per-employee jobs, token cost per company.
 - SQLite for single-machine installs, Postgres for hosted; one migration framework.

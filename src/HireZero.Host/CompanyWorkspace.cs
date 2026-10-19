@@ -474,6 +474,43 @@ public static class CompanyWorkspace
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(Store().ToolCalls(limit ?? 100)));
             // Members and their roles, for every member to see (docs/adr/0020).
             app.MapGet("/api/company/members", () => Results.Ok(Store().Members()));
+            // The company's tamper-evident audit chain (docs/adr/0022-tamper-evident-audit-log.md): any member can
+            // verify it; approvers and owners can export it as NDJSON ending with the verified head.
+            app.MapGet("/api/company/audit/verify", () => Results.Ok(Store().VerifyAudit()));
+            app.MapGet(
+                "/api/company/audit/export",
+                (HttpContext context) =>
+                {
+                    var current = Store();
+                    CompanyAccess.Demand(
+                        current.Actor((string)context.Items["login"]!),
+                        CompanyRoles.Approver,
+                        "export the audit log"
+                    );
+                    var check = current.VerifyAudit();
+                    var lines = new System.Text.StringBuilder();
+                    foreach (var entry in current.AuditEntries(0, 100_000))
+                        lines.Append(CompanyJson.Encode(entry)).Append('\n');
+                    lines
+                        .Append(
+                            CompanyJson.Encode(
+                                new
+                                {
+                                    company = current.CompanyId,
+                                    exportedAt = DateTimeOffset.UtcNow,
+                                    verified = check.Intact,
+                                    count = check.Count,
+                                    head = check.Head,
+                                    brokenAt = check.BrokenAt,
+                                }
+                            )
+                        )
+                        .Append('\n');
+                    context.Response.Headers.ContentDisposition =
+                        "attachment; filename=\"hirezero-audit-" + current.CompanyId + ".ndjson\"";
+                    return Results.Text(lines.ToString(), "application/x-ndjson");
+                }
+            );
             // The companies the signed-in member belongs to; an owner creates another, and becomes its owner
             // (docs/adr/0021-companies-per-data-root.md).
             app.MapGet(

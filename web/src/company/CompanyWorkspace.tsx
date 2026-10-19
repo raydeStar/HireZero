@@ -11,6 +11,7 @@ import { Today } from "./Today";
 import { Budgets } from "./Budgets";
 import { Members } from "./Members";
 import { Companies } from "./Companies";
+import { Audit } from "./Audit";
 import "./company.css";
 type ConversationRoute = { tab: string; selected: string; thread: string };
 function readRoute(): ConversationRoute {
@@ -306,6 +307,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
         <Today version={d.cursor ?? 0} busy={busy} run={run} />
         <Budgets budgets={d.budgets} departments={d.departments} employees={d.employees} busy={busy} run={run} />
         <Members role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
+        <Audit role={memberRole} version={d.cursor ?? 0} />
         <Integrations integrations={snapshot.capabilities.integrations ?? []} refresh={refresh} />
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>

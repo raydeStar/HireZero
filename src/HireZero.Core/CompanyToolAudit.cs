@@ -10,6 +10,34 @@ public sealed partial class CompanyStore : IToolAudit
     public void Record(ToolCallRecord record)
     {
         using var db = Open();
+        Transaction(
+            db,
+            () =>
+            {
+                RecordIn(db, record);
+                Audit(
+                    db,
+                    "tool-call",
+                    record.TaskId ?? record.ToolId,
+                    new
+                    {
+                        tool = record.ToolId,
+                        record.Risk,
+                        module = record.ModuleId,
+                        record.EmployeeId,
+                        record.TaskId,
+                        input = record.InputDigest,
+                        record.Authority,
+                        record.Outcome,
+                    }
+                );
+                return true;
+            }
+        );
+    }
+
+    private void RecordIn(Microsoft.Data.Sqlite.SqliteConnection db, ToolCallRecord record)
+    {
         Sql(
             db,
             "INSERT INTO co_tool_calls(company_id,at,tool,risk,module,employee_id,task_id,input_digest,authority,outcome,detail) VALUES($0,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",

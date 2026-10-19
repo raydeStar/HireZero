@@ -134,6 +134,19 @@ public sealed class CompanyTenancyTests : IAsyncDisposable
                     .GetProperty("name")
                     .GetString()
             );
+            // Each company's audit export ends with its verified head (docs/adr/0022).
+            var export = await Send(HttpMethod.Get, "/api/company/audit/export", company: second);
+            Assert.Equal("application/x-ndjson", export.Content.Headers.ContentType?.MediaType);
+            var lines = (await export.Content.ReadAsStringAsync(Token)).Split(
+                '\n',
+                StringSplitOptions.RemoveEmptyEntries
+            );
+            using (var last = JsonDocument.Parse(lines[^1]))
+            {
+                Assert.True(last.RootElement.GetProperty("verified").GetBoolean());
+                Assert.Equal(lines.Length - 1, last.RootElement.GetProperty("count").GetInt32());
+                Assert.Equal(second, last.RootElement.GetProperty("company").GetString());
+            }
             await app.StopAsync(Token);
         }
         finally
