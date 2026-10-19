@@ -9,6 +9,7 @@ import { HireOnboarding } from "./HireOnboarding";
 import { Integrations } from "./Integrations";
 import { Today } from "./Today";
 import { Budgets } from "./Budgets";
+import { Members } from "./Members";
 import "./company.css";
 type ConversationRoute = { tab: string; selected: string; thread: string };
 function readRoute(): ConversationRoute {
@@ -27,7 +28,7 @@ function Submit({ children = "Save", busy = false }: { children?: string; busy?:
     </button>
   );
 }
-export function CompanyWorkspace() {
+export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [events, setEvents] = useState<Event[]>([]),
     [error, setError] = useState(""),
@@ -302,6 +303,7 @@ export function CompanyWorkspace() {
         </p>
         <Today version={d.cursor ?? 0} busy={busy} run={run} />
         <Budgets budgets={d.budgets} departments={d.departments} employees={d.employees} busy={busy} run={run} />
+        <Members role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
         <Integrations integrations={snapshot.capabilities.integrations ?? []} refresh={refresh} />
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>

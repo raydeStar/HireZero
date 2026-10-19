@@ -9,7 +9,8 @@ import "./styles/shell.css";
 import "./styles/workspace.css";
 import { applyTheme, preference } from "./lib/api";
 import { CompanyWorkspace } from "./company/CompanyWorkspace";
+import { SignInGate } from "./company/SignIn";
 
 applyTheme(preference("theme", "system"));
 const root = createRoot(document.getElementById("root")!);
-root.render(<CompanyWorkspace />);
+root.render(<SignInGate>{(session) => <CompanyWorkspace memberRole={session.role} />}</SignInGate>);

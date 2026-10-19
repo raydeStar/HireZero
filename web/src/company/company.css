@@ -913,6 +913,16 @@
   font-size: 0.85rem;
 }
 
+.co-signin {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  max-width: 32rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+
+.co-members ul,
 .co-today ul,
 .co-integrations ul {
   margin: 0.5rem 0;
