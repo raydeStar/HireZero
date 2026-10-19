@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import type { IntegrationStatus } from "./api";
 
+type GitHub = { state: string; code: string; url: string; error: string };
+
 type Microsoft = {
   configured: boolean;
   mail: boolean;
@@ -20,6 +22,7 @@ export function Integrations({
   refresh: () => Promise<void>;
 }) {
   const [microsoft, setMicrosoft] = useState<Microsoft | null>(null),
+    [github, setGitHub] = useState<GitHub | null>(null),
     [clientId, setClientId] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -27,6 +30,7 @@ export function Integrations({
   async function load() {
     try {
       setMicrosoft(await api<Microsoft>("/connections/microsoft"));
+      setGitHub(await api<GitHub>("/company/github/sign-in"));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -62,6 +66,39 @@ export function Integrations({
         <p role="status">{notice === "connected" ? "Microsoft 365 connected." : "Sign-in did not finish: " + notice}</p>
       )}
       {error && <p role="alert">{error}</p>}
+      {github && (
+        <section aria-label="GitHub sign-in">
+          <h4>GitHub</h4>
+          <p className="co-muted">
+            Uses the GitHub CLI's own browser sign-in on this computer; HireZero never sees a password or token.
+            {github.state === "connected" && " Signed in."}
+            {github.state === "failed" && " " + github.error}
+          </p>
+          {github.state === "waiting" && (
+            <p role="status">
+              Enter <strong>{github.code}</strong> at{" "}
+              <a href={github.url} target="_blank" rel="noreferrer">
+                {github.url}
+              </a>
+              , then refresh.
+            </p>
+          )}
+          <div className="co-actions">
+            <button
+              disabled={busy}
+              type="button"
+              onClick={() => void act(() => api("/company/github/sign-in", "POST", {}))}
+            >
+              {github.state === "waiting" ? "Show the code again" : "Sign in to GitHub"}
+            </button>
+            {github.state === "waiting" && (
+              <button disabled={busy} type="button" onClick={() => void load()}>
+                Refresh
+              </button>
+            )}
+          </div>
+        </section>
+      )}
       {microsoft && (
         <section aria-label="Microsoft 365 setup">
           <h4>Microsoft 365</h4>

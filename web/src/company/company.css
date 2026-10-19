@@ -901,6 +901,11 @@
   margin: 0.75rem 0;
 }
 
+.co-budgets table {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
 .co-today ul,
 .co-integrations ul {
   margin: 0.5rem 0;

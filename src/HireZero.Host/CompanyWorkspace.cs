@@ -325,6 +325,11 @@ public static class CompanyWorkspace
                         : Results.Json(new { error = "Select the explicit Codex connection profile." }, statusCode: 503)
             );
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(store.ToolCalls(limit ?? 100)));
+            // GitHub sign-in through the GitHub CLI's own browser flow (ported from the legacy profile, 2B.5j). The
+            // owner's click starts it on this computer; HireZero never sees a password or token.
+            var gitHubSignIn = new GitHubSignIn();
+            app.MapGet("/api/company/github/sign-in", () => Results.Ok(gitHubSignIn.Status()));
+            app.MapPost("/api/company/github/sign-in", () => Results.Ok(gitHubSignIn.Start()));
             // The company's day on this machine's clock: what waits on the owner and what happened (2B.5i).
             app.MapGet(
                 "/api/company/today",

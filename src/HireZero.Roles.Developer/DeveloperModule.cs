@@ -105,7 +105,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 new(
                     CompanyPullRequestAttention.Skill,
                     "Pull request attention",
-                    "Rank your open pull requests from an approved Azure DevOps read: problem and next step for each.",
+                    "Rank your open pull requests from an approved GitHub queue or Azure DevOps read: problem and next step for each.",
                     SkillMode.Measured
                 ),
                 new(
@@ -227,6 +227,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 CompanySessionBrief.Definition,
                 CompanyPullRequestAttention.Definition,
                 CompanyPullRequestStep.Definition,
+                CompanyPullRequestQueue.Definition,
                 CompanyMessageSort.JevDefinition,
                 CompanyMessageSort.OpenRouterDefinition,
             ],
@@ -267,6 +268,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanySessionBrief.ReadAction => CompanySessionBrief.ReadAsync(input, tools, DateTimeOffset.UtcNow, token),
             CompanyPullRequestAttention.ReadAction => CompanyPullRequestAttention.ReadAsync(input, tools, token),
             CompanyPullRequestStep.Action => CompanyPullRequestStep.RunAsync(input, tools, token),
+            CompanyPullRequestQueue.Action => CompanyPullRequestQueue.ReadAsync(input, tools, token),
             CompanyMessageSort.JevAction or CompanyMessageSort.OpenRouterAction => CompanyMessageSort.SortAsync(
                 action,
                 input,

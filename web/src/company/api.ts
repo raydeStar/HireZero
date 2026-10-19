@@ -170,7 +170,7 @@ export type Snapshot = {
     measured?: MeasuredEntry[];
     handoffs?: Handoff[];
     cursor: number;
-    budgets: { id: string; limit: number; used: number; reserved: number }[];
+    budgets: { id: string; limit: number; used: number; reserved: number; version?: number }[];
   };
 };
 export type ThreadDetail = {

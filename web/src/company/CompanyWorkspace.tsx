@@ -8,6 +8,7 @@ import { MessageSquareText, Users, Building2, ClipboardList, MessagesSquare } fr
 import { HireOnboarding } from "./HireOnboarding";
 import { Integrations } from "./Integrations";
 import { Today } from "./Today";
+import { Budgets } from "./Budgets";
 import "./company.css";
 type ConversationRoute = { tab: string; selected: string; thread: string };
 function readRoute(): ConversationRoute {
@@ -300,6 +301,7 @@ export function CompanyWorkspace() {
           You have final authority. CEO plans and Board decisions remain subject to your review.
         </p>
         <Today version={d.cursor ?? 0} />
+        <Budgets budgets={d.budgets} departments={d.departments} employees={d.employees} busy={busy} run={run} />
         <Integrations integrations={snapshot.capabilities.integrations ?? []} refresh={refresh} />
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>
