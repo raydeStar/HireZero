@@ -48,3 +48,4 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 | [CODEX_LIVE_PR_FIX](CODEX_LIVE_PR_FIX.md) | Live step 3: a real pr-fix with network, the defects it found, and why the fix was not published |
 | [PHASE2B5I_REPORT](PHASE2B5I_REPORT.md) | Phase 2B.5i: the daily brief (Today view, session activity, day-brief skill) |
 | [PHASE2B5J_REPORT](PHASE2B5J_REPORT.md) | Phase 2B.5j: one runtime; the legacy profiles retired |
+| [PHASE3_IDENTITY_REPORT](PHASE3_IDENTITY_REPORT.md) | Phase 3: members, roles and generic OIDC sign-in |
