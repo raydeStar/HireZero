@@ -159,6 +159,12 @@ public sealed class DeveloperModule : IEmployeeModule
                     "Write the trusted PostgreSQL runner, only as an approved publication."
                 ),
                 new(TrustedPostgresTools.Status.Id, ToolRisk.Read, "Check the trusted PostgreSQL toolchain."),
+                new(TrustedPostgresTools.Profile.Id, ToolRisk.Read, "Read a repository's PostgreSQL test profile."),
+                new(
+                    TrustedPostgresTools.SaveProfile.Id,
+                    ToolRisk.Write,
+                    "Save a repository's PostgreSQL test profile, only as an approved publication."
+                ),
                 new(
                     NodeTools.InstallPinned.Id,
                     ToolRisk.Write,
@@ -235,6 +241,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 CompanyPullRequestStep.Definition,
                 CompanyPullRequestQueue.Definition,
                 CompanyPostgresSetup.Definition,
+                CompanyPostgresProfile.Definition,
                 CompanyMessageSort.JevDefinition,
                 CompanyMessageSort.OpenRouterDefinition,
             ],
@@ -277,6 +284,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyPullRequestStep.Action => CompanyPullRequestStep.RunAsync(input, tools, token),
             CompanyPullRequestQueue.Action => CompanyPullRequestQueue.ReadAsync(input, tools, token),
             CompanyPostgresSetup.Action => CompanyPostgresSetup.ReadAsync(input, tools, token),
+            CompanyPostgresProfile.Action => CompanyPostgresProfile.ReadAsync(input, tools, token),
             CompanyMessageSort.JevAction or CompanyMessageSort.OpenRouterAction => CompanyMessageSort.SortAsync(
                 action,
                 input,
@@ -353,6 +361,17 @@ public sealed class DeveloperModule : IEmployeeModule
                 ExecutionStep.Publish => await setup.PublishAsync(id, token),
                 ExecutionStep.Reconcile => store.Publication(id),
                 _ => throw new WorkspaceException("The trusted PostgreSQL install is published, not executed."),
+            };
+        }
+        if (task.Skill == CompanyPostgresProfile.Action)
+        {
+            var profile = new CompanyPostgresProfilePublication(store, services.Tools);
+            return step switch
+            {
+                ExecutionStep.Propose => profile.Propose(id),
+                ExecutionStep.Publish => await profile.PublishAsync(id, token),
+                ExecutionStep.Reconcile => store.Publication(id),
+                _ => throw new WorkspaceException("A PostgreSQL test profile is published, not executed."),
             };
         }
         if (task.Skill == CompanyWiki.Draft)

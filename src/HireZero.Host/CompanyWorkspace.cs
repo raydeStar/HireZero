@@ -147,6 +147,8 @@ public static class CompanyWorkspace
                 // The trusted PostgreSQL toolchain: installed only as an owner-approved publication.
                 new HireZero.Integrations.Node.NpmInstaller().Register(tools);
                 new HireZero.Integrations.Node.TrustedPostgresToolchain(root).Register(tools);
+                // Its per-repository test profiles, in company storage; saved only as an owner-approved publication.
+                new HireZero.Integrations.Node.TrustedPostgresProfiles(database).Register(tools);
             }
             builder.Services.AddSingleton(tools);
             builder.Services.AddSingleton<IModelProvider>(model);

@@ -24,3 +24,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0017](0017-publishing-a-step-from-an-action.md) | Publishing a step from an action | Accepted |
 | [0018](0018-module-storage-migrations.md) | Module storage migrations | Accepted |
 | [0019](0019-retiring-the-legacy-profiles.md) | Retiring the legacy profiles | Accepted |
+| [0020](0020-trusted-postgres-in-live-coding-runs.md) | Trusted PostgreSQL in live coding runs | Accepted |

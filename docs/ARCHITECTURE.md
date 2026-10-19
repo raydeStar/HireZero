@@ -61,7 +61,7 @@ reviewed fix and push it to the pull request's branch with a lease on the review
 artifact can be published the same way ([ADR 0015](adr/0015-publishing-an-approved-artifact.md)): the Developer's
 `wiki-draft` contributes and then publishes one Wiki entry. A role may also declare an action whose reading names
 one exact step ([ADR 0017](adr/0017-publishing-a-step-from-an-action.md)), such as the Developer's `pr-step` (merge,
-re-run, rebase) and `postgres-setup`.
+re-run, rebase), `postgres-setup` and `postgres-profile`.
 
 On the web, `web/src/roles/company.ts` collects every `web/src/roles/<id>/company.tsx` and renders a contribution
 only where the module's manifest declares the slot (`skill-input:<skill>` for structured input editors, named
@@ -96,7 +96,7 @@ Today's tools:
 | `git.read`, `github.read`, `github.sign-in-status` | Read | `Integrations.GitHub` |
 | `git.write` | Write | `Integrations.GitHub` |
 | `git.push`, `github.write`, `github.sign-in` | External | `Integrations.GitHub` |
-| `npm.install-pinned`, `postgres.prepare-runner` / `postgres.status` | Write / Read | `Integrations.Node` |
+| `npm.install-pinned`, `postgres.prepare-runner`, `postgres.save-profile` / `postgres.status`, `postgres.profile` | Write / Read | `Integrations.Node` |
 | `agentapps.sessions.list`, `agentapps.sessions.activity`, `agentapps.session.check` / `agentapps.session.send` | Read / External | `Integrations.AgentApps` |
 | `semaforge.read` / `semaforge.write` | Read / Write | `Integrations.SemaForge` |
 | `wiki.read`, `wiki.origin` / `wiki.contribute` / `wiki.publish` | Read / Write / External | `Integrations.Wiki` |

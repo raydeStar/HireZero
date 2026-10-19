@@ -5,8 +5,10 @@ namespace HireZero.Integrations.Codex;
 
 // One live coding run for one approved execution grant (docs/adr/0014-pinned-codex-runtime.md), on the pinned Codex
 // runtime with the owner's dedicated sign-in home. The sandbox lets the run write only the approved checkout and its
-// own scratch folder, read the owner's named toolchain folders, and reach the network only when its grant allows. Everything up to the turn is a
-// preflight: any doubt refuses the run before anything is sent. Once sent, an uncertain outcome is never replayed.
+// own scratch folder, read the owner's named toolchain folders and the run's own read roots and input files
+// (docs/adr/0020-trusted-postgres-in-live-coding-runs.md), and reach the network only when its grant allows. Everything
+// up to the turn is a preflight: any doubt refuses the run before anything is sent. Once sent, an uncertain outcome is
+// never replayed.
 public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycle, IDisposable
 {
     public const string Profile = "hirezero_execution";
@@ -39,6 +41,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
     private readonly CompanyExecutionGrant _grant;
     private readonly Func<bool> _mayStart;
     private readonly string? _pin;
+    private readonly Func<string, string?> _readRootRefusal;
     private readonly object _gate = new();
     private readonly CancellationTokenSource _cancel = new();
     private CodingRun? _run;
@@ -51,7 +54,8 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         string[] readRoots,
         CompanyExecutionGrant grant,
         Func<bool> mayStart,
-        string? pin
+        string? pin,
+        Func<string, string?> readRootRefusal
     )
     {
         _options = options;
@@ -60,6 +64,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         _grant = grant;
         _mayStart = mayStart;
         _pin = pin;
+        _readRootRefusal = readRootRefusal;
     }
 
     public CodingRun Start(CodingRunRequest request)
@@ -82,6 +87,19 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
             || request.AllowWrite != _grant.AllowWrite
         )
             throw new CodingStartRefusedException("The run request does not match its approved grant.");
+        var extraRoots = (request.ReadRoots ?? [])
+            .Select(r => Path.GetFullPath(r).TrimEnd(Path.DirectorySeparatorChar))
+            .ToArray();
+        // A run's own read-only folders follow the owner's toolchain rules and never overlap its checkout.
+        if (extraRoots.Length > 4 || extraRoots.Any(r => Overlaps(r, _grant.Workspace)))
+            throw new CodingStartRefusedException("A run's read-only folder must be a toolchain outside the checkout.");
+        if (extraRoots.Select(_readRootRefusal).FirstOrDefault(r => r is not null) is { } rootRefusal)
+            throw new CodingStartRefusedException(rootRefusal);
+        var inputs = request.InputFiles ?? new Dictionary<string, string>();
+        if (inputs.Count > 4 || inputs.Any(i => !InputName(i.Key) || i.Value.Length > 16_384))
+            throw new CodingStartRefusedException(
+                "A run's input files are at most four HIREZERO_ variables of at most 16 KB each."
+            );
         var refusal =
             CodexRuntimePin.Refusal(_options.Executable, _pin)
             ?? (
@@ -93,6 +111,8 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
             throw new CodingStartRefusedException(refusal);
 
         var scratch = Path.Combine(Path.GetFullPath(_options.ScratchRoot), "coding-" + Guid.NewGuid().ToString("N"));
+        // Input files sit beside the scratch, where the run can read but not change them; both go when the run ends.
+        var inputFolder = scratch + "-inputs";
         var temp = Path.Combine(scratch, "temp");
         Directory.CreateDirectory(temp);
         // Git inside the sandbox must not read the owner's profile configuration, which the sandbox denies and git
@@ -108,8 +128,35 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
             [Path.GetFullPath(_grant.Workspace)] = _grant.AllowWrite ? "write" : "read",
             [scratch] = "write",
         };
-        foreach (var root in _readRoots)
+        foreach (var root in _readRoots.Concat(extraRoots))
             filesystem[root] = "read";
+        var environment = new Dictionary<string, string>
+        {
+            ["TEMP"] = temp,
+            ["TMP"] = temp,
+            ["GIT_CONFIG_GLOBAL"] = gitConfig,
+            ["GIT_CONFIG_NOSYSTEM"] = "1",
+            ["XDG_CONFIG_HOME"] = Path.Combine(scratch, "config"),
+            // Tool caches (NuGet, npm, dotnet) land in the run's scratch, never the owner's profile.
+            ["USERPROFILE"] = profile,
+            ["HOME"] = profile,
+            ["APPDATA"] = Path.Combine(profile, "AppData", "Roaming"),
+            ["LOCALAPPDATA"] = Path.Combine(profile, "AppData", "Local"),
+            ["DOTNET_CLI_HOME"] = profile,
+            ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+            ["DOTNET_NOLOGO"] = "1",
+        };
+        if (inputs.Count > 0)
+        {
+            Directory.CreateDirectory(inputFolder);
+            filesystem[inputFolder] = "read";
+            foreach (var (name, text) in inputs)
+            {
+                var file = Path.Combine(inputFolder, name.ToLowerInvariant() + ".json");
+                File.WriteAllText(file, text);
+                environment[name] = file;
+            }
+        }
         CodexAppServer? server = null;
         string thread;
         string? beforeBalance;
@@ -121,22 +168,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                 _options.SyntheticMode,
                 scratch,
                 CodexAppServer.Arguments(Profile, filesystem, CodexAppServer.CodingFeatures, _grant.AllowNetwork),
-                new Dictionary<string, string>
-                {
-                    ["TEMP"] = temp,
-                    ["TMP"] = temp,
-                    ["GIT_CONFIG_GLOBAL"] = gitConfig,
-                    ["GIT_CONFIG_NOSYSTEM"] = "1",
-                    ["XDG_CONFIG_HOME"] = Path.Combine(scratch, "config"),
-                    // Tool caches (NuGet, npm, dotnet) land in the run's scratch, never the owner's profile.
-                    ["USERPROFILE"] = profile,
-                    ["HOME"] = profile,
-                    ["APPDATA"] = Path.Combine(profile, "AppData", "Roaming"),
-                    ["LOCALAPPDATA"] = Path.Combine(profile, "AppData", "Local"),
-                    ["DOTNET_CLI_HOME"] = profile,
-                    ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
-                    ["DOTNET_NOLOGO"] = "1",
-                },
+                environment,
                 lineLimit: 4 * 1024 * 1024
             );
             using var preflight = CancellationTokenSource.CreateLinkedTokenSource(_cancel.Token);
@@ -425,14 +457,29 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
             server?.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
         catch { }
-        try
-        {
-            if (Directory.Exists(scratch))
-                Directory.Delete(scratch, recursive: true);
-        }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
+        foreach (var folder in new[] { scratch, scratch + "-inputs" })
+            try
+            {
+                if (Directory.Exists(folder))
+                    Directory.Delete(folder, recursive: true);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
     }
+
+    private static bool InputName(string name) =>
+        name.Length is > 9 and <= 64
+        && name.StartsWith("HIREZERO_", StringComparison.Ordinal)
+        && name.All(c => c is >= 'A' and <= 'Z' or >= '0' and <= '9' or '_');
+
+    private static bool Contains(string parent, string child)
+    {
+        var relative = Path.GetRelativePath(parent, child);
+        return relative == "." || !relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative);
+    }
+
+    private static bool Overlaps(string a, string b) =>
+        Contains(Path.GetFullPath(a), Path.GetFullPath(b)) || Contains(Path.GetFullPath(b), Path.GetFullPath(a));
 
     private void Event(string type, string text, object data)
     {

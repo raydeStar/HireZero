@@ -178,8 +178,9 @@ features in 2B.5 rather than twice.
   panel, GitHub sign-in, review queue (`pr-queue`), owner tasks and work log (on Today) and Trusted PostgreSQL setup
   (`postgres-setup`) are ported; session hooks, shift proposals, backlog and rule-based intake are dropped. The
   developer, recovery and held profiles, `IRole`, `roles.json`, `IModelGateway`, `UsageMeter`, the OpenClaw
-  gateway and `web/src/shell` are retired. Deferred: long-term memory, and Trusted PostgreSQL inside live coding
-  runs.
+  gateway and `web/src/shell` are retired. Deferred: long-term memory. Trusted PostgreSQL inside live coding runs
+  followed ([ADR 0020](adr/0020-trusted-postgres-in-live-coding-runs.md)): per-repository profiles set through
+  `postgres-profile`, and the toolchain given read-only to a run whose repository has one.
 
 **After 2B:** expose and consume tools over MCP.
 

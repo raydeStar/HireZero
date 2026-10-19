@@ -8,6 +8,7 @@ using HireZero.Integrations.Git;
 using HireZero.Roles.Developer;
 using HireZero.Tools.Git;
 using HireZero.Tools.GitHub;
+using HireZero.Tools.Node;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Data.Sqlite;
@@ -627,6 +628,7 @@ public sealed class PullRequestFixTests : IDisposable
                     CompanySteer.Skill,
                     CompanyPullRequestStep.Action,
                     CompanyPostgresSetup.Action,
+                    CompanyPostgresProfile.Action,
                 ],
                 role.GetProperty("publishingSkills").EnumerateArray().Select(e => e.GetString()!)
             );
@@ -744,6 +746,60 @@ public sealed class PullRequestFixTests : IDisposable
         Assert.Contains("ran the tests", fix.Store.ArtifactsOf(fix.Task.Id).Last().Body);
         var publication = await fix.Developer.ProposePublicationAsync(grant.Id, Token);
         Assert.Equal("proposed", publication.State);
+    }
+
+    // A pull request whose repository has a trusted PostgreSQL profile runs with the installed toolchain read-only, the
+    // profile file in HIREZERO_POSTGRES_PROFILE and the runner's usage line in its prompt (ADR 0020).
+    [Fact]
+    public async Task ALiveFixGetsTheTrustedPostgresToolchainForItsRepository()
+    {
+        var fake = Path.GetFullPath(
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "../../../../HireZero.FakeCodex/bin/Debug/net10.0/HireZero.FakeCodex.exe"
+            )
+        );
+        var home = Directory.CreateDirectory(Path.Combine(_root.Path, "signed-in-home")).FullName;
+        var toolchain = Directory.CreateDirectory(Path.Combine(_root.Path, "Runtime", "trusted-postgres")).FullName;
+        var database = Path.Combine(_root.Path, "company.sqlite");
+        var store = new CompanyStore(database, Owner, CompanyWorkspace.Definitions());
+        var registry = Registry(store);
+        registry.Register(
+            TrustedPostgresTools.Status,
+            (_, _) => Task.FromResult(new TrustedPostgresStatus(toolchain, "fictional", "1.0.0", true, true))
+        );
+        var profiles = new HireZero.Integrations.Node.TrustedPostgresProfiles(database);
+        profiles.Register(registry);
+        profiles.Save(new(Repository, "quotes_test", new() { ["DATABASE_URL"] = "{url}" }));
+        var live = new CompanyCodexCodingFactory(
+            new(
+                fake,
+                CompanyCodingFactory.Identity(fake),
+                Path.Combine(_root.Path, "codex-scratch"),
+                home,
+                "coding-live-success"
+            ),
+            store.ModelRouting,
+            [],
+            CodexRuntimePin.Sha256(fake)
+        );
+        var fix = await Assign(store, registry, live);
+        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
+        Approve<CompanyExecutionGrant>(fix.Store, "execution.review", grant.Id, grant.Version, grant.Digest);
+        await fix.Developer.ExecuteFixtureAsync(grant.Id, Token);
+        Assert.Equal("completed", fix.Store.Execution(grant.Id).State);
+        var wire = File.ReadAllLines(Path.Combine(home, "fixture-coding-wire.jsonl"))
+            .Select(line => JsonDocument.Parse(line).RootElement)
+            .ToArray();
+        Assert.Contains(JsonSerializer.Serialize(toolchain) + "=\"read\"", wire[0].GetProperty("profile").GetString());
+        Assert.Equal(
+            """{"database":"quotes_test","env":{"DATABASE_URL":"{url}"}}""",
+            wire[0].GetProperty("postgresText").GetString()
+        );
+        Assert.Contains(
+            "node \"" + Path.Combine(toolchain, "runner.mjs").Replace('\\', '/') + "\" -- ",
+            wire[1].GetProperty("prompt").GetString()
+        );
     }
 
     // The owner's network choice travels from the checkout grant into the approved execution grant.

@@ -76,6 +76,8 @@ public sealed class CodexRunner : ICodingRunner, ICodingRunLifecycle, IDisposabl
     {
         if (!Directory.Exists(request.Root))
             throw new WorkspaceException("The coding folder does not exist: " + request.Root);
+        if (request.ReadRoots?.Count > 0 || request.InputFiles?.Count > 0)
+            throw new CodingStartRefusedException("This runner gives a run no extra read-only folders or input files.");
         // Secrets this run could print (its environment, the worker's sign-in tokens) are masked wherever its output is stored.
         if (
             _scope is not null
