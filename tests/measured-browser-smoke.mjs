@@ -4,16 +4,16 @@ import path from 'node:path';
 import os from 'node:os';
 import {spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
+import {clicker,delay,fetchTracker,freeLocalUrl,pageDiagnosis,pageIdle,waiter} from './browser-smoke-wait.mjs';
 const repo=path.resolve(import.meta.dirname,'..');
 const temporary=await fs.mkdtemp(path.join(os.tmpdir(),'hirezero-manual-ui-'));
 const chrome=process.env.HIREZERO_TEST_CHROME||path.join(process.env.ProgramFiles||'C:/Program Files','Google/Chrome/Application/chrome.exe');
 const hostDir=path.join(repo,'src/HireZero.Host');
-const url=process.env.HIREZERO_TEST_URL||'http://127.0.0.1:5067';
+const url=process.env.HIREZERO_TEST_URL||await freeLocalUrl();
 const webRoot=process.env.HIREZERO_TEST_WEB_ROOT||path.join(hostDir,'wwwroot');
 const host=spawn('dotnet',[path.join(repo,'tests/HireZero.Company.Tests/bin/Debug/net10.0/HireZero.Company.Tests.dll'),'--measured-browser-fixture',temporary,url,webRoot],{cwd:hostDir,windowsHide:true,env:{...process.env,HIREZERO_LOCAL_OWNER:'1',HIREZERO_OWNER_LOGIN:'owner@example.invalid',HIREZERO_DATA_ROOT:path.join(temporary,'data'),HIREZERO_EXECUTION_HOLD:'0'},stdio:['ignore','pipe','pipe']});
 let hostLog='';host.stdout.on('data',b=>hostLog+=b);host.stderr.on('data',b=>hostLog+=b);let browser,ws;
-const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function until(fn,label){for(let i=0;i<150;i++){try{const result=await fn();if(result)return result;}catch{}await delay(100);}throw new Error('Timed out: '+label);}
+const until=waiter();
 try{
   await until(()=>hostLog.includes('Now listening on: '+url),'this test host owns the listener');
   await until(async()=>{const r=await fetch(url+'/health');return r.ok;},'fresh host health');
@@ -25,10 +25,10 @@ try{
   let sequence=0;const pending=new Map();const errors=[];
   ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(!p)return;clearTimeout(p.timer);pending.delete(m.id);if(m.error)p.reject(new Error(m.error.message));else p.resolve(m.result);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text);});
   const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;const timer=setTimeout(()=>{pending.delete(id);reject(new Error('Debugger command timed out: '+method));},10000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}));});
-  const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
-  await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});await send('Page.navigate',{url:url+'/'});
+  const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};until.diagnose=pageDiagnosis(evaluate);
+  await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});await send('Page.addScriptToEvaluateOnNewDocument',{source:fetchTracker});await send('Page.navigate',{url:url+'/'});
   await until(()=>evaluate("document.body.innerText.includes('Company conversation')"),'company UI');
-  const click=async text=>{await evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(text)});if(!b)throw Error('Button missing: '+${JSON.stringify(text)});b.click();})()`);await delay(150);};
+  const click=clicker(evaluate,until),idle=pageIdle(evaluate,until);
   const field=async(label,value)=>{await evaluate(`(()=>{const label=[...document.querySelectorAll('.co-main label')].find(l=>l.childNodes[0]?.textContent.trim()===${JSON.stringify(label)});if(!label)throw Error('Field missing: '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);await delay(70);};
   assert.match(hostLog,/BROWSER FIXTURE: fake provider only/);
   const dashboard=()=>fetch(url+'/api/company').then(r=>r.json());
@@ -43,6 +43,7 @@ try{
   await field('Intended existing-credit allowance','1');await click('Prepare job for review');
   await until(async()=>(await dashboard()).data.measured[0]?.job.state==='proposed','sealed proposal');assert.equal(await starts(),0,'Preparing a job makes no provider request');
   const authorizeDisabled=()=>evaluate("[...document.querySelectorAll('.co-measured button')].find(b=>b.textContent==='Authorize and run one job').disabled");
+  await until(()=>evaluate("[...document.querySelectorAll('.co-measured button')].some(b=>b.textContent==='Authorize and run one job')"),'sealed proposal shown');
   assert.equal(await authorizeDisabled(),true,'Unread work cannot authorize');
   await click('Review task and context');await until(()=>evaluate("!!document.querySelector('.co-packet .co-packet-fields')"),'readable task and facts');
   assert.equal(await evaluate("document.querySelector('.co-packet').innerText.includes('Adult paper craft hobbyists')"),true);
