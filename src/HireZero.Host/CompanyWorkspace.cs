@@ -37,33 +37,50 @@ public static class CompanyWorkspace
         string? fixtureUrl = null,
         string? fixtureWebRoot = null,
         Action<ToolRegistry>? fixtureTools = null,
-        ICompanyCodingFactory? fixtureCoding = null
+        ICompanyCodingFactory? fixtureCoding = null,
+        HostedOptions? fixtureHosted = null
     )
     {
-        if (!args.Contains(Flag))
+        // Local mode is the one-person, loopback-only owner; hosted mode signs members in through OIDC (ADR 0020).
+        var hosted =
+            fixtureHosted ?? (args.Contains(CompanyHosting.HostedFlag) ? HostedOptions.FromEnvironment() : null);
+        if (!args.Contains(Flag) && hosted is null)
             return null;
         if (args.Contains(CodingFlag) && !args.Contains(CodexFlag) && fixtureCoding is null)
             throw new InvalidOperationException(
                 "Live company coding needs the Codex connection profile (--company-codex)."
             );
-        if (!localOwner)
+        if (hosted is null && !localOwner)
             throw new InvalidOperationException("Company local mode requires explicit local owner mode.");
+        if (hosted is not null && (localOwner || !owner.Contains('@')))
+            throw new InvalidOperationException(
+                "Hosted mode needs HIREZERO_OWNER_LOGIN set to the first owner's email, and no local owner mode."
+            );
         if (fixtureUrl is null && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("HIREZERO_DATA_ROOT")))
             throw new InvalidOperationException("Select an explicit new HIREZERO_DATA_ROOT for company-local mode.");
         if (ExecutionHold.Requested(Environment.GetEnvironmentVariable(ExecutionHold.Variable)))
             throw new InvalidOperationException(
                 "Execution is held (HIREZERO_EXECUTION_HOLD=1). Nothing starts until the owner clears the hold."
             );
-        var url = fixtureUrl ?? "http://127.0.0.1:5065";
-        var uri = LocalHosting.LoopbackUri(url, "Company mode must use a loopback listener.");
+        var url = hosted?.Listen.ToString() ?? fixtureUrl ?? "http://127.0.0.1:5065";
+        var uri = hosted is not null
+            ? hosted.Listen
+            : LocalHosting.LoopbackUri(url, "Company mode must use a loopback listener.");
         var builder = WebApplication.CreateBuilder(
             new WebApplicationOptions
             {
-                Args = args.Where(a => a != Flag && a != CodexFlag && a != CodingFlag).ToArray(),
+                Args = args.Where(a => a != Flag && a != CompanyHosting.HostedFlag && a != CodexFlag && a != CodingFlag)
+                    .ToArray(),
                 WebRootPath = fixtureUrl is not null ? fixtureWebRoot : null,
             }
         );
-        builder.ListenLoopbackOnly(uri, uri.Port, 16_384);
+        if (hosted is not null)
+        {
+            builder.ListenHosted(hosted, 16_384);
+            builder.Services.AddHostedSignIn(hosted);
+        }
+        else
+            builder.ListenLoopbackOnly(uri, uri.Port, 16_384);
         Directory.CreateDirectory(root);
         var database = Path.Combine(root, "workspace.sqlite");
         if (File.Exists(database))
@@ -192,21 +209,51 @@ public static class CompanyWorkspace
                 openRouter.Register(tools);
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
+            if (hosted is not null)
+                app.UseHostedSignIn(hosted);
             app.Use(
                 async (c, next) =>
                 {
                     LocalHosting.ApplySecurityHeaders(c);
-                    // Fixture port zero is bound by Kestrel, but Host still proves the chosen profile's authority.
-                    var expected = fixtureUrl is null || uri.Port != 0 ? uri.Authority : "127.0.0.1:5065";
-                    if (!LocalHosting.IsDirectLocalRequest(c, expected))
+                    string origin;
+                    if (hosted is null)
                     {
-                        c.Response.StatusCode = 403;
-                        return;
+                        // Fixture port zero is bound by Kestrel, but Host still proves the chosen profile's authority.
+                        var expected = fixtureUrl is null || uri.Port != 0 ? uri.Authority : "127.0.0.1:5065";
+                        if (!LocalHosting.IsDirectLocalRequest(c, expected))
+                        {
+                            c.Response.StatusCode = 403;
+                            return;
+                        }
+                        origin = "http://" + expected;
+                        c.Items["login"] = owner;
+                    }
+                    else
+                    {
+                        // Only the public HTTPS origin is served; the session cookie names the member.
+                        if (!c.Request.IsHttps || c.Request.Host.Value != hosted.PublicUrl.Authority)
+                        {
+                            c.Response.StatusCode = 403;
+                            return;
+                        }
+                        origin = hosted.PublicUrl.GetLeftPart(UriPartial.Authority);
+                        var subject = CompanyHosting.Subject(c);
+                        if (
+                            subject is null
+                            && c.Request.Path.StartsWithSegments("/api")
+                            && c.Request.Path != "/api/session"
+                        )
+                        {
+                            c.Response.StatusCode = 401;
+                            await c.Response.WriteAsJsonAsync(new { error = "Sign in first.", signIn = "/signin" });
+                            return;
+                        }
+                        c.Items["login"] = subject;
                     }
                     if (
                         c.Request.Method is not ("GET" or "HEAD")
                         && (
-                            c.Request.Headers.Origin != "http://" + expected
+                            c.Request.Headers.Origin != origin
                             || c.Request.Headers["X-Dev-Request"] != "1"
                             || !c.Request.HasJsonContentType()
                         )
@@ -215,12 +262,11 @@ public static class CompanyWorkspace
                         c.Response.StatusCode = 403;
                         return;
                     }
-                    c.Items["login"] = owner;
                     try
                     {
                         // Every API request acts as an active member; a change needs its route's role, and a
                         // command is checked again against its own action in the store (docs/adr/0020).
-                        if (c.Request.Path.StartsWithSegments("/api"))
+                        if (c.Request.Path.StartsWithSegments("/api") && c.Items["login"] is string)
                         {
                             var actor = store.Actor((string)c.Items["login"]!);
                             c.Items["role"] = actor.Role;
@@ -260,9 +306,10 @@ public static class CompanyWorkspace
                     Results.Ok(
                         new
                         {
-                            login = owner,
-                            role = (string?)context.Items["role"] ?? CompanyRoles.Viewer,
-                            accessMode = "local",
+                            login = (string?)context.Items["login"],
+                            role = (string?)context.Items["role"],
+                            signedIn = context.Items["login"] is string,
+                            accessMode = hosted is null ? "local" : "hosted",
                             roles = Array.Empty<string>(),
                             agentModel = model is IMeasuredModelProvider
                                 ? CompanyModelRouting.Native(routing.TextModel) + " (manual only)"
@@ -380,13 +427,15 @@ public static class CompanyWorkspace
             // recorded task without running the action again.
             app.MapPost(
                 "/api/company/actions",
-                async (System.Text.Json.JsonElement body, CancellationToken token) =>
+                async (System.Text.Json.JsonElement body, HttpContext context, CancellationToken token) =>
                 {
                     var command = CompanyJson.Decode<CompanyCommand>(body.GetRawText()) with
                     {
                         Action = "action.start",
                     };
-                    var task = CompanyJson.Decode<CompanyTask>(store.Apply(command, out var fresh));
+                    var task = CompanyJson.Decode<CompanyTask>(
+                        store.Apply(command, (string)context.Items["login"]!, out var fresh)
+                    );
                     if (!fresh)
                         return Results.Ok(store.TaskDetail(task.Id));
                     var employee = store.EmployeeOf(task.EmployeeId);
@@ -480,6 +529,8 @@ public static class CompanyWorkspace
                     return Results.Content(store.Apply(command, subject, out _), "application/json");
                 }
             );
+            if (hosted is not null)
+                app.MapHostedSignIn();
             app.MapFallback(
                 "/api/{**path}",
                 () =>

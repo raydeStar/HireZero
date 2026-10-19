@@ -39,6 +39,23 @@ Open <http://127.0.0.1:5065/>. The company workspace is the only startup profile
 and a data root, and refuses an existing legacy database. While `HIREZERO_EXECUTION_HOLD=1` is set it refuses to
 start, so nothing resumes until you clear the hold. Stop it with Ctrl+C.
 
+### Hosted mode
+
+For real clients, run the host behind HTTPS with members signing in through any OIDC provider
+([ADR 0020](docs/adr/0020-members-roles-and-sign-in.md)). Start with `--company-hosted` and set:
+
+| Variable | Meaning |
+| --- | --- |
+| `HIREZERO_OWNER_LOGIN` | The first owner's email; their first verified sign-in makes them the owner |
+| `HIREZERO_PUBLIC_URL` | The public `https://` origin members open |
+| `HIREZERO_LISTEN` | The listener, for example `https://0.0.0.0:443` or `http://127.0.0.1:8080` |
+| `HIREZERO_TLS_CERTIFICATE` / `_PASSWORD` | A certificate file when the host serves HTTPS itself |
+| `HIREZERO_TRUSTED_PROXY` | The reverse proxy's IP when TLS ends there; only its forwarded headers are believed |
+| `HIREZERO_OIDC_AUTHORITY` / `HIREZERO_OIDC_CLIENT_ID` | Your provider and the app you registered (code flow with PKCE, redirect `<public url>/signin-oidc`) |
+| `HIREZERO_OIDC_CLIENT_SECRET` | Only for a confidential client; never in a file |
+
+Owners invite members by email as owner, approver or viewer; a viewer only reads.
+
 ### Pinned agent runtime
 
 `runtime/codex/pin.json` pins the Codex runtime used for live replies and coding

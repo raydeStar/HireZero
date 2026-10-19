@@ -114,7 +114,7 @@ public sealed partial class CompanyStore
                 if (Scalar(db, "SELECT owner FROM co_company WHERE id=$0", CompanyId) != owner)
                     throw new WorkspaceException("This company belongs to another owner.", 403);
                 // The company's first owner is the identity that created it (docs/adr/0020).
-                if (Find<CompanyMember>(db, owner) is null)
+                if (All<CompanyMember>(db).Length == 0)
                 {
                     var first = new CompanyMember(
                         owner,

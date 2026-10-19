@@ -43,6 +43,14 @@ public sealed partial class CompanyStore
                     return bound.State == "active" ? new CompanyActor(bound.Id, bound.Role) : null;
                 if (!emailVerified || Normal(email) is not { } address)
                     return null;
+                // The hosted company's first owner is recorded by email until they first sign in.
+                if (Find<CompanyMember>(db, address) is { State: "active" } first)
+                {
+                    var rebound = first with { Id = subject, Email = address, Name = Text(name ?? address, 120) };
+                    Save(db, rebound, rebound.Id, state: rebound.State, version: rebound.Version);
+                    Sql(db, "DELETE FROM co_members WHERE company_id=$0 AND id=$1", CompanyId, first.Id);
+                    return new CompanyActor(rebound.Id, rebound.Role);
+                }
                 var invite = Find<CompanyMember>(db, "invite:" + address);
                 if (invite is not { State: "invited" })
                     return null;
