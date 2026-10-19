@@ -933,6 +933,12 @@ public sealed partial class CompanyScheduler(CompanyStore store, IModelProvider 
             var attempt = store.Claim(employee, model.Qualified);
             if (attempt is null)
                 return false;
+            var started = System.Diagnostics.Stopwatch.GetTimestamp();
+            using var span = CompanyTelemetry.Source.StartActivity("employee.job");
+            span?.SetTag("hirezero.company", store.CompanyId);
+            span?.SetTag("hirezero.employee", employee);
+            span?.SetTag("hirezero.attempt", attempt.Id);
+            var outcome = "completed";
             var dispatched = false;
             try
             {
@@ -983,16 +989,30 @@ public sealed partial class CompanyScheduler(CompanyStore store, IModelProvider 
             }
             catch (ModelTransportException error)
             {
+                outcome = "rejected";
                 store.RejectResponse(attempt.Id, error);
             }
             catch (Exception error) when (error is not OutOfMemoryException)
             {
+                outcome = dispatched ? "unknown" : "failed";
                 store.FailAttempt(
                     attempt.Id,
                     dispatched ? "provider-outcome-unknown"
                         : error is WorkspaceException or ModelUnavailableException ? error.Message
                         : "pre-dispatch-failed",
                     dispatched
+                );
+            }
+            finally
+            {
+                span?.SetTag("hirezero.outcome", outcome);
+                if (outcome != "completed")
+                    span?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, outcome);
+                CompanyTelemetry.Job(
+                    store.CompanyId,
+                    employee,
+                    outcome,
+                    System.Diagnostics.Stopwatch.GetElapsedTime(started)
                 );
             }
             return true;

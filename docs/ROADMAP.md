@@ -197,7 +197,10 @@ features in 2B.5 rather than twice.
   company of every event (each approval with its actor), tool call, model call and coding run; verify in the
   workspace and export as NDJSON ending with the verified head.
 - Configuration through `IOptions`; secrets from a vault/Key Vault instead of DPAPI files.
-- OpenTelemetry traces and metrics: per-employee jobs, token cost per company.
+- **OpenTelemetry (done, [ADR 0024](adr/0024-opentelemetry-traces-and-metrics.md)):** spans for employee jobs, tool
+  calls and requests (tagged with their company); metrics for jobs and their duration, tool calls by outcome, model
+  calls and tokens per company and employee, and coding runs. Counted only after commit, identifiers only, exported
+  over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
 - SQLite for single-machine installs, Postgres for hosted; one migration framework.
 - Container image, cross-platform launcher, CI running only offline checks, signed releases, SBOM, dependency
   advisories triaged.

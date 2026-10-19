@@ -56,6 +56,12 @@ For real clients, run the host behind HTTPS with members signing in through any 
 
 Owners invite members by email as owner, approver or viewer; a viewer only reads.
 
+### Telemetry
+
+Traces and metrics (employee jobs, tool calls, model calls and tokens per company and employee) are exported over
+OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; the standard `OTEL_*` variables configure the exporter
+([ADR 0024](docs/adr/0024-opentelemetry-traces-and-metrics.md)). Without it nothing leaves the machine.
+
 ### Pinned agent runtime
 
 `runtime/codex/pin.json` pins the Codex runtime used for live replies and coding

@@ -140,7 +140,16 @@ public sealed class ToolRegistry(IToolAudit audit, IEnumerable<IToolAuthorityVer
     {
         var inputJson = JsonSerializer.Serialize(input, Json);
         var invocation = new ToolInvocation(contract, caller, inputJson, Digest(contract.Id, inputJson), authority);
-        void Record(string outcome, string? detail = null) =>
+        using var span = CompanyTelemetry.Source.StartActivity("tool " + contract.Id);
+        span?.SetTag("hirezero.tool", contract.Id);
+        span?.SetTag("hirezero.tool.risk", contract.Risk.ToString().ToLowerInvariant());
+        span?.SetTag("hirezero.module", caller.ModuleId);
+        span?.SetTag("hirezero.employee", caller.EmployeeId);
+        void Record(string outcome, string? detail = null)
+        {
+            span?.SetTag("hirezero.outcome", outcome);
+            if (outcome != "completed")
+                span?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, outcome);
             audit.Record(
                 new(
                     DateTimeOffset.UtcNow,
@@ -155,6 +164,7 @@ public sealed class ToolRegistry(IToolAudit audit, IEnumerable<IToolAuthorityVer
                     detail
                 )
             );
+        }
         ToolRefusedException Refuse(string reason)
         {
             Record("refused", reason);

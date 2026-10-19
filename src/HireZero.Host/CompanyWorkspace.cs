@@ -183,6 +183,7 @@ public static class CompanyWorkspace
             // Microsoft 365: owner-started reads only, no polling; its tools register once a client ID is saved.
             builder.Services.AddMicrosoft365Company(root);
             builder.Services.AddHttpContextAccessor();
+            builder.Services.AddCompanyTelemetry(CompanyTelemetryHosting.Enabled);
             var membership = new CompanyMembership();
             builder.Services.AddSingleton(membership);
             var app = builder.Build();
@@ -351,6 +352,7 @@ public static class CompanyWorkspace
                             var company = c.Request.Headers["X-HireZero-Company"].FirstOrDefault();
                             var runtime = Open(string.IsNullOrEmpty(company) ? CompanyStore.DefaultCompanyId : company);
                             c.Items["company"] = runtime;
+                            System.Diagnostics.Activity.Current?.SetTag("hirezero.company", runtime.Store.CompanyId);
                             var actor = runtime.Store.Actor((string)c.Items["login"]!);
                             c.Items["role"] = actor.Role;
                             if (c.Request.Method is not ("GET" or "HEAD") && RouteRole(c.Request.Path) is { } required)

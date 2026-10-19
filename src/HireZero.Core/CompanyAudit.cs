@@ -166,9 +166,29 @@ public sealed partial class CompanyStore
         };
         if (kind is null)
             return;
-        var before = Scalar(db, $"SELECT state FROM {table} WHERE company_id=$0 AND id=$1", CompanyId, id);
-        if (before == state)
+        var before = Rows(
+                db,
+                $"SELECT state,payload FROM {table} WHERE company_id=$0 AND id=$1",
+                r => (State: r.GetString(0), Payload: r.GetString(1)),
+                CompanyId,
+                id
+            )
+            .SingleOrDefault();
+        if (before.State == state)
             return;
+        switch (value)
+        {
+            case CompanyAttempt a:
+                // Tokens count once, as provider usage is first reported (docs/adr/0024).
+                var reported = before.Payload is null
+                    ? null
+                    : CompanyJson.Decode<CompanyAttempt>(before.Payload).ReportedUsage;
+                CompanyTelemetry.ModelCall(CompanyId, a.EmployeeId, a.Phase, (a.ReportedUsage ?? 0) - (reported ?? 0));
+                break;
+            case CompanyExecutionGrant g:
+                CompanyTelemetry.CodingRun(CompanyId, g.EmployeeId, g.State);
+                break;
+        }
         object body = value switch
         {
             CompanyAttempt a => new

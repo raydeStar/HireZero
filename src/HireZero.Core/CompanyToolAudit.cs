@@ -31,6 +31,7 @@ public sealed partial class CompanyStore : IToolAudit
                         record.Outcome,
                     }
                 );
+                CompanyTelemetry.ToolCall(CompanyId, record);
                 return true;
             }
         );

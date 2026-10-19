@@ -236,14 +236,17 @@ public sealed partial class CompanyStore
     private static T Transaction<T>(SqliteConnection db, Func<T> action)
     {
         Sql(db, "BEGIN IMMEDIATE");
+        CompanyTelemetry.BeginTransaction();
         try
         {
             var result = action();
             Sql(db, "COMMIT");
+            CompanyTelemetry.Commit();
             return result;
         }
         catch
         {
+            CompanyTelemetry.Discard();
             Sql(db, "ROLLBACK");
             throw;
         }
