@@ -39,12 +39,14 @@ public static class CompanyWorkspace
         Action<ToolRegistry>? fixtureTools = null,
         ICompanyCodingFactory? fixtureCoding = null,
         HostedOptions? fixtureHosted = null,
-        StoreDatabase? fixtureDatabase = null
+        StoreDatabase? fixtureDatabase = null,
+        CompanySettings? settings = null
     )
     {
+        settings ??= CompanySettings.Load();
         // Local mode is the one-person, loopback-only owner; hosted mode signs members in through OIDC (ADR 0020).
         var hosted =
-            fixtureHosted ?? (args.Contains(CompanyHosting.HostedFlag) ? HostedOptions.FromEnvironment() : null);
+            fixtureHosted ?? (args.Contains(CompanyHosting.HostedFlag) ? HostedOptions.FromSettings(settings) : null);
         if (!args.Contains(Flag) && hosted is null)
             return null;
         if (args.Contains(CodingFlag) && !args.Contains(CodexFlag) && fixtureCoding is null)
@@ -57,9 +59,9 @@ public static class CompanyWorkspace
             throw new InvalidOperationException(
                 "Hosted mode needs HIREZERO_OWNER_LOGIN set to the first owner's email, and no local owner mode."
             );
-        if (fixtureUrl is null && string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("HIREZERO_DATA_ROOT")))
+        if (fixtureUrl is null && string.IsNullOrWhiteSpace(settings.DataRoot))
             throw new InvalidOperationException("Select an explicit new HIREZERO_DATA_ROOT for company-local mode.");
-        if (ExecutionHold.Requested(Environment.GetEnvironmentVariable(ExecutionHold.Variable)))
+        if (settings.ExecutionHold)
             throw new InvalidOperationException(
                 "Execution is held (HIREZERO_EXECUTION_HOLD=1). Nothing starts until the owner clears the hold."
             );
@@ -114,23 +116,21 @@ public static class CompanyWorkspace
         try
         {
             var routing = new CompanyModelRouting(
-                Environment.GetEnvironmentVariable("HIREZERO_COMPANY_TEXT_MODEL")
-                    ?? ModelRoutes.Route(ModelRoutes.CompanyText),
-                Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODING_MODEL")
-                    ?? ModelRoutes.Route(ModelRoutes.CompanyCoding)
+                settings.TextModel ?? ModelRoutes.Route(ModelRoutes.CompanyText),
+                settings.CodingModel ?? ModelRoutes.Route(ModelRoutes.CompanyCoding)
             );
             routing.Validate();
             CompanyCodexOptions? codex =
                 fixture is null && args.Contains(CodexFlag)
                     ? new(
-                        Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_EXECUTABLE")
+                        settings.CodexExecutable
                             ?? throw new InvalidOperationException("Pin the selected Codex executable."),
-                        Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_IDENTITY")
+                        settings.CodexIdentity
                             ?? throw new InvalidOperationException(
                                 "Pin the selected Codex executable bundle identity."
                             ),
                         Path.Combine(root, "codex-scratch"),
-                        Home: Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODEX_HOME")
+                        Home: settings.CodexHome
                             ?? throw new InvalidOperationException("Select the dedicated native Codex profile home.")
                     )
                     : null;
@@ -140,14 +140,7 @@ public static class CompanyWorkspace
             var coding = fixtureCoding;
             if (coding is null && codex is not null && args.Contains(CodingFlag))
             {
-                var live = new CompanyCodexCodingFactory(
-                    codex,
-                    routing,
-                    (Environment.GetEnvironmentVariable("HIREZERO_COMPANY_CODING_READ") ?? "").Split(
-                        ';',
-                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                    )
-                );
+                var live = new CompanyCodexCodingFactory(codex, routing, settings.CodingRead);
                 coding = live.Qualified
                     ? live
                     : throw new InvalidOperationException("Live company coding is not qualified: " + live.Refusal);
@@ -182,8 +175,9 @@ public static class CompanyWorkspace
             builder.Services.AddSingleton<CompanyScheduler>();
             builder.Services.AddHostedService(s => s.GetRequiredService<CompanyScheduler>());
             // The synthetic Wiki pilot, only when it is switched on (docs/adr/0015-publishing-an-approved-artifact.md).
-            var wiki = fixtureTools is null && Environment.GetEnvironmentVariable("HIREZERO_SYNTHETIC_WIKI") == "1";
+            var wiki = fixtureTools is null && settings.SyntheticWiki;
             // Microsoft 365: owner-started reads only, no polling; its tools register once a client ID is saved.
+            builder.Services.AddSingleton(global::Microsoft.Extensions.Options.Options.Create(settings));
             builder.Services.AddCompanyKeyProtection(root);
             builder.Services.AddMicrosoft365Company(root);
             builder.Services.AddHttpContextAccessor();
@@ -191,6 +185,8 @@ public static class CompanyWorkspace
             var membership = new CompanyMembership();
             builder.Services.AddSingleton(membership);
             var app = builder.Build();
+            foreach (var (name, source) in settings.Sources.OrderBy(s => s.Key, StringComparer.Ordinal))
+                app.Logger.LogInformation("Setting {Name}: {Source}", name, source);
             foreach (var line in CompanySecrets.Report())
                 app.Logger.LogInformation("{Secret}", line);
             if (fixtureDatabase is null && database is IDisposable owned)

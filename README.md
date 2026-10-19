@@ -78,6 +78,12 @@ it with `sh tools/start-company-local.sh --data-root <dir>`. `tools/Check-Adviso
 advisories and fails on any without a decision in `docs/security/advisories.json`
 ([ADR 0026](docs/adr/0026-container-and-releases.md)).
 
+### Settings
+
+Settings are environment variables or keys in a JSON file named by `HIREZERO_SETTINGS_FILE`, with the same names.
+Every value is checked at startup and all problems are listed together. [docs/SETTINGS.md](docs/SETTINGS.md) lists
+every setting.
+
 ### Secrets
 
 Every secret (OIDC client secret, database password, API keys, key-encryption and audit keys) can come from a

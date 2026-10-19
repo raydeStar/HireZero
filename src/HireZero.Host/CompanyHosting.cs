@@ -28,26 +28,32 @@ public sealed record HostedOptions(
     public const string ClientSecretVariable = "HIREZERO_OIDC_CLIENT_SECRET";
 
     // Secrets are read through SecretSource, so each can be a mounted file (docs/adr/0027-secrets-from-files.md).
-    public static HostedOptions FromEnvironment()
+    // Every missing hosted setting is named at once (docs/adr/0028-typed-settings.md).
+    public static HostedOptions FromSettings(CompanySettings settings, SecretSource? secrets = null)
     {
-        string Need(string name) =>
-            Environment.GetEnvironmentVariable(name) is { Length: > 0 } value
-                ? value
-                : throw new InvalidOperationException(name + " is required for hosted mode.");
+        secrets ??= SecretSource.Default;
+        var missing = new (string Name, object? Value)[]
+        {
+            ("HIREZERO_PUBLIC_URL", settings.PublicUrl),
+            ("HIREZERO_LISTEN", settings.Listen),
+            ("HIREZERO_OIDC_AUTHORITY", settings.OidcAuthority),
+            ("HIREZERO_OIDC_CLIENT_ID", settings.OidcClientId),
+        }
+            .Where(s => s.Value is null)
+            .Select(s => s.Name)
+            .ToArray();
+        if (missing.Length > 0)
+            throw new InvalidOperationException("Hosted mode needs " + string.Join(", ", missing) + ".");
         return new HostedOptions(
-            new Uri(Need("HIREZERO_PUBLIC_URL")),
-            new Uri(Need("HIREZERO_LISTEN")),
-            Need("HIREZERO_OIDC_AUTHORITY"),
-            Need("HIREZERO_OIDC_CLIENT_ID"),
-            SecretSource.Default.Read(ClientSecretVariable),
-            Environment
-                .GetEnvironmentVariable("HIREZERO_OIDC_SCOPES")
-                ?.Split(' ', StringSplitOptions.RemoveEmptyEntries),
-            Environment.GetEnvironmentVariable("HIREZERO_TRUSTED_PROXY") is { Length: > 0 } proxy
-                ? IPAddress.Parse(proxy)
-                : null,
-            Environment.GetEnvironmentVariable("HIREZERO_TLS_CERTIFICATE"),
-            SecretSource.Default.Read("HIREZERO_TLS_CERTIFICATE_PASSWORD")
+            settings.PublicUrl!,
+            settings.Listen!,
+            settings.OidcAuthority!,
+            settings.OidcClientId!,
+            secrets.Read(ClientSecretVariable),
+            settings.OidcScopes,
+            settings.TrustedProxy,
+            settings.TlsCertificate,
+            secrets.Read("HIREZERO_TLS_CERTIFICATE_PASSWORD")
         ).Validated();
     }
 

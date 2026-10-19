@@ -200,7 +200,10 @@ features in 2B.5 rather than twice.
   [guide](SECRETS.md)):** every secret is read by name from a mounted file, systemd credential or the
   environment, so any vault delivers it through its agent or CSI driver; rotation without restarts for the OIDC
   secret, API keys and database password; stored token keys wrapped by a key-encryption key on every OS; a shared
-  audit key for hosts on one database. Still open: non-secret configuration through typed `IOptions`.
+  audit key for hosts on one database.
+- **Typed settings (done, [ADR 0028](adr/0028-typed-settings.md), [reference](SETTINGS.md)):** every host setting
+  in one typed, validated `IOptions<CompanySettings>`, from the environment or a JSON settings file with the same
+  names; all problems reported at once; secrets and unknown names refused in the file.
 - **OpenTelemetry (done, [ADR 0024](adr/0024-opentelemetry-traces-and-metrics.md)):** spans for employee jobs, tool
   calls and requests (tagged with their company); metrics for jobs and their duration, tool calls by outcome, model
   calls and tokens per company and employee, and coding runs. Counted only after commit, identifiers only, exported

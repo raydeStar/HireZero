@@ -272,5 +272,4 @@ vault, so changing vaults changes only the agent's configuration.
 - Should HireZero talk to a vault directly, for leases or database credentials created on demand? It can be added as
   an optional `HireZero.Integrations.OpenBao` project, with no change to Core or roles.
 - Should the owner see the startup secret report in the UI, as well as in the log?
-- Should non-secret settings move from environment variables to typed `IOptions` with validation? This is the
-  remaining Phase 3 configuration item.
+- Non-secret settings are typed and validated, and can come from a settings file. See [SETTINGS.md](SETTINGS.md).
