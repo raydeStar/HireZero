@@ -97,8 +97,14 @@ public sealed class SupportModule : IEmployeeModule
             DisplayOrder = 30,
         };
 
+    // Customer messages are redacted before they are stored: the reply brief, and the intake action's input.
     public string ValidateInput(string skill, string input) =>
-        skill == Reply ? SupportReplyPolicy.Validate(input) : input;
+        skill switch
+        {
+            Reply => SupportReplyPolicy.Validate(input),
+            SupportIntake.Action => SupportIntake.RedactInput(input),
+            _ => input,
+        };
 
     public string InstructionsFor(string skill) =>
         skill switch

@@ -39,20 +39,17 @@ public static partial class SupportIntake
 
     public sealed record Redaction(string Text, int Emails, int Phones, int Cards);
 
+    // The intake action's stored input with every field redacted.
+    public static string RedactInput(string input)
+    {
+        var fields = CompanyJson.Decode<Dictionary<string, string>>(input);
+        return CompanyJson.Encode(fields.ToDictionary(f => f.Key, f => Redact(f.Value).Text));
+    }
+
+    // Counts include markers already in the text, so input redacted when it was stored still reports what was removed.
     public static Redaction Redact(string text)
     {
-        var emails = 0;
-        var phones = 0;
-        var cards = 0;
-        text = Email()
-            .Replace(
-                text,
-                _ =>
-                {
-                    emails++;
-                    return "[email]";
-                }
-            );
+        text = Email().Replace(text, "[email]");
         text = Digits()
             .Replace(
                 text,
@@ -61,7 +58,6 @@ public static partial class SupportIntake
                     var digits = new string(m.Value.Where(char.IsAsciiDigit).ToArray());
                     if (digits.Length is >= 13 and <= 19 && Luhn(digits))
                     {
-                        cards++;
                         return "[card]";
                     }
                     // A phone number has 9 to 15 digits and is written like one: a leading + or separators. A bare run of
@@ -70,13 +66,24 @@ public static partial class SupportIntake
                         m.Value.TrimStart().StartsWith('+') || m.Value.Any(c => c is ' ' or '-' or '.' or '(' or ')');
                     if (digits.Length is >= 9 and <= 15 && written)
                     {
-                        phones++;
                         return "[phone]";
                     }
                     return m.Value;
                 }
             );
-        return new(text, emails, phones, cards);
+        return new(text, Markers(text, "[email]"), Markers(text, "[phone]"), Markers(text, "[card]"));
+    }
+
+    private static int Markers(string text, string marker)
+    {
+        var count = 0;
+        for (
+            var i = text.IndexOf(marker, StringComparison.Ordinal);
+            i >= 0;
+            i = text.IndexOf(marker, i + 1, StringComparison.Ordinal)
+        )
+            count++;
+        return count;
     }
 
     private static bool Luhn(string digits)

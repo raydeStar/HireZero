@@ -259,6 +259,14 @@ export function MeasuredJob({
                 Expires {new Date(entry.job.expiresAt).toLocaleString()}. Policy {entry.job.policy.version}. The server
                 binds your authorization to this exact saved task and context.
               </small>
+              {!packet && (
+                <p className="co-muted" role="note">
+                  You can authorize after you have seen exactly what will be sent.{" "}
+                  <button type="button" disabled={busy || running} onClick={() => void review()}>
+                    {conversational ? "Review the reply's context to unlock" : "Review the task's context to unlock"}
+                  </button>
+                </p>
+              )}
               <label className="co-check">
                 <input type="checkbox" checked={ack} disabled={!packet} onChange={(e) => setAck(e.target.checked)} />
                 {conversational

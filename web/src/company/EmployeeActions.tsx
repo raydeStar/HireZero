@@ -64,25 +64,47 @@ export function EmployeeActions({
             <p>
               <b>{action.name}</b> {action.description} The result is saved for your review before it can be used.
             </p>
-            {action.fields.map((field) => (
-              <label key={field.id}>
-                {field.label}
-                <input
-                  aria-label={field.label}
-                  maxLength={field.maxLength}
-                  value={values[action.id]?.[field.id] ?? ""}
-                  onChange={(event) =>
-                    setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: event.target.value } })
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter") return;
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (!disabled && running === "") start();
-                  }}
-                />
-              </label>
-            ))}
+            {action.fields.map((field) => {
+              const value = values[action.id]?.[field.id] ?? "";
+              const change = (text: string) =>
+                setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: text } });
+              // Long fields take several lines (pasted messages, notes): Enter adds a line, Ctrl+Enter runs. Short
+              // fields run on Enter.
+              const multiline = field.maxLength > 200;
+              return (
+                <label key={field.id}>
+                  {field.label}
+                  {multiline ? (
+                    <textarea
+                      aria-label={field.label}
+                      maxLength={field.maxLength}
+                      rows={6}
+                      value={value}
+                      onChange={(event) => change(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (!disabled && running === "") start();
+                      }}
+                    />
+                  ) : (
+                    <input
+                      aria-label={field.label}
+                      maxLength={field.maxLength}
+                      value={value}
+                      onChange={(event) => change(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (!disabled && running === "") start();
+                      }}
+                    />
+                  )}
+                </label>
+              );
+            })}
             <button type="button" disabled={disabled || running !== ""} onClick={start}>
               {running === action.id ? "Gathering…" : "Run"}
             </button>
