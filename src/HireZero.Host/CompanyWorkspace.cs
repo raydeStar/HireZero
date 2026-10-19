@@ -144,6 +144,9 @@ public static class CompanyWorkspace
                 if (GitToolRegistration.FindGit() is { } git)
                     tools.AddGitTools(new GitCheckoutInspector(git));
                 new GitHubCli().Register(tools);
+                // The trusted PostgreSQL toolchain: installed only as an owner-approved publication.
+                new HireZero.Integrations.Node.NpmInstaller().Register(tools);
+                new HireZero.Integrations.Node.TrustedPostgresToolchain(root).Register(tools);
             }
             builder.Services.AddSingleton(tools);
             builder.Services.AddSingleton<IModelProvider>(model);

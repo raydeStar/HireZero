@@ -154,6 +154,12 @@ public sealed class DeveloperModule : IEmployeeModule
                 new(GitHubSignInTools.Start.Id, ToolRisk.External, "Reconnect the GitHub CLI when the owner asks."),
                 new(GitHubSignInTools.Status.Id, ToolRisk.Read, "Show the state of a GitHub reconnect."),
                 new(
+                    TrustedPostgresTools.PrepareRunner.Id,
+                    ToolRisk.Write,
+                    "Write the trusted PostgreSQL runner, only as an approved publication."
+                ),
+                new(TrustedPostgresTools.Status.Id, ToolRisk.Read, "Check the trusted PostgreSQL toolchain."),
+                new(
                     NodeTools.InstallPinned.Id,
                     ToolRisk.Write,
                     "Install the pinned PostgreSQL test package when the owner asks."
@@ -228,6 +234,7 @@ public sealed class DeveloperModule : IEmployeeModule
                 CompanyPullRequestAttention.Definition,
                 CompanyPullRequestStep.Definition,
                 CompanyPullRequestQueue.Definition,
+                CompanyPostgresSetup.Definition,
                 CompanyMessageSort.JevDefinition,
                 CompanyMessageSort.OpenRouterDefinition,
             ],
@@ -269,6 +276,7 @@ public sealed class DeveloperModule : IEmployeeModule
             CompanyPullRequestAttention.ReadAction => CompanyPullRequestAttention.ReadAsync(input, tools, token),
             CompanyPullRequestStep.Action => CompanyPullRequestStep.RunAsync(input, tools, token),
             CompanyPullRequestQueue.Action => CompanyPullRequestQueue.ReadAsync(input, tools, token),
+            CompanyPostgresSetup.Action => CompanyPostgresSetup.ReadAsync(input, tools, token),
             CompanyMessageSort.JevAction or CompanyMessageSort.OpenRouterAction => CompanyMessageSort.SortAsync(
                 action,
                 input,
@@ -334,6 +342,17 @@ public sealed class DeveloperModule : IEmployeeModule
                 ExecutionStep.Publish => await pullStep.PublishAsync(id, token),
                 ExecutionStep.Reconcile => await pullStep.ReconcileAsync(id, token),
                 _ => throw new WorkspaceException("A pull request step is published, not executed."),
+            };
+        }
+        if (task.Skill == CompanyPostgresSetup.Action)
+        {
+            var setup = new CompanyPostgresSetupPublication(store, services.Tools);
+            return step switch
+            {
+                ExecutionStep.Propose => setup.Propose(id),
+                ExecutionStep.Publish => await setup.PublishAsync(id, token),
+                ExecutionStep.Reconcile => store.Publication(id),
+                _ => throw new WorkspaceException("The trusted PostgreSQL install is published, not executed."),
             };
         }
         if (task.Skill == CompanyWiki.Draft)
