@@ -1,9 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Using Include="Microsoft.AspNetCore.Builder" />
@@ -14,8 +9,21 @@
     <Using Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../HireZero.Tools.AzureDevOps/HireZero.Tools.AzureDevOps.csproj" />
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
-    <EmbeddedResource Include="TrustedPostgresRunner.mjs" LogicalName="HireZero.Roles.Developer.TrustedPostgresRunner.mjs" />
+    <ProjectReference Include="../HireZero.Tools.AgentApps/HireZero.Tools.AgentApps.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Microsoft365/HireZero.Tools.Microsoft365.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
+    <ProjectReference Include="../HireZero.Tools.GitHub/HireZero.Tools.GitHub.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Node/HireZero.Tools.Node.csproj" />
+    <ProjectReference Include="../HireZero.Tools.SemaForge/HireZero.Tools.SemaForge.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Wiki/HireZero.Tools.Wiki.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Jev/HireZero.Tools.Jev.csproj" />
+    <ProjectReference Include="../HireZero.Tools.OpenRouter/HireZero.Tools.OpenRouter.csproj" />
+    <EmbeddedResource
+      Include="TrustedPostgresRunner.mjs"
+      LogicalName="HireZero.Roles.Developer.TrustedPostgresRunner.mjs"
+    />
     <Using Include="HireZero.Core" />
   </ItemGroup>
 </Project>

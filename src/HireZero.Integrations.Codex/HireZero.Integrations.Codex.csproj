@@ -1,9 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Using Include="Microsoft.AspNetCore.Builder" />
@@ -15,6 +10,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <EmbeddedResource
+      Include="../../runtime/codex/pin.json"
+      LogicalName="HireZero.Integrations.Codex.codex-pin.json"
+      Link="codex-pin.json"
+    />
     <Using Include="HireZero.Core" />
   </ItemGroup>
 </Project>

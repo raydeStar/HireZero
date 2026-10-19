@@ -1,4 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" /><Using Include="HireZero.Core" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Analytics/HireZero.Tools.Analytics.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Advertising/HireZero.Tools.Advertising.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Email/HireZero.Tools.Email.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Crm/HireZero.Tools.Crm.csproj" />
+    <Using Include="HireZero.Core" />
+  </ItemGroup>
 </Project>

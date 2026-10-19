@@ -1,1 +1,8 @@
-export function PlanGuidance(){return <p className="co-muted">The CEO proposes work for your review. Approving a plan authorizes only its listed internal tasks and shared allowance. It grants no publishing, spending or repository access.</p>;}
+export function PlanGuidance() {
+  return (
+    <p className="co-muted">
+      The CEO proposes work for your review. Approving a plan authorizes only its listed internal tasks and shared
+      allowance. It grants no publishing, spending or repository access.
+    </p>
+  );
+}

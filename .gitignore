@@ -13,6 +13,10 @@ playwright-report/
 **/.hirezero*/
 **/Runtime/
 **/OpenClaw/
+# The repository's runtime pins (runtime/openclaw) are source, unlike a data root's installed Runtime folder.
+!/runtime/
+!/runtime/openclaw/
+/runtime/**/node_modules/
 **/Credentials/
 **/RecoveryChat/
 **/Backups/
@@ -34,3 +38,4 @@ playwright-report/
 **/logs/
 **/.env*
 **/company-scheduler.lock
+/artifacts/

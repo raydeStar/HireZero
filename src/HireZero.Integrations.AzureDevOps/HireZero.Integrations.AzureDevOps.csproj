@@ -1,9 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Using Include="Microsoft.AspNetCore.Builder" />
@@ -14,6 +9,7 @@
     <Using Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../HireZero.Tools.AzureDevOps/HireZero.Tools.AzureDevOps.csproj" />
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
     <Using Include="HireZero.Core" />
   </ItemGroup>

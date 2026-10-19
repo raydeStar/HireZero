@@ -1,0 +1,4 @@
+# Bulk mechanical changes skipped by git blame (git config blame.ignoreRevsFile .git-blame-ignore-revs).
+
+# Apply CSharpier and Prettier formatting
+bdd59a045704ca166fbfbeb94eac72ee7f35497e

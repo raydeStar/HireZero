@@ -61,6 +61,30 @@
           "Microsoft.Data.Sqlite": "[10.0.3, )",
           "SQLitePCLRaw.bundle_e_sqlite3": "[3.0.5, )"
         }
+      },
+      "hirezero.tools.advertising": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.analytics": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.crm": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.email": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
       }
     }
   }

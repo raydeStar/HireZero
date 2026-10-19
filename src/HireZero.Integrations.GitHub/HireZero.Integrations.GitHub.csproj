@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
+    <ProjectReference Include="../HireZero.Tools.GitHub/HireZero.Tools.GitHub.csproj" />
+    <Using Include="HireZero.Core" />
+  </ItemGroup>
+</Project>

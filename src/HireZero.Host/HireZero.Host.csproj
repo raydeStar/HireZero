@@ -1,20 +1,29 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <!-- Every employee module is built in and discovered at startup (docs/adr/0006). -->
+    <ProjectReference Include="../HireZero.Roles.*/HireZero.Roles.*.csproj" />
     <ProjectReference Include="../HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
-    <ProjectReference Include="../HireZero.Roles.Developer/HireZero.Roles.Developer.csproj" />
-    <ProjectReference Include="../HireZero.Roles.Marketing/HireZero.Roles.Marketing.csproj" />
-    <ProjectReference Include="../HireZero.Roles.Ceo/HireZero.Roles.Ceo.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.OpenRouter/HireZero.Integrations.OpenRouter.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Codex/HireZero.Integrations.Codex.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Git/HireZero.Integrations.Git.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.GitHub/HireZero.Integrations.GitHub.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Node/HireZero.Integrations.Node.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Postgres/HireZero.Integrations.Postgres.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Google/HireZero.Integrations.Google.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Synthetic/HireZero.Integrations.Synthetic.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.SemaForge/HireZero.Integrations.SemaForge.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
     <ProjectReference Include="../HireZero.Integrations.AgentApps/HireZero.Integrations.AgentApps.csproj" />
     <ProjectReference Include="../HireZero.Integrations.AzureDevOps/HireZero.Integrations.AzureDevOps.csproj" />
     <Using Include="HireZero.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.3" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.20.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.20.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.0" />
   </ItemGroup>
 </Project>
