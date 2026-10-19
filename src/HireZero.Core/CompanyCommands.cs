@@ -245,6 +245,12 @@ public sealed partial class CompanyStore
                 return ReviewExecution(db, c);
             case "owner.mark":
                 return MarkNeed(db, c);
+            case "member.invite":
+                return InviteMember(db, c);
+            case "member.role":
+                return ChangeMember(db, c, revoke: false);
+            case "member.revoke":
+                return ChangeMember(db, c, revoke: true);
             case "publication.review":
                 return ReviewPublication(db, c);
             case "budget.configure":

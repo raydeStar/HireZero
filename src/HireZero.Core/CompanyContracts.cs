@@ -263,7 +263,11 @@ public sealed record CompanyEvent(
     string? EmployeeId,
     string Text,
     DateTimeOffset At
-);
+)
+{
+    // The member who caused it, or "system" (docs/adr/0020).
+    public string? Actor { get; init; }
+}
 
 // Transport fields are data. Company, owner, actor, approval authority and provider route are never accepted from the client.
 public sealed record CompanyCommand(

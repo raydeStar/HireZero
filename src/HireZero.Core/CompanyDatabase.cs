@@ -37,6 +37,7 @@ public sealed partial class CompanyStore
         [typeof(CompanyExecutionGrant)] = "co_execution_grants",
         [typeof(CompanyPublication)] = "co_publications",
         [typeof(CompanyOwnerMark)] = "co_owner_marks",
+        [typeof(CompanyMember)] = "co_members",
     };
     private static readonly Dictionary<string, string> ParentTables = new()
     {
@@ -60,6 +61,7 @@ public sealed partial class CompanyStore
     )
     {
         _path = path;
+        _owner = owner;
         _roles = roles;
         ModelRouting = routing ?? new();
         ModelRouting.Validate();
@@ -88,6 +90,7 @@ public sealed partial class CompanyStore
                     ToolCallSchema,
                     "CREATE TABLE co_publications(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id),FOREIGN KEY(company_id,parent_id) REFERENCES co_tasks(company_id,id),FOREIGN KEY(company_id,employee_id) REFERENCES co_employees(company_id,id));",
                     "CREATE TABLE co_owner_marks(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
+                    "CREATE TABLE co_members(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
                 ];
                 if (
                     migrations.Any(m =>
@@ -110,6 +113,18 @@ public sealed partial class CompanyStore
                 Sql(db, "INSERT OR IGNORE INTO co_company VALUES($0,$1)", CompanyId, owner);
                 if (Scalar(db, "SELECT owner FROM co_company WHERE id=$0", CompanyId) != owner)
                     throw new WorkspaceException("This company belongs to another owner.", 403);
+                // The company's first owner is the identity that created it (docs/adr/0020).
+                if (Find<CompanyMember>(db, owner) is null)
+                {
+                    var first = new CompanyMember(
+                        owner,
+                        owner.Contains('@') ? owner : "",
+                        "Owner",
+                        CompanyRoles.Owner,
+                        "active"
+                    );
+                    Save(db, first, first.Id, state: first.State, version: first.Version);
+                }
                 return true;
             }
         );
@@ -124,7 +139,7 @@ public sealed partial class CompanyStore
         // Step 1's text is frozen by its checksum: tables added later are created by their own steps.
         foreach (
             var table in Tables.Values.Where(table =>
-                table is not ("co_execution_grants" or "co_publications" or "co_owner_marks")
+                table is not ("co_execution_grants" or "co_publications" or "co_owner_marks" or "co_members")
             )
         )
         {
@@ -276,7 +291,12 @@ public sealed partial class CompanyStore
             db,
             "INSERT INTO co_events(company_id,payload) VALUES($0,$1)",
             CompanyId,
-            CompanyJson.Encode(new CompanyEvent(0, type, id, employee, text, Clock()))
+            CompanyJson.Encode(
+                new CompanyEvent(0, type, id, employee, text, Clock())
+                {
+                    Actor = CurrentActor.Value?.Subject ?? CompanyActor.System,
+                }
+            )
         );
     }
 
@@ -442,7 +462,27 @@ public sealed partial class CompanyStore
 
     public string Apply(CompanyCommand command) => Apply(command, out _);
 
-    public string Apply(CompanyCommand command, out bool newlyApplied)
+    // The company's first owner, acting directly (local owner mode and internal callers).
+    public string Apply(CompanyCommand command, out bool newlyApplied) => Apply(command, _owner, out newlyApplied);
+
+    // A member acting: their role comes from their membership, never from the request (docs/adr/0020).
+    public string Apply(CompanyCommand command, string subject, out bool newlyApplied)
+    {
+        var actor = Actor(subject);
+        CompanyAccess.Demand(actor, CompanyAccess.Required(command.Action ?? ""), "run " + command.Action);
+        var previous = CurrentActor.Value;
+        CurrentActor.Value = actor;
+        try
+        {
+            return ApplyAs(command, out newlyApplied);
+        }
+        finally
+        {
+            CurrentActor.Value = previous;
+        }
+    }
+
+    private string ApplyAs(CompanyCommand command, out bool newlyApplied)
     {
         if (!Guid.TryParseExact(command.RequestId, "D", out _))
             throw new WorkspaceException("A UUID operation ID is required.", 422);

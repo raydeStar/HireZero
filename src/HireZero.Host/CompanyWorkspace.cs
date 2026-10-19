@@ -19,6 +19,13 @@ public static class CompanyWorkspace
     // and only together with the Codex connection profile.
     public const string CodingFlag = "--company-coding";
 
+    // The least role a change through a route needs; commands carry their own check in the store.
+    internal static string? RouteRole(PathString path) =>
+        path.StartsWithSegments("/api/company/commands") ? null
+        : path.StartsWithSegments("/api/company/actions") || path.StartsWithSegments("/api/company/executions")
+            ? CompanyAccess.Steps
+        : CompanyRoles.Owner;
+
     public static CompanyRole[] Definitions() => [.. HostEmployees.Modules.Select(CompanyRole.From)];
 
     public static WebApplication? TryCreate(
@@ -209,9 +216,17 @@ public static class CompanyWorkspace
                         return;
                     }
                     c.Items["login"] = owner;
-                    c.Items["role"] = "owner";
                     try
                     {
+                        // Every API request acts as an active member; a change needs its route's role, and a
+                        // command is checked again against its own action in the store (docs/adr/0020).
+                        if (c.Request.Path.StartsWithSegments("/api"))
+                        {
+                            var actor = store.Actor((string)c.Items["login"]!);
+                            c.Items["role"] = actor.Role;
+                            if (c.Request.Method is not ("GET" or "HEAD") && RouteRole(c.Request.Path) is { } required)
+                                CompanyAccess.Demand(actor, required, "change " + c.Request.Path);
+                        }
                         await next();
                     }
                     catch (WorkspaceException e)
@@ -241,12 +256,12 @@ public static class CompanyWorkspace
             );
             app.MapGet(
                 "/api/session",
-                () =>
+                (HttpContext context) =>
                     Results.Ok(
                         new
                         {
                             login = owner,
-                            role = "owner",
+                            role = (string?)context.Items["role"] ?? CompanyRoles.Viewer,
                             accessMode = "local",
                             roles = Array.Empty<string>(),
                             agentModel = model is IMeasuredModelProvider
@@ -328,6 +343,8 @@ public static class CompanyWorkspace
                         : Results.Json(new { error = "Select the explicit Codex connection profile." }, statusCode: 503)
             );
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(store.ToolCalls(limit ?? 100)));
+            // Members and their roles, for every member to see (docs/adr/0020).
+            app.MapGet("/api/company/members", () => Results.Ok(store.Members()));
             // GitHub sign-in through the GitHub CLI's own browser flow (ported from the legacy profile, 2B.5j). The
             // owner's click starts it on this computer; HireZero never sees a password or token.
             var gitHubSignIn = new GitHubSignIn();
@@ -446,11 +463,13 @@ public static class CompanyWorkspace
             );
             app.MapPost(
                 "/api/company/commands",
-                async (System.Text.Json.JsonElement body) =>
+                async (System.Text.Json.JsonElement body, HttpContext context) =>
                 {
                     var command = CompanyJson.Decode<CompanyCommand>(body.GetRawText());
+                    var subject = (string)context.Items["login"]!;
                     if (command.Action == "measured.run")
                     {
+                        CompanyAccess.Demand(store.Actor(subject), CompanyAccess.Required(command.Action), "run work");
                         if (model is not IMeasuredModelProvider measured)
                             throw new WorkspaceException("A pinned measured runtime is not configured.");
                         var receipt = await app
@@ -458,7 +477,7 @@ public static class CompanyWorkspace
                             .RunMeasuredOnceAsync(command, measured, app.Lifetime.ApplicationStopping);
                         return Results.Content(receipt, "application/json");
                     }
-                    return Results.Content(store.Apply(command), "application/json");
+                    return Results.Content(store.Apply(command, subject, out _), "application/json");
                 }
             );
             app.MapFallback(
