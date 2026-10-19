@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
     <ProjectReference Include="../HireZero.Tools.Analytics/HireZero.Tools.Analytics.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Advertising/HireZero.Tools.Advertising.csproj" />
     <Using Include="HireZero.Core" />
   </ItemGroup>
 </Project>

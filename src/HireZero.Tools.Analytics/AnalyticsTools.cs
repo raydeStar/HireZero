@@ -42,7 +42,7 @@ public sealed record SearchReport(
     SearchRow[] Rows
 );
 
-public static class AnalyticsTools
+public static partial class AnalyticsTools
 {
     public static readonly string[] TrafficBreakdowns =
     [
@@ -75,4 +75,32 @@ public static class AnalyticsTools
         ToolRisk.Read,
         "Read search performance (clicks, impressions, click-through rate, position) for a date range."
     );
+}
+
+// The request rules every analytics provider applies before it sends anything, so all providers refuse alike.
+public static partial class AnalyticsTools
+{
+    private static void Range(DateOnly start, DateOnly end, int limit)
+    {
+        if (end < start)
+            throw new ToolFailureException("refused", "The range ends before it starts.", 422);
+        if (end.DayNumber - start.DayNumber + 1 > AnalyticsTools.MaxDays)
+            throw new ToolFailureException("refused", "Read at most " + AnalyticsTools.MaxDays + " days at once.", 422);
+        if (limit is < 1 or > 100)
+            throw new ToolFailureException("refused", "Read between 1 and 100 rows.", 422);
+    }
+
+    public static void Check(TrafficRequest request)
+    {
+        Range(request.Start, request.End, request.Limit);
+        if (request.Breakdown is { } b && !AnalyticsTools.TrafficBreakdowns.Contains(b))
+            throw new ToolFailureException("refused", "Unknown traffic breakdown: " + b, 422);
+    }
+
+    public static void Check(SearchRequest request)
+    {
+        Range(request.Start, request.End, request.Limit);
+        if (!AnalyticsTools.SearchBreakdowns.Contains(request.Breakdown))
+            throw new ToolFailureException("refused", "Unknown search breakdown: " + request.Breakdown, 422);
+    }
 }

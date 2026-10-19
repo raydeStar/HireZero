@@ -270,6 +270,14 @@
           "HireZero.Tools.SemaForge": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.synthetic": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Advertising": "[1.0.0, )",
+          "HireZero.Tools.Analytics": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.wiki": {
         "type": "Project",
         "dependencies": {
@@ -303,7 +311,14 @@
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Advertising": "[1.0.0, )",
           "HireZero.Tools.Analytics": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.advertising": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.tools.agentapps": {

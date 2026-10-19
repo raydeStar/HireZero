@@ -46,6 +46,25 @@ code, never by the model ([ADR 0030](adr/0030-ab-test-design-and-significance.md
 Run every test for its full planned length. Stopping as soon as a result "looks significant" makes false wins much
 more likely.
 
+## Ads
+
+Marketing can review ad performance ([ADR 0031](adr/0031-ads-read-contracts.md)).
+
+1. Run **Read ad performance** with 7, 28 or 90 days. It reads, read-only:
+   - spend, impressions, clicks, conversions and conversion value, by campaign and by day, for the period and the
+     one before;
+   - derived from those: CTR (clicks per impression), CPC (cost per click), CPA (cost per conversion) and ROAS
+     (conversion value per unit of spend).
+2. Unusual days in spend and conversions are flagged. Campaigns with at least 5% of spend are listed when they:
+   - spent without converting;
+   - had their cost per conversion rise by 30% or more;
+   - returned less than they cost.
+3. Approve the result, then run **Ads review**. It writes the review and at most three proposals. It cannot change
+   anything. Changing a campaign, budget or bid will need its own approval, and is not possible yet.
+
+No real ads platform is connected yet. Try it with `HIREZERO_SYNTHETIC_ADS=1`, which serves fictional campaigns in
+XTS, the currency code reserved for testing.
+
 ## Try it with fictional data
 
 Set `HIREZERO_SYNTHETIC_ANALYTICS=1` and restart. Marketing then reads deterministic fictional data, labelled

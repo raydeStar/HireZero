@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HireZero.Core;
 using HireZero.Integrations.Google;
+using HireZero.Integrations.Synthetic;
 using HireZero.Roles.Marketing;
 using HireZero.Tools.Analytics;
 

@@ -82,6 +82,7 @@ Hosted mode names all of its missing required settings at once.
 | --- | --- |
 | `HIREZERO_SYNTHETIC_WIKI` | `1` turns on the synthetic Wiki pilot. |
 | `HIREZERO_SYNTHETIC_ANALYTICS` | `1` serves fictional analytics data to Marketing when Google is not connected. |
+| `HIREZERO_SYNTHETIC_ADS` | `1` serves fictional ad data (in the test currency XTS) to Marketing. |
 
 ## Other variables
 

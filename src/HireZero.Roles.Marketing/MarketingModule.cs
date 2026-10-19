@@ -1,4 +1,5 @@
 using HireZero.Roles.Marketing;
+using HireZero.Tools.Advertising;
 using HireZero.Tools.Analytics;
 
 [assembly: EmployeeModule(typeof(MarketingModule))]
@@ -36,6 +37,12 @@ public sealed class MarketingModule : IEmployeeModule
                     "Write an experiment plan or a result readout from approved A/B test sizing or results.",
                     SkillMode.Measured
                 ),
+                new(
+                    MarketingAds.Review,
+                    "Ads review",
+                    "Review ad performance from approved ads evidence and propose changes for your approval.",
+                    SkillMode.Measured
+                ),
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -62,8 +69,16 @@ public sealed class MarketingModule : IEmployeeModule
                 new(AnalyticsTools.Status.Id, ToolRisk.Read, "Show which analytics source is connected."),
                 new(AnalyticsTools.Traffic.Id, ToolRisk.Read, "Read website traffic when you ask for analytics."),
                 new(AnalyticsTools.Search.Id, ToolRisk.Read, "Read search performance when you ask for analytics."),
+                new(AdsTools.Status.Id, ToolRisk.Read, "Show which ads account is connected."),
+                new(AdsTools.Performance.Id, ToolRisk.Read, "Read ad performance when you ask for it."),
             ],
-            Actions = [MarketingAnalytics.Definition, MarketingExperiments.Design, MarketingExperiments.Significance],
+            Actions =
+            [
+                MarketingAnalytics.Definition,
+                MarketingAds.Definition,
+                MarketingExperiments.Design,
+                MarketingExperiments.Significance,
+            ],
             Kpis =
             [
                 new("drafts-approved", "Drafts approved", "count", "Drafts the owner approved without revision."),
@@ -82,6 +97,7 @@ public sealed class MarketingModule : IEmployeeModule
             Draft => MarketingText.DraftInstructions,
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
             MarketingExperiments.Skill => MarketingExperiments.Instructions,
+            MarketingAds.Review => MarketingAds.ReviewInstructions,
             _ => MarketingText.Instructions,
         };
 
@@ -94,6 +110,12 @@ public sealed class MarketingModule : IEmployeeModule
         action switch
         {
             MarketingAnalytics.ReadAction => MarketingAnalytics.ReadAsync(
+                input,
+                tools,
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                token
+            ),
+            MarketingAds.ReadAction => MarketingAds.ReadAsync(
                 input,
                 tools,
                 DateOnly.FromDateTime(DateTime.UtcNow),

@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using HireZero.Tools.Analytics;
 
-namespace HireZero.Integrations.Google;
+namespace HireZero.Integrations.Synthetic;
 
 // Deterministic fictional analytics behind the same analytics.* contracts (docs/adr/0029-marketing-analytics-reads.md),
 // for demos and browser checks when HIREZERO_SYNTHETIC_ANALYTICS=1. Every report says it is synthetic. The same date
@@ -136,7 +136,7 @@ public sealed class SyntheticAnalyticsProvider : IToolProvider, IIntegrationStat
 
     public static TrafficReport Traffic(TrafficRequest request)
     {
-        AnalyticsRequests.Check(request);
+        AnalyticsTools.Check(request);
         var days = Days(request.Start, request.End).Select(Day).ToArray();
         var totals = Sum("total", days);
         TrafficRow[] rows = request.Breakdown switch
@@ -171,7 +171,7 @@ public sealed class SyntheticAnalyticsProvider : IToolProvider, IIntegrationStat
 
     public static SearchReport Search(SearchRequest request)
     {
-        AnalyticsRequests.Check(request);
+        AnalyticsTools.Check(request);
         var days = Days(request.Start, request.End).Select(SearchDay).ToArray();
         var clicks = days.Sum(d => d.Clicks);
         var impressions = days.Sum(d => d.Impressions);

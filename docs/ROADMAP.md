@@ -227,6 +227,10 @@ features in 2B.5 rather than twice.
   - **A/B tests (done, [ADR 0030](adr/0030-ab-test-design-and-significance.md)):** deterministic actions size a
     test (sample per variant, whole-week run length, Bonferroni for several variants) and read its result (lift,
     confidence interval, p-value, sample-ratio check); a measured skill writes the plan or readout from them.
-  - Still to come: an ads platform (read first, writes only with approval), email/CRM.
+  - **Ads reads (done, [ADR 0031](adr/0031-ads-read-contracts.md)):** neutral `ads.*` Read contracts with
+    fictional fixtures in XTS; an owner-started read deriving CTR, CPC, CPA and ROAS, flagging unusual days and
+    listing campaigns that need attention by fixed rules; a measured ads review skill that only proposes changes.
+  - Still to come: a real ads platform behind the same contracts; ad changes as owner-approved publications;
+    email/CRM.
 - A third employee (Support or Finance/Ops) built only from a new module folder, as the proof that the platform
   scales by hiring.

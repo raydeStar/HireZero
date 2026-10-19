@@ -319,6 +319,7 @@
           "HireZero.Integrations.OpenRouter": "[1.0.0, )",
           "HireZero.Integrations.Postgres": "[1.0.0, )",
           "HireZero.Integrations.SemaForge": "[1.0.0, )",
+          "HireZero.Integrations.Synthetic": "[1.0.0, )",
           "HireZero.Integrations.Wiki": "[1.0.0, )",
           "HireZero.Roles.Ceo": "[1.0.0, )",
           "HireZero.Roles.Developer": "[1.0.0, )",
@@ -420,6 +421,14 @@
           "HireZero.Tools.SemaForge": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.synthetic": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Advertising": "[1.0.0, )",
+          "HireZero.Tools.Analytics": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.wiki": {
         "type": "Project",
         "dependencies": {
@@ -453,7 +462,14 @@
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Advertising": "[1.0.0, )",
           "HireZero.Tools.Analytics": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.advertising": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.tools.agentapps": {
