@@ -224,7 +224,9 @@ features in 2B.5 rather than twice.
     `analytics.*` Read tools served by GA4 and Search Console (service account, no SDK) or by fictional synthetic
     data; an owner-started read comparing periods and flagging unusual days with a robust score; a measured KPI
     digest skill over the approved evidence.
-  - Still to come: an ads platform (read first, writes only with approval), email/CRM, A/B test design with
-    significance calculation.
+  - **A/B tests (done, [ADR 0030](adr/0030-ab-test-design-and-significance.md)):** deterministic actions size a
+    test (sample per variant, whole-week run length, Bonferroni for several variants) and read its result (lift,
+    confidence interval, p-value, sample-ratio check); a measured skill writes the plan or readout from them.
+  - Still to come: an ads platform (read first, writes only with approval), email/CRM.
 - A third employee (Support or Finance/Ops) built only from a new module folder, as the proof that the platform
   scales by hiring.

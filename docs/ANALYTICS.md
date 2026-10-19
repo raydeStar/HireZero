@@ -21,6 +21,31 @@ Google, and checks never call Google. The decision record is [ADR 0029](adr/0029
 Marketing depends on neutral `analytics.*` tools, not on Google. Another analytics source could be added later as its
 own integration, without changing Marketing.
 
+## A/B tests
+
+Marketing can size a test before you build it, and read the result when it has run. All the arithmetic is done by
+code, never by the model ([ADR 0030](adr/0030-ab-test-design-and-significance.md)).
+
+1. **Size an A/B test** (action). Give it:
+   - your current conversion rate, for example `3.2`;
+   - the smallest relative lift worth detecting, for example `10` for +10%;
+   - the visitors per day entering the test;
+   - the number of variants including control;
+   - the significance level (usually `5`) and the power (usually `80`).
+
+   It returns the visitors each variant needs and how long to run, in whole weeks. With three or more variants, the
+   significance level is split between the comparisons with the control.
+2. **Read an A/B test result** (action). Give the control's and the variant's visitors and conversions. It returns:
+   - the lift, with its confidence interval;
+   - the p-value, and whether the result is significant;
+   - a sample-ratio check. If the split between control and variant is far from even, something is wrong with the
+     test (a redirect, a bot filter, a broken variant), and the warning comes first.
+3. Approve the result, then run the **A/B test plan or readout** skill with it as evidence. It writes the plan or the
+   readout using only the computed numbers.
+
+Run every test for its full planned length. Stopping as soon as a result "looks significant" makes false wins much
+more likely.
+
 ## Try it with fictional data
 
 Set `HIREZERO_SYNTHETIC_ANALYTICS=1` and restart. Marketing then reads deterministic fictional data, labelled

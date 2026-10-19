@@ -30,6 +30,12 @@ public sealed class MarketingModule : IEmployeeModule
                     "Write a KPI digest from approved analytics evidence: what changed, unusual days, next checks.",
                     SkillMode.Measured
                 ),
+                new(
+                    MarketingExperiments.Skill,
+                    "A/B test plan or readout",
+                    "Write an experiment plan or a result readout from approved A/B test sizing or results.",
+                    SkillMode.Measured
+                ),
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -57,7 +63,7 @@ public sealed class MarketingModule : IEmployeeModule
                 new(AnalyticsTools.Traffic.Id, ToolRisk.Read, "Read website traffic when you ask for analytics."),
                 new(AnalyticsTools.Search.Id, ToolRisk.Read, "Read search performance when you ask for analytics."),
             ],
-            Actions = [MarketingAnalytics.Definition],
+            Actions = [MarketingAnalytics.Definition, MarketingExperiments.Design, MarketingExperiments.Significance],
             Kpis =
             [
                 new("drafts-approved", "Drafts approved", "count", "Drafts the owner approved without revision."),
@@ -75,6 +81,7 @@ public sealed class MarketingModule : IEmployeeModule
         {
             Draft => MarketingText.DraftInstructions,
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
+            MarketingExperiments.Skill => MarketingExperiments.Instructions,
             _ => MarketingText.Instructions,
         };
 
@@ -84,7 +91,17 @@ public sealed class MarketingModule : IEmployeeModule
         IToolbox tools,
         CancellationToken token
     ) =>
-        action == MarketingAnalytics.ReadAction
-            ? MarketingAnalytics.ReadAsync(input, tools, DateOnly.FromDateTime(DateTime.UtcNow), token)
-            : throw new WorkspaceException("This employee has no such action.", 404);
+        action switch
+        {
+            MarketingAnalytics.ReadAction => MarketingAnalytics.ReadAsync(
+                input,
+                tools,
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                token
+            ),
+            // Pure arithmetic over the owner's numbers: no tool is called.
+            MarketingExperiments.DesignAction => Task.FromResult(MarketingExperiments.DesignText(input)),
+            MarketingExperiments.SignificanceAction => Task.FromResult(MarketingExperiments.SignificanceText(input)),
+            _ => throw new WorkspaceException("This employee has no such action.", 404),
+        };
 }
