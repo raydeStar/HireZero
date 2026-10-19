@@ -1,15 +1,70 @@
+using Microsoft.Data.Sqlite;
+
 namespace HireZero.Core;
 
-// One thing waiting on the owner, with what to open to act on it.
-public sealed record CompanyNeed(string Kind, string Title, string Detail, string? EmployeeId, string? TaskId);
+// One thing waiting on the owner, with what to open to act on it. Key is stable while the item waits, so the owner can
+// set its priority or snooze it (ported from the legacy owner tasks, 2B.5j).
+public sealed record CompanyNeed(string Kind, string Title, string Detail, string? EmployeeId, string? TaskId)
+{
+    public string Key => Kind + ":" + (TaskId ?? ContentGuard.Digest(Title)[..16]);
+    public string Priority { get; init; } = "normal";
+    public int MarkVersion { get; init; }
+}
+
+// The owner's priority and snooze for one waiting item.
+public sealed record CompanyOwnerMark(string Id, string Priority, string? SnoozedUntil, int Version = 1);
+
+// One entry of the day's work log: a company event as it was recorded.
+public sealed record CompanyLogEntry(string Type, string Text, string? Employee, DateTimeOffset At);
 
 // The company's day (Phase 2B.5i): what waits on the owner now, and what happened in the day, from the store's own
 // records and events. No model, no tools and nothing outside the company; role-agnostic.
-public sealed record CompanyToday(string Day, CompanyNeed[] NeedsYou, Dictionary<string, int> Happened, int Events);
+public sealed record CompanyToday(string Day, CompanyNeed[] NeedsYou, Dictionary<string, int> Happened, int Events)
+{
+    public CompanyLogEntry[] Log { get; init; } = [];
+    public int Snoozed { get; init; }
+}
 
 public sealed partial class CompanyStore
 {
     public const int TodayNeedsLimit = 50;
+    public const int TodayLogLimit = 200;
+    private static readonly string[] Priorities = ["high", "normal", "low"];
+
+    // owner.mark: Id is a waiting item's key, Decision its priority, Body an optional yyyy-MM-dd day to snooze it until.
+    private CompanyOwnerMark MarkNeed(SqliteConnection db, CompanyCommand c)
+    {
+        var id = Text(c.Id, 120);
+        if (!Priorities.Contains(c.Decision))
+            throw new WorkspaceException("Choose high, normal or low.", 422);
+        var until = (c.Body ?? "").Trim();
+        if (
+            until.Length > 0
+            && !DateOnly.TryParseExact(
+                until,
+                "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out _
+            )
+        )
+            throw new WorkspaceException("Snooze until a yyyy-MM-dd day, or not at all.", 422);
+        var old = Find<CompanyOwnerMark>(db, id);
+        Version(old?.Version ?? 0, c.ExpectedVersion);
+        var mark = new CompanyOwnerMark(id, c.Decision!, until.Length > 0 ? until : null, (old?.Version ?? 0) + 1);
+        Save(db, mark, mark.Id, version: mark.Version);
+        Event(
+            db,
+            "owner.marked",
+            id,
+            null,
+            "Owner set a waiting item to "
+                + mark.Priority
+                + (mark.SnoozedUntil is { } d ? ", snoozed until " + d : "")
+                + "."
+        );
+        return mark;
+    }
 
     public CompanyToday Today(string day, DateTimeOffset from, DateTimeOffset to)
     {
@@ -117,7 +172,38 @@ public sealed partial class CompanyStore
                     .OrderByDescending(g => g.Count())
                     .ThenBy(g => g.Key, StringComparer.Ordinal)
                     .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
-                return new CompanyToday(day, [.. needs.Take(TodayNeedsLimit)], happened, events.Length);
+                // The owner's marks: snoozed items wait out of sight until their day; the rest sort by priority.
+                var marks = All<CompanyOwnerMark>(db).ToDictionary(m => m.Id);
+                var shown = needs
+                    .Select(n =>
+                        marks.TryGetValue(n.Key, out var m)
+                            ? (Need: n with { Priority = m.Priority, MarkVersion = m.Version }, Until: m.SnoozedUntil)
+                            : (Need: n, Until: (string?)null)
+                    )
+                    .ToArray();
+                var visible = shown
+                    .Where(x => x.Until is null || string.CompareOrdinal(x.Until, day) <= 0)
+                    .Select(x => x.Need)
+                    .OrderBy(n => Array.IndexOf(Priorities, n.Priority))
+                    .Take(TodayNeedsLimit)
+                    .ToArray();
+                return new CompanyToday(day, visible, happened, events.Length)
+                {
+                    Snoozed =
+                        shown.Length - shown.Count(x => x.Until is null || string.CompareOrdinal(x.Until, day) <= 0),
+                    Log =
+                    [
+                        .. events
+                            .OrderByDescending(e => e.At)
+                            .Take(TodayLogLimit)
+                            .Select(e => new CompanyLogEntry(
+                                e.Type,
+                                e.Text,
+                                e.EmployeeId is null ? null : Who(e.EmployeeId),
+                                e.At
+                            )),
+                    ],
+                };
             }
         );
     }

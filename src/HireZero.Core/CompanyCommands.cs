@@ -243,6 +243,8 @@ public sealed partial class CompanyStore
                 );
             case "execution.review":
                 return ReviewExecution(db, c);
+            case "owner.mark":
+                return MarkNeed(db, c);
             case "publication.review":
                 return ReviewPublication(db, c);
             case "budget.configure":

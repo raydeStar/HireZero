@@ -300,7 +300,7 @@ export function CompanyWorkspace() {
         <p className="co-muted">
           You have final authority. CEO plans and Board decisions remain subject to your review.
         </p>
-        <Today version={d.cursor ?? 0} />
+        <Today version={d.cursor ?? 0} busy={busy} run={run} />
         <Budgets budgets={d.budgets} departments={d.departments} employees={d.employees} busy={busy} run={run} />
         <Integrations integrations={snapshot.capabilities.integrations ?? []} refresh={refresh} />
       </aside>

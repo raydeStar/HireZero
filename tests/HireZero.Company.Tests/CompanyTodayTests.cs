@@ -89,6 +89,39 @@ public sealed class CompanyTodayTests : IDisposable
         Assert.Equal(("review", action.Id), (need.Kind, need.TaskId));
         Assert.Contains("Developer partner", need.Title);
 
+        // Owner tasks: a waiting item can be prioritized or snoozed until a later day; the work log is the day's events.
+        var marked = Apply<CompanyOwnerMark>(
+            store,
+            Cmd("owner.mark") with
+            {
+                Id = need.Key,
+                ExpectedVersion = 0,
+                Decision = "high",
+                Body = "2999-01-01",
+            }
+        );
+        var snoozed = store.Today("2026-10-18", now.AddHours(-1), now.AddHours(1));
+        Assert.Empty(snoozed.NeedsYou);
+        Assert.Equal(1, snoozed.Snoozed);
+        Assert.Contains(snoozed.Log, e => e.Type == "employee.hired" && e.Employee == "Developer partner");
+        Apply<CompanyOwnerMark>(
+            store,
+            Cmd("owner.mark") with
+            {
+                Id = need.Key,
+                ExpectedVersion = marked.Version,
+                Decision = "high",
+                Body = "",
+            }
+        );
+        Assert.Equal("high", Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou).Priority);
+        Assert.Throws<WorkspaceException>(() =>
+            store.Apply(Cmd("owner.mark") with { Id = need.Key, ExpectedVersion = 2, Decision = "urgent" })
+        );
+        Assert.Throws<WorkspaceException>(() =>
+            store.Apply(Cmd("owner.mark") with { Id = need.Key, ExpectedVersion = 2, Decision = "low", Body = "soon" })
+        );
+
         var yesterday = store.Today("yesterday", now.AddDays(-2), now.AddDays(-1));
         Assert.Equal(0, yesterday.Events);
         Assert.Empty(yesterday.Happened);

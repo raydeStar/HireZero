@@ -901,6 +901,13 @@
   margin: 0.75rem 0;
 }
 
+.co-log {
+  max-height: 16rem;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  padding-left: 1rem;
+}
+
 .co-budgets table {
   width: 100%;
   font-size: 0.85rem;
