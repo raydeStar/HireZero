@@ -154,6 +154,8 @@ export type Snapshot = {
     modelExecution: boolean;
     measuredOneJob?: boolean;
     conversationalReplies?: boolean;
+    // "usd-cents" when an API model enforces the allowance as a spending cap; Codex credits are only intended.
+    allowanceUnit?: "credits" | "usd-cents";
     providerStatus: string;
     integrations?: IntegrationStatus[];
   };

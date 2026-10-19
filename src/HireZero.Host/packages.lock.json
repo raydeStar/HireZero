@@ -237,6 +237,12 @@
           "HireZero.Tools.Microsoft365": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.modelapis": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.node": {
         "type": "Project",
         "dependencies": {

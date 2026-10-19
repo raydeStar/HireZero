@@ -314,6 +314,7 @@
           "HireZero.Integrations.Google": "[1.0.0, )",
           "HireZero.Integrations.Jev": "[1.0.0, )",
           "HireZero.Integrations.Microsoft365": "[1.0.0, )",
+          "HireZero.Integrations.ModelApis": "[1.0.0, )",
           "HireZero.Integrations.Node": "[1.0.0, )",
           "HireZero.Integrations.OpenClaw": "[1.0.0, )",
           "HireZero.Integrations.OpenRouter": "[1.0.0, )",
@@ -387,6 +388,12 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.Microsoft365": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.modelapis": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.integrations.node": {

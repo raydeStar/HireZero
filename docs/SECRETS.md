@@ -79,7 +79,9 @@ flowchart LR
 | `HIREZERO_KEY_ENCRYPTION_KEY` | Encrypts the keys that protect stored tokens (section 4) | DPAPI on Windows; **unencrypted** elsewhere | Section 6 |
 | `HIREZERO_KEY_ENCRYPTION_KEY_PREVIOUS` | The key-encryption key before the last rotation | Keys wrapped by an older key cannot be opened | Remove after 90 days |
 | `HIREZERO_AUDIT_KEY` | Signs the audit chain; hosts sharing one database need the same one | An `audit.key` file in the data root, created once | Never (it is the chain's identity) |
-| `HIREZERO_OPENROUTER_API_KEY` or `OPENROUTER_API_KEY` | The OpenRouter model provider | The provider is unavailable | Change the file; the next call uses it |
+| `HIREZERO_ANTHROPIC_API_KEY` | Employees' model through Anthropic's API, with `HIREZERO_API_MODELS=1` | `anthropic/*` routes go through OpenRouter, if set | Create a new key, update the file, revoke the old key |
+| `HIREZERO_OPENAI_API_KEY` | Employees' model through OpenAI's API, with `HIREZERO_API_MODELS=1` | `openai/*` routes go through OpenRouter, if set | Create a new key, update the file, revoke the old key |
+| `HIREZERO_OPENROUTER_API_KEY` or `OPENROUTER_API_KEY` | OpenRouter: structured choices, and employees' model for any route with `HIREZERO_API_MODELS=1` | The provider is unavailable | Change the file; the next call uses it |
 | `HIREZERO_JEV_API_KEY` or `TYPESAFE_API_KEY` | The Jev choice service | Jev is unavailable | Change the file |
 | `HIREZERO_SEMAFORGE_API_KEY` | SemaForge | SemaForge is unavailable | Change the file |
 | `HIREZERO_GOOGLE_ADS_DEVELOPER_TOKEN` | Your Google Ads API developer token | Google Ads is unavailable | Reset it in the API Center, update the file |

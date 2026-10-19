@@ -90,6 +90,12 @@ public sealed class CompanySettings
             (s, v) => s.CodingModel = v
         ),
         new(
+            "HIREZERO_API_MODELS",
+            "Models",
+            "1 uses an API model (Anthropic, OpenAI or OpenRouter key) when the Codex connection is not selected.",
+            (s, v) => s.ApiModels = Flag(v)
+        ),
+        new(
             "HIREZERO_COMPANY_CODEX_EXECUTABLE",
             "Codex",
             "The pinned Codex executable (with --company-codex).",
@@ -159,6 +165,7 @@ public sealed class CompanySettings
     public string? CodexHome { get; private set; }
     public string[] CodingRead { get; private set; } = [];
     public bool SyntheticWiki { get; private set; }
+    public bool ApiModels { get; private set; }
     public bool SyntheticAnalytics { get; private set; }
     public bool SyntheticAds { get; private set; }
     public bool SyntheticEmail { get; private set; }

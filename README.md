@@ -85,6 +85,14 @@ Marketing reads traffic and search performance from Google Analytics 4 and Searc
 with `HIREZERO_SYNTHETIC_ANALYTICS=1`, and writes KPI digests from the evidence you approve.
 [docs/ANALYTICS.md](docs/ANALYTICS.md) shows how to connect Google step by step.
 
+### Models
+
+Locally, employees use the pinned Codex CLI (`--company-codex`). Elsewhere, set `HIREZERO_API_MODELS=1` and an
+Anthropic, OpenAI or OpenRouter key, and point the routes at real models (for example
+`HIREZERO_COMPANY_TEXT_MODEL=anthropic/<model>`), each with a price in `config/model-routes.json`. Every job still
+runs only when you authorize it, and with an API model its allowance is a hard spending cap in US cents
+([ADR 0036](docs/adr/0036-api-model-provider.md)).
+
 ### Settings
 
 Settings are environment variables or keys in a JSON file named by `HIREZERO_SETTINGS_FILE`, with the same names.

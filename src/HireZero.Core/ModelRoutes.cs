@@ -16,7 +16,8 @@ public static partial class ModelRoutes
     private sealed record Catalog(
         Dictionary<string, string> Routes,
         Dictionary<string, string> Names,
-        Dictionary<string, string> Runtimes
+        Dictionary<string, string> Runtimes,
+        Dictionary<string, ModelPrice> Prices
     );
 
     private static readonly Lazy<Catalog> Current = new(Load);
@@ -39,6 +40,17 @@ public static partial class ModelRoutes
     // Every distinct model id the catalog routes to, in purpose order.
     public static string[] Models => [.. Current.Value.Routes.Values.Distinct(StringComparer.Ordinal)];
 
+    // A model's price in US dollars per million input and output tokens, reviewed like code
+    // (docs/adr/0036-api-model-provider.md); null when the catalog names none.
+    public static ModelPrice? Price(string model) =>
+        Current.Value.Prices.TryGetValue(model, out var price) ? price : null;
+
+    // What a call cost, in US dollars, or null when the model has no price.
+    public static decimal? Cost(string model, ModelUsage usage) =>
+        Price(model) is { } p
+            ? (usage.InputTokens * p.InputPerMillion + usage.OutputTokens * p.OutputPerMillion) / 1_000_000m
+            : null;
+
     // The model id without its provider prefix, as a provider's own API names it.
     public static string Native(string route) => route[(route.IndexOf('/') + 1)..];
 
@@ -59,6 +71,8 @@ public static partial class ModelRoutes
                 catalog.Names[model] = name;
             foreach (var (purpose, runtime) in overrides.Runtimes)
                 catalog.Runtimes[purpose] = runtime;
+            foreach (var (model, price) in overrides.Prices)
+                catalog.Prices[model] = price;
         }
         return catalog;
     }
@@ -73,7 +87,17 @@ public static partial class ModelRoutes
                         .EnumerateObject()
                         .ToDictionary(p => p.Name, p => p.Value.GetString() ?? "", StringComparer.Ordinal)
                     : new(StringComparer.Ordinal);
-            var catalog = new Catalog(Read("routes"), Read("names"), Read("runtimes"));
+            var prices = new Dictionary<string, ModelPrice>(StringComparer.Ordinal);
+            if (document.RootElement.TryGetProperty("prices", out var section))
+                foreach (var entry in section.EnumerateObject().Where(e => !e.Name.StartsWith('$')))
+                {
+                    var input = entry.Value.GetProperty("input").GetDecimal();
+                    var output = entry.Value.GetProperty("output").GetDecimal();
+                    if (!RouteFormat().IsMatch(entry.Name) || input < 0 || output < 0)
+                        throw new InvalidOperationException("Invalid model price for '" + entry.Name + "'.");
+                    prices[entry.Name] = new(input, output);
+                }
+            var catalog = new Catalog(Read("routes"), Read("names"), Read("runtimes"), prices);
             foreach (var (purpose, route) in catalog.Routes)
                 if (!Purpose().IsMatch(purpose) || !RouteFormat().IsMatch(route))
                     throw new InvalidOperationException("Invalid model route '" + purpose + "': '" + route + "'.");
@@ -87,3 +111,5 @@ public static partial class ModelRoutes
     [GeneratedRegex(@"^[a-z0-9-]+/[A-Za-z0-9][A-Za-z0-9.-]{0,99}$")]
     private static partial Regex RouteFormat();
 }
+
+public sealed record ModelPrice(decimal InputPerMillion, decimal OutputPerMillion);

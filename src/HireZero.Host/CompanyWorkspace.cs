@@ -136,7 +136,13 @@ public static class CompanyWorkspace
                     : null;
             IModelProvider model =
                 fixture
-                ?? (codex is not null ? new CompanyCodexConnection(codex, routing) : new UnavailableModelProvider());
+                ?? (
+                    codex is not null ? new CompanyCodexConnection(codex, routing)
+                    // The pinned Codex CLI stays the model when it is selected; an API model only on explicit opt-in
+                    // (docs/adr/0036-api-model-provider.md).
+                    : settings.ApiModels ? new HireZero.Integrations.ModelApis.ApiModelProvider()
+                    : new UnavailableModelProvider()
+                );
             var coding = fixtureCoding;
             if (coding is null && codex is not null && args.Contains(CodingFlag))
             {
@@ -519,6 +525,9 @@ public static class CompanyWorkspace
                                 liveCoding = coding?.Qualified == true,
                                 measuredOneJob = model is IMeasuredModelProvider,
                                 conversationalReplies = model is IMeasuredModelProvider,
+                                allowanceUnit = model is HireZero.Integrations.ModelApis.ApiModelProvider
+                                    ? "usd-cents"
+                                    : "credits",
                                 providerStatus = model.Status,
                                 modelRouting = routing,
                                 ceoEnabled = true,

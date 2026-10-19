@@ -11,6 +11,7 @@
     <Project Path="src/HireZero.Integrations.AzureDevOps/HireZero.Integrations.AzureDevOps.csproj" />
     <Project Path="src/HireZero.Integrations.Git/HireZero.Integrations.Git.csproj" />
     <Project Path="src/HireZero.Integrations.GitHub/HireZero.Integrations.GitHub.csproj" />
+    <Project Path="src/HireZero.Integrations.ModelApis/HireZero.Integrations.ModelApis.csproj" />
     <Project Path="src/HireZero.Integrations.Node/HireZero.Integrations.Node.csproj" />
     <Project Path="src/HireZero.Integrations.Postgres/HireZero.Integrations.Postgres.csproj" />
     <Project Path="src/HireZero.Integrations.SemaForge/HireZero.Integrations.SemaForge.csproj" />
