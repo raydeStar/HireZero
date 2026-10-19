@@ -85,6 +85,7 @@ flowchart LR
 | `HIREZERO_GOOGLE_ADS_DEVELOPER_TOKEN` | Your Google Ads API developer token | Google Ads is unavailable | Reset it in the API Center, update the file |
 | `HIREZERO_GOOGLE_ADS_CLIENT_SECRET` | The OAuth client secret used to sign in to Google Ads | Google Ads is unavailable | Add a secret to the OAuth client, update the file, delete the old one |
 | `HIREZERO_GOOGLE_ADS_REFRESH_TOKEN` | The read-only user's refresh token for Google Ads | Google Ads is unavailable | Authorize again, update the file, revoke the old grant |
+| `HIREZERO_GOOGLE_ADS_CHANGE_REFRESH_TOKEN` | Optional: the refresh token of a Google Ads user who may edit, used only for approved changes | Ad changes are off; reads are unaffected | Authorize again, update the file, revoke the old grant |
 | `HIREZERO_GOOGLE_SERVICE_ACCOUNT` | The Google service account key (JSON) for read-only GA4 and Search Console | Google analytics is unavailable | Add a new key to the service account, update the file, delete the old key |
 
 At startup, the log lists each configured secret, where it came from and how stored keys are protected. It never

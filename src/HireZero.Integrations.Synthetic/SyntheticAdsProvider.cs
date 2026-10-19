@@ -35,13 +35,64 @@ public sealed class SyntheticAdsProvider : IToolProvider, IIntegrationStatusSour
         new("cmp-106", "Spring promotion", "paused", 0, 0.03, 1.2, 0.04, 100, 0),
     ];
 
+    // Changes apply to this process's fictional campaigns only, so the approval flow can be tried end to end.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<
+        string,
+        (string Status, decimal Budget)
+    > _changed = new();
+
     public IntegrationStatus Status() =>
-        new("synthetic-ads", "Synthetic ads", true, "Fictional, deterministic ad data in XTS for demos and checks.");
+        new(
+            "synthetic-ads",
+            "Synthetic ads",
+            true,
+            "Fictional, deterministic ad data in XTS for demos and checks; approved changes apply only to this fictional data."
+        );
 
     public void Register(ToolRegistry registry)
     {
         registry.Register(AdsTools.Status, (_, _) => Task.FromResult(Status()));
         registry.Register(AdsTools.Performance, (request, _) => Task.FromResult(Performance(request)));
+        registry.Register(AdsTools.Campaign, (request, _) => Task.FromResult(ReadCampaign(request)));
+        registry.Register(AdsTools.Change, (change, _) => Task.FromResult(Change(change)));
+    }
+
+    // Generic search and Retargeting display draw on one shared budget, so a budget change to either is refused.
+    private static (string? Id, bool Shared) BudgetOf(string campaign) =>
+        campaign switch
+        {
+            "102" or "103" => ("901", true),
+            "105" => (null, false),
+            _ => ("9" + campaign, false),
+        };
+
+    private static string Number(string id) => id.Replace("cmp-", "", StringComparison.Ordinal);
+
+    public AdsCampaign ReadCampaign(AdsCampaignRequest request)
+    {
+        var c =
+            Campaigns.FirstOrDefault(c => Number(c.Id) == request.CampaignId)
+            ?? throw new ToolFailureException(
+                "refused",
+                "No campaign " + request.CampaignId + " in this account.",
+                404
+            );
+        var (budgetId, shared) = BudgetOf(request.CampaignId);
+        var budget = budgetId is null ? (decimal?)null : Math.Round((decimal)Math.Max(c.DailySpend, 20) * 1.2m, 2);
+        if (_changed.TryGetValue(request.CampaignId, out var changed))
+            return new(request.CampaignId, c.Name, changed.Status, budgetId, changed.Budget, shared, Currency);
+        return new(request.CampaignId, c.Name, c.Status, budgetId, budget, shared, Currency);
+    }
+
+    public AdsChangeResult Change(AdsChange change)
+    {
+        AdsTools.Check(change);
+        var current = ReadCampaign(new(change.CampaignId));
+        _changed[change.CampaignId] =
+            change.Kind == AdsTools.Pause
+                ? ("paused", current.DailyBudget ?? 0)
+                : (current.Status, change.NewDailyBudget!.Value);
+        return new("synthetic/campaigns/" + change.CampaignId);
     }
 
     private static double Noise(string key, DateOnly day)

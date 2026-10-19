@@ -47,6 +47,14 @@ public sealed class GoogleAdsProviderTests : IDisposable
                 status = SearchStatus;
                 json = """{"error":{"code":403,"message":"fictional","status":"PERMISSION_DENIED"}}""";
             }
+            else if (url.EndsWith(":mutate", StringComparison.Ordinal))
+                json = """{"results":[{"resourceName":"customers/1234567890/fictional/111"}]}""";
+            else if (body.Contains("WHERE campaign.id = ", StringComparison.Ordinal))
+                json = """
+                    {"results":[{"campaign":{"id":"111","name":"Fictional search","status":"ENABLED"},
+                      "campaignBudget":{"id":"7701","amountMicros":"50000000","explicitlyShared":false},
+                      "customer":{"currencyCode":"EUR"}}]}
+                    """;
             else if (body.Contains("FROM campaign", StringComparison.Ordinal))
                 json = """
                     {"results":[
@@ -84,6 +92,8 @@ public sealed class GoogleAdsProviderTests : IDisposable
         [
             new(AdsTools.Status.Id, ToolRisk.Read, "Status."),
             new(AdsTools.Performance.Id, ToolRisk.Read, "Performance."),
+            new(AdsTools.Campaign.Id, ToolRisk.Read, "Campaign."),
+            new(AdsTools.Change.Id, ToolRisk.External, "Change."),
         ],
     };
 
@@ -214,5 +224,70 @@ public sealed class GoogleAdsProviderTests : IDisposable
         Assert.Contains("HTTP 403, PERMISSION_DENIED", failure.Message);
         Assert.Single(fake.Requests, r => r.Url.Contains("googleAds:search", StringComparison.Ordinal));
         Assert.DoesNotContain("fictional-client-secret", failure.Message);
+    }
+
+    // Changes need the separate editing user's token and are registered only then (docs/adr/0033-approved-ad-changes.md).
+    [Fact]
+    public async Task ChangesUseTheirOwnSignInAndSendOneExactMutate()
+    {
+        Configure(new { customerId = "1234567890", clientId = "fictional.apps.example.invalid" });
+        var readOnly = Create();
+        Assert.Contains("read only, changes are off", readOnly.Provider.Status().Reason);
+        Assert.False(readOnly.Provider.ChangesEnabled);
+
+        var secrets = new Dictionary<string, string>(Secrets)
+        {
+            [GoogleAdsProvider.ChangeRefreshTokenSecret] = "fictional-change-token",
+        };
+        var fake = new Fake();
+        var provider = new GoogleAdsProvider(_root, name => secrets.GetValueOrDefault(name), fake);
+        var registry = new ToolRegistry(new MemoryToolAudit(), [new AllowAll()]);
+        provider.Register(registry);
+        var tools = registry.For(Manifest);
+
+        var campaign = await tools.InvokeAsync(AdsTools.Campaign, new("111"), Token);
+        Assert.Equal(new AdsCampaign("111", "Fictional search", "enabled", "7701", 50m, false, "EUR"), campaign);
+        Assert.Contains("WHERE campaign.id = 111", fake.Requests[^1].Body);
+
+        var authority = new ToolAuthority("fictional", "approval-1");
+        await tools.InvokeAsync(
+            AdsTools.Change,
+            new("111", AdsTools.Budget, "enabled", "7701", 50m, 62.505m),
+            Token,
+            authority
+        );
+        await tools.InvokeAsync(
+            AdsTools.Change,
+            new("111", AdsTools.Pause, "enabled", null, null, null),
+            Token,
+            authority
+        );
+
+        var tokens = fake.Requests.Where(r => r.Url == GoogleServiceAccount.TokenEndpoint).ToArray();
+        Assert.Contains(tokens, t => t.Body.Contains("refresh_token=fictional-refresh-token"));
+        Assert.Contains(tokens, t => t.Body.Contains("refresh_token=fictional-change-token"));
+        var mutates = fake.Requests.Where(r => r.Url.EndsWith(":mutate", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(2, mutates.Length);
+        Assert.EndsWith("/customers/1234567890/campaignBudgets:mutate", mutates[0].Url);
+        Assert.Contains("\"resourceName\":\"customers/1234567890/campaignBudgets/7701\"", mutates[0].Body);
+        Assert.Contains("\"amountMicros\":\"62510000\"", mutates[0].Body);
+        Assert.Contains("\"updateMask\":\"amount_micros\"", mutates[0].Body);
+        Assert.EndsWith("/customers/1234567890/campaigns:mutate", mutates[1].Url);
+        Assert.Contains("\"status\":\"PAUSED\"", mutates[1].Body);
+        Assert.All(mutates, m => Assert.Equal("fictional-developer-token", m.Headers["developer-token"]));
+
+        // A change that breaks the contract's rules is refused before anything is sent.
+        var sent = fake.Requests.Count;
+        await Assert.ThrowsAsync<ToolFailureException>(() =>
+            tools.InvokeAsync(AdsTools.Change, new("111", AdsTools.Pause, "paused", null, null, null), Token, authority)
+        );
+        Assert.Equal(sent, fake.Requests.Count);
+    }
+
+    private sealed class AllowAll : IToolAuthorityVerifier
+    {
+        public string Kind => "fictional";
+
+        public bool Authorizes(ToolInvocation invocation) => true;
     }
 }

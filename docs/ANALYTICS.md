@@ -60,7 +60,28 @@ Marketing can review ad performance ([ADR 0031](adr/0031-ads-read-contracts.md))
    - had their cost per conversion rise by 30% or more;
    - returned less than they cost.
 3. Approve the result, then run **Ads review**. It writes the review and at most three proposals. It cannot change
-   anything. Changing a campaign, budget or bid will need its own approval, and is not possible yet.
+   anything itself.
+
+### Approved ad changes
+
+To act on a proposal, run **Propose an ad change** with a campaign id, `pause` or `budget`, and the new daily budget
+(`0` for a pause) ([ADR 0033](adr/0033-approved-ad-changes.md)).
+
+1. It reads the campaign live and names one exact change, or says why not:
+   - only an enabled campaign can be paused;
+   - a budget shared with other campaigns is never changed;
+   - one step moves a budget by at most half of today's.
+2. You approve the reading, then the publication of that exact change. The approval shows the campaign, the amounts
+   and the state it was read in.
+3. Publishing reads the campaign again. If anything moved, nothing is sent and the approval stays for you to read
+   again. Otherwise the change is sent once.
+4. If the ads platform does not answer, the change is marked unknown and never retried. **Reconcile** reads the
+   campaign and confirms the change only if the campaign shows it.
+
+With Google Ads, changes are off until you add a second refresh token,
+`HIREZERO_GOOGLE_ADS_CHANGE_REFRESH_TOKEN`, from a Google Ads user with *Standard* access. Reads keep using the
+read-only user. With `HIREZERO_SYNTHETIC_ADS=1`, approved changes apply to the fictional campaigns in memory, so you
+can try the whole flow safely.
 
 Google Ads is the first real platform ([ADR 0032](adr/0032-google-ads-provider.md)). Until it is connected, try ads
 with `HIREZERO_SYNTHETIC_ADS=1`, which serves fictional campaigns in XTS, the currency code reserved for testing.

@@ -233,6 +233,10 @@ features in 2B.5 rather than twice.
   - **Google Ads (done, [ADR 0032](adr/0032-google-ads-provider.md)):** the first real provider behind `ads.*`:
     read queries it composes itself, refresh-token sign-in with a read-only user, secrets for the developer token,
     client secret and refresh token, and an API version the owner can move.
-  - Still to come: ad changes as owner-approved publications; email/CRM.
+  - **Approved ad changes (done, [ADR 0033](adr/0033-approved-ad-changes.md)):** pause a campaign or set its daily
+    budget as an External `ads.change` call, published once after the owner approves the exact change and a live
+    re-check; budgets move at most half per step and never when shared; Google Ads changes use a separate, opt-in
+    editing identity; unknown outcomes are settled only by reading.
+  - Still to come: email/CRM.
 - A third employee (Support or Finance/Ops) built only from a new module folder, as the proof that the platform
   scales by hiring.

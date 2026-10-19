@@ -16,6 +16,10 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
     public const string ClientSecretSecret = "HIREZERO_GOOGLE_ADS_CLIENT_SECRET";
     public const string RefreshTokenSecret = "HIREZERO_GOOGLE_ADS_REFRESH_TOKEN";
 
+    // A second, opt-in sign-in for changes (docs/adr/0033-approved-ad-changes.md): a user who may edit the account. Reads
+    // keep the read-only user, and without this token no change can be made at all.
+    public const string ChangeRefreshTokenSecret = "HIREZERO_GOOGLE_ADS_CHANGE_REFRESH_TOKEN";
+
     // Google retires API versions about a year after release; google-ads.json may name a newer one without a rebuild.
     public const string DefaultApiVersion = "v22";
 
@@ -25,6 +29,7 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
     private readonly Func<string, string?> _secret;
     private readonly HttpClient _http;
     private readonly GoogleOAuthRefresh _oauth;
+    private readonly GoogleOAuthRefresh _changeOAuth;
 
     public GoogleAdsProvider(
         string dataRoot,
@@ -54,7 +59,16 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
             _http,
             clock
         );
+        _changeOAuth = new GoogleOAuthRefresh(
+            () => Read().ClientId,
+            () => _secret(ClientSecretSecret),
+            () => _secret(ChangeRefreshTokenSecret),
+            _http,
+            clock
+        );
     }
+
+    public bool ChangesEnabled => Status().Active && !string.IsNullOrEmpty(_secret(ChangeRefreshTokenSecret));
 
     private Settings Read()
     {
@@ -102,7 +116,12 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
                 ? (false, "Set the secrets " + string.Join(", ", missing) + " (see docs/ANALYTICS.md).")
             : (
                 true,
-                $"Reading Google Ads account {Dashed(CustomerId(settings.CustomerId)!)} through API {Version(settings)}, read queries only."
+                $"Reading Google Ads account {Dashed(CustomerId(settings.CustomerId)!)} through API {Version(settings)}; "
+                    + (
+                        string.IsNullOrEmpty(_secret(ChangeRefreshTokenSecret))
+                            ? "read only, changes are off."
+                            : "changes only as owner-approved publications."
+                    )
             );
         return new("google-ads", "Google Ads", active, reason);
     }
@@ -111,7 +130,117 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
     {
         registry.Register(AdsTools.Status, (_, _) => Task.FromResult(Status()));
         registry.Register(AdsTools.Performance, PerformanceAsync);
+        registry.Register(AdsTools.Campaign, CampaignAsync);
+        if (ChangesEnabled)
+            registry.Register(AdsTools.Change, ChangeAsync);
     }
+
+    private async Task<AdsCampaign> CampaignAsync(AdsCampaignRequest request, CancellationToken token)
+    {
+        if (!request.CampaignId.All(char.IsAsciiDigit) || request.CampaignId.Length is 0 or > 20)
+            throw new ToolFailureException("refused", "A campaign id is digits.", 422);
+        if (!Status().Active)
+            throw new ToolFailureException("refused", "Google Ads is not active: " + Status().Reason, 409);
+        var settings = Read();
+        var customer = CustomerId(settings.CustomerId)!;
+        using var found = await SearchAsync(
+            settings,
+            customer,
+            "SELECT campaign.id, campaign.name, campaign.status, campaign_budget.id, campaign_budget.amount_micros, "
+                + $"campaign_budget.explicitly_shared, customer.currency_code FROM campaign WHERE campaign.id = {request.CampaignId}",
+            token
+        );
+        var result = Results(found).FirstOrDefault();
+        if (result.ValueKind != JsonValueKind.Object)
+            throw new ToolFailureException("refused", "No campaign " + request.CampaignId + " in this account.", 404);
+        var campaign = result.GetProperty("campaign");
+        var budget = result.TryGetProperty("campaignBudget", out var b) ? b : default;
+        var micros =
+            budget.ValueKind == JsonValueKind.Object && budget.TryGetProperty("amountMicros", out var m)
+                ? decimal.Parse(m.ToString(), CultureInfo.InvariantCulture)
+                : (decimal?)null;
+        return new(
+            Text(campaign, "id") ?? request.CampaignId,
+            Text(campaign, "name") ?? "",
+            Text(campaign, "status")?.ToLowerInvariant() ?? "unknown",
+            budget.ValueKind == JsonValueKind.Object ? Text(budget, "id") : null,
+            micros / 1_000_000m,
+            budget.ValueKind == JsonValueKind.Object
+                && budget.TryGetProperty("explicitlyShared", out var shared)
+                && shared.ValueKind == JsonValueKind.True,
+            result.TryGetProperty("customer", out var c) ? Text(c, "currencyCode") ?? "XXX" : "XXX"
+        );
+    }
+
+    // One mutate call, signed in as the change user. The publication has already re-read the campaign; nothing here
+    // retries, so a failed or unanswered call is left for the owner to reconcile by reading.
+    private async Task<AdsChangeResult> ChangeAsync(AdsChange change, CancellationToken token)
+    {
+        AdsTools.Check(change);
+        if (!ChangesEnabled)
+            throw new ToolFailureException("refused", "Google Ads changes are off.", 409);
+        var settings = Read();
+        var customer = CustomerId(settings.CustomerId)!;
+        var (resource, body) =
+            change.Kind == AdsTools.Pause
+                ? (
+                    "campaigns",
+                    (object)
+                        new
+                        {
+                            operations = new[]
+                            {
+                                new
+                                {
+                                    update = new Dictionary<string, string>
+                                    {
+                                        ["resourceName"] = $"customers/{customer}/campaigns/{change.CampaignId}",
+                                        ["status"] = "PAUSED",
+                                    },
+                                    updateMask = "status",
+                                },
+                            },
+                        }
+                )
+                : (
+                    "campaignBudgets",
+                    new
+                    {
+                        operations = new[]
+                        {
+                            new
+                            {
+                                update = new Dictionary<string, string>
+                                {
+                                    ["resourceName"] = $"customers/{customer}/campaignBudgets/{change.BudgetId}",
+                                    ["amountMicros"] = Micros(change.NewDailyBudget!.Value),
+                                },
+                                updateMask = "amount_micros",
+                            },
+                        },
+                    }
+                );
+        using var response = await PostAsync(
+            settings,
+            $"https://googleads.googleapis.com/{Version(settings)}/customers/{customer}/{resource}:mutate",
+            body,
+            _changeOAuth,
+            "changed",
+            token
+        );
+        var reference = Results(response).FirstOrDefault() is { ValueKind: JsonValueKind.Object } first
+            ? Text(first, "resourceName")
+            : null;
+        return new(
+            reference ?? throw new ToolFailureException("unavailable", "Google Ads did not confirm the change.")
+        );
+    }
+
+    // Whole cents, as Google Ads requires for budget amounts.
+    private static string Micros(decimal amount) =>
+        ((long)(Math.Round(amount, 2, MidpointRounding.AwayFromZero) * 1_000_000m)).ToString(
+            CultureInfo.InvariantCulture
+        );
 
     private const string Metrics =
         "metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value";
@@ -229,16 +358,29 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
         string customer,
         string query,
         CancellationToken token
+    ) =>
+        await PostAsync(
+            settings,
+            $"https://googleads.googleapis.com/{Version(settings)}/customers/{customer}/googleAds:search",
+            new { query },
+            _oauth,
+            "read",
+            token
+        );
+
+    private async Task<JsonDocument> PostAsync(
+        Settings settings,
+        string url,
+        object body,
+        GoogleOAuthRefresh oauth,
+        string verb,
+        CancellationToken token
     )
     {
         try
         {
-            var url = $"https://googleads.googleapis.com/{Version(settings)}/customers/{customer}/googleAds:search";
-            using var request = new HttpRequestMessage(HttpMethod.Post, url)
-            {
-                Content = JsonContent.Create(new { query }),
-            };
-            request.Headers.Authorization = await _oauth.AuthorizeAsync(token);
+            using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(body) };
+            request.Headers.Authorization = await oauth.AuthorizeAsync(token);
             request.Headers.Add("developer-token", _secret(DeveloperTokenSecret));
             if (CustomerId(settings.LoginCustomerId) is { } login)
                 request.Headers.Add("login-customer-id", login);
@@ -256,7 +398,7 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
                 catch (JsonException) { }
                 throw new ToolFailureException(
                     "unavailable",
-                    "Google Ads could not be read (HTTP " + (int)response.StatusCode + status + ")."
+                    "Google Ads could not be " + verb + " (HTTP " + (int)response.StatusCode + status + ")."
                 );
             }
             return JsonDocument.Parse(text);
@@ -266,7 +408,7 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
                 || error is TaskCanceledException && !token.IsCancellationRequested
             )
         {
-            throw new ToolFailureException("unavailable", "Google Ads could not be read: " + error.Message);
+            throw new ToolFailureException("unavailable", "Google Ads could not be " + verb + ": " + error.Message);
         }
     }
 

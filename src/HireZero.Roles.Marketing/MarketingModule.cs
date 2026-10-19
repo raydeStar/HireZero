@@ -71,11 +71,22 @@ public sealed class MarketingModule : IEmployeeModule
                 new(AnalyticsTools.Search.Id, ToolRisk.Read, "Read search performance when you ask for analytics."),
                 new(AdsTools.Status.Id, ToolRisk.Read, "Show which ads account is connected."),
                 new(AdsTools.Performance.Id, ToolRisk.Read, "Read ad performance when you ask for it."),
+                new(
+                    AdsTools.Campaign.Id,
+                    ToolRisk.Read,
+                    "Read one campaign's status and budget when you propose a change."
+                ),
+                new(
+                    AdsTools.Change.Id,
+                    ToolRisk.External,
+                    "Pause a campaign or set its daily budget, only as a change you approved."
+                ),
             ],
             Actions =
             [
                 MarketingAnalytics.Definition,
                 MarketingAds.Definition,
+                MarketingAdChange.Definition,
                 MarketingExperiments.Design,
                 MarketingExperiments.Significance,
             ],
@@ -115,6 +126,7 @@ public sealed class MarketingModule : IEmployeeModule
                 DateOnly.FromDateTime(DateTime.UtcNow),
                 token
             ),
+            MarketingAdChange.Action => ReadChangeAsync(input, tools, token),
             MarketingAds.ReadAction => MarketingAds.ReadAsync(
                 input,
                 tools,
@@ -126,4 +138,33 @@ public sealed class MarketingModule : IEmployeeModule
             MarketingExperiments.SignificanceAction => Task.FromResult(MarketingExperiments.SignificanceText(input)),
             _ => throw new WorkspaceException("This employee has no such action.", 404),
         };
+
+    private static async Task<string> ReadChangeAsync(
+        IReadOnlyDictionary<string, string> input,
+        IToolbox tools,
+        CancellationToken token
+    ) => (await MarketingAdChange.ReadAsync(input["campaign"], input["change"], input["amount"], tools, token)).Text;
+
+    // Ad changes are published, never executed (docs/adr/0033-approved-ad-changes.md).
+    public async Task<object> ExecuteAsync(
+        ExecutionStep step,
+        string id,
+        CompanyExecutionServices services,
+        CancellationToken token
+    )
+    {
+        var store = services.Store;
+        if (step is ExecutionStep.Prepare or ExecutionStep.Run)
+            throw new WorkspaceException("Marketing publishes only approved ad changes.");
+        var taskId = step == ExecutionStep.Propose ? store.Artifact(id).TaskId : store.Publication(id).TaskId;
+        if (store.Work(taskId).Skill != MarketingAdChange.Action)
+            throw new WorkspaceException("Marketing publishes only approved ad changes.");
+        var change = new MarketingAdChangePublication(store, services.Tools, Manifest);
+        return step switch
+        {
+            ExecutionStep.Propose => change.Propose(id),
+            ExecutionStep.Publish => await change.PublishAsync(id, token),
+            _ => await change.ReconcileAsync(id, token),
+        };
+    }
 }
