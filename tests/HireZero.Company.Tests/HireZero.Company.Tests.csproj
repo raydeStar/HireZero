@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
     <ProjectReference Include="../../src/HireZero.Host/HireZero.Host.csproj" />
+    <!-- Build order only: the browser fixture and the Codex checks run FakeCodex.exe from its own output folder. -->
+    <ProjectReference
+      Include="../HireZero.FakeCodex/HireZero.FakeCodex.csproj"
+      ReferenceOutputAssembly="false"
+      SkipGetTargetFrameworkProperties="true"
+    />
   </ItemGroup>
   <ItemGroup>
     <Content Include="../xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

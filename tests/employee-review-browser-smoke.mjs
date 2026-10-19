@@ -4,16 +4,16 @@ import path from 'node:path';
 import os from 'node:os';
 import {spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
+import {clicker,delay,fetchTracker,freeLocalUrl,pageDiagnosis,pageIdle,waiter} from './browser-smoke-wait.mjs';
 const repo=path.resolve(import.meta.dirname,'..');
 const temporary=await fs.mkdtemp(path.join(os.tmpdir(),'hirezero-manual-ui-'));
 const chrome=process.env.HIREZERO_TEST_CHROME||path.join(process.env.ProgramFiles||'C:/Program Files','Google/Chrome/Application/chrome.exe');
 const hostDir=path.join(repo,'src/HireZero.Host');
-const url=process.env.HIREZERO_TEST_URL||'http://127.0.0.1:5067';
+const url=process.env.HIREZERO_TEST_URL||await freeLocalUrl();
 const webRoot=process.env.HIREZERO_TEST_WEB_ROOT||path.join(hostDir,'wwwroot');
 const host=spawn('dotnet',[path.join(repo,'tests/HireZero.Company.Tests/bin/Debug/net10.0/HireZero.Company.Tests.dll'),'--measured-browser-fixture',temporary,url,webRoot],{cwd:hostDir,windowsHide:true,env:{...process.env,HIREZERO_LOCAL_OWNER:'1',HIREZERO_OWNER_LOGIN:'owner@example.invalid',HIREZERO_DATA_ROOT:path.join(temporary,'data'),HIREZERO_EXECUTION_HOLD:'0',HIREZERO_BROWSER_SYNTHETIC_MODE:'company-conversation-browser'},stdio:['ignore','pipe','pipe']});
 let hostLog='';host.stdout.on('data',b=>hostLog+=b);host.stderr.on('data',b=>hostLog+=b);let browser,ws;
-const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function until(fn,label){for(let i=0;i<150;i++){try{const result=await fn();if(result)return result;}catch{}await delay(100);}throw new Error('Timed out: '+label);}
+const until=waiter();
 try{
   await until(()=>hostLog.includes('Now listening on: '+url),'this test host owns the listener');
   await until(async()=>{const r=await fetch(url+'/health');return r.ok;},'fresh host health');
@@ -25,10 +25,10 @@ try{
   let sequence=0;const pending=new Map();const errors=[];
   ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(!p)return;clearTimeout(p.timer);pending.delete(m.id);if(m.error)p.reject(new Error(m.error.message));else p.resolve(m.result);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text);});
   const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;const timer=setTimeout(()=>{pending.delete(id);reject(new Error('Debugger command timed out: '+method));},10000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}));});
-  const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
-  await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});await send('Page.navigate',{url:url+'/'});
+  const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};until.diagnose=pageDiagnosis(evaluate);
+  await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});await send('Page.addScriptToEvaluateOnNewDocument',{source:fetchTracker});await send('Page.navigate',{url:url+'/'});
   await until(()=>evaluate("document.body.innerText.includes('Company conversation')"),'company UI');
-  const click=async text=>{await evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===${JSON.stringify(text)});if(!b)throw Error('Button missing: '+${JSON.stringify(text)});b.click();})()`);await delay(150);};
+  const click=clicker(evaluate,until),idle=pageIdle(evaluate,until);
   const field=async(label,value)=>{await evaluate(`(()=>{const label=[...document.querySelectorAll('.co-main label')].find(l=>l.childNodes[0]?.textContent.trim()===${JSON.stringify(label)});if(!label)throw Error('Field missing: '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);await delay(70);};
   assert.match(hostLog,/BROWSER FIXTURE: fake provider only/);
   const dashboard=()=>fetch(url+'/api/company').then(r=>r.json());
@@ -39,7 +39,7 @@ try{
   assert.equal(state.capabilities.conversationalReplies,true);assert.equal(await starts(),0);
   const openEmployee=async person=>{await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes("+JSON.stringify(person.name)+")).click()");await until(()=>evaluate("!!document.querySelector('textarea[aria-label='+CSS.escape("+JSON.stringify('Message to '+person.name)+")+']:not(:disabled)')"),'private conversation ready');};
   const write=async(label,text)=>{await evaluate("(()=>{const input=document.querySelector('textarea[aria-label='+CSS.escape("+JSON.stringify(label)+")+']');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,"+JSON.stringify(text)+");input.dispatchEvent(new Event('input',{bubbles:true}));})()");};
-  const twice=()=>evaluate("(()=>{const form=document.querySelector('.co-conversation-composer form');form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");
+  const twice=async()=>{await idle();await evaluate("(()=>{const form=document.querySelector('.co-conversation-composer form');form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");}
   const review=async()=>{await until(()=>evaluate("[...document.querySelectorAll('.co-reply-turn button')].some(b=>b.textContent==='Review reply and context')"),'reviewable reply');await click('Review reply and context');await until(()=>evaluate("!!document.querySelector('.co-reply-turn .co-packet')"),'sealed reply packet visible');};
   const authorize=async()=>{await evaluate("document.querySelector('.co-reply-turn .co-measured input[type=checkbox]').click()");await until(()=>evaluate("[...document.querySelectorAll('.co-reply-turn button')].some(b=>b.textContent==='Send & authorize one reply'&&!b.disabled)"),'explicit acknowledgement');await evaluate("(()=>{const button=[...document.querySelectorAll('.co-reply-turn button')].find(b=>b.textContent==='Send & authorize one reply');button.click();button.click();})()");};
   const fieldReady=async(label,value)=>{await until(()=>evaluate("[...document.querySelectorAll('.co-main label')].some(l=>l.childNodes[0]?.textContent.trim()==="+JSON.stringify(label)+")"),label+' available');await field(label,value);};
@@ -72,7 +72,7 @@ try{
   // A fresh canceled review cannot replace findings or replay after a page reload.
   await fieldReady('Intended reply credit allowance','1');await write('Company message','[wait] REPOSITORY_REVIEW_FIXTURE: Stop this fictional follow-up.');await twice();await until(async()=>(await dashboard()).data.measured.length===3,'cancel review packet');await review();await authorize();
   await until(()=>evaluate("document.body.innerText.includes('Reply pending.')&&[...document.querySelectorAll('button')].some(b=>b.textContent==='Stop reply')"),'real fake review pending');await until(async()=>(await fs.readdir(temporary,{recursive:true})).some(p=>p.endsWith('fixture-partial-emitted')),'fake partial delta actually emitted');
-  assert.equal(await evaluate("document.body.innerText.includes('UNCONFIRMED_PARTIAL_REPLY_SHOULD_NOT_RENDER')"),false);await click('Stop reply');await until(async()=>(await dashboard()).data.tasks[2].state==='canceled','review cancellation');await until(()=>evaluate("document.body.innerText.includes('Reply stopped.')"),'cancellation receipt visible');assert.equal(await starts(),3);
+  assert.equal(await evaluate("document.body.innerText.includes('UNCONFIRMED_PARTIAL_REPLY_SHOULD_NOT_RENDER')"),false);await click('Stop reply',{idle:false});await until(async()=>(await dashboard()).data.tasks[2].state==='canceled','review cancellation');await until(()=>evaluate("document.body.innerText.includes('Reply stopped.')"),'cancellation receipt visible');assert.equal(await starts(),3);
   saved=await dashboard();assert.equal(saved.data.measured[2].reportedUsage,null);const cancelBudget=saved.data.budgets.find(b=>b.id===saved.data.tasks[2].rootId);assert.equal(cancelBudget.used,0);assert.equal(cancelBudget.reserved,8000);assert.equal(saved.data.budgets.find(b=>b.id==='company-total').used,9900);
   await send('Page.reload');await until(()=>evaluate("document.body.innerText.includes('Company conversation')"),'company page reload');await fieldReady('Reply as',developer.id);await until(()=>evaluate("document.querySelector('.fe-thread').textContent.includes('SIMULATED DEVELOPER REVIEW')&&document.body.innerText.includes('Reply stopped.')"),'saved Developer finding after reload');assert.equal(await starts(),3);assert.equal(await evaluate("[...document.querySelectorAll('.co-reply-turn button')].some(b=>/resume|retry|Send & authorize/.test(b.textContent))"),false);
   await fieldReady('Reply as',marketing.id);await until(()=>evaluate("document.querySelector('.fe-thread').textContent.includes('SIMULATED MARKETING REVIEW')"),'saved Marketing finding after reload');assert.equal(await evaluate("document.querySelector('.fe-thread').textContent.includes('SIMULATED DEVELOPER REVIEW')"),false);assert.equal(await starts(),3);
