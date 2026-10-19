@@ -237,7 +237,10 @@ features in 2B.5 rather than twice.
     budget as an External `ads.change` call, published once after the owner approves the exact change and a live
     re-check; budgets move at most half per step and never when shared; Google Ads changes use a separate, opt-in
     editing identity; unknown outcomes are settled only by reading.
-  - Still to come: email/CRM.
+  - **Email and CRM (done, [ADR 0035](adr/0035-email-and-crm-read-contracts.md)):** neutral `email.*` and `crm.*`
+    Read contracts that carry aggregates only (enforced by a test), fictional stand-ins, owner-started reads with
+    fixed list-hygiene and pipeline rules, and a measured review skill. Real providers come later behind the same
+    contracts.
 - **Third employee: Support (done, [ADR 0034](adr/0034-support-employee.md)):** added only as
   `src/HireZero.Roles.Support` and `web/src/roles/support`. It drafts customer replies, triage and help articles
   from messages redacted by a deterministic intake action, which also flags legal, security and privacy requests

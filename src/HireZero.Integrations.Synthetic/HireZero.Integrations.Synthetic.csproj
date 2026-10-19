@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="../HireZero.Tools.Analytics/HireZero.Tools.Analytics.csproj" />
     <ProjectReference Include="../HireZero.Tools.Advertising/HireZero.Tools.Advertising.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Email/HireZero.Tools.Email.csproj" />
+    <ProjectReference Include="../HireZero.Tools.Crm/HireZero.Tools.Crm.csproj" />
     <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
     <Using Include="HireZero.Core" />
   </ItemGroup>

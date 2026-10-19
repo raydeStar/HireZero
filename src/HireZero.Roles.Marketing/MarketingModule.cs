@@ -1,6 +1,8 @@
 using HireZero.Roles.Marketing;
 using HireZero.Tools.Advertising;
 using HireZero.Tools.Analytics;
+using HireZero.Tools.Crm;
+using HireZero.Tools.Email;
 
 [assembly: EmployeeModule(typeof(MarketingModule))]
 
@@ -43,6 +45,12 @@ public sealed class MarketingModule : IEmployeeModule
                     "Review ad performance from approved ads evidence and propose changes for your approval.",
                     SkillMode.Measured
                 ),
+                new(
+                    MarketingLifecycle.Review,
+                    "Email and pipeline review",
+                    "Review email and sales-pipeline results from approved evidence and propose next steps.",
+                    SkillMode.Measured
+                ),
                 new(PlatformSkills.MeetingTurn, "Meeting turn", "Contribute to a board meeting."),
             ],
             new(
@@ -71,6 +79,10 @@ public sealed class MarketingModule : IEmployeeModule
                 new(AnalyticsTools.Search.Id, ToolRisk.Read, "Read search performance when you ask for analytics."),
                 new(AdsTools.Status.Id, ToolRisk.Read, "Show which ads account is connected."),
                 new(AdsTools.Performance.Id, ToolRisk.Read, "Read ad performance when you ask for it."),
+                new(EmailTools.Status.Id, ToolRisk.Read, "Show which email account is connected."),
+                new(EmailTools.Campaigns.Id, ToolRisk.Read, "Read email campaign results when you ask for them."),
+                new(CrmTools.Status.Id, ToolRisk.Read, "Show which CRM is connected."),
+                new(CrmTools.Pipeline.Id, ToolRisk.Read, "Read the sales pipeline's totals when you ask for them."),
                 new(
                     AdsTools.Campaign.Id,
                     ToolRisk.Read,
@@ -87,6 +99,8 @@ public sealed class MarketingModule : IEmployeeModule
                 MarketingAnalytics.Definition,
                 MarketingAds.Definition,
                 MarketingAdChange.Definition,
+                MarketingLifecycle.Email,
+                MarketingLifecycle.Pipeline,
                 MarketingExperiments.Design,
                 MarketingExperiments.Significance,
             ],
@@ -109,6 +123,7 @@ public sealed class MarketingModule : IEmployeeModule
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
             MarketingExperiments.Skill => MarketingExperiments.Instructions,
             MarketingAds.Review => MarketingAds.ReviewInstructions,
+            MarketingLifecycle.Review => MarketingLifecycle.ReviewInstructions,
             _ => MarketingText.Instructions,
         };
 
@@ -127,6 +142,18 @@ public sealed class MarketingModule : IEmployeeModule
                 token
             ),
             MarketingAdChange.Action => ReadChangeAsync(input, tools, token),
+            MarketingLifecycle.EmailAction => MarketingLifecycle.ReadEmailAsync(
+                input,
+                tools,
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                token
+            ),
+            MarketingLifecycle.PipelineAction => MarketingLifecycle.ReadPipelineAsync(
+                input,
+                tools,
+                DateOnly.FromDateTime(DateTime.UtcNow),
+                token
+            ),
             MarketingAds.ReadAction => MarketingAds.ReadAsync(
                 input,
                 tools,

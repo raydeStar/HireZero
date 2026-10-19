@@ -12,8 +12,9 @@ without sharing private history. A CEO employee proposes plans and chairs board 
   (`src/HireZero.Integrations.*`); the core knows nothing about any particular role. Adding an employee is a new
   project with one manifest ([how-to](docs/ADDING_AN_EMPLOYEE.md)).
 
-Today's employees are **Developer** (GitHub PR review and fixes), **Marketing** (briefs and versioned drafts) and
-**CEO** (plans and meetings). Where this is going is in the [roadmap](docs/ROADMAP.md).
+Today's employees are **Developer** (GitHub PR review and fixes), **Marketing** (briefs, drafts, analytics, A/B tests,
+approved ad changes, email and pipeline reviews), **Support** (customer replies, triage and help articles from redacted messages) and **CEO**
+(plans and meetings). Where this is going is in the [roadmap](docs/ROADMAP.md).
 
 > Status: development. Automatic model execution is off by default; the company workspace offers explicitly
 > approved one-turn replies and drafts through a pinned runtime. See the [latest report](docs/history/PHASE3_IDENTITY_REPORT.md).
@@ -143,7 +144,7 @@ Use the smallest set that covers a change. Apply formatting with `dotnet csharpi
 | Path | Contents |
 | --- | --- |
 | `src/HireZero.Core` | Company, conversations, tasks, approvals, budgets, storage |
-| `src/HireZero.Roles.*` | Employees: Developer, Marketing, CEO |
+| `src/HireZero.Roles.*` | Employees: Developer, Marketing, Support, CEO |
 | `src/HireZero.Tools.*` | Tool contracts shared by roles and integrations |
 | `src/HireZero.Integrations.*` | External systems: Git and GitHub CLI, npm, model runtimes, Microsoft 365, Azure DevOps |
 | `src/HireZero.Host` | The company workspace's composition root |

@@ -130,6 +130,26 @@ search endpoint, and signs in only at `oauth2.googleapis.com`.
 | "… could not sign in (invalid_grant)" | The refresh token was revoked or expired; authorize again |
 | "Google Ads could not be read (HTTP 404 …)" or `UNIMPLEMENTED` | The API version was retired; set a newer `apiVersion` |
 
+## Email and CRM
+
+Marketing can review email campaigns and the sales pipeline ([ADR 0035](adr/0035-email-and-crm-read-contracts.md)).
+Only totals cross into HireZero: never a subscriber, contact or deal record.
+
+- **Read email results** (28 or 90 days): delivery, clicks, opens (marked soft, because mail privacy features
+  inflate them), unsubscribes, bounces and complaints against the period before. Campaigns are flagged when:
+  - bounces exceed 2% (check where the list came from);
+  - complaints reach 0.1% (mailbox providers filter senders above 0.3%);
+  - unsubscribes exceed 0.5%.
+- **Read the sales pipeline** (28 or 90 days): open deals by stage, new contacts and deals, won and lost with win
+  rate and days to close, and results by lead source. It flags:
+  - a source with many contacts and no deals;
+  - a win rate down by a fifth or more;
+  - won value down by a fifth or more.
+- Approve either result, then run **Email and pipeline review** for the narrative and at most three proposals.
+
+No real email or CRM provider is connected yet. Try them with `HIREZERO_SYNTHETIC_EMAIL=1` and
+`HIREZERO_SYNTHETIC_CRM=1`.
+
 ## Try it with fictional data
 
 Set `HIREZERO_SYNTHETIC_ANALYTICS=1` and restart. Marketing then reads deterministic fictional data, labelled

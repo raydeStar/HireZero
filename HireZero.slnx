@@ -16,6 +16,8 @@
     <Project Path="src/HireZero.Integrations.SemaForge/HireZero.Integrations.SemaForge.csproj" />
     <Project Path="src/HireZero.Integrations.Synthetic/HireZero.Integrations.Synthetic.csproj" />
     <Project Path="src/HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
+    <Project Path="src/HireZero.Tools.Crm/HireZero.Tools.Crm.csproj" />
+    <Project Path="src/HireZero.Tools.Email/HireZero.Tools.Email.csproj" />
     <Project Path="src/HireZero.Tools.Git/HireZero.Tools.Git.csproj" />
     <Project Path="src/HireZero.Tools.GitHub/HireZero.Tools.GitHub.csproj" />
     <Project Path="src/HireZero.Tools.Jev/HireZero.Tools.Jev.csproj" />

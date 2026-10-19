@@ -127,6 +127,18 @@ public sealed class CompanySettings
             "1 serves fictional ad data (in XTS) to Marketing.",
             (s, v) => s.SyntheticAds = Flag(v)
         ),
+        new(
+            "HIREZERO_SYNTHETIC_EMAIL",
+            "Integrations",
+            "1 serves fictional email campaign results to Marketing.",
+            (s, v) => s.SyntheticEmail = Flag(v)
+        ),
+        new(
+            "HIREZERO_SYNTHETIC_CRM",
+            "Integrations",
+            "1 serves a fictional sales pipeline (in XTS) to Marketing.",
+            (s, v) => s.SyntheticCrm = Flag(v)
+        ),
     ];
 
     public string? DataRoot { get; private set; }
@@ -149,6 +161,8 @@ public sealed class CompanySettings
     public bool SyntheticWiki { get; private set; }
     public bool SyntheticAnalytics { get; private set; }
     public bool SyntheticAds { get; private set; }
+    public bool SyntheticEmail { get; private set; }
+    public bool SyntheticCrm { get; private set; }
 
     // Where each set value came from: "environment" or the settings file. Values are not repeated here.
     public IReadOnlyDictionary<string, string> Sources { get; private set; } = new Dictionary<string, string>();

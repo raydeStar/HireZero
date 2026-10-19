@@ -240,6 +240,19 @@ public static class CompanyWorkspace
             IToolProvider? ads = googleAds.Status().Active ? googleAds : syntheticAds;
             if (fixtureTools is null)
                 ads?.Register(tools);
+            // Email and CRM for Marketing (docs/adr/0035-email-and-crm-read-contracts.md): aggregates only, served for now
+            // by the fictional stand-ins when they are switched on.
+            var syntheticEmail = settings.SyntheticEmail
+                ? new HireZero.Integrations.Synthetic.SyntheticEmailProvider()
+                : null;
+            var syntheticCrm = settings.SyntheticCrm
+                ? new HireZero.Integrations.Synthetic.SyntheticCrmProvider()
+                : null;
+            if (fixtureTools is null)
+            {
+                syntheticEmail?.Register(tools);
+                syntheticCrm?.Register(tools);
+            }
             // Every company in this data root runs with its own store, tool registry and scheduler over the same
             // database (docs/adr/0021-companies-per-data-root.md). The first company's runtime is the one above.
             void RegisterTools(ToolRegistry registry)
@@ -268,6 +281,8 @@ public static class CompanyWorkspace
                     openRouter.Register(registry);
                 analytics?.Register(registry);
                 ads?.Register(registry);
+                syntheticEmail?.Register(registry);
+                syntheticCrm?.Register(registry);
             }
             var runtimes = new System.Collections.Concurrent.ConcurrentDictionary<string, CompanyRuntime>(
                 StringComparer.Ordinal
@@ -446,6 +461,20 @@ public static class CompanyWorkspace
                             "Set HIREZERO_SYNTHETIC_ANALYTICS=1 for fictional analytics data."
                         ),
                     googleAds.Status(),
+                    syntheticEmail?.Status()
+                        ?? new(
+                            "synthetic-email",
+                            "Synthetic email",
+                            false,
+                            "Set HIREZERO_SYNTHETIC_EMAIL=1 for fictional email campaign results."
+                        ),
+                    syntheticCrm?.Status()
+                        ?? new(
+                            "synthetic-crm",
+                            "Synthetic CRM",
+                            false,
+                            "Set HIREZERO_SYNTHETIC_CRM=1 for a fictional sales pipeline."
+                        ),
                     syntheticAds?.Status()
                         ?? new(
                             "synthetic-ads",

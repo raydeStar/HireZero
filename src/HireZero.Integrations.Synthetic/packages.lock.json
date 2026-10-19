@@ -73,6 +73,18 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"
         }
+      },
+      "hirezero.tools.crm": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.email": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
       }
     }
   }

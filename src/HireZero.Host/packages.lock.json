@@ -276,7 +276,9 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.Advertising": "[1.0.0, )",
-          "HireZero.Tools.Analytics": "[1.0.0, )"
+          "HireZero.Tools.Analytics": "[1.0.0, )",
+          "HireZero.Tools.Crm": "[1.0.0, )",
+          "HireZero.Tools.Email": "[1.0.0, )"
         }
       },
       "hirezero.integrations.wiki": {
@@ -313,7 +315,9 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.Advertising": "[1.0.0, )",
-          "HireZero.Tools.Analytics": "[1.0.0, )"
+          "HireZero.Tools.Analytics": "[1.0.0, )",
+          "HireZero.Tools.Crm": "[1.0.0, )",
+          "HireZero.Tools.Email": "[1.0.0, )"
         }
       },
       "hirezero.roles.support": {
@@ -341,6 +345,18 @@
         }
       },
       "hirezero.tools.azuredevops": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.crm": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.email": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"
