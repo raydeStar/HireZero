@@ -71,6 +71,7 @@ Hosted mode names all of its missing required settings at once.
 | --- | --- |
 | `HIREZERO_COMPANY_TEXT_MODEL` | Route for conversations (`vendor/model`); default from `config/model-routes.json`. |
 | `HIREZERO_COMPANY_CODING_MODEL` | Route for coding runs; default from `config/model-routes.json`. |
+| `HIREZERO_API_MODELS` | `1` uses an API model (Anthropic, OpenAI or OpenRouter key) when the Codex connection is not selected ([ADR 0036](adr/0036-api-model-provider.md)). |
 | `HIREZERO_COMPANY_CODEX_EXECUTABLE` | The pinned Codex executable, with `--company-codex`. |
 | `HIREZERO_COMPANY_CODEX_IDENTITY` | The reviewed bundle identity of that executable. |
 | `HIREZERO_COMPANY_CODEX_HOME` | The dedicated Codex profile home. |

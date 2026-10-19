@@ -14,6 +14,9 @@
     "company.text": "codex",
     "company.coding": "codex"
   },
+  "prices": {
+    "$comment": "US dollars per million tokens, as {\"input\": n, \"output\": n}, for models served by an API provider. A route without a price cannot be used with one (docs/adr/0036-api-model-provider.md). Check each provider's price page; prices change."
+  },
   "names": {
     "openai/gpt-6-luna": "Luna",
     "openai/gpt-6.1-sol": "Sol 6.1",

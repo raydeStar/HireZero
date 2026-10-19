@@ -90,6 +90,8 @@ export function CompanyConversation({
   const messages =
       shown?.messages.filter((m) => m.author === "owner" || !artifacts.some((a) => a.body === m.body)) ?? [],
     orphaned = tasks.filter((t) => !messages.some((m) => m.sequence === t.watermark));
+  // An API model enforces the reply allowance as a cap in US cents; Codex credits are only intended.
+  const cents = snapshot.capabilities.allowanceUnit === "usd-cents";
   const eligible =
       !!snapshot.capabilities.conversationalReplies &&
       target?.state === "active" &&
@@ -149,7 +151,9 @@ export function CompanyConversation({
     }
     if (reply && !(Number(sent.allowance) > 0 && Number(sent.allowance) <= 1000)) {
       setLocalError(
-        "Enter a positive intended existing-credit allowance, at most 1,000. It is not a provider-enforced cap.",
+        cents
+          ? "Enter a positive spend cap in US cents, at most 1,000."
+          : "Enter a positive intended existing-credit allowance, at most 1,000. It is not a provider-enforced cap.",
       );
       return;
     }
@@ -400,7 +404,7 @@ export function CompanyConversation({
           {reply && (
             <>
               <label>
-                Intended reply credit allowance
+                {cents ? "Reply spend cap in US cents" : "Intended reply credit allowance"}
                 <input
                   type="number"
                   min="0.01"
@@ -412,9 +416,9 @@ export function CompanyConversation({
                 />
               </label>
               <small className="co-reply-risk">
-                Preparing sends no model request. The final Send authorizes one native turn. Token, time and credit
-                stops are soft; the provider may exceed the intended allowance. Included usage must be available; no
-                purchases or API fallback.
+                {cents
+                  ? "Preparing sends no model request. The final Send authorizes one reply, refused before sending if its worst case could cost more than the cap."
+                  : "Preparing sends no model request. The final Send authorizes one native turn. Token, time and credit stops are soft; the provider may exceed the intended allowance. Included usage must be available; no purchases or API fallback."}
               </small>
             </>
           )}
@@ -538,6 +542,7 @@ function ReplyTurn({
         task={task}
         entry={entry}
         available={!!snapshot.capabilities.conversationalReplies}
+        cents={snapshot.capabilities.allowanceUnit === "usd-cents"}
         busy={busy}
         prepare={run}
         refresh={refresh}

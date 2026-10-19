@@ -139,6 +139,7 @@ export function ConversationJob({
           task={t}
           entry={d.measured?.find((m) => m.taskId === t.id)}
           available={!!snapshot.capabilities.measuredOneJob}
+          cents={snapshot.capabilities.allowanceUnit === "usd-cents"}
           busy={busy}
           prepare={run}
           refresh={refresh}

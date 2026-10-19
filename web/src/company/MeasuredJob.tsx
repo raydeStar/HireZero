@@ -60,6 +60,7 @@ export function MeasuredJob({
   prepare,
   refresh,
   conversational = false,
+  cents = false,
 }: {
   task: Work;
   entry?: MeasuredEntry;
@@ -68,6 +69,8 @@ export function MeasuredJob({
   prepare: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
   refresh: () => Promise<void>;
   conversational?: boolean;
+  // An API model enforces the allowance as a cap in US cents before sending (docs/adr/0036-api-model-provider.md).
+  cents?: boolean;
 }) {
   const authorizing = useRef(false),
     reviewRequest = useRef(0);
@@ -148,7 +151,7 @@ export function MeasuredJob({
           }}
         >
           <label>
-            Intended existing-credit allowance
+            {cents ? "Spend cap in US cents" : "Intended existing-credit allowance"}
             <input
               type="number"
               min="0.01"
@@ -160,8 +163,9 @@ export function MeasuredJob({
             />
           </label>
           <p className="co-muted">
-            This records your intended allowance. It cannot stop an in-flight request at that credit amount. Included
-            usage must be available first. No purchases, recharge or API-key fallback.
+            {cents
+              ? "Nothing is sent if the worst case (the whole context and the full reply limit at the model's listed price) could cost more than this."
+              : "This records your intended allowance. It cannot stop an in-flight request at that credit amount. Included usage must be available first. No purchases, recharge or API-key fallback."}
           </p>
           <button disabled={busy} type="submit">
             Prepare job for review
@@ -252,8 +256,9 @@ export function MeasuredJob({
                 caps.
               </p>
               <p>
-                Intended existing-credit allowance: {entry.job.creditAllowance}. There is no provider-enforced per-job
-                credit cap; this request may exceed that amount.
+                {cents
+                  ? `Spend cap: ${entry.job.creditAllowance} US cents, checked against the worst case before sending.`
+                  : `Intended existing-credit allowance: ${entry.job.creditAllowance}. There is no provider-enforced per-job credit cap; this request may exceed that amount.`}
               </p>
               <small>
                 Expires {new Date(entry.job.expiresAt).toLocaleString()}. Policy {entry.job.policy.version}. The server
