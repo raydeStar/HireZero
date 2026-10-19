@@ -64,6 +64,20 @@ setting `HIREZERO_DATABASE` to an Npgsql connection string
 root either way. The PostgreSQL checks run only when `HIREZERO_TEST_POSTGRES` names a disposable server; each test
 uses its own schema and drops it afterwards.
 
+### Container and releases
+
+`Dockerfile` builds hosted mode on base images pinned by digest: it runs as a non-root user and listens on port
+8080 behind your HTTPS proxy (set `HIREZERO_TRUSTED_PROXY` to its address), with data in `/data`. Releases come
+from `pwsh tools/Build-Release.ps1 -Version X.Y.Z -SigningKey <key outside the repo> [-Image]`. Each release is:
+- a portable zip (the host, both launchers, README and license), which runs on any OS with the .NET 10 runtime;
+- a CycloneDX SBOM;
+- `SHA256SUMS`, with an ECDSA P-256 signature.
+
+Verify a release with `pwsh tools/Test-Release.ps1`, or with `sha256sum` and `openssl`. On macOS and Linux, start
+it with `sh tools/start-company-local.sh --data-root <dir>`. `tools/Check-Advisories.ps1` lists dependency
+advisories and fails on any without a decision in `docs/security/advisories.json`
+([ADR 0026](docs/adr/0026-container-and-releases.md)).
+
 ### Telemetry
 
 Traces and metrics (employee jobs, tool calls, model calls and tokens per company and employee) are exported over
@@ -97,6 +111,9 @@ npm run format:check --prefix web
 node --test tests/*.test.mjs                               # frontend unit tests
 node tests/company-browser-smoke.mjs                       # headless Chrome smoke tests (build first)
 pwsh tests/company-launcher.test.ps1                       # launcher test (mocked process)
+sh tests/company-launcher.test.sh                          # POSIX launcher test (fake dotnet)
+pwsh tests/release.test.ps1                                # SBOM, checksums and signatures
+pwsh tools/Invoke-Checks.ps1 -Browser                      # all of the above in one run (any CI runner)
 ```
 
 Use the smallest set that covers a change. Apply formatting with `dotnet csharpier format .` and

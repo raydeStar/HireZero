@@ -1,7 +1,9 @@
 param([Parameter(Mandatory=$true)][string]$DataRoot,[switch]$Codex,[string]$CodexExecutable,[string]$CodexIdentity,[string]$CodexHome,[string]$TextModel='openai/gpt-6-luna',[string]$CodingModel='openai/gpt-6.1-sol',[switch]$Coding,[string[]]$CodingRead=@(),[string]$OwnerLogin)
 $ErrorActionPreference='Stop'
-$project=Join-Path (Split-Path $PSScriptRoot -Parent) 'src/HireZero.Host'
-$binary=Join-Path $project 'bin/Debug/net10.0/HireZero.Host.dll'
+# A release keeps the published host in app/ beside tools/; a checkout runs its debug build (docs/adr/0026).
+$release=Join-Path (Split-Path $PSScriptRoot -Parent) 'app'
+if(Test-Path -LiteralPath (Join-Path $release 'HireZero.Host.dll')){$project=$release;$binary=Join-Path $release 'HireZero.Host.dll'}
+else{$project=Join-Path (Split-Path $PSScriptRoot -Parent) 'src/HireZero.Host';$binary=Join-Path $project 'bin/Debug/net10.0/HireZero.Host.dll'}
 if(-not (Test-Path -LiteralPath $binary)){throw 'Build HireZero.Host and the web frontend before starting company-local mode.'}
 $chosenRoot=[IO.Path]::GetFullPath($DataRoot)
 $names=@('HIREZERO_OWNER_LOGIN','HIREZERO_LOCAL_OWNER','HIREZERO_DATA_ROOT','HIREZERO_EXECUTION_HOLD','HIREZERO_COMPANY_CODEX_EXECUTABLE','HIREZERO_COMPANY_CODEX_IDENTITY','HIREZERO_COMPANY_CODEX_HOME','HIREZERO_COMPANY_TEXT_MODEL','HIREZERO_COMPANY_CODING_MODEL','HIREZERO_COMPANY_CODING_READ')

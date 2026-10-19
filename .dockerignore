@@ -1,0 +1,14 @@
+# Only what the image build needs; never data roots, credentials or build output.
+*
+!Directory.Build.props
+!global.json
+!src/
+!config/
+!runtime/codex/pin.json
+!web/
+src/**/bin/
+src/**/obj/
+src/HireZero.Host/wwwroot/
+web/node_modules/
+**/*.sqlite*
+**/.env*

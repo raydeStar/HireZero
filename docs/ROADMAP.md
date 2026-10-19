@@ -205,8 +205,10 @@ features in 2B.5 rather than twice.
   single-machine installs, PostgreSQL for hosted ones (`HIREZERO_DATABASE`), through one store seam that translates the
   portable statements; one migration framework and ledger for the company and every module; per-company write
   exclusion on both.
-- Container image, cross-platform launcher, CI running only offline checks, signed releases, SBOM, dependency
-  advisories triaged.
+- **Container and releases (done, [ADR 0026](adr/0026-container-and-releases.md)):** a digest-pinned, non-root
+  hosted-mode image; a portable release zip with PowerShell and POSIX launchers; a CycloneDX SBOM from the
+  lockfiles; SHA256SUMS signed with ECDSA P-256 (openssl-verifiable); dependency advisories triaged before each
+  release; every offline check in one script any CI runner can call.
 
 ## Phase 4: Prove "omni"
 
