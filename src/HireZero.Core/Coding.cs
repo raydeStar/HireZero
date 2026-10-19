@@ -4,6 +4,8 @@ namespace HireZero.Core;
 // runs it. Network access is for dependency installs and audits only.
 // ResumeThreadId continues an existing thread (steering); Persistent + Name start one that shows up in the app (hand-off).
 // OutputSchemaJson null means a free-text answer. AllowWrite false runs read-only.
+// ReadRoots are extra folders the run may read but not change. InputFiles maps a variable name to a small file's text: the
+// runner writes each file where the run can read but not change it and passes its path in that variable.
 public sealed record CodingRunRequest(
     string Root,
     string Prompt,
@@ -15,7 +17,9 @@ public sealed record CodingRunRequest(
     bool Persistent = false,
     string? Name = null,
     bool AllowWrite = true,
-    IReadOnlyDictionary<string, string>? Environment = null
+    IReadOnlyDictionary<string, string>? Environment = null,
+    IReadOnlyList<string>? ReadRoots = null,
+    IReadOnlyDictionary<string, string>? InputFiles = null
 );
 
 // Type is "command-started", "command-completed" (DataJson: {command, exitCode}), "file-changed" (DataJson: {paths}),

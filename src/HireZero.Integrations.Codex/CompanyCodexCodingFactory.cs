@@ -50,7 +50,7 @@ public sealed class CompanyCodexCodingFactory : ICompanyCodingFactory
             throw new WorkspaceException(
                 "The checkout overlaps a read-only folder, the sign-in home or the runtime scratch."
             );
-        return new CompanyCodexCodingRunner(_options, _routing, _readRoots, grant, mayStart, _pin);
+        return new CompanyCodexCodingRunner(_options, _routing, _readRoots, grant, mayStart, _pin, ReadRootRefusal);
     }
 
     // A named toolchain folder may be read by the run, so it must be a specific existing folder: not a drive root, not

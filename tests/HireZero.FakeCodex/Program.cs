@@ -202,7 +202,21 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || !File.Exists(gitConfig)
             )
                 throw new Exception("Invalid live coding envelope");
-            Wire(JsonSerializer.Serialize(new { profile, home }));
+            // A HireZero input file the run was handed, as the run would read it.
+            var postgres = Environment.GetEnvironmentVariable("HIREZERO_POSTGRES_PROFILE");
+            Wire(
+                JsonSerializer.Serialize(
+                    new
+                    {
+                        profile,
+                        home,
+                        postgres,
+                        postgresText = postgres is not null && File.Exists(postgres)
+                            ? File.ReadAllText(postgres)
+                            : null,
+                    }
+                )
+            );
             Reply(new { });
         }
         else if (method == "account/read")
@@ -330,7 +344,16 @@ while (await Console.In.ReadLineAsync() is { } line)
             )
                 throw new Exception("Invalid live coding turn");
             companyTurnSent = true;
-            Wire(JsonSerializer.Serialize(new { turn = true, effort = pr.GetProperty("effort").GetString() }));
+            Wire(
+                JsonSerializer.Serialize(
+                    new
+                    {
+                        turn = true,
+                        effort = pr.GetProperty("effort").GetString(),
+                        prompt = pr.GetProperty("input")[0].GetProperty("text").GetString(),
+                    }
+                )
+            );
             Reply(new { turn = new { id = turn } });
             var checkout = File.ReadAllText(Path.Combine(home, "fixture-coding-cwd"));
             if (mode == "coding-live-tool")

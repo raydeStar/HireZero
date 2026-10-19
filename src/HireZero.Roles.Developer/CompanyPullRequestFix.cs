@@ -81,8 +81,11 @@ public sealed class CompanyPullRequestFix(CompanyStore store, ToolRegistry regis
         return await Bridge(task).PrepareAsync(task.Id, root, true, token, target.Head);
     }
 
-    public Task ExecuteFixtureAsync(string grantId, CancellationToken token = default) =>
-        Bridge(store.Work(store.Execution(grantId).TaskId)).ExecuteFixtureAsync(grantId, token);
+    public Task ExecuteFixtureAsync(string grantId, CancellationToken token = default)
+    {
+        var task = store.Work(store.Execution(grantId).TaskId);
+        return Bridge(task).ExecuteFixtureAsync(grantId, token, TargetOf(task).Repository);
+    }
 
     // After the fix ran, its reviewed diff becomes a publication: exactly these files, one commit, the PR branch.
     public async Task<CompanyPublication> ProposePublicationAsync(string grantId, CancellationToken token = default)

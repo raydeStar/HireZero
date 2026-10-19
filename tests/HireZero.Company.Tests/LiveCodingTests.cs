@@ -247,4 +247,73 @@ public sealed class LiveCodingTests : IDisposable
             .GetString()!;
         Assert.EndsWith("network={enabled=true}}}", profile);
     }
+
+    // A run's own toolchain folder is read-only for that run, and its input file is written beside the scratch, named in
+    // its variable, readable by the run and removed with the scratch when the run ends.
+    [Fact]
+    public async Task ARunsToolchainAndInputFileAreReadOnlyAndRemovedAfter()
+    {
+        var grant = Grant();
+        var postgres = Dir("trusted-postgres");
+        using var runner = (CompanyCodexCodingRunner)Factory().Create(grant, () => true);
+        var run = await Finished(
+            runner,
+            runner.Start(
+                Request(grant) with
+                {
+                    ReadRoots = [postgres],
+                    InputFiles = new Dictionary<string, string>
+                    {
+                        ["HIREZERO_POSTGRES_PROFILE"] = """{"database":"app_test","env":{}}""",
+                    },
+                }
+            )
+        );
+        Assert.Equal("completed", run.State);
+        var wire = JsonDocument.Parse(Wire()[0]).RootElement;
+        var profile = wire.GetProperty("profile").GetString()!;
+        var file = wire.GetProperty("postgres").GetString()!;
+        Assert.Contains(JsonSerializer.Serialize(postgres) + "=\"read\"", profile);
+        Assert.Contains(JsonSerializer.Serialize(Path.GetDirectoryName(file)) + "=\"read\"", profile);
+        Assert.Equal("""{"database":"app_test","env":{}}""", wire.GetProperty("postgresText").GetString());
+        Assert.Equal(5, profile.Split("=\"").Length - 1);
+        Assert.False(File.Exists(file));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(_root.Path, "scratch")));
+    }
+
+    [Fact]
+    public void ARunsReadRootsAndInputFilesAreCheckedBeforeATurnIsSent()
+    {
+        var grant = Grant();
+        foreach (
+            var request in new[]
+            {
+                Request(grant) with
+                {
+                    ReadRoots = [Checkout],
+                },
+                Request(grant) with
+                {
+                    ReadRoots = [Path.Combine(Checkout, "tools")],
+                },
+                Request(grant) with
+                {
+                    ReadRoots = [Path.Combine(_root.Path, "missing")],
+                },
+                Request(grant) with
+                {
+                    InputFiles = new Dictionary<string, string> { ["PATH"] = "x" },
+                },
+                Request(grant) with
+                {
+                    InputFiles = new Dictionary<string, string> { ["HIREZERO_X"] = new string('x', 20_000) },
+                },
+            }
+        )
+        {
+            using var runner = (CompanyCodexCodingRunner)Factory().Create(grant, () => true);
+            Assert.Throws<CodingStartRefusedException>(() => runner.Start(request));
+        }
+        Assert.Empty(Wire());
+    }
 }

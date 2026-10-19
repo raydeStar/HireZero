@@ -27,3 +27,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0020](0020-members-roles-and-sign-in.md) | Members, roles and sign-in | Accepted |
 | [0021](0021-companies-per-data-root.md) | Companies per data root | Accepted |
 | [0022](0022-tamper-evident-audit-log.md) | Tamper-evident audit log | Accepted |
+| [0023](0023-trusted-postgres-in-live-coding-runs.md) | Trusted PostgreSQL in live coding runs | Accepted |
