@@ -104,6 +104,11 @@ public sealed class CompanyTodayTests : IDisposable
         Assert.Empty(snoozed.NeedsYou);
         Assert.Equal(1, snoozed.Snoozed);
         Assert.Contains(snoozed.Log, e => e.Type == "employee.hired" && e.Employee == "Developer partner");
+        // One line per piece of work: the action's later step, with its start folded in as an earlier step.
+        var work = Assert.Single(snoozed.Log, e => e.Earlier.Length > 0);
+        Assert.NotNull(work.Work);
+        Assert.Contains(work.Earlier, s => s.Text.EndsWith("started.", StringComparison.Ordinal));
+        Assert.DoesNotContain(snoozed.Log, e => e.Type == "action.started");
         Apply<CompanyOwnerMark>(
             store,
             Cmd("owner.mark") with

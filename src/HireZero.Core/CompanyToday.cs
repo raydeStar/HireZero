@@ -12,8 +12,16 @@ public sealed record CompanyNeed(string Kind, string Title, string Detail, strin
 // The owner's priority and snooze for one waiting item.
 public sealed record CompanyOwnerMark(string Id, string Priority, string? SnoozedUntil, int Version = 1);
 
-// One entry of the day's work log: a company event as it was recorded.
-public sealed record CompanyLogEntry(string Type, string Text, string? Employee, DateTimeOffset At);
+// One entry of the day's work log: a company event as it was recorded. Events about one piece of work are one entry,
+// its latest step, with the day's earlier steps in Earlier, oldest first (owner walkthrough, 2026-10-19).
+public sealed record CompanyLogEntry(string Type, string Text, string? Employee, DateTimeOffset At)
+{
+    // The work's name, as its employee's module names it, when the event belongs to a task.
+    public string? Work { get; init; }
+    public CompanyLogStep[] Earlier { get; init; } = [];
+}
+
+public sealed record CompanyLogStep(string Text, DateTimeOffset At);
 
 // The company's day (Phase 2B.5i): what waits on the owner now, and what happened in the day, from the store's own
 // records and events. No model, no tools and nothing outside the company; role-agnostic.
@@ -80,6 +88,19 @@ public sealed partial class CompanyStore
                     employees.TryGetValue(t.EmployeeId, out var e) ? WorkName(e.RoleId, t.Skill) : t.Skill;
                 string Skill(string taskId) => tasks.TryGetValue(taskId, out var t) ? Name(t) : "work";
                 var needs = new List<CompanyNeed>();
+                // The task an event is about: the task itself, or the artifact, publication, run or reply it produced.
+                var work = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var t in tasks.Values)
+                    work[t.Id] = t.Id;
+                foreach (var a in All<CompanyArtifact>(db))
+                    work[a.Id] = a.TaskId;
+                foreach (var p in All<CompanyPublication>(db))
+                    work[p.Id] = p.TaskId;
+                foreach (var g in All<CompanyExecutionGrant>(db))
+                    work[g.Id] = g.TaskId;
+                foreach (var attempt in All<CompanyAttempt>(db))
+                    work[attempt.Id] = attempt.TaskId;
+                string? WorkOf(string id) => work.TryGetValue(id, out var task) ? task : null;
 
                 foreach (var k in All<CompanyKnowledge>(db).Where(k => k.State == "draft"))
                     needs.Add(
@@ -196,14 +217,28 @@ public sealed partial class CompanyStore
                     Log =
                     [
                         .. events
+                            .Select((e, i) => (Event: e, Work: WorkOf(e.Id), Index: i))
+                            .GroupBy(x => x.Work ?? "event:" + x.Index, StringComparer.Ordinal)
+                            .Select(g =>
+                            {
+                                var steps = g.OrderBy(x => x.Event.At).ThenBy(x => x.Index).ToArray();
+                                var latest = steps[^1];
+                                return new CompanyLogEntry(
+                                    latest.Event.Type,
+                                    latest.Event.Text,
+                                    latest.Event.EmployeeId is null ? null : Who(latest.Event.EmployeeId),
+                                    latest.Event.At
+                                )
+                                {
+                                    Work = latest.Work is { } id && tasks.TryGetValue(id, out var t) ? Name(t) : null,
+                                    Earlier =
+                                    [
+                                        .. steps[..^1].Select(x => new CompanyLogStep(x.Event.Text, x.Event.At)),
+                                    ],
+                                };
+                            })
                             .OrderByDescending(e => e.At)
-                            .Take(TodayLogLimit)
-                            .Select(e => new CompanyLogEntry(
-                                e.Type,
-                                e.Text,
-                                e.EmployeeId is null ? null : Who(e.EmployeeId),
-                                e.At
-                            )),
+                            .Take(TodayLogLimit),
                     ],
                 };
             }

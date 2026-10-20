@@ -983,3 +983,24 @@
   gap: 4px;
   margin: 8px 0;
 }
+/* A piece of work's earlier steps, folded under its latest one in the work log (owner walkthrough, 2026-10-19). */
+.co-workspace .co-log-steps {
+  margin: 2px 0 4px;
+  font-size: 12px;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-log-steps ol {
+  margin: 4px 0 0;
+}
+/* Alignment (owner walkthrough, 2026-10-19): sidebar entries start at the left like the employee list, and composer
+   fields sit beside their labels instead of centred under them. */
+.co-workspace .co-conversations > button,
+.co-workspace .co-thread-list button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+.co-workspace .co-conversation-composer > form > label {
+  flex-direction: row;
+  flex-wrap: wrap;
+}

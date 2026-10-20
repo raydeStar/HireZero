@@ -23,15 +23,18 @@ public sealed partial class CompanyStore
             return [];
         return db.Rows(
             "SELECT id, owner, name FROM co_company ORDER BY id",
-            r => new CompanyListing(r.GetString(0), r.IsDBNull(2) ? "Company" : r.GetString(2), r.GetString(1))
+            r => new CompanyListing(r.GetString(0), r.IsDBNull(2) ? DefaultName : r.GetString(2), r.GetString(1))
         );
     }
+
+    // The name of a company that has not been named yet (owner walkthrough, 2026-10-19: not literally "Company").
+    public const string DefaultName = "My company";
 
     // This company's display name.
     public string Name()
     {
         using var db = Open();
-        return Scalar(db, "SELECT coalesce(name, 'Company') FROM co_company WHERE id=$0", CompanyId) ?? "Company";
+        return Scalar(db, "SELECT name FROM co_company WHERE id=$0", CompanyId) ?? DefaultName;
     }
 
     public void Rename(string name)

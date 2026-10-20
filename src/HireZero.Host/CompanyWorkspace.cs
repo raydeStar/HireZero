@@ -348,7 +348,10 @@ public static class CompanyWorkspace
                         var expected = fixtureUrl is null || uri.Port != 0 ? uri.Authority : "127.0.0.1:5065";
                         if (!LocalHosting.IsDirectLocalRequest(c, expected))
                         {
-                            c.Response.StatusCode = 403;
+                            if (LocalHosting.LocalhostRedirect(c, expected) is { } to)
+                                c.Response.Redirect(to);
+                            else
+                                await LocalHosting.RefuseAsync(c, expected);
                             return;
                         }
                         origin = "http://" + expected;

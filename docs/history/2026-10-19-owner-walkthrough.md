@@ -129,20 +129,34 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
     task they belong to. Dollars appear nowhere, although API models now have prices.
 13. **The work log is noisy.** One ad change wrote five near-identical lines: proposed, approved, started, ready to
     send, sent, published.
+    - **Fixed (feature/quiet-work-log).** The work log shows one line per piece of work: its latest step, with the
+      work's name, and the day's earlier steps folded under "N earlier steps". An event about an artifact,
+      publication, run or reply counts toward the task that produced it.
 
 ### P2: polish
 
 14. Opening `http://localhost:5077` shows a blank page; only `127.0.0.1` works. There should at least be a message.
+    - **Fixed (feature/polish).** A direct loopback page request for `localhost` on the workspace's own port is
+      redirected to the 127.0.0.1 address. The API is never redirected, and neither is any other name or port, so the
+      DNS-rebinding guard stands. Other refused requests now say where the workspace is served.
 15. Accessibility:
     - sidebar employee entries are buttons with no accessible name, so a screen reader hears "button";
     - the allowance input has no label.
+    - **No longer reproduces (feature/polish).** A DOM sweep of every view found no control without an accessible
+      name or label. The plain-language pass had already added the labels.
 16. Alignment is uneven: a newly hired employee and the department list items are indented or centred differently
     from their neighbours.
+    - **Fixed (feature/polish).** Composer labels inherited a centred column layout, and sidebar buttons inherited
+      centred content. Both now line up on the left.
 17. Jargon and leftovers:
     - the header badge "Manual jobs connected" on every page;
     - the internal model name "Luna" in copy;
     - a default company literally named "Company".
+    - **Fixed (feature/polish).** The header badge shows only when something is unusual ("Synthetic test provider",
+      "Replies unavailable"). "Luna" is gone from the copy. An unnamed company is "My company".
 18. Board offers "Choose CEO chair" with no CEO hired, and no hint to hire one first.
+    - **Fixed (feature/polish).** With no CEO, the chair picker is disabled ("No CEO hired yet") and the form says to
+      hire and onboard a CEO first.
 
 ## Suggested order
 
