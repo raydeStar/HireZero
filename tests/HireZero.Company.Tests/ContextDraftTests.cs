@@ -99,6 +99,11 @@ public sealed class ContextDraftTests : IAsyncDisposable
                 .GetString()
         );
         Assert.Contains(f.Store.Feed(0, 200), e => e.Type == "context.drafted" && e.Id == task.Id);
+        // The dashboard dates the task from its first and latest events (UX round 8).
+        var times = state.GetProperty("taskTimes").GetProperty(task.Id);
+        Assert.True(
+            times.GetProperty("updated").GetDateTimeOffset() >= times.GetProperty("started").GetDateTimeOffset()
+        );
 
         // The company-wide facts are drafted the same way, under the fixed company fields instead of the role's.
         var company = CompanyJson.Decode<CompanyAttempt>(

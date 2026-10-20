@@ -23,6 +23,9 @@ public sealed record CompanyLogEntry(string Type, string Text, string? Employee,
 
 public sealed record CompanyLogStep(string Text, DateTimeOffset At);
 
+// When a task's first and latest events happened.
+public sealed record CompanyTaskTimes(DateTimeOffset Started, DateTimeOffset Updated);
+
 // The company's day (Phase 2B.5i): what waits on the owner now, and what happened in the day, from the store's own
 // records and events. No model, no tools and nothing outside the company; role-agnostic.
 public sealed record CompanyToday(string Day, CompanyNeed[] NeedsYou, Dictionary<string, int> Happened, int Events)
@@ -88,18 +91,7 @@ public sealed partial class CompanyStore
                     employees.TryGetValue(t.EmployeeId, out var e) ? WorkName(e.RoleId, t.Skill) : t.Skill;
                 string Skill(string taskId) => tasks.TryGetValue(taskId, out var t) ? Name(t) : "work";
                 var needs = new List<CompanyNeed>();
-                // The task an event is about: the task itself, or the artifact, publication, run or reply it produced.
-                var work = new Dictionary<string, string>(StringComparer.Ordinal);
-                foreach (var t in tasks.Values)
-                    work[t.Id] = t.Id;
-                foreach (var a in All<CompanyArtifact>(db))
-                    work[a.Id] = a.TaskId;
-                foreach (var p in All<CompanyPublication>(db))
-                    work[p.Id] = p.TaskId;
-                foreach (var g in All<CompanyExecutionGrant>(db))
-                    work[g.Id] = g.TaskId;
-                foreach (var attempt in All<CompanyAttempt>(db))
-                    work[attempt.Id] = attempt.TaskId;
+                var work = WorkIndex(db, tasks.Values);
                 string? WorkOf(string id) => work.TryGetValue(id, out var task) ? task : null;
 
                 // A knowledge draft is named by its department and, when one hire waits on it, that hire (real-use
@@ -281,6 +273,42 @@ public sealed partial class CompanyStore
                 };
             }
         );
+    }
+
+    // The task an event is about, by event id: the task itself, or the artifact, publication, run or reply it produced.
+    private Dictionary<string, string> WorkIndex(StoreConnection db, IEnumerable<CompanyTask> tasks)
+    {
+        var work = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var t in tasks)
+            work[t.Id] = t.Id;
+        foreach (var a in All<CompanyArtifact>(db))
+            work[a.Id] = a.TaskId;
+        foreach (var p in All<CompanyPublication>(db))
+            work[p.Id] = p.TaskId;
+        foreach (var g in All<CompanyExecutionGrant>(db))
+            work[g.Id] = g.TaskId;
+        foreach (var attempt in All<CompanyAttempt>(db))
+            work[attempt.Id] = attempt.TaskId;
+        return work;
+    }
+
+    // When each task's first and latest events happened (UX round 8): the work board and cockpit show how long ago work
+    // started or changed, from the event log, since tasks carry no times of their own.
+    private Dictionary<string, CompanyTaskTimes> TaskTimes(StoreConnection db)
+    {
+        var work = WorkIndex(db, All<CompanyTask>(db));
+        var times = new Dictionary<string, CompanyTaskTimes>(StringComparer.Ordinal);
+        foreach (
+            var e in Rows(
+                db,
+                "SELECT payload FROM co_events WHERE company_id=$0 ORDER BY seq",
+                r => CompanyJson.Decode<CompanyEvent>(r.GetString(0)),
+                CompanyId
+            )
+        )
+            if (work.TryGetValue(e.Id, out var task))
+                times[task] = times.TryGetValue(task, out var known) ? known with { Updated = e.At } : new(e.At, e.At);
+        return times;
     }
 
     private static string Clip(string text) =>

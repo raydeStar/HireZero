@@ -2215,3 +2215,17 @@
   margin-top: 24px;
   max-width: 72ch;
 }
+
+/* UX round 8: what was asked on each work card, and the day in one sentence on Home. */
+.co-workspace .co-work-item .co-work-asked {
+  color: var(--fe-fg-2);
+  font-size: var(--fe-t-s);
+  quotes: "“" "”";
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.co-workspace .co-home-today {
+  margin: 0 0 12px;
+  color: var(--fe-fg-2);
+}

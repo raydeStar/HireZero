@@ -3,6 +3,7 @@ import type { Snapshot, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
 import { workGroups, workTitle } from "./Cockpit";
 import { taskState } from "./labels";
+import { ago, useNow } from "./time";
 
 const sections = [
   ["Needs review", workGroups.review],
@@ -28,6 +29,13 @@ export function WorkBoard({
   const d = snapshot.data;
   const nameOf = (id: string) => d.employees.find((e) => e.id === id)?.name ?? "Former employee";
   const work = tasks.filter((t) => t.kind !== "conversation");
+  const now = useNow();
+  // What was asked, in a line (UX round 8); structured action input is left to the work window.
+  const asked = (t: Work) => {
+    const line = t.input.trim().split(/\r?\n/)[0] ?? "";
+    if (!line || line.startsWith("{") || line.startsWith("[") || t.kind === "context-draft") return "";
+    return line.length > 90 ? line.slice(0, 90) + "…" : line;
+  };
   return (
     <section className="co-work-board" aria-label="Work">
       {work.length === 0 && (
@@ -51,9 +59,11 @@ export function WorkBoard({
                       onClick={() => onOpen(t)}
                     >
                       <span>{workTitle(snapshot, t)}</span>
+                      {asked(t) && <q className="co-work-asked">{asked(t)}</q>}
                       <small>
                         {(everyone ? nameOf(t.employeeId) + " · " : "") + taskState(t.state)}
                         {t.reason && t.state !== "completed" ? " · " + t.reason.replaceAll("-", " ") : ""}
+                        {d.taskTimes?.[t.id] ? " · " + ago(d.taskTimes[t.id]!.updated, now) : ""}
                       </small>
                     </button>
                   </li>
