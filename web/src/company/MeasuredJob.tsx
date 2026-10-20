@@ -126,12 +126,7 @@ export function MeasuredJob({
   }
   return (
     <section className="co-measured">
-      <h3>{conversational ? "One conversational reply" : "Run one internal draft"}</h3>
-      <p>
-        {conversational
-          ? "Review this saved message and exact context. Send authorizes one text-only native turn; no autonomous tasks, plans, tools or follow-up work. A consumed turn cannot be replayed."
-          : "Assign a brief, review the saved task and context, then authorize one job. Nothing starts automatically; a consumed request cannot be replayed."}
-      </p>
+      {!conversational && <h3>Run one internal draft</h3>}
       {conversational && running && (
         <p role="status" aria-live="polite">
           Reply pending. Waiting for complete text and measured usage.
@@ -197,7 +192,7 @@ export function MeasuredJob({
                 {conversational ? "Sends one reply" : "Runs one job"} ·{" "}
                 {cents
                   ? `spend cap ${entry.job.creditAllowance} US cents`
-                  : `intended allowance ${entry.job.creditAllowance} credits`}{" "}
+                  : `intended allowance ${entry.job.creditAllowance} ${entry.job.creditAllowance === 1 ? "credit" : "credits"}`}{" "}
                 · expires {new Date(entry.job.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
               </p>
               <button disabled={busy || running} onClick={() => void review()}>
@@ -227,15 +222,9 @@ export function MeasuredJob({
                   <h4>Private notes included</h4>
                   <Contents body={packet.call.context.notes} />
                   <h4>Conversation history included</h4>
-                  <pre>
-                    {packet.call.context.history.length ? JSON.stringify(packet.call.context.history, null, 2) : "None"}
-                  </pre>
+                  <Entries items={packet.call.context.history} />
                   <h4>Selected evidence included</h4>
-                  <pre>
-                    {packet.call.context.evidence.length
-                      ? JSON.stringify(packet.call.context.evidence, null, 2)
-                      : "None"}
-                  </pre>
+                  <Entries items={packet.call.context.evidence} />
                   <details>
                     <summary>Complete sealed application context</summary>
                     <pre>{JSON.stringify(packet.call.context, null, 2)}</pre>
@@ -248,6 +237,11 @@ export function MeasuredJob({
               )}
               <details className="co-safety">
                 <summary>Safety details</summary>
+                <p>
+                  {conversational
+                    ? "Send authorizes one text-only native turn: no autonomous tasks, plans, tools or follow-up work. The reply uses its attached message and the saved context; later messages wait for a new turn. A consumed turn cannot be replayed."
+                    : "Nothing starts automatically. Authorizing runs one job on the saved task and context; a consumed request cannot be replayed."}
+                </p>
                 <p>
                   One request is allowed; the runtime may retry internally. The complete context is{" "}
                   {entry.job.applicationBytes.toLocaleString()} of {entry.job.policy.applicationBytes.toLocaleString()}{" "}
@@ -275,20 +269,18 @@ export function MeasuredJob({
                   server binds your authorization to this exact saved task and context.
                 </small>
               </details>
-              {!packet && (
-                <p className="co-muted" role="note">
-                  You can authorize after you have seen exactly what will be sent.{" "}
-                  <button type="button" disabled={busy || running} onClick={() => void review()}>
-                    {conversational ? "Review the reply's context to unlock" : "Review the task's context to unlock"}
-                  </button>
-                </p>
-              )}
               <label className="co-check">
                 <input type="checkbox" checked={ack} disabled={!packet} onChange={(e) => setAck(e.target.checked)} />
                 {conversational
-                  ? "I reviewed this message, recipient and context. I authorize one conversational reply and accept that token, time and credit limits cannot be guaranteed upstream."
-                  : "I reviewed this work and context. I authorize one job and accept that token, time and credit limits cannot be guaranteed upstream."}
+                  ? "I reviewed the message, recipient and context, and I authorize one reply. Token, time and credit limits are soft and can be exceeded upstream."
+                  : "I reviewed the work and context, and I authorize one job. Token, time and credit limits are soft and can be exceeded upstream."}
               </label>
+              {!packet && (
+                <p className="co-muted co-locked-hint" role="note">
+                  Review {conversational ? "the reply" : "the task"} and context first: you authorize only what you have
+                  seen.
+                </p>
+              )}
               <button
                 disabled={
                   !available || busy || running || !ack || !packet || Date.parse(entry.job.expiresAt) <= Date.now()
@@ -323,5 +315,26 @@ export function MeasuredJob({
         </>
       )}
     </section>
+  );
+}
+
+// Conversation history or evidence in a sealed context, as a readable list rather than raw JSON.
+function Entries({ items }: { items: unknown[] }) {
+  if (!items.length) return <p className="co-muted">None</p>;
+  return (
+    <ol className="co-entries">
+      {items.map((item, i) => {
+        const value = item as Record<string, unknown> | string;
+        if (typeof value === "string") return <li key={i}>{value}</li>;
+        const who = value.author ?? value.role ?? value.employee ?? value.id;
+        const text = value.body ?? value.text ?? value.content;
+        return (
+          <li key={i}>
+            {who !== undefined && <b>{String(who)}: </b>}
+            {text !== undefined ? String(text) : JSON.stringify(value)}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
