@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { command, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
 import { humanize } from "./labels";
+import { ContextFromSources } from "./ContextFromSources";
 
 type Draft = {
   role: string;
@@ -77,6 +78,7 @@ export function HireOnboarding({
   // Whether a hire is under way (past its first step), so the page can put the guide first (UX audit, 2026-10-20).
   onActive?: (active: boolean) => void;
 }) {
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(() => readDraft(snapshot)),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -421,60 +423,84 @@ export function HireOnboarding({
         </form>
       )}
       {person && !unavailable && draft.step !== "profile" && !ready && draft.step !== "review" && (
-        <form
-          onSubmit={submit(async () => {
-            if (fields.some((field) => !draft.values[field]?.trim())) {
-              setError("Complete every context field. If a fact is unknown, say so explicitly.");
-              return;
-            }
-            await save("knowledge.save", {
-              departmentId: person.departmentId,
-              body: JSON.stringify(Object.fromEntries(fields.map((field) => [field, draft.values[field].trim()]))),
-              ...(saved?.state === "draft" ? { id: saved.id, expectedVersion: saved.version } : {}),
-            });
-          })}
-        >
-          <p>
-            Shared with <b>every employee in {department?.name}</b>. Enter verified facts or mark unknowns. You will
-            review before approving.
-          </p>
-          <fieldset disabled={disabled}>
-            <legend>Shared department context</legend>
-            {fields.map((field) => (
-              <label key={field}>
-                {humanize(field)}
-                {defaults?.help[field] && <small className="co-muted">{defaults.help[field]}</small>}
-                <textarea
-                  required
-                  maxLength={1500}
-                  value={draft.values[field] || ""}
-                  placeholder="Enter verified facts, or mark what is unknown."
-                  onChange={(e) => change({ ...draft, values: { ...draft.values, [field]: e.target.value } })}
-                />
-              </label>
-            ))}
-            {defaults && (
-              <details>
-                <summary>Suggested boundaries for your review</summary>
-                <p>{defaults.boundaries}</p>
-                <button
-                  type="button"
-                  onClick={() => change({ ...draft, values: { ...draft.values, constraints: defaults.boundaries } })}
-                >
-                  Use suggested boundaries
-                </button>
-              </details>
-            )}
-          </fieldset>
-          <div className="co-actions">
-            <button type="button" disabled={disabled} onClick={() => change({ ...draft, step: "profile" })}>
-              Back to employee
-            </button>
-            <button className="co-primary" disabled={disabled} type="submit">
-              {busy ? "Saving context…" : "Save context for review"}
-            </button>
-          </div>
-        </form>
+        <>
+          {/* Fill from sources (docs/adr/0041): opened from the intro below, it only fills the form; nothing is
+              saved by it. Closed, it takes no room, so the form stays in view on small screens. */}
+          {sourcesOpen && (
+            <ContextFromSources
+              snapshot={snapshot}
+              employeeId={person.id}
+              employeeName={person.name}
+              fields={fields}
+              refresh={refresh}
+              onFill={(values) => change({ ...draft, values: { ...draft.values, ...values } })}
+            />
+          )}
+          <form
+            onSubmit={submit(async () => {
+              if (fields.some((field) => !draft.values[field]?.trim())) {
+                setError("Complete every context field. If a fact is unknown, say so explicitly.");
+                return;
+              }
+              await save("knowledge.save", {
+                departmentId: person.departmentId,
+                body: JSON.stringify(Object.fromEntries(fields.map((field) => [field, draft.values[field].trim()]))),
+                ...(saved?.state === "draft" ? { id: saved.id, expectedVersion: saved.version } : {}),
+              });
+            })}
+          >
+            <p>
+              Shared with <b>every employee in {department?.name}</b>. Enter verified facts or mark unknowns. You will
+              review before approving.
+            </p>
+            <fieldset disabled={disabled}>
+              <legend>
+                Shared department context
+                {!sourcesOpen && (
+                  <>
+                    {" · "}
+                    <button type="button" className="co-link" onClick={() => setSourcesOpen(true)}>
+                      Fill from sources
+                    </button>
+                  </>
+                )}
+              </legend>
+              {fields.map((field) => (
+                <label key={field}>
+                  {humanize(field)}
+                  {defaults?.help[field] && <small className="co-muted">{defaults.help[field]}</small>}
+                  <textarea
+                    required
+                    maxLength={1500}
+                    value={draft.values[field] || ""}
+                    placeholder="Enter verified facts, or mark what is unknown."
+                    onChange={(e) => change({ ...draft, values: { ...draft.values, [field]: e.target.value } })}
+                  />
+                </label>
+              ))}
+              {defaults && (
+                <details>
+                  <summary>Suggested boundaries for your review</summary>
+                  <p>{defaults.boundaries}</p>
+                  <button
+                    type="button"
+                    onClick={() => change({ ...draft, values: { ...draft.values, constraints: defaults.boundaries } })}
+                  >
+                    Use suggested boundaries
+                  </button>
+                </details>
+              )}
+            </fieldset>
+            <div className="co-actions">
+              <button type="button" disabled={disabled} onClick={() => change({ ...draft, step: "profile" })}>
+                Back to employee
+              </button>
+              <button className="co-primary" disabled={disabled} type="submit">
+                {busy ? "Saving context…" : "Save context for review"}
+              </button>
+            </div>
+          </form>
+        </>
       )}
       {person && !unavailable && draft.step === "review" && !ready && (
         <div>

@@ -321,6 +321,7 @@
           "HireZero.Integrations.Postgres": "[1.0.0, )",
           "HireZero.Integrations.SemaForge": "[1.0.0, )",
           "HireZero.Integrations.Synthetic": "[1.0.0, )",
+          "HireZero.Integrations.Web": "[1.0.0, )",
           "HireZero.Integrations.Wiki": "[1.0.0, )",
           "HireZero.Roles.Ceo": "[1.0.0, )",
           "HireZero.Roles.Developer": "[1.0.0, )",
@@ -438,6 +439,13 @@
           "HireZero.Tools.Analytics": "[1.0.0, )",
           "HireZero.Tools.Crm": "[1.0.0, )",
           "HireZero.Tools.Email": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.web": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Web": "[1.0.0, )"
         }
       },
       "hirezero.integrations.wiki": {
@@ -558,6 +566,12 @@
         }
       },
       "hirezero.tools.semaforge": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.web": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

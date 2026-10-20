@@ -287,6 +287,13 @@
           "HireZero.Tools.Email": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.web": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Web": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.wiki": {
         "type": "Project",
         "dependencies": {
@@ -405,6 +412,12 @@
         }
       },
       "hirezero.tools.semaforge": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.tools.web": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )"

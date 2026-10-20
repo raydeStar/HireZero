@@ -36,6 +36,7 @@ public sealed partial class CompanyStore
         depth < 16
         && (
             t.MeetingId is not null
+            || t.Kind == ContextDraftKind
             || (t.KnowledgeId is not null && Find<CompanyKnowledge>(db, t.KnowledgeId)?.State == "approved")
         )
         && (t.CompanyKnowledgeId is null || Find<CompanyKnowledge>(db, t.CompanyKnowledgeId)?.State == "approved")
@@ -51,7 +52,7 @@ public sealed partial class CompanyStore
         return t.State == "running"
             && t.Generation == a.TaskGeneration
             && e.Generation == a.EmployeeGeneration
-            && e.State == "active"
+            && MayWork(e, t)
             && ParentValid(db, t);
     }
 
@@ -72,8 +73,11 @@ public sealed partial class CompanyStore
     {
         ExpireMeasured(db);
         var e = Need<CompanyEmployee>(db, employee);
+        // An onboarding employee may only be claimed for the context draft named by taskId.
+        var draftOnly =
+            e.State == "onboarding" && taskId is not null && Find<CompanyTask>(db, taskId)?.Kind == ContextDraftKind;
         if (
-            e.State != "active"
+            e.State != "active" && !draftOnly
             || All<CompanyAttempt>(db)
                 .Any(a => a.EmployeeId == employee && a.Phase is "claimed" or "reserved" or "dispatching")
         )
@@ -83,7 +87,7 @@ public sealed partial class CompanyStore
             .FirstOrDefault(t =>
                 t.EmployeeId == employee
                 && t.Kind != ActionKind
-                && (t.Kind != "conversation" || conversation)
+                && (t.Kind is not ("conversation" or ContextDraftKind) || conversation)
                 && (taskId is null || t.Id == taskId)
                 && Role(e.RoleId).ExecutionSkills.Contains(t.Skill) == execution
                 && (
@@ -215,7 +219,8 @@ public sealed partial class CompanyStore
                 companyConversation ? "" : Find<CompanyNotes>(db, e.Id)?.Body ?? "",
                 All<CompanyMessage>(db)
                     .Where(m =>
-                        m.ThreadId == t.ThreadId
+                        t.Kind != ContextDraftKind
+                        && m.ThreadId == t.ThreadId
                         && (
                             t.Kind == "conversation"
                                 ? m.Sequence < t.Watermark
@@ -270,7 +275,7 @@ public sealed partial class CompanyStore
                 var a = Need<CompanyAttempt>(db, attemptId);
                 var t = Need<CompanyTask>(db, a.TaskId);
                 var e = Need<CompanyEmployee>(db, a.EmployeeId);
-                return t.Kind != "conversation"
+                return t.Kind is not ("conversation" or ContextDraftKind)
                     && a.Measured is null
                     && !Role(e.RoleId).ExecutionSkills.Contains(t.Skill)
                     && Reserve(db, a);
@@ -591,6 +596,20 @@ public sealed partial class CompanyStore
                         Version = a.Version + 1,
                     }
                 );
+                if (t.Kind == ContextDraftKind)
+                {
+                    // A suggestion for the onboarding form, saved as the employee's message; never knowledge.
+                    Message(db, Need<CompanyThread>(db, t.ThreadId), t.EmployeeId, body);
+                    Put(db, t with { State = "completed", Version = t.Version + 1 });
+                    Event(
+                        db,
+                        "context.drafted",
+                        t.Id,
+                        t.EmployeeId,
+                        "A context draft is ready to fill the onboarding fields. Nothing is saved as knowledge until you approve it."
+                    );
+                    return true;
+                }
                 if (t.Kind == "conversation")
                 {
                     Message(db, Need<CompanyThread>(db, t.ThreadId), t.EmployeeId, body);

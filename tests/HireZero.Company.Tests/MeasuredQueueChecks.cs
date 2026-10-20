@@ -584,7 +584,7 @@ static class MeasuredQueueChecks
         }
     }
 
-    sealed class Fixture : IAsyncDisposable
+    internal sealed class Fixture : IAsyncDisposable
     {
         public required string Root;
         public required WebApplication App;

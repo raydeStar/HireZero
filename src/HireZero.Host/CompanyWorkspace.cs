@@ -170,6 +170,8 @@ public static class CompanyWorkspace
                 if (GitToolRegistration.FindGit() is { } git)
                     tools.AddGitTools(new GitCheckoutInspector(git));
                 new GitHubCli().Register(tools);
+                // Owner-started source reads for context drafts (docs/adr/0041-context-drafted-from-sources.md).
+                new HireZero.Integrations.Web.WebReader().Register(tools);
                 // The trusted PostgreSQL toolchain: installed only as an owner-approved publication.
                 new HireZero.Integrations.Node.NpmInstaller().Register(tools);
                 new HireZero.Integrations.Node.TrustedPostgresToolchain(root).Register(tools);
@@ -282,6 +284,8 @@ public static class CompanyWorkspace
                 if (GitToolRegistration.FindGit() is { } found)
                     registry.AddGitTools(new GitCheckoutInspector(found));
                 new GitHubCli().Register(registry);
+                // Owner-started source reads for context drafts (docs/adr/0041-context-drafted-from-sources.md).
+                new HireZero.Integrations.Web.WebReader().Register(registry);
                 new HireZero.Integrations.Node.NpmInstaller().Register(registry);
                 new HireZero.Integrations.Node.TrustedPostgresToolchain(root).Register(registry);
                 if (app.Services.GetRequiredService<MicrosoftStore>().Settings().ClientId is { Length: > 0 })
@@ -598,6 +602,7 @@ public static class CompanyWorkspace
                 Store,
                 Activate
             );
+            app.MapContextSources(Store, Tools);
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(Store().ToolCalls(limit ?? 100)));
             // Members and their roles, for every member to see (docs/adr/0020).
             app.MapGet("/api/company/members", () => Results.Ok(Store().Members()));
