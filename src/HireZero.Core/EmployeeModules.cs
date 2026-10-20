@@ -26,6 +26,12 @@ public interface IEmployeeModule
         CancellationToken token
     ) => throw new WorkspaceException("This employee has no such action.", 404);
 
+    // The current choices for an action field that loads them (ActionField.LoadsChoices), read with a read-only
+    // toolbox when the owner opens the form (docs/adr/0037-loaded-action-choices.md). They help the owner pick; the
+    // action still checks the value it is given.
+    Task<ActionChoice[]> ActionChoicesAsync(string action, string field, IToolbox tools, CancellationToken token) =>
+        throw new WorkspaceException("This field has no choices to load.", 404);
+
     // One step of reviewed execution or publication (docs/adr/0012-company-publication.md). The id is the task for
     // Prepare, the execution grant for Run, the grant or (for a skill that publishes an approved artifact) the artifact
     // for Propose, and the publication for Publish and Reconcile. Each step is single use in the store, so a retried
@@ -132,7 +138,13 @@ public sealed record ActionField(string Id, string Label, int MaxLength = 200)
 {
     // A field with a fixed set of values is offered as a choice and refused with any other value.
     public string[]? Choices { get; init; }
+
+    // The module lists this field's current values when the form opens, such as an ads account's campaigns.
+    public bool LoadsChoices { get; init; }
 }
+
+// One loaded choice: the value the action receives and the label the owner sees.
+public sealed record ActionChoice(string Value, string Label);
 
 public sealed record EmployeeOnboarding(
     string Department,

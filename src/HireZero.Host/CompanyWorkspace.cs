@@ -759,6 +759,41 @@ public static class CompanyWorkspace
                     }
                 }
             );
+            // The current choices for an action field that loads them (docs/adr/0037-loaded-action-choices.md). Read
+            // only; a source that cannot be read gives no choices, and the form falls back to typing the value.
+            app.MapGet(
+                "/api/company/actions/choices",
+                async (string employee, string action, string field, CancellationToken token) =>
+                {
+                    var owner = Store().EmployeeOf(employee);
+                    var module = HostEmployees.Modules.Single(m => m.Manifest.Id == owner.RoleId);
+                    var declared =
+                        module
+                            .Manifest.Actions.SingleOrDefault(a => a.Id == action)
+                            ?.Fields.SingleOrDefault(f => f.Id == field && f.LoadsChoices)
+                        ?? throw new WorkspaceException("This field has no choices to load.", 404);
+                    ActionChoice[] choices;
+                    try
+                    {
+                        choices = await module.ActionChoicesAsync(
+                            action,
+                            field,
+                            Tools().For(module.Manifest, owner.Id).ReadOnly(),
+                            token
+                        );
+                    }
+                    catch (Exception error) when (error is not (OutOfMemoryException or OperationCanceledException))
+                    {
+                        choices = [];
+                    }
+                    return Results.Ok(
+                        choices
+                            .Where(c => c.Value.Length is > 0 && c.Value.Length <= declared.MaxLength)
+                            .Take(100)
+                            .Select(c => c with { Label = ContentGuard.Bounded(c.Label, 120) })
+                    );
+                }
+            );
             app.MapGet(
                 "/api/company/feed",
                 (long? after, int? limit) => Results.Ok(Store().Feed(after ?? 0, limit ?? 100))

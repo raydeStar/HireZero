@@ -28,6 +28,35 @@ public sealed class MarketingAdsTests
     private static Dictionary<string, string> Days(string days) => new() { ["days"] = days };
 
     [Fact]
+    public async Task AnAdChangeOffersTheAccountsCampaignsByName()
+    {
+        Assert.True(MarketingAdChange.Definition.Fields.Single(f => f.Id == "campaign").LoadsChoices);
+        var (tools, audit) = Toolbox(new SyntheticAdsProvider());
+        var choices = await new MarketingModule().ActionChoicesAsync(
+            MarketingAdChange.Action,
+            "campaign",
+            tools.ReadOnly(),
+            Token
+        );
+        Assert.NotEmpty(choices);
+        Assert.All(choices, c => Assert.Matches(@"\((enabled|paused|unknown)\)$", c.Label));
+        // A listed campaign is one the ad change can read: the same id across ads.performance and ads.campaign.
+        var enabled = choices.First(c => c.Label.EndsWith("(enabled)", StringComparison.Ordinal));
+        var reading = await MarketingAdChange.ReadAsync(enabled.Value, AdsTools.Pause, "0", tools.ReadOnly(), Token);
+        Assert.NotNull(reading.Step);
+        Assert.All(audit.Calls, c => Assert.Equal("read", c.Risk));
+        Assert.Empty(await MarketingAdChange.CampaignChoicesAsync(Toolbox(null).Tools, new(2026, 3, 1), Token));
+        Assert.Equal(
+            404,
+            (
+                await Assert.ThrowsAsync<WorkspaceException>(() =>
+                    new MarketingModule().ActionChoicesAsync(MarketingAds.ReadAction, "days", tools, Token)
+                )
+            ).Status
+        );
+    }
+
+    [Fact]
     public void EveryProviderRefusesTheSameBadRequests()
     {
         var day = new DateOnly(2026, 3, 1);
