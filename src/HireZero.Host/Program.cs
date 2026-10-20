@@ -1,6 +1,16 @@
 // The company workspace is the only profile (Phase 2B.5j retired the developer, recovery and held profiles). It starts
 // with --company-local, explicit local owner mode and an explicit HIREZERO_DATA_ROOT; see README.
 // Settings are read and checked once, together (docs/adr/0028-typed-settings.md).
+// --company-backup <data root> <destination> [keep] takes a local backup and exits; it starts nothing.
+if (args is [CompanyBackup.Flag, var backupFrom, var backupTo, .. var rest])
+{
+    var result = CompanyBackup.Run(backupFrom, backupTo, rest is [var keep] ? int.Parse(keep) : 14);
+    Console.WriteLine(
+        $"Backed up {result.Databases} database(s) and {result.Files} file(s) to {result.Folder}"
+            + (result.Removed.Length > 0 ? $"; removed {result.Removed.Length} older backup(s)." : ".")
+    );
+    return;
+}
 var settings = CompanySettings.Load();
 var localOwnerEnabled = settings.LocalOwner;
 var ownerLogin = settings.OwnerLogin;

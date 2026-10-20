@@ -29,6 +29,16 @@ Invoke-Step 'Host' {
 
 $current = Join-Path $Target 'app'
 $hostDll = Join-Path $current 'HireZero.Host.dll'
+# A company kept running by Register-CompanyLocalTasks.ps1 is stopped through its task first, so the task's restart
+# does not race the swap, and started again after it.
+$task = Get-ScheduledTask -TaskName 'HireZero company' -ErrorAction SilentlyContinue
+$scheduled = $task -and $task.State -eq 'Running' -and ($task.Actions.Arguments -join ' ').Contains($Target, [StringComparison]::OrdinalIgnoreCase)
+if ($scheduled) {
+    if (-not $Stop) { throw "The company runs from its scheduled task. Pass -Stop to stop it, swap and start it again." }
+    Write-Output '== Stopping the scheduled company task'
+    Stop-ScheduledTask -TaskName 'HireZero company'
+    Start-Sleep -Seconds 2
+}
 $running = @(Get-CimInstance Win32_Process -Filter "Name = 'dotnet.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -and $_.CommandLine.Contains($hostDll, [StringComparison]::OrdinalIgnoreCase) })
 if ($running.Count) {
@@ -40,6 +50,12 @@ if ($running.Count) {
 if (Test-Path -LiteralPath $current) { Remove-Item -LiteralPath $current -Recurse -Force }
 Move-Item -LiteralPath $next -Destination $current
 New-Item -ItemType Directory -Path (Join-Path $Target 'tools') -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Start-CompanyLocal.ps1') -Destination (Join-Path $Target 'tools') -Force
+foreach ($script in 'Start-CompanyLocal.ps1', 'Backup-CompanyLocal.ps1', 'Register-CompanyLocalTasks.ps1') {
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $script) -Destination (Join-Path $Target 'tools') -Force
+}
 $commit = git -C $repository rev-parse --short HEAD
-Write-Output "Published $commit to $current. Start it with $(Join-Path $Target 'tools/Start-CompanyLocal.ps1') -DataRoot <data root>."
+if ($scheduled) {
+    Start-ScheduledTask -TaskName 'HireZero company'
+    Write-Output "Published $commit to $current and started the scheduled company task again."
+}
+else { Write-Output "Published $commit to $current. Start it with $(Join-Path $Target 'tools/Start-CompanyLocal.ps1') -DataRoot <data root>." }
