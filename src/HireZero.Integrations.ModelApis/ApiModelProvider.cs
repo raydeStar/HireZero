@@ -156,6 +156,21 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                         ),
                     }
                 );
+        // Through OpenRouter (docs/adr/0042-openrouter-low-effort-and-a-price-ceiling.md): reasoning stays at low effort,
+        // and the reviewed price is a ceiling OpenRouter enforces, so a route whose price varies by request (a router
+        // such as Jev) can never be billed above what the worst case assumed.
+        if (endpoint.Api == "openrouter")
+        {
+            body["reasoning"] = new JsonObject { ["effort"] = "low" };
+            body["provider"] = new JsonObject
+            {
+                ["max_price"] = new JsonObject
+                {
+                    ["prompt"] = price.InputPerMillion,
+                    ["completion"] = price.OutputPerMillion,
+                },
+            };
+        }
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(body) };
         if (endpoint.Api == "anthropic")
         {

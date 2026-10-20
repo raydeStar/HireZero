@@ -102,16 +102,36 @@ public sealed partial class CompanyStore
                     work[attempt.Id] = attempt.TaskId;
                 string? WorkOf(string id) => work.TryGetValue(id, out var task) ? task : null;
 
+                // A knowledge draft is named by its department and, when one hire waits on it, that hire (real-use
+                // batch, 2026-10-20): "Marketing: approve Chip's context", never a generic "Department knowledge".
+                var departments = All<CompanyDepartment>(db).ToDictionary(d => d.Id);
                 foreach (var k in All<CompanyKnowledge>(db).Where(k => k.State == "draft"))
+                {
+                    var waiting = employees
+                        .Values.Where(e => e.State == "onboarding" && e.DepartmentId == k.DepartmentId)
+                        .ToArray();
+                    var place =
+                        k.DepartmentId is { } id && departments.TryGetValue(id, out var department)
+                            ? department.Name
+                            : "Company";
                     needs.Add(
                         new(
                             "knowledge",
-                            "Department knowledge",
-                            "A knowledge draft waits for your approval.",
-                            null,
+                            place
+                                + ": approve "
+                                + (
+                                    waiting.Length == 1 ? waiting[0].Name + "'s context"
+                                    : k.DepartmentId is null ? "shared knowledge"
+                                    : "department context"
+                                ),
+                            waiting.Length == 1
+                                ? "A context draft waits for your approval to finish this hire."
+                                : "A knowledge draft waits for your approval.",
+                            waiting.Length == 1 ? waiting[0].Id : null,
                             null
                         )
                     );
+                }
                 // An unfinished hire waits on the owner too (UX round 6), unless its department's draft context, listed
                 // above, already says so.
                 var drafted = All<CompanyKnowledge>(db)

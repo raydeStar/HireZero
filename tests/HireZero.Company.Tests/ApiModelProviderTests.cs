@@ -101,6 +101,35 @@ public sealed class ApiModelProviderTests
         );
     }
 
+    // OpenRouter gets low reasoning effort and the reviewed price as a ceiling, so a variably priced router cannot bill
+    // above the worst case; vendor APIs get neither.
+    [Fact]
+    public async Task OpenRouterCallsUseLowEffortAndTheReviewedPriceAsACeiling()
+    {
+        var (provider, fake) = Create(
+            new()
+            {
+                [ApiModelProvider.OpenAIKey] = "fictional-openai-key",
+                [ApiModelProvider.OpenRouterKey] = "fictional-router-key",
+            }
+        );
+        var (call, job) = Job("fictional/router");
+        await provider.CompleteMeasuredAsync(call, job, Token);
+        var (openaiCall, openaiJob) = Job("openai/fictional-mini");
+        await provider.CompleteMeasuredAsync(openaiCall, openaiJob, Token);
+
+        using var router = JsonDocument.Parse(fake.Requests[0].Body);
+        Assert.Equal("low", router.RootElement.GetProperty("reasoning").GetProperty("effort").GetString());
+        var ceiling = router.RootElement.GetProperty("provider").GetProperty("max_price");
+        Assert.Equal(
+            (3m, 15m),
+            (ceiling.GetProperty("prompt").GetDecimal(), ceiling.GetProperty("completion").GetDecimal())
+        );
+        using var openai = JsonDocument.Parse(fake.Requests[1].Body);
+        Assert.False(openai.RootElement.TryGetProperty("reasoning", out _));
+        Assert.False(openai.RootElement.TryGetProperty("provider", out _));
+    }
+
     [Fact]
     public async Task AnthropicRoutesUseTheMessagesApiWithTheKeyAndLimits()
     {

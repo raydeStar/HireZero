@@ -46,3 +46,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0039](0039-integrations-start-without-a-restart.md) | Integrations start without a restart | Accepted |
 | [0040](0040-the-muse-layout.md) | The Muse layout for the company workspace | Accepted |
 | [0041](0041-context-drafted-from-sources.md) | Department context drafted from sources | Accepted |
+| [0042](0042-openrouter-low-effort-and-a-price-ceiling.md) | OpenRouter calls use low effort and a price ceiling | Accepted |

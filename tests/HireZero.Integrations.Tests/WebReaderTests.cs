@@ -79,6 +79,27 @@ public sealed class WebReaderTests
         Assert.False(page.Clipped);
     }
 
+    // Navigation, footers and sidebars are dropped, and a <main> with real text is preferred over the rest of the page;
+    // a thin <main> falls back to the whole page.
+    [Fact]
+    public void TextPrefersTheMainContentAndDropsSiteChrome()
+    {
+        var story = string.Concat(Enumerable.Repeat("Paper cranes fold from one square sheet. ", 8));
+        var text = WebReader.Text(
+            "<body><nav><a>Home</a><a>Pricing</a></nav><div>Sign up today</div>"
+                + $"<main><h1>How cranes fold</h1><p>{story}</p><aside>Related posts</aside></main>"
+                + "<footer>Copyright Fictional Co</footer></body>"
+        );
+        Assert.StartsWith("How cranes fold\nPaper cranes fold", text);
+        Assert.DoesNotContain("Pricing", text);
+        Assert.DoesNotContain("Sign up today", text);
+        Assert.DoesNotContain("Related posts", text);
+        Assert.DoesNotContain("Copyright", text);
+
+        var thin = WebReader.Text("<body><nav>Menu</nav><p>Fictional intro</p><main><p>Short</p></main></body>");
+        Assert.Equal("Fictional intro\nShort", thin);
+    }
+
     [Fact]
     public async Task RedirectsAreFollowedOnlyToHttpsAndAtMostThreeTimes()
     {

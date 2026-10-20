@@ -175,11 +175,26 @@ public sealed partial class WebReader : IToolProvider
     public static string Title(string html) =>
         TitlePattern().Match(html) is { Success: true } m ? Collapse(WebUtility.HtmlDecode(m.Groups[1].Value)) : "";
 
-    // Readable text: scripts, styles, comments and markup removed; block ends become line breaks; entities decoded.
+    // A main region shorter than this falls back to the whole page, so a thin <main> loses nothing.
+    private const int MainMinimumCharacters = 200;
+
+    // Readable text: scripts, styles, comments and markup removed; site navigation, footers and sidebars dropped; the
+    // page's <main> (or its longest <article>) preferred when it holds real text; block ends become line breaks;
+    // entities decoded.
     public static string Text(string html)
     {
-        var text = Hidden().Replace(html, " ");
-        text = Breaks().Replace(text, "\n");
+        var page = Chrome().Replace(Hidden().Replace(html, " "), " ");
+        var main = MainPattern().Match(page) is { Success: true } m
+            ? m.Groups[1].Value
+            : ArticlePattern().Matches(page).Select(a => a.Groups[1].Value).MaxBy(a => a.Length);
+        return main is not null && Readable(main) is { Length: >= MainMinimumCharacters } focused
+            ? focused
+            : Readable(page);
+    }
+
+    private static string Readable(string html)
+    {
+        var text = Breaks().Replace(html, "\n");
         text = Tags().Replace(text, " ");
         return Collapse(WebUtility.HtmlDecode(text));
     }
@@ -198,6 +213,15 @@ public sealed partial class WebReader : IToolProvider
         RegexOptions.IgnoreCase | RegexOptions.Singleline
     )]
     private static partial Regex Hidden();
+
+    [GeneratedRegex(@"<(nav|footer|aside)\b[^>]*>.*?</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex Chrome();
+
+    [GeneratedRegex(@"<main\b[^>]*>(.*?)</main>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex MainPattern();
+
+    [GeneratedRegex(@"<article\b[^>]*>(.*?)</article>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex ArticlePattern();
 
     [GeneratedRegex(
         @"<(br|/p|/div|/li|/h[1-6]|/tr|/section|/article|/header|/footer|/title|/head|/nav)\b[^>]*>",
