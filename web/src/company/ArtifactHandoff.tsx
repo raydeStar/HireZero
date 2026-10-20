@@ -54,69 +54,73 @@ export function ArtifactHandoff({
   }
   return (
     <div className="co-handoff">
-      <h4>Share approved work and assign a task</h4>
-      <p>
-        Only this approved artifact is shared. The sender's private notes and conversation are excluded. The new task
-        needs its own execution approval; this action starts no model or repository work.
-      </p>
-      {artifact.state === "approved" && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void assign();
-          }}
-        >
-          <label>
-            Handoff recipient
-            <select required value={recipient} onChange={(e) => choose(e.target.value)}>
-              <option value="">Choose an active employee</option>
-              {targets.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name} · {departments.find((d) => d.id === e.departmentId)?.name} · {e.roleId}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Recipient conversation
-            <select required value={thread} disabled={!recipient} onChange={(e) => setThread(e.target.value)}>
-              <option value="">Choose the exact conversation</option>
-              {threads
-                .filter((t) => t.employeeId === recipient && (t.scope ?? "employee") === "employee")
-                .map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
+      {/* Folded until wanted, so an approved result does not open a form in the conversation (UX round 3). */}
+      <details className="co-handoff-share">
+        <summary>Share with another employee</summary>
+        <h4>Share approved work and assign a task</h4>
+        <p>
+          Only this approved artifact is shared. The sender's private notes and conversation are excluded. The new task
+          needs its own execution approval; this action starts no model or repository work.
+        </p>
+        {artifact.state === "approved" && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void assign();
+            }}
+          >
+            <label>
+              Handoff recipient
+              <select required value={recipient} onChange={(e) => choose(e.target.value)}>
+                <option value="">Choose an active employee</option>
+                {targets.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name} · {departments.find((d) => d.id === e.departmentId)?.name} · {e.roleId}
                   </option>
                 ))}
-            </select>
-          </label>
-          <label>
-            Assigned work type
-            <select required value={skill} disabled={!recipient} onChange={(e) => setSkill(e.target.value)}>
-              <option value="">Choose work type</option>
-              {role?.skills
-                .filter((s) => !s.startsWith("meeting-") && s !== "company-plan")
-                .map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label>
-            Task instructions and acceptance criteria
-            <textarea
-              required
-              maxLength={4000}
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-            />
-          </label>
-          <button disabled={busy || !recipient || !thread || !skill || !instructions.trim()} type="submit">
-            Share this artifact and assign work
-          </button>
-        </form>
-      )}
+              </select>
+            </label>
+            <label>
+              Recipient conversation
+              <select required value={thread} disabled={!recipient} onChange={(e) => setThread(e.target.value)}>
+                <option value="">Choose the exact conversation</option>
+                {threads
+                  .filter((t) => t.employeeId === recipient && (t.scope ?? "employee") === "employee")
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              Assigned work type
+              <select required value={skill} disabled={!recipient} onChange={(e) => setSkill(e.target.value)}>
+                <option value="">Choose work type</option>
+                {role?.skills
+                  .filter((s) => !s.startsWith("meeting-") && s !== "company-plan")
+                  .map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              Task instructions and acceptance criteria
+              <textarea
+                required
+                maxLength={4000}
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+              />
+            </label>
+            <button disabled={busy || !recipient || !thread || !skill || !instructions.trim()} type="submit">
+              Share this artifact and assign work
+            </button>
+          </form>
+        )}
+      </details>
       {receipts
         .filter((h) => h.artifactId === artifact.id && h.targetTaskId)
         .map((h) => (

@@ -48,6 +48,19 @@ try{
   await until(()=>evaluate("location.search.includes('mode=work')&&!!document.querySelector('.co-work-window')"),'work mode keeps the open work');
   await evaluate("document.querySelector('button[aria-label=\"Close work\"]').click()");
   await until(()=>evaluate("!!document.querySelector('.co-work-board [aria-label=\"Needs review\"] .co-work-item')"),'the Work board groups the work');
+  // Keyboard shortcuts (UX round 3): ? lists them, Esc closes, w switches mode, . hides the cockpit, g h goes Home.
+  const key=k=>evaluate(`window.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(k)},bubbles:true}))`);
+  await key('?');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Keyboard shortcuts\"]')"),'shortcut list');
+  await key('Escape');await until(()=>evaluate("!document.querySelector('[aria-label=\"Keyboard shortcuts\"]')"),'shortcut list closes');
+  await key('w');await until(()=>evaluate("!location.search.includes('mode=work')"),'w switches to Chat');
+  await key('.');await until(()=>evaluate("!document.querySelector('.co-workspace.with-cockpit')"),'. hides the cockpit');
+  await key('.');await until(()=>evaluate("!!document.querySelector('.co-workspace.with-cockpit')"),'. shows the cockpit');
+  // The theme switch cycles System, Light and Dark and sets the page's theme.
+  await evaluate("document.querySelector('button[aria-label^=\"Theme:\"]').click()");
+  await until(()=>evaluate("document.documentElement.dataset.theme==='light'"),'light theme');
+  await evaluate("document.querySelector('button[aria-label^=\"Theme:\"]').click()");
+  await until(()=>evaluate("document.documentElement.dataset.theme==='dark'"),'dark theme');
+  await key('g');await key('h');await until(()=>evaluate("!!document.querySelector('.co-home')"),'g h goes Home');
   // A narrower screen: no docked cockpit; the top bar opens it as a sheet.
   await send('Emulation.setDeviceMetricsOverride',{width:1100,height:750,deviceScaleFactor:1,mobile:false});
   await until(()=>evaluate("!document.querySelector('.co-workspace.with-cockpit')&&!!document.querySelector('button.co-cockpit-toggle')"),'cockpit toggle on a narrow screen');
@@ -58,7 +71,7 @@ try{
   await until(()=>evaluate("!document.querySelector('.fe-sheet')"),'the sheet closes');
 
   assert.equal(errors.length,0,'No uncaught UI exceptions');
-  console.log('PASS real Chrome Muse layout: home overview, docked cockpit lists what needs you, work window beside a loaded chat, Work board, cockpit sheet at 1100px');
+  console.log('PASS real Chrome Muse layout: home overview, shortcuts, theme switch, docked cockpit lists what needs you, work window beside a loaded chat, Work board, cockpit sheet at 1100px');
   await send('Browser.close').catch(()=>{});
 }catch(e){await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/muse-layout-browser-host.log'),hostLog);throw e;}
 finally{

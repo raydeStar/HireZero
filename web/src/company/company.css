@@ -2,8 +2,8 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
-  background: var(--bg, #101519);
-  color: var(--text, #e7edef);
+  background: var(--fe-bg);
+  color: var(--fe-fg);
   font:
     15px/1.5 Inter,
     system-ui,
@@ -11,8 +11,8 @@
 }
 .co-rail {
   padding: 28px 20px;
-  background: #121e22;
-  border-right: 1px solid #2b3b40;
+  background: var(--fe-surface);
+  border-right: 1px solid var(--fe-line);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -33,18 +33,18 @@
   font: inherit;
 }
 .co-app button {
-  border: 1px solid #405157;
+  border: 1px solid var(--fe-line-2);
   border-radius: 8px;
   padding: 8px 12px;
   color: inherit;
-  background: #203036;
+  background: var(--fe-surface-2);
   cursor: pointer;
 }
 .co-app button:hover,
 .co-app button[aria-current],
 .co-app button[aria-pressed="true"] {
-  background: #36534e;
-  border-color: #80b9a4;
+  background: var(--fe-accent-soft);
+  border-color: var(--fe-accent-line);
 }
 .co-app button:disabled {
   opacity: 0.45;
@@ -65,7 +65,7 @@
 }
 .co-app small,
 .co-muted {
-  color: #a0b4b9;
+  color: var(--fe-fg-3);
 }
 .co-main {
   padding: 32px clamp(20px, 4vw, 64px);
@@ -82,32 +82,32 @@
   margin-bottom: 22px;
 }
 .co-main h1 {
-  font-size: 32px;
+  font-size: var(--fe-t-3xl);
   margin: 0;
 }
 .co-eyebrow {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: #9bc8b7;
+  color: var(--fe-fg-3);
   margin: 0 0 6px;
 }
 .co-status {
-  font-size: 12px;
-  border: 1px solid #5c6250;
+  font-size: var(--fe-t-s);
+  border: 1px solid var(--fe-attn);
   border-radius: 20px;
   padding: 6px 12px;
-  color: #e3d7a5;
+  color: var(--fe-attn);
 }
 .co-notice {
-  border-left: 3px solid #a79460;
+  border-left: 3px solid var(--fe-attn);
   padding: 12px 16px;
-  background: #252a23;
+  background: var(--fe-attn-soft);
   margin-bottom: 24px;
-  color: #e2dcc8;
+  color: var(--fe-fg);
 }
 .co-error {
-  background: #492e2b;
+  background: var(--fe-bad-soft);
   padding: 14px;
   display: flex;
   justify-content: space-between;
@@ -121,29 +121,29 @@
 }
 .co-stats > div {
   padding: 20px;
-  border: 1px solid #34464c;
+  border: 1px solid var(--fe-line);
   border-radius: 12px;
-  color: #a7bcc1;
+  color: var(--fe-fg-2);
 }
 .co-stats b {
   display: block;
-  font-size: 30px;
-  color: #d9eee6;
+  font-size: var(--fe-t-3xl);
+  color: var(--fe-fg);
 }
 .co-app section {
-  border: 1px solid #34464c;
-  background: #152126;
+  border: 1px solid var(--fe-line);
+  background: var(--fe-surface);
   border-radius: 14px;
   padding: 24px;
   margin: 18px 0;
   min-width: 0;
 }
 .co-app h2 {
-  font-size: 20px;
+  font-size: var(--fe-t-xl);
   margin: 0 0 16px;
 }
 .co-app h3 {
-  font-size: 18px;
+  font-size: var(--fe-t-xl);
   margin: 0 0 10px;
 }
 .co-columns {
@@ -159,15 +159,15 @@
 .co-app label {
   display: grid;
   gap: 5px;
-  color: #bdd0d3;
-  font-size: 13px;
+  color: var(--fe-fg-2);
+  font-size: var(--fe-t-s);
 }
 .co-app input,
 .co-app textarea,
 .co-app select {
-  background: #101a1e;
-  color: #edf3f2;
-  border: 1px solid #45595e;
+  background: var(--fe-surface);
+  color: var(--fe-fg);
+  border: 1px solid var(--fe-line-2);
   border-radius: 7px;
   padding: 10px;
   box-sizing: border-box;
@@ -178,13 +178,13 @@
   resize: vertical;
 }
 .co-app .co-primary {
-  background: #9bcdb7;
-  color: #10251e;
+  background: var(--fe-accent);
+  color: var(--fe-accent-ink);
   font-weight: 650;
   justify-self: start;
 }
 .co-app fieldset {
-  border: 1px solid #354b50;
+  border: 1px solid var(--fe-line);
   border-radius: 8px;
   display: grid;
   gap: 10px;
@@ -204,14 +204,14 @@
 }
 .co-feed article {
   padding: 18px 0;
-  border-bottom: 1px solid #34464c;
+  border-bottom: 1px solid var(--fe-line);
 }
 .co-feed time {
-  font-size: 12px;
-  color: #91a9ae;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-3);
 }
 .co-card {
-  border: 1px solid #34464c;
+  border: 1px solid var(--fe-line);
   border-radius: 10px;
   padding: 18px;
   margin: 14px 0;
@@ -224,8 +224,8 @@
   margin: 8px 0;
 }
 .co-list span {
-  font-size: 12px;
-  color: #a0b4b9;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-3);
 }
 .co-actions {
   display: flex;
@@ -236,11 +236,11 @@
 .co-chat {
   padding: 16px;
   border-radius: 8px;
-  background: #203137;
+  background: var(--fe-surface-2);
   margin: 12px 0;
 }
 .co-artifact {
-  border-top: 1px solid #405157;
+  border-top: 1px solid var(--fe-line-2);
   padding-top: 14px;
   margin-top: 14px;
 }
@@ -255,7 +255,7 @@
   cursor: pointer;
 }
 .co-app :focus-visible {
-  outline: 3px solid #a6dfc9;
+  outline: 3px solid var(--fe-accent);
   outline-offset: 3px;
 }
 @media (max-width: 900px) {
@@ -301,7 +301,7 @@
 }
 
 .co-packet {
-  border-left: 3px solid #80b9a4;
+  border-left: 3px solid var(--fe-accent);
   padding: 4px 16px;
   margin: 16px 0;
 }
@@ -316,8 +316,8 @@
 }
 .co-packet-fields dt {
   text-transform: capitalize;
-  color: #a0b4b9;
-  font-size: 12px;
+  color: var(--fe-fg-3);
+  font-size: var(--fe-t-s);
 }
 .co-packet-fields dd {
   margin: 0;
@@ -333,7 +333,7 @@
 }
 
 .co-handoff {
-  border-top: 1px solid #405157;
+  border-top: 1px solid var(--fe-line-2);
   padding-top: 12px;
   margin-top: 14px;
 }
@@ -377,10 +377,10 @@
 }
 .co-workspace .fe-rail-caption {
   display: block;
-  font-size: 10px;
+  font-size: var(--fe-t-xs);
 }
 .co-owner-label {
-  font-size: 10px;
+  font-size: var(--fe-t-xs);
   margin-top: auto;
   color: var(--fe-fg-3);
 }
@@ -392,12 +392,12 @@
   padding: 20px 12px;
 }
 .co-conversations h2 {
-  font-size: 20px;
+  font-size: var(--fe-t-xl);
   padding: 0 8px;
   margin: 0 0 24px;
 }
 .co-conversations h3 {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-3);
   margin: 26px 8px 8px;
 }
@@ -414,7 +414,7 @@
   color: var(--fe-fg-3);
 }
 .co-conversations > p {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-3);
   margin: 20px 8px;
 }
@@ -425,7 +425,7 @@
 }
 .co-thread-list button {
   text-align: left;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-main {
   height: 100%;
@@ -445,7 +445,7 @@
   align-items: center;
 }
 .co-workspace .co-main h1 {
-  font-size: 17px;
+  font-size: var(--fe-t-xl);
   line-height: 1.4;
 }
 .co-workspace small,
@@ -457,7 +457,7 @@
   border-color: var(--fe-line);
   white-space: normal;
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--fe-t-xs);
 }
 .co-workspace .co-error {
   background: var(--fe-bad-soft);
@@ -491,25 +491,25 @@
   flex: 0 0 auto;
 }
 .co-conversation-context > p {
-  font-size: 13px;
+  font-size: var(--fe-t-s);
   margin: 0 0 4px;
   color: var(--fe-fg-2);
 }
 .co-conversation-context small {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
 }
 .co-conversation-context .co-actions {
   margin: 6px 0 0;
   align-items: end;
 }
 .co-conversation-context label {
-  font-size: 11px;
+  font-size: var(--fe-t-xs);
 }
 .co-conversation-context select {
   padding: 5px 8px;
 }
 .co-conversation-context details {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   margin: 8px 0 0;
 }
 .co-conversation-context details textarea {
@@ -544,7 +544,7 @@
 }
 .co-job-card > p {
   white-space: pre-wrap;
-  font-size: 13px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-measured {
   border: 0;
@@ -555,10 +555,10 @@
   margin: 16px 0;
 }
 .co-measured p {
-  font-size: 13px;
+  font-size: var(--fe-t-s);
 }
 .co-measured h3 {
-  font-size: 15px;
+  font-size: var(--fe-t-l);
 }
 .co-measured .co-check {
   align-items: start;
@@ -601,10 +601,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
 }
 .co-conversation-composer select {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   padding: 5px 8px;
   max-width: 70%;
 }
@@ -649,7 +649,7 @@
 .co-workspace .co-send-status {
   max-width: 780px;
   margin: 0 auto 8px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
 }
 .co-workspace .co-management {
@@ -694,7 +694,7 @@
   }
   .co-workspace .co-conversation-toggle {
     display: block;
-    font-size: 11px;
+    font-size: var(--fe-t-xs);
     padding: 6px;
   }
   .co-workspace .co-main header {
@@ -735,10 +735,10 @@
     padding: 8px 12px;
   }
   .co-workspace .co-main h1 {
-    font-size: 15px;
+    font-size: var(--fe-t-l);
   }
   .co-workspace .co-main header small {
-    font-size: 10px;
+    font-size: var(--fe-t-xs);
   }
   .co-workspace .co-conversation-composer {
     padding: 8px 12px 12px;
@@ -750,7 +750,7 @@
     padding: 12px;
   }
   .co-workspace .fe-composer-hint {
-    font-size: 10px;
+    font-size: var(--fe-t-xs);
   }
 }
 
@@ -768,13 +768,13 @@
 }
 .co-reply-turn > small {
   display: block;
-  font-size: 11px;
+  font-size: var(--fe-t-xs);
 }
 .co-reply-turn > p {
-  font-size: 13px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-reply-risk {
-  font-size: 11px;
+  font-size: var(--fe-t-xs);
   line-height: 1.4;
   text-align: left;
 }
@@ -783,7 +783,7 @@
   padding: 5px 8px;
 }
 .co-workspace .co-company-updates {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-3);
   margin: 0;
 }
@@ -804,7 +804,7 @@
   list-style: none;
   padding: 0;
   color: var(--fe-fg-3);
-  font-size: 13px;
+  font-size: var(--fe-t-s);
   flex-wrap: wrap;
 }
 .co-hire-steps [aria-current] {
@@ -814,17 +814,17 @@
 .co-workspace .co-context-help {
   border-block: 1px solid var(--fe-line);
   padding: 12px 0;
-  font-size: 13px;
+  font-size: var(--fe-t-s);
 }
 .co-context-help p {
   max-width: 720px;
 }
 .co-hire-context {
-  border-left: 3px solid var(--fe-accent-line);
+  border-left: 3px solid var(--fe-accent);
   padding: 4px 18px;
 }
 .co-hire-resume {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   border-top: 1px solid var(--fe-line);
   padding-top: 14px;
 }
@@ -846,7 +846,7 @@
   margin-bottom: 8px;
 }
 .co-first-hire p {
-  font-size: 13px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-conversation-body:has(.co-first-hire) {
   flex-direction: column;
@@ -882,7 +882,7 @@
 }
 .co-hire-status {
   color: var(--fe-accent);
-  font-size: 13px;
+  font-size: var(--fe-t-s);
 }
 
 .co-workspace .co-onboarding .co-context-help {
@@ -948,13 +948,13 @@
 }
 /* The one-line authorization summary and its collapsed safety details (owner walkthrough, 2026-10-19). */
 .co-workspace .co-job-summary {
-  font-size: 14px;
+  font-size: var(--fe-t-m);
   font-weight: 600;
   color: var(--fe-fg);
 }
 .co-workspace .co-safety {
   margin: 8px 0;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
 }
 /* The Company hub's section tabs (owner walkthrough, 2026-10-19). */
@@ -967,7 +967,7 @@
 .co-workspace .co-hub-tabs button {
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 13px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-hub-tabs button[aria-current="page"] {
   background: var(--fe-accent);
@@ -986,7 +986,7 @@
 /* A piece of work's earlier steps, folded under its latest one in the work log (owner walkthrough, 2026-10-19). */
 .co-workspace .co-log-steps {
   margin: 2px 0 4px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
 }
 .co-workspace .co-log-steps ol {
@@ -1040,7 +1040,7 @@
   flex: 1 1 0;
   border-radius: 999px;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-cockpit-scope button[aria-pressed="true"] {
   background: var(--fe-accent);
@@ -1049,11 +1049,11 @@
 }
 .co-workspace .co-need.priority-high .fe-up-next-title span::before {
   content: "● ";
-  color: var(--fe-danger, #d33);
+  color: var(--fe-bad);
 }
 .co-workspace .co-cockpit-foot {
   margin-top: 12px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-3);
 }
 .co-workspace .co-mode {
@@ -1120,7 +1120,7 @@
 }
 .co-workspace .co-work-group h3 {
   margin: 16px 0 6px;
-  font-size: 13px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
 }
 .co-workspace .co-work-group ul {
@@ -1149,7 +1149,7 @@
 }
 /* Cockpit rows stack a title over its detail, and section headings are quiet labels. */
 .co-workspace .co-cockpit h3 {
-  font-size: 11.5px;
+  font-size: var(--fe-t-xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fe-fg-3);
@@ -1185,7 +1185,7 @@
   white-space: nowrap;
 }
 .co-workspace .co-cockpit .fe-up-next-title > small {
-  font-size: 11.5px;
+  font-size: var(--fe-t-xs);
   color: var(--fe-fg-3);
   white-space: normal;
 }
@@ -1249,7 +1249,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
 }
 .co-workspace .co-thread-picker {
@@ -1257,17 +1257,17 @@
   flex-direction: row;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-3);
 }
 .co-workspace .co-thread-picker select {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   padding: 3px 6px;
   max-width: 200px;
 }
 .co-workspace .co-ghost,
 .co-workspace .co-about > summary {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   padding: 3px 8px;
   border: 1px solid transparent;
   border-radius: var(--fe-r-s);
@@ -1293,7 +1293,7 @@
 .co-workspace .co-about[open] {
   flex-basis: 100%;
   order: 10;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
 }
 .co-workspace .co-about[open] > summary {
@@ -1315,12 +1315,12 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-3);
 }
 .co-workspace .co-composer-tools select,
 .co-workspace .co-composer-tools input[type="number"] {
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   padding: 3px 6px;
   min-height: 0;
   max-width: 230px;
@@ -1341,7 +1341,7 @@
   padding: 3px 10px;
   border: 1px solid var(--fe-line);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
   cursor: pointer;
 }
@@ -1387,7 +1387,7 @@
 }
 .co-workspace .co-context-line > .co-private-context > summary {
   list-style: none;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
   padding: 3px 8px;
   border: 1px solid transparent;
   border-radius: var(--fe-r-s);
@@ -1423,7 +1423,7 @@
   text-align: left;
 }
 .co-workspace .co-conversations .co-person[aria-current="page"] {
-  background: var(--fe-surface-2, rgba(255, 255, 255, 0.06));
+  background: var(--fe-hover);
   border-color: transparent;
 }
 .co-workspace .co-person-text {
@@ -1435,10 +1435,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13.5px;
+  font-size: var(--fe-t-m);
 }
 .co-workspace .co-person-text small {
-  font-size: 11.5px;
+  font-size: var(--fe-t-xs);
 }
 .co-workspace .co-avatar {
   position: relative;
@@ -1450,13 +1450,13 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--fe-accent) 22%, transparent);
   color: var(--fe-fg);
-  font-size: 11.5px;
+  font-size: var(--fe-t-xs);
   font-weight: 650;
   letter-spacing: 0.02em;
 }
 .co-workspace .co-avatar-company {
   border-radius: var(--fe-r-m);
-  background: var(--fe-surface-2, rgba(255, 255, 255, 0.08));
+  background: var(--fe-surface-2);
 }
 .co-workspace .co-presence {
   position: absolute;
@@ -1469,10 +1469,10 @@
   background: var(--fe-fg-3);
 }
 .co-workspace .co-presence.active {
-  background: #3fb27f;
+  background: var(--fe-ok);
 }
 .co-workspace .co-presence.onboarding {
-  background: #d9a23a;
+  background: var(--fe-attn);
 }
 .co-workspace .co-thread-list {
   padding: 0 0 6px 50px;
@@ -1493,11 +1493,11 @@
   margin: 0;
   padding: 8px 10px;
   border-radius: var(--fe-r-m);
-  font-size: 13px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
 }
 .co-workspace .co-conversations .co-sidebar-action:hover:not(:disabled) {
-  background: var(--fe-surface-2, rgba(255, 255, 255, 0.06));
+  background: var(--fe-hover);
   color: var(--fe-fg);
 }
 /* Chip and ghost summaries carry no disclosure chevron; chips get an outline that reads on the dark surface. */
@@ -1542,7 +1542,7 @@
 }
 .co-workspace .co-team-card p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1575,11 +1575,11 @@
   background: var(--fe-surface);
 }
 .co-workspace .co-today ul[aria-label="Needs you"] li > strong {
-  font-size: 13.5px;
+  font-size: var(--fe-t-m);
 }
 .co-workspace .co-today ul[aria-label="Needs you"] li > .co-muted {
   flex: 1 1 200px;
-  font-size: 12.5px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-today ul[aria-label="Needs you"] li > select,
 .co-workspace .co-today ul[aria-label="Needs you"] li > button {
@@ -1587,7 +1587,7 @@
   min-height: 0;
   margin: 0;
   padding: 3px 10px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-today [aria-label="Work log day"] {
   align-items: center;
@@ -1595,7 +1595,7 @@
 .co-workspace .co-today [aria-label="Work log day"] button {
   width: auto;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--fe-t-s);
 }
 .co-workspace .co-team-card header {
   justify-content: flex-start;
@@ -1606,7 +1606,7 @@
   height: auto;
 }
 .co-workspace .co-team-card .co-person-text b {
-  font-size: 14px;
+  font-size: var(--fe-t-m);
 }
 /* UX round 2: Home, the company at a glance. */
 .co-workspace .co-home {
@@ -1628,24 +1628,24 @@
   background: var(--fe-surface);
 }
 .co-workspace .co-tile strong {
-  font-size: 24px;
+  font-size: var(--fe-t-2xl);
   font-weight: 650;
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
 .co-workspace .co-tile span {
-  font-size: 12.5px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-3);
 }
 .co-workspace .co-tile.attention {
-  border-color: color-mix(in srgb, #d9a23a 55%, var(--fe-line));
+  border-color: var(--fe-attn);
 }
 .co-workspace .co-tile.attention strong {
-  color: #e2b04a;
+  color: var(--fe-attn);
 }
 .co-workspace .co-home-section h2 {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--fe-t-s);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1679,14 +1679,14 @@
   min-width: 0;
 }
 .co-workspace .co-home-row b {
-  font-size: 13.5px;
+  font-size: var(--fe-t-m);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .co-workspace .co-home-row small {
-  font-size: 12.5px;
+  font-size: var(--fe-t-s);
   color: var(--fe-fg-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1712,18 +1712,18 @@
   flex: 0 0 auto;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: var(--fe-t-xs);
   font-style: normal;
   border: 1px solid var(--fe-line);
   color: var(--fe-fg-2);
 }
 .co-workspace .co-chip.state-needs_review {
-  border-color: color-mix(in srgb, #d9a23a 55%, var(--fe-line));
-  color: #e2b04a;
+  border-color: var(--fe-attn);
+  color: var(--fe-attn);
 }
 .co-workspace .co-chip.state-approved {
-  border-color: color-mix(in srgb, #3fb27f 55%, var(--fe-line));
-  color: #57c792;
+  border-color: var(--fe-ok);
+  color: var(--fe-ok);
 }
 /* Long results: the opening lines and a fade until expanded; the text stays in the page. */
 .co-workspace .co-report.clamped pre {
@@ -1752,4 +1752,78 @@
   cursor: pointer;
   min-height: 0;
   height: auto;
+}
+/* UX round 3: the shortcut list. */
+.co-workspace .co-dialog-layer {
+  justify-content: center;
+  align-items: center;
+}
+.co-workspace .co-dialog {
+  position: relative;
+  width: min(440px, 92vw);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 18px 20px;
+  border: 1px solid var(--fe-line);
+  border-radius: var(--fe-r-xl);
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow-lg);
+}
+.co-workspace .co-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.co-workspace .co-dialog h2 {
+  margin: 0;
+  font-size: var(--fe-t-l);
+}
+.co-workspace .co-dialog dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.co-workspace .co-dialog dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-dialog dd {
+  margin: 0;
+  color: var(--fe-fg-2);
+}
+.co-workspace kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 1px 6px;
+  border: 1px solid var(--fe-line-2);
+  border-bottom-width: 2px;
+  border-radius: var(--fe-r-s);
+  background: var(--fe-surface-2);
+  font: inherit;
+  font-size: var(--fe-t-xs);
+  text-align: center;
+}
+/* Sharing an approved result is one click away, not an open form in the conversation. */
+.co-workspace .co-handoff-share {
+  margin: 8px 0 0;
+}
+.co-workspace .co-handoff-share > summary {
+  display: inline-flex;
+  list-style: none;
+  padding: 4px 12px;
+  border: 1px solid var(--fe-line-2);
+  border-radius: 999px;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-handoff-share > summary::before {
+  display: none;
+}
+.co-workspace .co-handoff-share[open] > summary {
+  border-color: var(--fe-accent);
+  color: var(--fe-accent);
+  margin-bottom: 8px;
 }
