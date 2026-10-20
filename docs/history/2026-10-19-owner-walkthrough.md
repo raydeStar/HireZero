@@ -129,6 +129,9 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
     task they belong to. Dollars appear nowhere, although API models now have prices.
 13. **The work log is noisy.** One ad change wrote five near-identical lines: proposed, approved, started, ready to
     send, sent, published.
+    - **Fixed (feature/quiet-work-log).** The work log shows one line per piece of work: its latest step, with the
+      work's name, and the day's earlier steps folded under "N earlier steps". An event about an artifact,
+      publication, run or reply counts toward the task that produced it.
 
 ### P2: polish
 

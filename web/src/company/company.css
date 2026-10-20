@@ -983,3 +983,12 @@
   gap: 4px;
   margin: 8px 0;
 }
+/* A piece of work's earlier steps, folded under its latest one in the work log (owner walkthrough, 2026-10-19). */
+.co-workspace .co-log-steps {
+  margin: 2px 0 4px;
+  font-size: 12px;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-log-steps ol {
+  margin: 4px 0 0;
+}

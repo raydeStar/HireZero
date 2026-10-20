@@ -11,7 +11,15 @@ type Need = {
   priority: string;
   markVersion: number;
 };
-type Entry = { type: string; text: string; employee?: string; at: string };
+type Entry = {
+  type: string;
+  text: string;
+  employee?: string;
+  at: string;
+  // One piece of work's latest step; its earlier steps that day are folded in (owner walkthrough, 2026-10-19).
+  work?: string | null;
+  earlier?: { text: string; at: string }[];
+};
 type CompanyToday = {
   day: string;
   needsYou: Need[];
@@ -100,7 +108,25 @@ export function Today({
                 {new Date(e.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
               </span>{" "}
               {e.employee ? e.employee + ": " : ""}
+              {e.work ? e.work + " · " : ""}
               {e.text}
+              {e.earlier && e.earlier.length > 0 && (
+                <details className="co-log-steps">
+                  <summary>
+                    {e.earlier.length} earlier {e.earlier.length === 1 ? "step" : "steps"}
+                  </summary>
+                  <ol>
+                    {e.earlier.map((s, j) => (
+                      <li key={j}>
+                        <span className="co-muted">
+                          {new Date(s.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        </span>{" "}
+                        {s.text}
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              )}
             </li>
           ))}
         </ol>
