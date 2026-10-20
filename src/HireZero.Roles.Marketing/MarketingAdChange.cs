@@ -22,7 +22,7 @@ public static class MarketingAdChange
         "Read a campaign and name one change you can approve: pause it, or set its daily budget (within half of today's).",
         [
             new("campaign", "Campaign id", 20),
-            new("change", "Change (pause or budget)", 6),
+            new("change", "Change", 6) { Choices = [AdsTools.Pause, AdsTools.Budget] },
             new("amount", "New daily budget (budget only; 0 for a pause)", 14),
         ]
     )

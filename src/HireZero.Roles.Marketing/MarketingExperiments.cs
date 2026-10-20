@@ -22,7 +22,7 @@ public static class MarketingExperiments
             new("baseline", "Current conversion rate % (for example 3.2)", 8),
             new("lift", "Smallest relative lift worth detecting % (for example 10)", 8),
             new("daily", "Visitors entering the test per day", 10),
-            new("variants", "Variants including control (2 to 5)", 1),
+            new("variants", "Variants including control", 1) { Choices = ["2", "3", "4", "5"] },
             new("alpha", "Significance level % (usually 5)", 4),
             new("power", "Power % (usually 80)", 4),
         ]

@@ -56,6 +56,9 @@ public sealed partial class CompanyStore
                 "Provide exactly the action's fields: " + string.Join(", ", action.Fields.Select(f => f.Id)) + ".",
                 422
             );
+        foreach (var field in action.Fields.Where(f => f.Choices is { Length: > 0 }))
+            if (!field.Choices!.Contains(values[field.Id].Trim()))
+                throw new WorkspaceException(field.Label + ": choose " + string.Join(", ", field.Choices!) + ".", 422);
         return CompanyJson.Encode(
             action.Fields.ToDictionary(f => f.Id, f => ContentGuard.Bounded(values[f.Id], f.MaxLength))
         );

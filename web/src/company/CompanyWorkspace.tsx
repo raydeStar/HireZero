@@ -70,6 +70,29 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
   function setTab(tab: string) {
     navigate({ ...routeRef.current, tab });
   }
+  // The Company hub (owner walkthrough, 2026-10-19): what needs you and the company's settings, one section at a time,
+  // starting with Today. The section is kept in the address so a reload stays on it.
+  const hubSections = [
+    ["today", "Today"],
+    ["departments", "Departments"],
+    ["budgets", "Budgets"],
+    ["members", "Members"],
+    ["integrations", "Integrations"],
+    ["audit", "Audit log"],
+    ["companies", "Companies"],
+  ] as const;
+  const [section, setSection] = useState(() => {
+    const value = new URLSearchParams(location.search).get("section");
+    return hubSections.some(([key]) => key === value) ? (value as string) : "today";
+  });
+  function openHub(key: string) {
+    setSection(key);
+    if (routeRef.current.tab !== "departments") navigate({ ...routeRef.current, tab: "departments" });
+    const query = new URLSearchParams(location.search);
+    query.set("view", "departments");
+    query.set("section", key);
+    history.replaceState(null, "", "?" + query);
+  }
   function openConversation(employeeId: string, threadId: string) {
     navigate({ tab: "employee", selected: employeeId, thread: threadId });
   }
@@ -304,12 +327,9 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
         <p className="co-muted">
           You have final authority. CEO plans and Board decisions remain subject to your review.
         </p>
-        <Companies role={memberRole} version={d.cursor ?? 0} />
-        <Today version={d.cursor ?? 0} busy={busy} run={run} />
-        <Budgets budgets={d.budgets} departments={d.departments} employees={d.employees} busy={busy} run={run} />
-        <Members role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
-        <Audit role={memberRole} version={d.cursor ?? 0} />
-        <Integrations integrations={snapshot.capabilities.integrations ?? []} refresh={refresh} />
+        <button className="co-hub-link" onClick={() => openHub("today")}>
+          Today, budgets, members and settings
+        </button>
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>
         <header className="fe-topbar">
@@ -328,7 +348,9 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                   ? employee?.name || "Conversation unavailable"
                   : tab === "meetings"
                     ? "Board meetings"
-                    : tab[0].toUpperCase() + tab.slice(1)}
+                    : tab === "departments"
+                      ? "Company"
+                      : tab[0].toUpperCase() + tab.slice(1)}
             </h1>
             {chat && (
               <small>
@@ -397,6 +419,36 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
             />
           )}
           {tab === "departments" && (
+            <nav className="co-hub-tabs" aria-label="Company sections">
+              {hubSections.map(([key, label]) => (
+                <button key={key} aria-current={section === key ? "page" : undefined} onClick={() => openHub(key)}>
+                  {label}
+                </button>
+              ))}
+            </nav>
+          )}
+          {tab === "departments" && section === "today" && <Today open version={d.cursor ?? 0} busy={busy} run={run} />}
+          {tab === "departments" && section === "budgets" && (
+            <Budgets
+              open
+              budgets={d.budgets}
+              departments={d.departments}
+              employees={d.employees}
+              busy={busy}
+              run={run}
+            />
+          )}
+          {tab === "departments" && section === "members" && (
+            <Members open role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
+          )}
+          {tab === "departments" && section === "integrations" && (
+            <Integrations open integrations={snapshot.capabilities.integrations ?? []} refresh={refresh} />
+          )}
+          {tab === "departments" && section === "audit" && <Audit open role={memberRole} version={d.cursor ?? 0} />}
+          {tab === "departments" && section === "companies" && (
+            <Companies expanded role={memberRole} version={d.cursor ?? 0} />
+          )}
+          {tab === "departments" && section === "departments" && (
             <>
               <p className="co-muted">
                 Department context is shared by that department’s employees. Employee responsibilities, private notes

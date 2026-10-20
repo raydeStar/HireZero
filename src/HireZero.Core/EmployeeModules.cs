@@ -128,7 +128,11 @@ public sealed record EmployeeAction(string Id, string Name, string Description, 
     public bool Publishes { get; init; }
 }
 
-public sealed record ActionField(string Id, string Label, int MaxLength = 200);
+public sealed record ActionField(string Id, string Label, int MaxLength = 200)
+{
+    // A field with a fixed set of values is offered as a choice and refused with any other value.
+    public string[]? Choices { get; init; }
+}
 
 public sealed record EmployeeOnboarding(
     string Department,

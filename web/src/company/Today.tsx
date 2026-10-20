@@ -33,7 +33,9 @@ export function Today({
   version,
   busy,
   run,
+  open,
 }: {
+  open?: boolean;
   version: number;
   busy: boolean;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
@@ -54,7 +56,7 @@ export function Today({
   const mark = (n: Need, priority: string, snoozedUntil = "") =>
     void run("owner.mark", { id: n.key, expectedVersion: n.markVersion, decision: priority, body: snoozedUntil });
   return (
-    <details className="co-today" open={today.needsYou.length > 0}>
+    <details className="co-today" open={open ?? today.needsYou.length > 0}>
       <summary>Today: {today.needsYou.length ? `${today.needsYou.length} need you` : "nothing needs you"}</summary>
       {today.needsYou.length > 0 && (
         <ul aria-label="Needs you">

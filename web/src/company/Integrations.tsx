@@ -17,7 +17,9 @@ type Microsoft = {
 export function Integrations({
   integrations,
   refresh,
+  open,
 }: {
+  open?: boolean;
   integrations: IntegrationStatus[];
   refresh: () => Promise<void>;
 }) {
@@ -52,7 +54,7 @@ export function Integrations({
     }
   }
   return (
-    <details className="co-integrations">
+    <details className="co-integrations" open={open}>
       <summary>Integrations ({integrations.filter((i) => i.active).length} active)</summary>
       <ul>
         {integrations.map((i) => (

@@ -5,7 +5,7 @@ type Check = { intact: boolean; count: number; head: string; brokenAt?: number; 
 
 // The company's tamper-evident audit chain (docs/adr/0022): whether it verifies, and an NDJSON export whose last line
 // is the verified head. Keep exported heads elsewhere: a later export must still reach them.
-export function Audit({ role, version }: { role?: string; version: number }) {
+export function Audit({ role, version, open }: { role?: string; version: number; open?: boolean }) {
   const [check, setCheck] = useState<Check | null>(null),
     [error, setError] = useState("");
   useEffect(() => {
@@ -35,7 +35,7 @@ export function Audit({ role, version }: { role?: string; version: number }) {
     }
   }
   return (
-    <details className="co-audit">
+    <details className="co-audit" open={open}>
       <summary>Audit log: {check ? (check.intact ? `intact, ${check.count} entries` : "broken") : "checking"}</summary>
       {error && <p role="alert">{error}</p>}
       {check && !check.intact && (

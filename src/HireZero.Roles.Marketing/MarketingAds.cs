@@ -21,7 +21,7 @@ public static class MarketingAds
         ReadAction,
         "Read ad performance",
         "Read spend, clicks, conversions, CPA and ROAS for the last 7, 28 or 90 complete days against the period before, with campaigns needing attention listed.",
-        [new("days", "Days (7, 28 or 90)", 2)]
+        [new("days", "Days", 2) { Choices = ["7", "28", "90"] }]
     );
 
     public const string ReviewInstructions =

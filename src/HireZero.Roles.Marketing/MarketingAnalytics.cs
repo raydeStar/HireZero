@@ -21,7 +21,7 @@ public static class MarketingAnalytics
         ReadAction,
         "Read web analytics",
         "Read traffic and search performance for the last 7, 28 or 90 complete days against the period before, with unusual days flagged.",
-        [new("days", "Days (7, 28 or 90)", 2)]
+        [new("days", "Days", 2) { Choices = ["7", "28", "90"] }]
     );
 
     public const string DigestInstructions =

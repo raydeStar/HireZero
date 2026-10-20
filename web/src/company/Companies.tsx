@@ -5,7 +5,7 @@ type Listing = { id: string; name: string; role: string };
 
 // The companies you belong to in this data root (docs/adr/0021): switch between them, and as an owner create another
 // (you become its owner) or rename the current one.
-export function Companies({ role, version }: { role?: string; version: number }) {
+export function Companies({ role, version, expanded }: { role?: string; version: number; expanded?: boolean }) {
   const [companies, setCompanies] = useState<Listing[]>([]),
     [name, setName] = useState(""),
     [error, setError] = useState(""),
@@ -35,7 +35,7 @@ export function Companies({ role, version }: { role?: string; version: number })
     }
   }
   return (
-    <details className="co-companies">
+    <details className="co-companies" open={expanded}>
       <summary>Company: {current?.name ?? "Company"}</summary>
       {error && <p role="alert">{error}</p>}
       {companies.length > 1 && (

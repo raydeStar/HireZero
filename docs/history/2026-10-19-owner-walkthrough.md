@@ -102,6 +102,10 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
    - An ad change needs a campaign id that you can only learn by running "Read ad performance" first.
    - *Fix:* a visible actions menu, select fields for fixed choices, and a "Propose a change" button next to each
      campaign in the ads reading.
+   - **Partly fixed (feature/company-hub):**
+     - the section is now "Actions", with an Action picker that shows one form at a time;
+     - fields with fixed values declare `Choices`, are shown as dropdowns, and the store refuses any other value;
+     - still open: a "Propose a change" button next to each campaign in the ads reading.
 9. **Stale or contradictory copy:**
    - "Approve the reviewed artifact first" shows after it was approved.
    - "Message prepared… Send & authorize" stays after the reply completed.
@@ -115,6 +119,9 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
 10. **Company-wide screens are buried.** Today, Budgets, Members, Audit and Integrations are collapsed sections at the
     bottom of the sidebar, under the employee list. The "Company" tab only manages departments.
     - *Fix:* make Company a real hub, or give Today its own tab, since it is where "needs you" lives.
+    - **Fixed (feature/company-hub).** The Company tab is a hub with sections: Today (first), Departments, Budgets,
+      Members, Integrations, Audit log and Companies. The section is kept in the address. The sidebar keeps
+      conversations and people, plus one "Today, budgets, members and settings" link to the hub.
 11. **Integrations can only be set up by editing JSON files in the data root.** Google, Google Ads, Azure DevOps,
     OpenRouter and agent apps each say "name … in …json in the data root". There is no in-app setup.
 12. **Budgets are tokens, with ambiguous rows.** Several rows read just "Plan allowance", with nothing saying which
