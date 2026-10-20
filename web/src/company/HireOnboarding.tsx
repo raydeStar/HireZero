@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Check, CircleCheckBig } from "lucide-react";
 import { api } from "../lib/api";
 import { command, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
 import { humanize } from "./labels";
@@ -257,13 +258,19 @@ export function HireOnboarding({
     element.focus({ preventScroll: true });
   }, [draft.step, person?.id, ready, unavailable]);
   return (
-    <section className="co-onboarding" aria-label="Guided hiring">
-      <p className="co-eyebrow">{person ? "Continue onboarding" : "Guided hiring"}</p>
+    <section className={"co-onboarding" + (ready ? " done" : "")} aria-label="Guided hiring">
+      {/* Finished (owner feedback, 2026-10-20): a clear "you're done" moment before what comes next. */}
+      {ready && (
+        <div className="co-hire-done-badge" aria-hidden="true">
+          <CircleCheckBig size={30} />
+        </div>
+      )}
+      <p className="co-eyebrow">{ready ? "Onboarding complete" : person ? "Continue onboarding" : "Guided hiring"}</p>
       <h2 ref={heading} tabIndex={-1}>
         {unavailable
           ? person.name + " is " + person.state
           : ready
-            ? person.name + " is ready"
+            ? person.name + " is ready to work"
             : draft.step === "profile"
               ? data.employees.length
                 ? "Hire your next employee"
@@ -275,27 +282,41 @@ export function HireOnboarding({
       {draft.step === "profile" && (
         <p className="co-muted">Hiring creates a private chat. AI work and spending need separate approval.</p>
       )}
-      <ol className="co-hire-steps" aria-label="Hiring progress">
-        <li aria-current={draft.step === "profile" ? "step" : undefined}>1. Employee</li>
-        <li aria-current={!ready && draft.step !== "profile" ? "step" : undefined}>2. Shared context</li>
-        <li aria-current={ready ? "step" : undefined}>3. Private chat</li>
+      {ready && (
+        <p className="co-hire-done-lead">
+          Welcome to the team. {person.name} joined <b>{department?.name}</b>, and everything they need to start is in
+          place.
+        </p>
+      )}
+      <ol className={"co-hire-steps" + (ready ? " done" : "")} aria-label="Hiring progress">
+        {["1. Employee", "2. Shared context", "3. Private chat"].map((label, i) => (
+          <li
+            key={label}
+            aria-current={(ready ? i === 2 : draft.step === "profile" ? i === 0 : i === 1) ? "step" : undefined}
+          >
+            {ready && <Check size={13} aria-hidden="true" />}
+            {label}
+          </li>
+        ))}
       </ol>
-      <p className="co-muted">Department facts are shared. Notes and chats stay private.</p>
-      <details className="co-context-help">
-        <summary>What is shared, and what stays private?</summary>
-        <p>
-          <b>Department context</b> contains approved facts and boundaries shared by employees in that department. Later
-          hires reuse the same approved version.
-        </p>
-        <p>
-          <b>Responsibility</b> describes this employee’s job. <b>Private notes and chats</b> belong to this employee;
-          another hire does not inherit them. Company conversation holds owner notes and updates.
-        </p>
-        <p>
-          Hiring grants no permission for AI replies, tools, coding, publishing or spending. Those actions need their
-          own approvals.
-        </p>
-      </details>
+      {!ready && <p className="co-muted">Department facts are shared. Notes and chats stay private.</p>}
+      {!ready && (
+        <details className="co-context-help">
+          <summary>What is shared, and what stays private?</summary>
+          <p>
+            <b>Department context</b> contains approved facts and boundaries shared by employees in that department.
+            Later hires reuse the same approved version.
+          </p>
+          <p>
+            <b>Responsibility</b> describes this employee’s job. <b>Private notes and chats</b> belong to this employee;
+            another hire does not inherit them. Company conversation holds owner notes and updates.
+          </p>
+          <p>
+            Hiring grants no permission for AI replies, tools, coding, publishing or spending. Those actions need their
+            own approvals.
+          </p>
+        </details>
+      )}
       {busy && (
         <p className="co-hire-status" role="status" aria-live="polite">
           {status}
@@ -563,21 +584,37 @@ export function HireOnboarding({
         </div>
       )}
       {ready && (
-        <div>
-          <p>
-            <b>{department?.name}</b> uses the approved context below.{" "}
-            {data.employees.filter((e) => e.departmentId === department?.id).length > 1
-              ? "This hire reuses that exact saved context; no facts were entered or changed."
-              : "Your approval completed department onboarding."}
-          </p>
+        <div className="co-hire-done">
+          <ul className="co-hire-done-list" aria-label="What is done">
+            <li>
+              <Check size={15} aria-hidden="true" />
+              <span>
+                Hired as {data.roles.find((r) => r.id === person.roleId)?.name ?? "an employee"}:{" "}
+                <span className="co-muted">{person.responsibility}</span>
+              </span>
+            </li>
+            <li>
+              <Check size={15} aria-hidden="true" />
+              <span>
+                {data.employees.filter((e) => e.departmentId === department?.id).length > 1
+                  ? "Uses " + (department?.name ?? "the department") + "’s approved context, unchanged"
+                  : "Shared context approved for " + (department?.name ?? "the department")}{" "}
+                <span className="co-muted">(version {approved.version})</span>
+              </span>
+            </li>
+            <li>
+              <Check size={15} aria-hidden="true" />
+              <span>Private chat ready</span>
+            </li>
+          </ul>
           <details>
             <summary>View approved shared context</summary>
             <Context knowledge={approved} />
             <small>Approved version {approved.version}</small>
           </details>
-          <p>
-            Next, open <b>{person.name}’s private chat</b>. Add employee-specific notes there. Any AI reply or work
-            needs its own authorization.
+          <p className="co-hire-done-next">
+            <b>Next: say hello.</b> Give {person.name} a first task or notes in their private chat. Each AI reply or
+            piece of work still waits for your approval.
           </p>
           <div className="co-actions">
             <button
@@ -596,10 +633,12 @@ export function HireOnboarding({
           </div>
         </div>
       )}
-      <p className="co-muted co-hire-resume">
-        You can leave and return to People. This tab keeps unfinished form text through reloads. Saved employees and
-        context remain in Company; leaving does not delete them or authorize work.
-      </p>
+      {!ready && (
+        <p className="co-muted co-hire-resume">
+          You can leave and return to People. This tab keeps unfinished form text through reloads. Saved employees and
+          context remain in Company; leaving does not delete them or authorize work.
+        </p>
+      )}
     </section>
   );
 }

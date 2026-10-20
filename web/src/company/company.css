@@ -2229,3 +2229,74 @@
   margin: 0 0 12px;
   color: var(--fe-fg-2);
 }
+
+/* Onboarding finished (owner feedback, 2026-10-20): a success badge that pops in once, every step checked off, a
+   short list of what is done, and one clear next step. Motion is skipped for people who ask for less of it. */
+.co-workspace .co-onboarding.done {
+  border-color: color-mix(in srgb, var(--fe-ok) 45%, var(--fe-line));
+  background: linear-gradient(180deg, var(--fe-ok-soft), transparent 180px), var(--fe-surface);
+}
+.co-hire-done-badge {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  color: var(--fe-ok);
+  background: var(--fe-ok-soft);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--fe-ok) 12%, transparent);
+  animation: co-hire-pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+@keyframes co-hire-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .co-hire-done-badge {
+    animation: none;
+  }
+}
+.co-workspace .co-onboarding.done .co-eyebrow {
+  color: var(--fe-ok);
+}
+.co-hire-done-lead {
+  font-size: var(--fe-t-m);
+  margin: 4px 0 8px;
+}
+.co-hire-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.co-hire-steps.done li,
+.co-hire-steps.done [aria-current] {
+  color: var(--fe-ok);
+  font-weight: 600;
+}
+.co-hire-done-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 8px;
+}
+.co-hire-done-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.co-hire-done-list li > svg {
+  flex: none;
+  color: var(--fe-ok);
+  transform: translateY(2px);
+}
+.co-hire-done-next {
+  margin-top: 16px;
+}
