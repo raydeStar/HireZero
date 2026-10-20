@@ -97,7 +97,12 @@ public sealed record CompanyInputAdmission(
 
 // Output includes any reasoning tokens. A missing reasoning sub-breakdown is not recorded as zero.
 
-public sealed record ModelUsage(long InputTokens, long OutputTokens, long? ReasoningTokens = null)
+public sealed record ModelUsage(
+    long InputTokens,
+    long OutputTokens,
+    long? ReasoningTokens = null,
+    decimal? BilledUsd = null
+)
 {
     public bool Consistent(long? total) =>
         InputTokens >= 0

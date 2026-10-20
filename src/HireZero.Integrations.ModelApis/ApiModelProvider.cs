@@ -197,6 +197,8 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
         using var document = JsonDocument.Parse(text);
         var root = document.RootElement;
         var (reply, stop, usage, id) = endpoint.Api == "anthropic" ? Anthropic(root) : OpenAI(root);
+        if (endpoint.Api == "openrouter")
+            usage = usage with { BilledUsd = BilledUsd(root) };
         var receipt = endpoint.Api + ":" + id;
         if (!usage.Consistent(usage.InputTokens + usage.OutputTokens))
             throw new ModelTransportException(
@@ -218,7 +220,7 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
             );
         // OpenRouter reports what it billed. A router may not honor the price ceiling, so a bill above the allowance is
         // an accounting fault, never a reply (docs/adr/0042-openrouter-low-effort-and-a-price-ceiling.md).
-        if (endpoint.Api == "openrouter" && BilledUsd(root) is { } billed && billed > allowance)
+        if (usage.BilledUsd is { } billed && billed > allowance)
             throw new ModelTransportException(
                 $"OpenRouter billed ${billed:0.0000}, more than the allowance of {job.CreditAllowance:0.##} cents.",
                 total,

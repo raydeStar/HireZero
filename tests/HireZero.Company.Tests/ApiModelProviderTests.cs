@@ -294,6 +294,19 @@ public sealed class ApiModelProviderTests
         Assert.True(fault.AccountingViolation);
     }
 
+    [Fact]
+    public async Task OpenRouterCarriesItsBilledCostOnTheReplyUsage()
+    {
+        var (provider, fake) = Create(new() { [ApiModelProvider.OpenRouterKey] = "fictional-router-key" });
+        fake.Reply =
+            """{"id":"gen-1","choices":[{"message":{"content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":130,"completion_tokens":40,"cost":0.0025}}""";
+        var (call, job) = Job("fictional/router");
+
+        var reply = await provider.CompleteMeasuredAsync(call, job, Token);
+
+        Assert.Equal(new ModelUsage(130, 40, BilledUsd: 0.0025m), reply.Usage);
+    }
+
     // A variably priced router may not honor the price ceiling; OpenRouter's billed cost above the allowance is an
     // accounting fault, and the reply is withheld.
     [Fact]
@@ -308,6 +321,7 @@ public sealed class ApiModelProviderTests
         );
         Assert.True(fault.AccountingViolation);
         Assert.Contains("$1.2500", fault.Message);
+        Assert.Equal(1.25m, fault.Usage?.BilledUsd);
     }
 
     // Codex stays the model while it is selected; the API model only on explicit opt-in.
