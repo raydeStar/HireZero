@@ -227,14 +227,25 @@ public static class MarketingAnalytics
             $"Search ({current.Source}): {Day(start)} to {Day(end)}, against {Day(previousStart)} to {Day(previousEnd)} (search data ends {SearchLagDays} days back because it arrives late)."
         );
         var (now, before) = (current.Totals, previous.Totals);
+        // No impressions in either period means Google has no search data for the site yet (a new property, or a site
+        // not yet shown in results): zeros, a 0.0% rate and a 0.0 position would read as measurements (real use,
+        // 2026-10-20).
+        if (now.Impressions == 0 && before.Impressions == 0)
+        {
+            text.AppendLine(
+                "- No search data yet: Google recorded no impressions in either period. A newly verified property fills in over a few days; if it stays empty, check that the site is indexed (submit the sitemap, inspect the home page)."
+            );
+            return;
+        }
         Line(text, "Clicks", now.Clicks, before.Clicks);
+        // Position is an average over impressions; with none it is not a measurement.
+        var position = (SearchRow t) =>
+            t.Impressions == 0 ? "none" : t.Position.ToString("0.0", CultureInfo.InvariantCulture);
         Line(text, "Impressions", now.Impressions, before.Impressions);
         text.AppendLine(
             $"- Click-through rate: {Percent(now.Ctr)} (was {Percent(before.Ctr)}, {Points(now.Ctr - before.Ctr)})"
         );
-        text.AppendLine(
-            $"- Average position: {now.Position.ToString("0.0", CultureInfo.InvariantCulture)} (was {before.Position.ToString("0.0", CultureInfo.InvariantCulture)}; lower is better)"
-        );
+        text.AppendLine($"- Average position: {position(now)} (was {position(before)}; lower is better)");
         Flags(
             text,
             "search clicks",

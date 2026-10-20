@@ -28,4 +28,4 @@ screen could write it, and it had no fields.
 
 - Company facts are saved as JSON over those fields, like department context, and they are used once approved.
 - Needs you names each draft by its department and the hire it finishes. A company draft reads
-  "Company: approve shared knowledge".
+  "Company: approve company facts".
