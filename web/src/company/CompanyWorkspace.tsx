@@ -207,7 +207,11 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     if (task) openWork(task);
     else if (need.kind === "plan") setTab("plans");
     else if (need.kind === "meeting") setTab("meetings");
-    else openHub(need.kind === "knowledge" ? "departments" : "today");
+    else if (need.kind === "onboarding" && need.employeeId) {
+      // An unfinished hire resumes in the hiring guide (UX round 6).
+      setResumeHire(need.employeeId);
+      setTab("employees");
+    } else openHub(need.kind === "knowledge" ? "departments" : "today");
   }
   useEffect(() => {
     const pop = () => {

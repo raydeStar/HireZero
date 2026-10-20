@@ -25,6 +25,42 @@ public sealed class CompanyTodayTests : IDisposable
         CompanyJson.Decode<T>(store.Apply(command));
 
     [Fact]
+    public void AnUnfinishedHireWaitsOnTheOwnerUntilItsContextIsDrafted()
+    {
+        var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
+        var department = Apply<CompanyDepartment>(store, Cmd("department.create") with { Name = "Fictional studio" });
+        var hired = Apply<CompanyEmployee>(
+            store,
+            Cmd("employee.hire") with
+            {
+                DepartmentId = department.Id,
+                RoleId = "marketing",
+                Name = "Fictional marketer",
+                Responsibility = "Fictional campaigns",
+            }
+        );
+        Assert.Equal("onboarding", hired.State);
+        var now = DateTimeOffset.UtcNow;
+        var need = Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou);
+        Assert.Equal(("onboarding", hired.Id), (need.Kind, need.EmployeeId));
+        Assert.Contains("Fictional marketer", need.Title);
+
+        // Once its context is drafted, the draft is what waits on the owner: one item, not two.
+        var fields = store
+            .Roles.Single(r => r.Id == "marketing")
+            .OnboardingFields.ToDictionary(f => f, f => "Fictional " + f);
+        Apply<CompanyKnowledge>(
+            store,
+            Cmd("knowledge.save") with
+            {
+                DepartmentId = department.Id,
+                Body = CompanyJson.Encode(fields),
+            }
+        );
+        Assert.Equal("knowledge", Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou).Kind);
+    }
+
+    [Fact]
     public void TodayListsWhatWaitsOnTheOwnerAndCountsOnlyThatDay()
     {
         var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
