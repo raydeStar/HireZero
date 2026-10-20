@@ -1955,3 +1955,45 @@
 .co-workspace .co-integration-list li.on::before {
   background: var(--fe-ok);
 }
+/* UX round 5: the exact call a publishing reading allows, apart from the reading and formatted. */
+.co-workspace .co-exact-call {
+  margin: 6px 0 10px;
+}
+.co-workspace .co-exact-call > summary {
+  display: inline-flex;
+  list-style: none;
+  padding: 3px 10px;
+  border: 1px solid var(--fe-line-2);
+  border-radius: 999px;
+  font-size: var(--fe-t-xs);
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-exact-call > summary::before {
+  display: none;
+}
+.co-workspace .co-exact-call[open] > summary {
+  border-color: var(--fe-accent);
+  color: var(--fe-accent);
+  margin-bottom: 6px;
+}
+.co-workspace .co-exact-call pre {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: var(--fe-t-xs);
+}
+/* The chat's placeholder for the work open beside it. */
+.co-workspace .co-work-placeholder {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px 14px;
+  border: 1px dashed var(--fe-accent-line);
+  border-radius: var(--fe-r-m);
+  background: var(--fe-accent-soft);
+  color: var(--fe-fg-2);
+  text-align: left;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-work-window:focus {
+  outline: 2px solid var(--fe-accent);
+  outline-offset: -2px;
+}

@@ -152,6 +152,66 @@ export function ConversationJob({
           refresh={refresh}
         />
       )}
+      {d.artifacts
+        .filter((a) => a.taskId === t.id)
+        .map((a) => (
+          <div className="co-artifact" key={a.id}>
+            <small>
+              {provenance(employeeRole, a.provenance)} · {artifactState(a.state)}
+            </small>
+            {employeeRole?.skills.includes("company-plan") && a.state === "approved" && (
+              <button
+                onClick={() =>
+                  void run("plan.from-artifact", { id: a.id, expectedVersion: a.version, digest: a.digest })
+                }
+              >
+                Prepare delegation plan from proposal
+              </button>
+            )}
+            <Report body={a.body} />
+            {a.state === "needs_review" && (
+              <div className="co-actions">
+                <button
+                  onClick={() =>
+                    void run("artifact.review", {
+                      id: a.id,
+                      expectedVersion: a.version,
+                      digest: a.digest,
+                      decision: "approve",
+                    })
+                  }
+                >
+                  Approve result
+                </button>
+                <button
+                  onClick={() =>
+                    void run("artifact.review", {
+                      id: a.id,
+                      expectedVersion: a.version,
+                      digest: a.digest,
+                      decision: "changes",
+                    })
+                  }
+                >
+                  Ask for changes
+                </button>
+              </div>
+            )}
+            {(a.state === "approved" || d.handoffs?.some((h) => h.artifactId === a.id && h.targetTaskId)) && (
+              <ArtifactHandoff
+                artifact={a}
+                employees={d.employees}
+                departments={d.departments}
+                threads={d.threads}
+                roles={d.roles}
+                receipts={d.handoffs ?? []}
+                busy={busy}
+                run={run}
+                open={open}
+              />
+            )}
+          </div>
+        ))}
       {employeeRole?.publishingSkills?.includes(t.skill) && !employeeRole.executionSkills?.includes(t.skill) && (
         <ArtifactPublication
           task={t}
@@ -226,66 +286,6 @@ export function ConversationJob({
           <Submit busy={busy}>Save for review</Submit>
         </form>
       )}
-      {d.artifacts
-        .filter((a) => a.taskId === t.id)
-        .map((a) => (
-          <div className="co-artifact" key={a.id}>
-            <small>
-              {provenance(employeeRole, a.provenance)} · {artifactState(a.state)}
-            </small>
-            {employeeRole?.skills.includes("company-plan") && a.state === "approved" && (
-              <button
-                onClick={() =>
-                  void run("plan.from-artifact", { id: a.id, expectedVersion: a.version, digest: a.digest })
-                }
-              >
-                Prepare delegation plan from proposal
-              </button>
-            )}
-            <Report body={a.body} />
-            {a.state === "needs_review" && (
-              <div className="co-actions">
-                <button
-                  onClick={() =>
-                    void run("artifact.review", {
-                      id: a.id,
-                      expectedVersion: a.version,
-                      digest: a.digest,
-                      decision: "approve",
-                    })
-                  }
-                >
-                  Approve result
-                </button>
-                <button
-                  onClick={() =>
-                    void run("artifact.review", {
-                      id: a.id,
-                      expectedVersion: a.version,
-                      digest: a.digest,
-                      decision: "changes",
-                    })
-                  }
-                >
-                  Ask for changes
-                </button>
-              </div>
-            )}
-            {(a.state === "approved" || d.handoffs?.some((h) => h.artifactId === a.id && h.targetTaskId)) && (
-              <ArtifactHandoff
-                artifact={a}
-                employees={d.employees}
-                departments={d.departments}
-                threads={d.threads}
-                roles={d.roles}
-                receipts={d.handoffs ?? []}
-                busy={busy}
-                run={run}
-                open={open}
-              />
-            )}
-          </div>
-        ))}
     </article>
   );
 }
@@ -315,15 +315,40 @@ function TaskInput({ input }: { input: string }) {
 // A long result shows its opening lines and a fade until expanded. The full text stays in the page, clipped rather than
 // removed, so nothing is hidden from search or from assistive technology (UX round 2).
 function Report({ body }: { body: string }) {
-  const long = body.split(/\r?\n/).length > 14 || body.length > 1400;
+  // A publishing reading ends with the exact call it allows ("Call: {json}", docs/adr/0017). It is shown apart from
+  // the reading and formatted; the approved text itself is unchanged.
+  const lines = body.split(/\r?\n/);
+  let callAt = -1;
+  for (let i = lines.length - 1; i >= 0; i--)
+    if (lines[i].startsWith("Call: ")) {
+      callAt = i;
+      break;
+    }
+  let call: string | null = null;
+  if (callAt >= 0) {
+    const raw = lines[callAt].slice(6);
+    try {
+      call = JSON.stringify(JSON.parse(raw), null, 2);
+    } catch {
+      call = raw;
+    }
+  }
+  const shown = callAt >= 0 ? lines.filter((_, i) => i !== callAt).join("\n") : body;
+  const long = shown.split(/\r?\n/).length > 14 || shown.length > 1400;
   const [full, setFull] = useState(false);
   return (
     <div className={"co-report" + (long && !full ? " clamped" : "")}>
-      <pre>{body}</pre>
+      <pre>{shown}</pre>
       {long && (
         <button type="button" className="co-ghost co-report-toggle" onClick={() => setFull(!full)}>
           {full ? "Show less" : "Show full report"}
         </button>
+      )}
+      {call && (
+        <details className="co-exact-call">
+          <summary>Exact call</summary>
+          <pre>{call}</pre>
+        </details>
       )}
     </div>
   );

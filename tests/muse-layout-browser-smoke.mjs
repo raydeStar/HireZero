@@ -43,6 +43,8 @@ try{
   await evaluate("document.querySelector('[aria-label=\"Needs you\"] .fe-up-next-title').click()");
   await until(()=>evaluate("location.search.includes('work=')&&!!document.querySelector('.co-chat-and-work .co-work-window')&&!!document.querySelector('.co-chat-and-work .co-conversation')"),'work window beside the chat');
   await until(()=>evaluate("!document.body.innerText.includes('Opening this conversation')"),'the conversation stays loaded');
+  // The chat shows a placeholder for the open work instead of a second, separately loading copy (UX round 5).
+  await until(()=>evaluate("!!document.querySelector('.co-chat-and-work .co-conversation .co-work-placeholder')&&!document.querySelector('.co-chat-and-work .co-conversation .co-job-card')"),'one copy of the open work');
   // Work mode: the open work fills the panel; closing it shows the board.
   await evaluate("[...document.querySelectorAll('.co-mode button')].find(b=>b.textContent.startsWith('Work')).click()");
   await until(()=>evaluate("location.search.includes('mode=work')&&!!document.querySelector('.co-work-window')"),'work mode keeps the open work');
