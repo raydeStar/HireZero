@@ -378,6 +378,16 @@ export function CompanyConversation({
           )}
         </div>
       </div>
+      {!company && employee && (
+        <EmployeeActions
+          role={role}
+          employeeName={employee.name}
+          employeeId={employee.id}
+          threadId={thread}
+          disabled={busy || employee.state !== "active"}
+          refresh={refresh}
+        />
+      )}
       <div className="fe-composer-wrap co-conversation-composer">
         {localError && <p role="alert">{localError}</p>}
         {notice && (
@@ -501,15 +511,6 @@ export function CompanyConversation({
                   onChange={(e) => update({ allowance: e.target.value })}
                 />
               </label>
-            )}
-            {!company && employee && (
-              <EmployeeActions
-                role={role}
-                employeeId={employee.id}
-                threadId={thread}
-                disabled={busy || employee.state !== "active"}
-                refresh={refresh}
-              />
             )}
             {!company && (
               <details className="co-evidence">

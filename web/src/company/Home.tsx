@@ -3,14 +3,7 @@ import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workTitle, type Need } from "./Cockpit";
 import { artifactState, employeeState, roleName } from "./labels";
 import { isToday, useNow } from "./time";
-
-const dollars = (usd: number) =>
-  usd.toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+import { dollars } from "./money";
 
 export function initials(name: string) {
   return (

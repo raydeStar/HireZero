@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { dollars } from "./money";
 
 type Budget = { id: string; limit: number; used: number; reserved: number; version?: number };
 export type Spend = {
@@ -7,14 +8,6 @@ export type Spend = {
   unpricedJobs: number;
   employees: { employeeId: string; usd: number; pricedJobs: number; unpricedJobs: number }[];
 };
-
-const dollars = (usd: number) =>
-  usd.toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  });
 
 // Token budgets (ported from the legacy budget panel, Phase 2B.5j): each limit with what is used and reserved. You can
 // set the company, department and employee limits within the server's ceilings; the allowance opened for one piece of

@@ -2300,3 +2300,59 @@
 .co-hire-done-next {
   margin-top: 16px;
 }
+
+/* Employee actions (owner feedback, 2026-10-20): a visible strip above the composer, one button per action, and the
+   picked action's form opening in place with room to breathe. */
+.co-workspace .co-action-strip {
+  border-top: 1px solid var(--fe-line);
+  padding: 8px 16px 0;
+  max-height: 45vh;
+  overflow: auto;
+}
+.co-workspace .co-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.co-workspace .co-action-strip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-3);
+  margin-right: 2px;
+}
+.co-workspace .co-action-chip,
+.co-workspace .co-action-more {
+  min-height: 0;
+  padding: 4px 12px;
+  border: 1px solid var(--fe-line);
+  border-radius: 999px;
+  background: var(--fe-surface);
+  color: var(--fe-fg);
+  font-size: var(--fe-t-s);
+  cursor: pointer;
+  width: auto;
+}
+.co-workspace .co-action-chip:hover {
+  border-color: var(--fe-accent);
+}
+.co-workspace .co-action-chip[aria-pressed="true"] {
+  border-color: var(--fe-accent);
+  background: color-mix(in srgb, var(--fe-accent) 14%, var(--fe-surface));
+  font-weight: 600;
+}
+.co-workspace .co-action-strip .co-action {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--fe-line);
+  border-radius: var(--fe-r-m);
+  background: var(--fe-surface);
+}
+.co-workspace .co-action-run {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
