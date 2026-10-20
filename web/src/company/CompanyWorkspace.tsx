@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { api, preference, savePreference } from "../lib/api";
+import { api, applyTheme, preference, savePreference, type ThemeChoice } from "../lib/api";
+import { ShortcutHelp, useShortcuts } from "./Shortcuts";
 import { BrandMark } from "../components/BrandMark";
 import { panels } from "../roles/company";
 import { command, type Snapshot, type Employee, type ThreadDetail, type Event, type TaskSpec, type Work } from "./api";
@@ -16,6 +17,9 @@ import {
   Settings,
   UserPlus,
   LayoutDashboard,
+  Monitor,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Home, initials } from "./Home";
 import { HireOnboarding } from "./HireOnboarding";
@@ -156,6 +160,35 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
   }
   const docked = roomy && cockpitOpen;
   const needs = useNeeds(snapshot?.data.cursor ?? 0);
+  // Theme: System follows the operating system, and changes with it (UX round 3).
+  const [theme, setTheme] = useState<ThemeChoice>(() => preference<ThemeChoice>("theme", "system"));
+  useEffect(() => {
+    applyTheme(theme);
+    savePreference("theme", theme);
+    if (theme !== "system") return;
+    const media = matchMedia("(prefers-color-scheme: dark)"),
+      change = () => applyTheme("system");
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, [theme]);
+  const [help, setHelp] = useState(false);
+  useShortcuts({
+    go: (place) => (place === "settings" ? openHub("today") : setTab(place)),
+    toggleMode: () => {
+      const r = routeRef.current;
+      if (r.tab === "company" || r.tab === "employee") setMode((r.mode ?? "chat") === "chat" ? "work" : "chat");
+    },
+    toggleCockpit: () => (roomy ? showCockpit(!cockpitOpen) : setSheet((open) => !open)),
+    focusMessage: () => document.querySelector<HTMLTextAreaElement>(".fe-composer textarea")?.focus(),
+    escape: () => {
+      if (help) setHelp(false);
+      else if (sheet) setSheet(false);
+      else if (routeRef.current.work) closeWork();
+      else return false;
+      return true;
+    },
+    help: () => setHelp((open) => !open),
+  });
   function openWork(task: Work) {
     const where = snapshot?.data.threads.find((t) => t.id === task.threadId);
     const company = !!where && (where.scope ?? "employee") !== "employee";
@@ -512,6 +545,15 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           <button className="co-sidebar-action" onClick={() => setTab("employees")}>
             <UserPlus size={15} />
             {d.employees.length ? "Hire an employee" : "Hire your first employee"}
+          </button>
+          <button
+            className="co-sidebar-action"
+            aria-label={"Theme: " + theme}
+            title="Theme: System, Light or Dark"
+            onClick={() => setTheme(theme === "system" ? "light" : theme === "light" ? "dark" : "system")}
+          >
+            {theme === "light" ? <Sun size={15} /> : theme === "dark" ? <Moon size={15} /> : <Monitor size={15} />}
+            Theme: {theme[0].toUpperCase() + theme.slice(1)}
           </button>
           <button className="co-sidebar-action co-hub-link" onClick={() => openHub("today")}>
             <Settings size={15} />
@@ -1190,6 +1232,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           {cockpit}
         </div>
       )}
+      {help && <ShortcutHelp onClose={() => setHelp(false)} />}
       {!docked && sheet && (
         <div className="fe-sheet" role="dialog" aria-label="Cockpit">
           <button className="fe-sheet-scrim" aria-label="Close cockpit" onClick={() => setSheet(false)} />
