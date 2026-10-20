@@ -129,10 +129,7 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
                     "Optional. A separate refresh token used only for owner-approved changes; without it, changes are off."
                 ),
             ]
-        )
-        {
-            RestartNote = "Turning ad changes on or off takes effect after HireZero restarts.",
-        };
+        );
 
     public IntegrationStatus Status()
     {

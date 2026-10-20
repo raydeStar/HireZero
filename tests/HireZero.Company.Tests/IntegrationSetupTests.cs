@@ -158,6 +158,25 @@ public sealed class IntegrationSetupTests : IAsyncDisposable
             )
         );
         Assert.False(File.Exists(Path.Combine(data, "secrets", GoogleAnalyticsProvider.KeySecret + ".secret")));
+
+        // An integration set up while HireZero runs starts working without a restart (docs/adr/0039).
+        var tools = app.Services.GetRequiredService<ToolRegistry>();
+        Assert.False(tools.Has("openrouter.status"));
+        Assert.Equal(
+            HttpStatusCode.OK,
+            await Put(
+                "/api/company/integrations/openrouter/settings",
+                new { values = new { model = "fictional-vendor/fictional-model" } }
+            )
+        );
+        Assert.Equal(
+            HttpStatusCode.OK,
+            await Put(
+                "/api/company/integrations/openrouter/secrets",
+                new { name = "HIREZERO_OPENROUTER_API_KEY", value = "fictional-openrouter-key" }
+            )
+        );
+        Assert.True(tools.Has("openrouter.status"));
         await app.StopAsync(token);
     }
 }

@@ -15,11 +15,10 @@ public static class CompanyIntegrationSetup
         Func<IntegrationStatus[]> statuses,
         string dataRoot,
         LocalSecretStore? secrets,
-        Func<CompanyStore> store
+        Func<CompanyStore> store,
+        Action activate
     )
     {
-        // What was active when this process started: an integration that becomes active later starts after a restart.
-        var activeAtStart = statuses().Where(s => s.Active).Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
         IConfigurableIntegration Find(string id) =>
             integrations.SingleOrDefault(i => i.Setup.Id == id)
             ?? throw new WorkspaceException("This integration cannot be set up in the app.", 404);
@@ -41,8 +40,6 @@ public static class CompanyIntegrationSetup
                             name = s?.Name ?? setup.Id,
                             active = s?.Active ?? false,
                             reason = s?.Reason ?? "",
-                            restartNeeded = s?.Active == true && !activeAtStart.Contains(setup.Id),
-                            setup.RestartNote,
                             setup.File,
                             localSecrets = secrets is not null,
                             fields = setup.Fields.Select(f => new
@@ -97,6 +94,7 @@ public static class CompanyIntegrationSetup
                     changed.Add(field.Label);
                 }
                 Write(dataRoot, setup, file);
+                activate();
                 store()
                     .IntegrationEvent(
                         "integration.configured",
@@ -136,6 +134,7 @@ public static class CompanyIntegrationSetup
                     );
                     store().IntegrationEvent("integration.secret", setup.Id, "Secret set: " + secret.Name + ".");
                 }
+                activate();
                 return Results.Ok(new { origin = SecretSource.Default.Describe(secret.Name).Origin });
             }
         );

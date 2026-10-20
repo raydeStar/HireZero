@@ -16,8 +16,6 @@ type Setup = {
   name: string;
   active: boolean;
   reason: string;
-  restartNeeded: boolean;
-  restartNote: string | null;
   file: string;
   localSecrets: boolean;
   fields: Field[];
@@ -93,7 +91,6 @@ function SetupForm({ setup, saved }: { setup: Setup; saved: () => Promise<void> 
         {setup.name} · {setup.active ? "active" : "not set up"}
       </summary>
       <p className="co-muted">{setup.reason}</p>
-      {setup.restartNeeded && <p role="status">Set up. Restart HireZero to start using it.</p>}
       {setup.fields.length > 0 && (
         <form
           onSubmit={(e) => {
@@ -209,7 +206,6 @@ function SetupForm({ setup, saved }: { setup: Setup; saved: () => Promise<void> 
           )}
         </div>
       ))}
-      {setup.restartNote && <p className="co-muted">{setup.restartNote}</p>}
       {message && <p role="status">{message}</p>}
       {error && <p role="alert">{error}</p>}
     </details>
