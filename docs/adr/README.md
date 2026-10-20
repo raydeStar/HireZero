@@ -41,3 +41,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0034](0034-support-employee.md) | Support, the third employee | Accepted |
 | [0035](0035-email-and-crm-read-contracts.md) | Email and CRM read contracts | Accepted |
 | [0036](0036-api-model-provider.md) | API model provider | Accepted |
+| [0037](0037-loaded-action-choices.md) | Loaded action choices | Accepted |

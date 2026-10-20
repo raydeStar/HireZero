@@ -166,6 +166,16 @@ public sealed class MarketingModule : IEmployeeModule
             _ => throw new WorkspaceException("This employee has no such action.", 404),
         };
 
+    public Task<ActionChoice[]> ActionChoicesAsync(
+        string action,
+        string field,
+        IToolbox tools,
+        CancellationToken token
+    ) =>
+        (action, field) == (MarketingAdChange.Action, "campaign")
+            ? MarketingAdChange.CampaignChoicesAsync(tools, DateOnly.FromDateTime(DateTime.UtcNow), token)
+            : throw new WorkspaceException("This field has no choices to load.", 404);
+
     private static async Task<string> ReadChangeAsync(
         IReadOnlyDictionary<string, string> input,
         IToolbox tools,

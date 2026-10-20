@@ -102,10 +102,11 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
    - An ad change needs a campaign id that you can only learn by running "Read ad performance" first.
    - *Fix:* a visible actions menu, select fields for fixed choices, and a "Propose a change" button next to each
      campaign in the ads reading.
-   - **Partly fixed (feature/company-hub):**
+   - **Fixed (feature/company-hub, feature/ads-propose-change):**
      - the section is now "Actions", with an Action picker that shows one form at a time;
      - fields with fixed values declare `Choices`, are shown as dropdowns, and the store refuses any other value;
-     - still open: a "Propose a change" button next to each campaign in the ads reading.
+     - the ad change's campaign is now a dropdown of the account's campaigns by name and status, loaded through
+       read tools when the form opens (feature/ads-propose-change, ADR 0037), so no reading is needed first.
 9. **Stale or contradictory copy:**
    - "Approve the reviewed artifact first" shows after it was approved.
    - "Message prepared… Send & authorize" stays after the reply completed.

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { runAction, type Role } from "./api";
+import { useEffect, useState } from "react";
+import { actionChoices, runAction, type ActionChoice, type ActionFieldInfo, type Role } from "./api";
 
 // Read-only, tool-backed actions an employee's manifest declares (docs/adr/0011-employee-actions.md). The output
 // arrives as an artifact for owner review; only approved artifacts can be attached as evidence.
@@ -24,12 +24,33 @@ export function EmployeeActions({
   const [attempt, setAttempt] = useState<Record<string, string>>({});
   // One action form at a time, picked by name (owner walkthrough, 2026-10-19).
   const [picked, setPicked] = useState("");
-  if (actions.length === 0) return null;
+  // Loaded choices by action and field; an empty list means none could be read, so the value is typed instead.
+  const [loaded, setLoaded] = useState<Record<string, ActionChoice[]>>({});
   const shown = actions.find((action) => action.id === picked) ?? actions[0];
-  // A field with fixed choices starts on its first choice.
-  const valueOf = (action: string, field: { id: string; choices?: string[] | null }) =>
-    values[action]?.[field.id] ?? field.choices?.[0] ?? "";
-  async function run(action: string, fields: { id: string; choices?: string[] | null }[]) {
+  // Loaded when the action is shown, keyed by name, so a dashboard refresh does not read the source again.
+  const loads = shown ? shown.fields.filter((f) => f.loadsChoices).map((f) => shown.id + "/" + f.id) : [];
+  const loadKey = loads.join(" ");
+  useEffect(() => {
+    let current = true;
+    for (const key of loadKey ? loadKey.split(" ") : []) {
+      const [action, field] = key.split("/");
+      actionChoices(employeeId, action, field)
+        .then((choices) => current && setLoaded((all) => ({ ...all, [key]: choices })))
+        .catch(() => current && setLoaded((all) => ({ ...all, [key]: [] })));
+    }
+    return () => {
+      current = false;
+    };
+  }, [employeeId, loadKey]);
+  if (actions.length === 0 || !shown) return null;
+  const choicesOf = (action: string, field: ActionFieldInfo): ActionChoice[] =>
+    field.loadsChoices
+      ? (loaded[action + "/" + field.id] ?? [])
+      : (field.choices ?? []).map((choice) => ({ value: choice, label: choice }));
+  // A field with choices starts on its first choice.
+  const valueOf = (action: string, field: ActionFieldInfo) =>
+    values[action]?.[field.id] ?? choicesOf(action, field)[0]?.value ?? "";
+  async function run(action: string, fields: ActionFieldInfo[]) {
     const input = Object.fromEntries(fields.map((field) => [field.id, valueOf(action, field).trim()]));
     if (Object.values(input).some((value) => !value)) {
       setError("Fill in every field.");
@@ -92,14 +113,15 @@ export function EmployeeActions({
               // Long fields take several lines (pasted messages, notes): Enter adds a line, Ctrl+Enter runs. Short
               // fields run on Enter.
               const multiline = field.maxLength > 200;
+              const choices = choicesOf(action.id, field);
               return (
                 <label key={field.id}>
                   {field.label}
-                  {field.choices?.length ? (
+                  {choices.length ? (
                     <select aria-label={field.label} value={value} onChange={(event) => change(event.target.value)}>
-                      {field.choices.map((choice) => (
-                        <option key={choice} value={choice}>
-                          {choice}
+                      {choices.map((choice) => (
+                        <option key={choice.value} value={choice.value}>
+                          {choice.label}
                         </option>
                       ))}
                     </select>

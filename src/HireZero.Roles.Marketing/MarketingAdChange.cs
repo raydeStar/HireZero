@@ -21,7 +21,7 @@ public static class MarketingAdChange
         "Propose an ad change",
         "Read a campaign and name one change you can approve: pause it, or set its daily budget (within half of today's).",
         [
-            new("campaign", "Campaign id", 20),
+            new("campaign", "Campaign", 20) { LoadsChoices = true },
             new("change", "Change", 6) { Choices = [AdsTools.Pause, AdsTools.Budget] },
             new("amount", "New daily budget (budget only; 0 for a pause)", 14),
         ]
@@ -29,6 +29,35 @@ public static class MarketingAdChange
     {
         Publishes = true,
     };
+
+    // The campaigns to choose from: those with activity in the last 90 complete days, by spend, removed ones left out
+    // (owner walkthrough, 2026-10-19: the id was only learnable from a reading). Names are third-party text, clipped.
+    public static async Task<ActionChoice[]> CampaignChoicesAsync(
+        IToolbox tools,
+        DateOnly today,
+        CancellationToken token
+    )
+    {
+        AdsReport report;
+        try
+        {
+            report = await tools.InvokeAsync(
+                AdsTools.Performance,
+                new(today.AddDays(-90), today.AddDays(-1), "campaign", 50),
+                token
+            );
+        }
+        catch (ToolRefusedException)
+        {
+            return [];
+        }
+        return
+        [
+            .. report
+                .Rows.Where(r => r.Status != "removed")
+                .Select(r => new ActionChoice(r.Key, $"{Clip(r.Name ?? r.Key)} ({r.Status ?? "unknown"})")),
+        ];
+    }
 
     // The exact change a reading allows; it is all the publication may do.
     public sealed record Step(

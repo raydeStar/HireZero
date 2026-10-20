@@ -104,7 +104,7 @@ export type Role = {
     id: string;
     name: string;
     description: string;
-    fields: { id: string; label: string; maxLength: number; choices?: string[] | null }[];
+    fields: ActionFieldInfo[];
   }[];
 };
 export type MeasuredEntry = {
@@ -250,6 +250,21 @@ export async function command(
 }
 
 // Runs one declared employee action; retrying with the same request ID returns the recorded task without rerunning it.
+export type ActionFieldInfo = {
+  id: string;
+  label: string;
+  maxLength: number;
+  choices?: string[] | null;
+  // The module lists this field's current values when the form opens (docs/adr/0037-loaded-action-choices.md).
+  loadsChoices?: boolean;
+};
+export type ActionChoice = { value: string; label: string };
+
+export function actionChoices(employeeId: string, action: string, field: string) {
+  const query = new URLSearchParams({ employee: employeeId, action, field });
+  return api<ActionChoice[]>("/company/actions/choices?" + query);
+}
+
 export function runAction(
   requestId: string,
   employeeId: string,

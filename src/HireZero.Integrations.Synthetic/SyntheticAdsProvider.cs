@@ -66,6 +66,7 @@ public sealed class SyntheticAdsProvider : IToolProvider, IIntegrationStatusSour
             _ => ("9" + campaign, false),
         };
 
+    // The id ads.campaign and ads.change accept; the "cmp-" form only seeds the fixture's noise, so its numbers stay put.
     private static string Number(string id) => id.Replace("cmp-", "", StringComparison.Ordinal);
 
     public AdsCampaign ReadCampaign(AdsCampaignRequest request)
@@ -160,7 +161,7 @@ public sealed class SyntheticAdsProvider : IToolProvider, IIntegrationStatusSour
                 :
                 [
                     .. byCampaign
-                        .Select(p => Sum(p.Key.Id, p.Key.Name, p.Key.Status, p.Value))
+                        .Select(p => Sum(Number(p.Key.Id), p.Key.Name, p.Key.Status, p.Value))
                         .OrderByDescending(r => r.Spend),
                 ];
         return new(
