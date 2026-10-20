@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import type { Snapshot, Work } from "./api";
 import { taskState, workName } from "./labels";
 import { ago, elapsed, useNow } from "./time";
+import { dollars } from "./money";
 
 export type Need = {
   kind: string;
@@ -39,6 +40,8 @@ export function useNeeds(version: number) {
 }
 
 export function workTitle(snapshot: Snapshot, task: Work) {
+  // A context draft runs as one reply, but it is drafting context, not a conversation (owner feedback, 2026-10-20).
+  if (task.kind === "context-draft") return task.contextScope === "company" ? "Company facts draft" : "Context draft";
   const d = snapshot.data,
     employee = d.employees.find((e) => e.id === task.employeeId);
   return workName(
@@ -46,14 +49,6 @@ export function workTitle(snapshot: Snapshot, task: Work) {
     task.skill,
   );
 }
-
-const dollars = (usd: number) =>
-  usd.toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 
 // The cockpit (docs/adr/0040-the-muse-layout.md): what needs you, what is running, what is next and what just finished,
 // pinned beside every conversation. It arranges existing views and commands; approvals stay on the job card.

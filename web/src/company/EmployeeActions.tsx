@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
+import { X, Zap } from "lucide-react";
 import { actionChoices, runAction, type ActionChoice, type ActionFieldInfo, type Role } from "./api";
 
+// How many actions show as buttons before the rest move into a menu.
+const visibleActions = 4;
+
 // Read-only, tool-backed actions an employee's manifest declares (docs/adr/0011-employee-actions.md). The output
-// arrives as an artifact for owner review; only approved artifacts can be attached as evidence.
+// arrives as an artifact for owner review; only approved artifacts can be attached as evidence. They sit in a strip
+// above the composer, one button per action, so what an employee can do is visible without opening anything (owner
+// feedback, 2026-10-20); a button opens that action's form in place.
 export function EmployeeActions({
   role,
+  employeeName,
   employeeId,
   threadId,
   disabled,
   refresh,
 }: {
   role: Role | undefined;
+  employeeName: string;
   employeeId: string;
   threadId: string;
   disabled: boolean;
@@ -22,11 +30,11 @@ export function EmployeeActions({
   const [error, setError] = useState("");
   // One request ID per attempt, kept until the outcome is known, so a retry never runs the action twice.
   const [attempt, setAttempt] = useState<Record<string, string>>({});
-  // One action form at a time, picked by name (owner walkthrough, 2026-10-19).
+  // One action form at a time, picked by name (owner walkthrough, 2026-10-19); none until a button is pressed.
   const [picked, setPicked] = useState("");
   // Loaded choices by action and field; an empty list means none could be read, so the value is typed instead.
   const [loaded, setLoaded] = useState<Record<string, ActionChoice[]>>({});
-  const shown = actions.find((action) => action.id === picked) ?? actions[0];
+  const shown = actions.find((action) => action.id === picked);
   // Loaded when the action is shown, keyed by name, so a dashboard refresh does not read the source again.
   const loads = shown ? shown.fields.filter((f) => f.loadsChoices).map((f) => shown.id + "/" + f.id) : [];
   const loadKey = loads.join(" ");
@@ -42,7 +50,7 @@ export function EmployeeActions({
       current = false;
     };
   }, [employeeId, loadKey]);
-  if (actions.length === 0 || !shown) return null;
+  if (actions.length === 0) return null;
   const choicesOf = (action: string, field: ActionFieldInfo): ActionChoice[] =>
     field.loadsChoices
       ? (loaded[action + "/" + field.id] ?? [])
@@ -75,94 +83,119 @@ export function EmployeeActions({
       setRunning("");
     }
   }
+  const pick = (id: string) => {
+    setPicked(picked === id ? "" : id);
+    setError("");
+  };
+  const more = actions.slice(visibleActions);
   return (
-    <details className="co-evidence">
-      <summary>Actions</summary>
-      {actions.length > 1 && (
-        <label className="co-action-picker">
-          Action
-          <select
-            aria-label="Action"
-            value={shown.id}
-            onChange={(event) => {
-              setPicked(event.target.value);
-              setError("");
-            }}
+    <section className="co-action-strip" aria-label="Actions">
+      <div className="co-action-buttons">
+        <span className="co-action-strip-label">
+          <Zap size={14} aria-hidden="true" /> {employeeName} can
+        </span>
+        {actions.slice(0, visibleActions).map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            className="co-action-chip"
+            aria-pressed={picked === action.id}
+            title={action.description}
+            onClick={() => pick(action.id)}
           >
-            {actions.map((action) => (
+            {action.name}
+          </button>
+        ))}
+        {more.length > 0 && (
+          <select
+            aria-label="More actions"
+            className="co-action-more"
+            value={more.some((action) => action.id === picked) ? picked : ""}
+            onChange={(event) => event.target.value && pick(event.target.value)}
+          >
+            <option value="">{more.length} more…</option>
+            {more.map((action) => (
               <option key={action.id} value={action.id}>
                 {action.name}
               </option>
             ))}
           </select>
-        </label>
-      )}
-      {[shown].map((action) => {
-        // The panel sits inside the conversation composer's form, and forms cannot nest: a plain group, a button
-        // that is not a submit button, and Enter handled here keep the composer from submitting.
-        const start = () => void run(action.id, action.fields);
-        return (
-          <div key={action.id} className="co-action" role="group" aria-label={action.name}>
-            <p>
-              <b>{action.name}</b> {action.description} The result is saved for your review before it can be used.
-            </p>
-            {action.fields.map((field) => {
-              const value = valueOf(action.id, field);
-              const change = (text: string) =>
-                setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: text } });
-              // Long fields take several lines (pasted messages, notes): Enter adds a line, Ctrl+Enter runs. Short
-              // fields run on Enter.
-              const multiline = field.maxLength > 200;
-              const choices = choicesOf(action.id, field);
-              return (
-                <label key={field.id}>
-                  {field.label}
-                  {choices.length ? (
-                    <select aria-label={field.label} value={value} onChange={(event) => change(event.target.value)}>
-                      {choices.map((choice) => (
-                        <option key={choice.value} value={choice.value}>
-                          {choice.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : multiline ? (
-                    <textarea
-                      aria-label={field.label}
-                      maxLength={field.maxLength}
-                      rows={6}
-                      value={value}
-                      onChange={(event) => change(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (!disabled && running === "") start();
-                      }}
-                    />
-                  ) : (
-                    <input
-                      aria-label={field.label}
-                      maxLength={field.maxLength}
-                      value={value}
-                      onChange={(event) => change(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key !== "Enter") return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (!disabled && running === "") start();
-                      }}
-                    />
-                  )}
-                </label>
-              );
-            })}
-            <button type="button" disabled={disabled || running !== ""} onClick={start}>
-              {running === action.id ? "Gathering…" : "Run"}
-            </button>
-          </div>
-        );
-      })}
+        )}
+      </div>
+      {shown &&
+        [shown].map((action) => {
+          const start = () => void run(action.id, action.fields);
+          return (
+            <div key={action.id} className="co-action" role="group" aria-label={action.name}>
+              <p>
+                <b>{action.name}</b> {action.description} The result is saved for your review before it can be used.
+              </p>
+              {action.fields.map((field) => {
+                const value = valueOf(action.id, field);
+                const change = (text: string) =>
+                  setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: text } });
+                // Long fields take several lines (pasted messages, notes): Enter adds a line, Ctrl+Enter runs. Short
+                // fields run on Enter.
+                const multiline = field.maxLength > 200;
+                const choices = choicesOf(action.id, field);
+                return (
+                  <label key={field.id}>
+                    {field.label}
+                    {choices.length ? (
+                      <select aria-label={field.label} value={value} onChange={(event) => change(event.target.value)}>
+                        {choices.map((choice) => (
+                          <option key={choice.value} value={choice.value}>
+                            {choice.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : multiline ? (
+                      <textarea
+                        aria-label={field.label}
+                        maxLength={field.maxLength}
+                        rows={6}
+                        value={value}
+                        onChange={(event) => change(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) return;
+                          event.preventDefault();
+                          if (!disabled && running === "") start();
+                        }}
+                      />
+                    ) : (
+                      <input
+                        aria-label={field.label}
+                        maxLength={field.maxLength}
+                        value={value}
+                        onChange={(event) => change(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter") return;
+                          event.preventDefault();
+                          if (!disabled && running === "") start();
+                        }}
+                      />
+                    )}
+                  </label>
+                );
+              })}
+              <div className="co-action-run">
+                <button type="button" className="co-primary" disabled={disabled || running !== ""} onClick={start}>
+                  {running === action.id ? "Gathering…" : "Run"}
+                </button>
+                <button
+                  type="button"
+                  className="fe-icon-button"
+                  aria-label={"Close " + action.name}
+                  title="Close"
+                  onClick={() => pick(action.id)}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
       {error && <p className="co-error">{error}</p>}
-    </details>
+    </section>
   );
 }

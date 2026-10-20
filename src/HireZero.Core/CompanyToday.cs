@@ -88,7 +88,10 @@ public sealed partial class CompanyStore
                 var tasks = All<CompanyTask>(db).ToDictionary(t => t.Id);
                 // The work's name as the employee's module names it, never its id (owner walkthrough, 2026-10-19).
                 string Name(CompanyTask t) =>
-                    employees.TryGetValue(t.EmployeeId, out var e) ? WorkName(e.RoleId, t.Skill) : t.Skill;
+                    t.Kind == ContextDraftKind
+                        ? (t.ContextScope == CompanyScope ? "Company facts draft" : "Context draft")
+                    : employees.TryGetValue(t.EmployeeId, out var e) ? WorkName(e.RoleId, t.Skill)
+                    : t.Skill;
                 string Skill(string taskId) => tasks.TryGetValue(taskId, out var t) ? Name(t) : "work";
                 var needs = new List<CompanyNeed>();
                 var work = WorkIndex(db, tasks.Values);

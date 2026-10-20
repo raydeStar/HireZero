@@ -35,6 +35,8 @@ export type Work = {
   runtime?: string | null;
   resource?: string | null;
   allowNetwork?: boolean;
+  // For a context draft: "company" for the company-wide facts.
+  contextScope?: string | null;
 };
 export type Artifact = {
   id: string;
