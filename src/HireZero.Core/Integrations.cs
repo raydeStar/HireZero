@@ -8,3 +8,33 @@ public interface IIntegrationStatusSource
 {
     IntegrationStatus Status();
 }
+
+// What the owner can set up in the app for one integration (docs/adr/0038-integration-setup-in-the-app.md): the
+// settings file it already reads, the fields the app may write there, and the secrets it reads by name. Values that
+// name a program to run are never declared, so a form can never make HireZero run one.
+public sealed record IntegrationSetup(string Id, string File, IntegrationField[] Fields, IntegrationSecret[] Secrets)
+{
+    // Shown when a change applies only after a restart, such as a tool registered only when a secret is present.
+    public string? RestartNote { get; init; }
+}
+
+// One setting. Check returns why a value is refused, or null; a list field holds up to MaxItems values.
+public sealed record IntegrationField(string Id, string Label, string Help, int MaxLength = 200)
+{
+    public bool List { get; init; }
+    public int MaxItems { get; init; } = 5;
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Func<string, string?>? Check { get; init; }
+}
+
+// One secret, by the name SecretSource reads. Multiline secrets are files such as a service account key.
+public sealed record IntegrationSecret(string Name, string Label, string Help)
+{
+    public bool Multiline { get; init; }
+}
+
+public interface IConfigurableIntegration
+{
+    IntegrationSetup Setup { get; }
+}

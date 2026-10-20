@@ -10,7 +10,7 @@ namespace HireZero.Integrations.Google;
 // the customer account and OAuth client, and the developer token, client secret and refresh token are set as secrets.
 // It only ever sends read queries (GAQL SELECT) that it composes itself, to the Google Ads search endpoint; the Google
 // Ads scope is not read-only, so authorize it as a user with read-only access to the account.
-public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatusSource
+public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatusSource, IConfigurableIntegration
 {
     public const string DeveloperTokenSecret = "HIREZERO_GOOGLE_ADS_DEVELOPER_TOKEN";
     public const string ClientSecretSecret = "HIREZERO_GOOGLE_ADS_CLIENT_SECRET";
@@ -39,7 +39,8 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
     )
     {
         _dataRoot = dataRoot;
-        _secret = secret ?? SecretSource.Default.Read;
+        // Read through the current default at each use, so a secret pasted in the app is seen (docs/adr/0038).
+        _secret = secret ?? (name => SecretSource.Default.Read(name));
         _http = new HttpClient(
             handler
                 ?? new SocketsHttpHandler
@@ -92,6 +93,46 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
 
     private static string Version(Settings settings) =>
         settings.ApiVersion is { } v && ApiVersion().IsMatch(v) ? v : DefaultApiVersion;
+
+    // In-app setup (docs/adr/0038-integration-setup-in-the-app.md): the same google-ads.json and secret names.
+    public IntegrationSetup Setup { get; } =
+        new(
+            "google-ads",
+            "google-ads.json",
+            [
+                new("customerId", "Customer id", "The account's ten-digit id, such as 123-456-7890.", 12)
+                {
+                    Check = v => CustomerId(v) is null ? "A customer id is ten digits." : null,
+                },
+                new(
+                    "loginCustomerId",
+                    "Manager account id",
+                    "Only when you sign in through a manager account: its ten-digit id.",
+                    12
+                )
+                {
+                    Check = v => CustomerId(v) is null ? "A manager account id is ten digits." : null,
+                },
+                new("clientId", "OAuth client id", "The client id of your Google Cloud OAuth client.", 200),
+                new("apiVersion", "API version", "Leave empty for " + DefaultApiVersion + ", or name a newer one.", 4)
+                {
+                    Check = v => ApiVersion().IsMatch(v) ? null : "An API version is like v22.",
+                },
+            ],
+            [
+                new(DeveloperTokenSecret, "Developer token", "From the API Center of your Google Ads manager account."),
+                new(ClientSecretSecret, "OAuth client secret", "The secret of the same OAuth client."),
+                new(RefreshTokenSecret, "Read refresh token", "A refresh token for the adwords scope, used to read."),
+                new(
+                    ChangeRefreshTokenSecret,
+                    "Change refresh token",
+                    "Optional. A separate refresh token used only for owner-approved changes; without it, changes are off."
+                ),
+            ]
+        )
+        {
+            RestartNote = "Turning ad changes on or off takes effect after HireZero restarts.",
+        };
 
     public IntegrationStatus Status()
     {

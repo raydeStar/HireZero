@@ -33,6 +33,23 @@ public sealed class SecretSourceTests : IDisposable
     }
 
     [Fact]
+    public void ASecretPastedInTheAppIsReadLast()
+    {
+        var pasted = new Dictionary<string, string> { ["HIREZERO_FICTIONAL_SECRET"] = "fictional-pasted" };
+        var environment = new Dictionary<string, string>();
+        var secrets = new SecretSource(environment.GetValueOrDefault, [], pasted.GetValueOrDefault);
+        Assert.Equal(
+            ("fictional-pasted", SecretOrigin.App),
+            (secrets.Read("HIREZERO_FICTIONAL_SECRET"), secrets.Describe("HIREZERO_FICTIONAL_SECRET").Origin)
+        );
+        environment["HIREZERO_FICTIONAL_SECRET"] = "fictional-from-environment";
+        Assert.Equal(
+            ("fictional-from-environment", SecretOrigin.Environment),
+            (secrets.Read("HIREZERO_FICTIONAL_SECRET"), secrets.Describe("HIREZERO_FICTIONAL_SECRET").Origin)
+        );
+    }
+
+    [Fact]
     public void ACredentialsDirectoryIsReadByExactOrLowercaseName()
     {
         var credentials = Directory.CreateDirectory(Path.Combine(_root, "credentials")).FullName;

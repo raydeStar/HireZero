@@ -8,8 +8,30 @@ namespace HireZero.Integrations.AzureDevOps;
 // owner's open pull requests through their Azure CLI sign-in. No background watch; nothing is written.
 public sealed class AzureDevOpsToolProvider(string dataRoot, AzureDevOpsClient? client = null)
     : IToolProvider,
-        IIntegrationStatusSource
+        IIntegrationStatusSource,
+        IConfigurableIntegration
 {
+    // In-app setup (docs/adr/0038-integration-setup-in-the-app.md): organizations only. The Azure CLI path names a
+    // program to run, so it stays in azure-devops.json.
+    public IntegrationSetup Setup { get; } =
+        new(
+            "azure-devops",
+            "azure-devops.json",
+            [
+                new(
+                    "organizations",
+                    "Organizations",
+                    "Up to five organization names, one per line, read through your Azure CLI sign-in.",
+                    50
+                )
+                {
+                    List = true,
+                    Check = v => AzureDevOpsClient.ValidOrganization(v) ? null : "Not an organization name: " + v,
+                },
+            ],
+            []
+        );
+
     private sealed record Settings(string[]? Organizations, string? Az);
 
     private AzureDevOpsClient? _client = client;

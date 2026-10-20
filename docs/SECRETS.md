@@ -45,6 +45,7 @@ takes the first it finds:
 | 1 | The file named by `HIREZERO_OIDC_CLIENT_SECRET_FILE` | Kubernetes, vault agents, anything with a mounted file |
 | 2 | A file called `HIREZERO_OIDC_CLIENT_SECRET` (or lowercase) in `$CREDENTIALS_DIRECTORY` or `/run/secrets` | systemd credentials, Docker secrets |
 | 3 | The `HIREZERO_OIDC_CLIENT_SECRET` environment variable | A laptop, quick trials |
+| 4 | Local mode only: a value pasted under Company → Integrations (section 4) | One person's own machine |
 
 A trailing newline in a file is ignored, so `echo value > file` works. Files are read every time the secret is
 used, so changing the file is enough to rotate it (see section 6).
@@ -120,6 +121,18 @@ flowchart TB
 
 For anything beyond one person's machine, supply a key-encryption key. The code is
 `src/HireZero.Host/CompanyKeyProtection.cs`.
+
+**Secrets pasted in the app** ([ADR 0038](adr/0038-integration-setup-in-the-app.md)) use the same layers. In local
+mode, the Integrations section accepts the secrets that integrations declare: the Google key, the Google Ads tokens
+and the OpenRouter key.
+- Host secrets are never accepted there: the database, audit, key-encryption and sign-in secrets.
+- Each value is encrypted with Data Protection into `data root/secrets/NAME.secret`. That directory is owner-only on
+  macOS and Linux.
+- A pasted value is never sent back to a page. The page shows only where each secret comes from.
+- It is read last, so a file, credential directory or environment variable of the same name always wins. The page says
+  when a pasted value is being ignored.
+- Setting or removing one is recorded in the audit log by name, never by value.
+- Hosted mode refuses pasted secrets: deliver them from your vault as above.
 
 The **audit key** signs the tamper-evident audit log ([ADR 0022](adr/0022-tamper-evident-audit-log.md)). By default
 it is `audit.key` in the data root. When several hosts share one PostgreSQL database, give them the same

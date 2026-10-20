@@ -46,6 +46,20 @@ public sealed partial class CompanyStore
         Sql(db, "UPDATE co_company SET name=$1 WHERE id=$0", CompanyId, clean);
     }
 
+    // A change to an integration's setup, recorded by name only, never with a value (docs/adr/0038).
+    public void IntegrationEvent(string type, string integration, string text)
+    {
+        using var db = Open();
+        Transaction(
+            db,
+            () =>
+            {
+                Event(db, type, integration, null, text);
+                return 0;
+            }
+        );
+    }
+
     // A fresh, unguessable id for a new company.
     public static string NewCompanyId() => "co-" + Guid.NewGuid().ToString("N")[..20];
 }
