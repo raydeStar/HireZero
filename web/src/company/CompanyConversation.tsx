@@ -234,7 +234,7 @@ export function CompanyConversation({
         </p>
         <small>
           {snapshot.capabilities.conversationalReplies
-            ? "One text-only Luna reply can be prepared, reviewed and explicitly authorized. Each turn needs its own approval; no tools, coding or autonomous follow-up."
+            ? "One text-only reply can be prepared, reviewed and explicitly authorized. Each turn needs its own approval; no tools, coding or autonomous follow-up."
             : "Live replies unavailable. Messages remain saved locally; eligible draft jobs retain separate approval."}
         </small>
         {employee && (

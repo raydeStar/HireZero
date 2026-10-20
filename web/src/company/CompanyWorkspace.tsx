@@ -365,13 +365,12 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
               </small>
             )}
           </div>
-          <span className="co-status">
-            {snapshot.capabilities.modelExecution
-              ? "Synthetic test provider"
-              : snapshot.capabilities.measuredOneJob
-                ? "Manual jobs connected"
-                : "Live execution unavailable"}
-          </span>
+          {/* A badge only when something is unusual (owner walkthrough, 2026-10-19). */}
+          {(snapshot.capabilities.modelExecution || !snapshot.capabilities.measuredOneJob) && (
+            <span className="co-status">
+              {snapshot.capabilities.modelExecution ? "Synthetic test provider" : "Replies unavailable"}
+            </span>
+          )}
         </header>
         {error && (
           <div className="co-error" role="alert">
@@ -820,10 +819,18 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                         </label>
                       ))}
                   </fieldset>
+                  {ceos.length === 0 && (
+                    <p className="co-muted">A meeting is chaired by a CEO. Hire and onboard a CEO first.</p>
+                  )}
                   <label>
                     Chair
-                    <select required value={chair} onChange={(e) => setChair(e.target.value)}>
-                      <option value="">Choose CEO chair</option>
+                    <select
+                      required
+                      disabled={ceos.length === 0}
+                      value={chair}
+                      onChange={(e) => setChair(e.target.value)}
+                    >
+                      <option value="">{ceos.length ? "Choose the CEO who chairs" : "No CEO hired yet"}</option>
                       {ceos
                         .filter((e) => participants.includes(e.id))
                         .map((e) => (

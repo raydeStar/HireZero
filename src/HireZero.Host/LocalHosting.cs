@@ -52,9 +52,38 @@ public static class LocalHosting
 
     // A loopback caller addressing the exact expected host, with no proxy or tailnet identity headers.
     public static bool IsDirectLocalRequest(HttpContext context, string expectedHost) =>
+        IsDirectLoopback(context) && context.Request.Host.Value == expectedHost;
+
+    // Where a direct loopback page request for localhost on the expected port belongs: the same path on the expected
+    // address (owner walkthrough, 2026-10-19: localhost showed a blank page). Only a page is redirected, never the API,
+    // and only for this exact name and port, so a rebound name still gets nothing.
+    public static string? LocalhostRedirect(HttpContext context, string expectedHost)
+    {
+        var expected = new Uri("http://" + expectedHost);
+        if (
+            !IsDirectLoopback(context)
+            || !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)
+            || context.Request.Path.StartsWithSegments("/api")
+            || !string.Equals(context.Request.Host.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || context.Request.Host.Port != expected.Port
+        )
+            return null;
+        return "http://" + expectedHost + context.Request.Path + context.Request.QueryString;
+    }
+
+    // A refused local request says where the workspace is served, rather than showing an empty page.
+    public static Task RefuseAsync(HttpContext context, string expectedHost)
+    {
+        context.Response.StatusCode = 403;
+        context.Response.ContentType = "text/plain; charset=utf-8";
+        return context.Response.WriteAsync(
+            "This address is not served. Open http://" + expectedHost + "/ on this computer instead.\n"
+        );
+    }
+
+    private static bool IsDirectLoopback(HttpContext context) =>
         context.Connection.RemoteIpAddress is { } remote
         && IPAddress.IsLoopback(remote)
-        && context.Request.Host.Value == expectedHost
         && !context.Request.Headers.Keys.Any(key =>
             key.StartsWith("X-Forwarded-", StringComparison.OrdinalIgnoreCase)
             || key.StartsWith("Tailscale-", StringComparison.OrdinalIgnoreCase)

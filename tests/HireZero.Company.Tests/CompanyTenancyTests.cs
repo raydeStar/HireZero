@@ -39,6 +39,7 @@ public sealed class CompanyTenancyTests : IAsyncDisposable
             CompanyStore.Companies(path).Select(c => c.Id)
         );
         Assert.Equal("Fictional Two", second.Name());
+        Assert.Equal(("My company", "My company"), (first.Name(), CompanyStore.Companies(path)[1].Name));
         var firstData = JsonSerializer.SerializeToElement(first.Dashboard(), CompanyJson.Options);
         var secondData = JsonSerializer.SerializeToElement(second.Dashboard(), CompanyJson.Options);
         Assert.Equal(1, firstData.GetProperty("departments").GetArrayLength());
