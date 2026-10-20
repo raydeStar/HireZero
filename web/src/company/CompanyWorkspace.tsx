@@ -15,7 +15,9 @@ import {
   PanelRightOpen,
   Settings,
   UserPlus,
+  LayoutDashboard,
 } from "lucide-react";
+import { Home, initials } from "./Home";
 import { HireOnboarding } from "./HireOnboarding";
 import { Integrations } from "./Integrations";
 import { Today } from "./Today";
@@ -29,9 +31,11 @@ import { employeeState, roleName } from "./labels";
 type ConversationRoute = { tab: string; selected: string; thread: string; mode?: "chat" | "work"; work?: string };
 function readRoute(): ConversationRoute {
   const query = new URLSearchParams(location.search),
-    view = query.get("view") || "company";
+    view = query.get("view") || "home";
   return {
-    tab: ["company", "employee", "departments", "employees", "plans", "meetings"].includes(view) ? view : "company",
+    tab: ["home", "company", "employee", "departments", "employees", "plans", "meetings"].includes(view)
+      ? view
+      : "home",
     selected: query.get("employee") || "",
     thread: query.get("thread") || "",
     mode: query.get("mode") === "work" ? "work" : "chat",
@@ -47,17 +51,6 @@ function useWide(query: string) {
     return () => media.removeEventListener("change", change);
   }, [query]);
   return wide;
-}
-// Up to two initials for an avatar.
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]!.toUpperCase())
-      .join("") || "?"
-  );
 }
 function Submit({ children = "Save", busy = false }: { children?: string; busy?: boolean }) {
   return (
@@ -435,6 +428,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     if (routeRef.current === initiatingRoute) openConversation(employeeId, threadId);
   }
   const navigation = [
+    ["home", "Home", LayoutDashboard],
     ["company", "Chat", MessageSquareText],
     ["employees", "People", Users],
     ["departments", "Company", Building2],
@@ -536,17 +530,19 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           </button>
           <div>
             <h1>
-              {tab === "company"
-                ? "Company conversation"
-                : tab === "employee"
-                  ? employee?.name || "Conversation unavailable"
-                  : tab === "meetings"
-                    ? "Board meetings"
-                    : tab === "departments"
-                      ? "Company"
-                      : tab === "employees"
-                        ? "People"
-                        : tab[0].toUpperCase() + tab.slice(1)}
+              {tab === "home"
+                ? "Home"
+                : tab === "company"
+                  ? "Company conversation"
+                  : tab === "employee"
+                    ? employee?.name || "Conversation unavailable"
+                    : tab === "meetings"
+                      ? "Board meetings"
+                      : tab === "departments"
+                        ? "Company"
+                        : tab === "employees"
+                          ? "People"
+                          : tab[0].toUpperCase() + tab.slice(1)}
             </h1>
             {chat && (
               <small>
@@ -597,6 +593,26 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           </div>
         )}
         <div className={chat ? "co-conversation-body" : "co-management"}>
+          {tab === "home" && (
+            <Home
+              snapshot={snapshot}
+              needs={needs}
+              onOpenWork={openWork}
+              onOpenNeed={openNeed}
+              onChat={chooseEmployee}
+              onWork={(e) =>
+                navigate({
+                  tab: "employee",
+                  selected: e.id,
+                  thread:
+                    d.threads.find((t) => t.employeeId === e.id && (t.scope ?? "employee") === "employee")?.id || "",
+                  mode: "work",
+                  work: "",
+                })
+              }
+              onHire={() => setTab("employees")}
+            />
+          )}
           {tab === "company" && !d.employees.length && (
             <div className="co-first-hire">
               <h2>Start with your first employee</h2>
