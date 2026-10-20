@@ -86,6 +86,21 @@ public sealed class ApiModelProviderTests
         return (new ApiModelProvider(name => keys.GetValueOrDefault(name), fake, price ?? (_ => Price)), fake);
     }
 
+    // The store builds a measured call with no output limit of its own (0); the policy's output target is the limit, in
+    // the request and in the worst case, never zero.
+    [Fact]
+    public async Task AMeasuredCallUsesItsPolicyOutputLimit()
+    {
+        var (provider, fake) = Create(new() { ["HIREZERO_OPENROUTER_API_KEY"] = "fictional-router-key" });
+        var (call, job) = Job("openai/fictional-luna");
+        await provider.CompleteMeasuredAsync(call with { MaxOutputTokens = 0 }, job, Token);
+        using var json = JsonDocument.Parse(Assert.Single(fake.Requests).Body);
+        Assert.Equal(
+            CompanyMeasuredPolicy.Current.OutputTarget,
+            json.RootElement.GetProperty("max_completion_tokens").GetInt32()
+        );
+    }
+
     [Fact]
     public async Task AnthropicRoutesUseTheMessagesApiWithTheKeyAndLimits()
     {

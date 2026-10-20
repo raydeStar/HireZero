@@ -118,7 +118,10 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
             ?? throw NotSent(
                 $"The route {route} has no reviewed price, so its spending cannot be capped. Add it to the model prices."
             );
-        var worst = WorstCaseUsd(price, bytes, call.MaxOutputTokens);
+        // A measured call carries no output limit of its own (the store builds it with 0); its policy's output target is
+        // the limit, both for the worst case and for the request, so nothing is sent with a zero or unbounded limit.
+        var maxOutput = call.MaxOutputTokens > 0 ? call.MaxOutputTokens : job.Policy.OutputTarget;
+        var worst = WorstCaseUsd(price, bytes, maxOutput);
         var allowance = job.CreditAllowance / 100m;
         if (worst > allowance)
             throw NotSent(
@@ -134,7 +137,7 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                     new JsonObject
                     {
                         ["model"] = endpoint.Model,
-                        ["max_tokens"] = call.MaxOutputTokens,
+                        ["max_tokens"] = maxOutput,
                         ["system"] = call.Instructions,
                         ["messages"] = new JsonArray(new JsonObject { ["role"] = "user", ["content"] = input }),
                     }
@@ -146,7 +149,7 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                     new JsonObject
                     {
                         ["model"] = endpoint.Model,
-                        ["max_completion_tokens"] = call.MaxOutputTokens,
+                        ["max_completion_tokens"] = maxOutput,
                         ["messages"] = new JsonArray(
                             new JsonObject { ["role"] = "system", ["content"] = call.Instructions },
                             new JsonObject { ["role"] = "user", ["content"] = input }
