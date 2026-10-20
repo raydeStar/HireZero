@@ -44,3 +44,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0037](0037-loaded-action-choices.md) | Loaded action choices | Accepted |
 | [0038](0038-integration-setup-in-the-app.md) | Integration setup in the app | Accepted, partly superseded by 0039 |
 | [0039](0039-integrations-start-without-a-restart.md) | Integrations start without a restart | Accepted |
+| [0040](0040-the-muse-layout.md) | The Muse layout for the company workspace | Accepted |
