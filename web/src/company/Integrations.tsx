@@ -29,6 +29,7 @@ export function Integrations({
     [clientId, setClientId] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [configurable, setConfigurable] = useState<string[]>([]),
     notice = new URLSearchParams(window.location.search).get("microsoft");
   async function load() {
     try {
@@ -57,16 +58,19 @@ export function Integrations({
   return (
     <details className="co-integrations" open={open}>
       <summary>Integrations ({integrations.filter((i) => i.active).length} active)</summary>
-      <ul>
-        {integrations.map((i) => (
-          <li key={i.id}>
-            <strong>{i.name}</strong>: {i.active ? "active" : "not active"}.{" "}
-            <span className="co-muted">{i.reason}</span>
-          </li>
-        ))}
-      </ul>
       <h4>Set up</h4>
-      <IntegrationSetup refresh={refresh} />
+      <IntegrationSetup refresh={refresh} onLoaded={setConfigurable} />
+      <h4>Other integrations</h4>
+      <ul className="co-integration-list">
+        {integrations
+          .filter((i) => !configurable.includes(i.id))
+          .map((i) => (
+            <li key={i.id} className={i.active ? "on" : "off"}>
+              <strong>{i.name}</strong>: {i.active ? "active" : "not active"}.{" "}
+              <span className="co-muted">{i.reason}</span>
+            </li>
+          ))}
+      </ul>
       {notice && (
         <p role="status">{notice === "connected" ? "Microsoft 365 connected." : "Sign-in did not finish: " + notice}</p>
       )}

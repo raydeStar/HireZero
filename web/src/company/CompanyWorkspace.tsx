@@ -418,6 +418,14 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       onActive={setHireActive}
     />
   );
+  const needsCeo = (what: string) => (
+    <div className="co-home-empty co-needs-ceo">
+      <p>{what}</p>
+      <button className="co-primary" onClick={() => setTab("employees")}>
+        <UserPlus size={15} /> Hire a CEO
+      </button>
+    </div>
+  );
   const chat = tab === "company" || tab === "employee";
   const mode = route.mode ?? "chat";
   const boardTasks = tab === "employee" ? d.tasks.filter((t) => t.employeeId === selected) : d.tasks;
@@ -579,7 +587,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                   : tab === "employee"
                     ? employee?.name || "Conversation unavailable"
                     : tab === "meetings"
-                      ? "Board meetings"
+                      ? "Meetings"
                       : tab === "departments"
                         ? "Company"
                         : tab === "employees"
@@ -913,7 +921,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                   <Panel key={roleId} />
                 ))}
                 {ceos.length === 0 ? (
-                  <p>Hire and onboard a CEO to propose company work.</p>
+                  needsCeo("A CEO proposes company work for your approval. Hire and onboard one to start.")
                 ) : (
                   <form
                     onSubmit={form(async () => {
@@ -1043,80 +1051,82 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           {tab === "meetings" && (
             <div className="co-columns">
               <section>
-                <h2>New Board Meeting</h2>
+                <h2>New meeting</h2>
                 <p className="co-muted">
                   Only selected approved evidence and the shared meeting transcript reach participants.
                 </p>
-                <form
-                  onSubmit={form(async () => {
-                    await run("meeting.create", {
-                      name: meetingTitle,
-                      body: agenda,
-                      participants,
-                      chairId: chair,
-                      evidence,
-                      budget: 50000,
-                    });
-                    setMeetingTitle("");
-                    setAgenda("");
-                  })}
-                >
-                  <label>
-                    Title
-                    <input required value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} />
-                  </label>
-                  <label>
-                    Agenda
-                    <textarea required value={agenda} onChange={(e) => setAgenda(e.target.value)} />
-                  </label>
-                  <fieldset>
-                    <legend>Participants</legend>
-                    {d.employees
-                      .filter((e) => e.state === "active")
-                      .map((e) => (
-                        <label className="co-check" key={e.id}>
-                          <input
-                            type="checkbox"
-                            checked={participants.includes(e.id)}
-                            onChange={(event) =>
-                              setParticipants(
-                                event.target.checked
-                                  ? [...participants, e.id]
-                                  : participants.filter((id) => id !== e.id),
-                              )
-                            }
-                          />
-                          {e.name}
-                        </label>
-                      ))}
-                  </fieldset>
-                  {ceos.length === 0 && (
-                    <p className="co-muted">A meeting is chaired by a CEO. Hire and onboard a CEO first.</p>
-                  )}
-                  <label>
-                    Chair
-                    <select
-                      required
-                      disabled={ceos.length === 0}
-                      value={chair}
-                      onChange={(e) => setChair(e.target.value)}
-                    >
-                      <option value="">{ceos.length ? "Choose the CEO who chairs" : "No CEO hired yet"}</option>
-                      {ceos
-                        .filter((e) => participants.includes(e.id))
+                {ceos.length === 0 ? (
+                  needsCeo("A CEO chairs every meeting. Hire and onboard one to hold the first.")
+                ) : (
+                  <form
+                    onSubmit={form(async () => {
+                      await run("meeting.create", {
+                        name: meetingTitle,
+                        body: agenda,
+                        participants,
+                        chairId: chair,
+                        evidence,
+                        budget: 50000,
+                      });
+                      setMeetingTitle("");
+                      setAgenda("");
+                    })}
+                  >
+                    <label>
+                      Title
+                      <input required value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} />
+                    </label>
+                    <label>
+                      Agenda
+                      <textarea required value={agenda} onChange={(e) => setAgenda(e.target.value)} />
+                    </label>
+                    <fieldset>
+                      <legend>Participants</legend>
+                      {d.employees
+                        .filter((e) => e.state === "active")
                         .map((e) => (
-                          <option key={e.id} value={e.id}>
+                          <label className="co-check" key={e.id}>
+                            <input
+                              type="checkbox"
+                              checked={participants.includes(e.id)}
+                              onChange={(event) =>
+                                setParticipants(
+                                  event.target.checked
+                                    ? [...participants, e.id]
+                                    : participants.filter((id) => id !== e.id),
+                                )
+                              }
+                            />
                             {e.name}
-                          </option>
+                          </label>
                         ))}
-                    </select>
-                  </label>
-                  {chooseEvidence}
-                  <Submit busy={busy}>Prepare meeting</Submit>
-                </form>
+                    </fieldset>
+                    <label>
+                      Chair
+                      <select
+                        required
+                        disabled={ceos.length === 0}
+                        value={chair}
+                        onChange={(e) => setChair(e.target.value)}
+                      >
+                        <option value="">{ceos.length ? "Choose the CEO who chairs" : "No CEO hired yet"}</option>
+                        {ceos
+                          .filter((e) => participants.includes(e.id))
+                          .map((e) => (
+                            <option key={e.id} value={e.id}>
+                              {e.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    {chooseEvidence}
+                    <Submit busy={busy}>Prepare meeting</Submit>
+                  </form>
+                )}
               </section>
               <section>
                 <h2>Meeting record</h2>
+                {d.meetings.length === 0 && <p className="co-muted">No meetings yet.</p>}
                 {d.meetings.map((m) => (
                   <article className="co-card" key={m.id}>
                     <h3>{m.title}</h3>
