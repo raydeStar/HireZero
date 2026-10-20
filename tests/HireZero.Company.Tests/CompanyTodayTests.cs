@@ -85,6 +85,11 @@ public sealed class CompanyTodayTests : IDisposable
             }
         );
         store.CompleteAction(action.Id, "Fictional day of sessions.");
+        // The work's allowance says what it is for (owner walkthrough, 2026-10-19), not just "Plan allowance".
+        var labels = JsonSerializer
+            .SerializeToElement(store.Dashboard(), CompanyJson.Options)
+            .GetProperty("budgetLabels");
+        Assert.StartsWith("Developer partner: ", labels.GetProperty(action.Id).GetString());
         var need = Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou);
         Assert.Equal(("review", action.Id), (need.Kind, need.TaskId));
         Assert.Contains("Developer partner", need.Title);

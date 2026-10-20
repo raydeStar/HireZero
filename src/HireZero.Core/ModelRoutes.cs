@@ -46,10 +46,7 @@ public static partial class ModelRoutes
         Current.Value.Prices.TryGetValue(model, out var price) ? price : null;
 
     // What a call cost, in US dollars, or null when the model has no price.
-    public static decimal? Cost(string model, ModelUsage usage) =>
-        Price(model) is { } p
-            ? (usage.InputTokens * p.InputPerMillion + usage.OutputTokens * p.OutputPerMillion) / 1_000_000m
-            : null;
+    public static decimal? Cost(string model, ModelUsage usage) => Price(model)?.Cost(usage);
 
     // The model id without its provider prefix, as a provider's own API names it.
     public static string Native(string route) => route[(route.IndexOf('/') + 1)..];
@@ -112,4 +109,9 @@ public static partial class ModelRoutes
     private static partial Regex RouteFormat();
 }
 
-public sealed record ModelPrice(decimal InputPerMillion, decimal OutputPerMillion);
+public sealed record ModelPrice(decimal InputPerMillion, decimal OutputPerMillion)
+{
+    // What a call with this usage cost, in US dollars.
+    public decimal Cost(ModelUsage usage) =>
+        (usage.InputTokens * InputPerMillion + usage.OutputTokens * OutputPerMillion) / 1_000_000m;
+}

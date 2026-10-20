@@ -127,6 +127,14 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
     OpenRouter and agent apps each say "name … in …json in the data root". There is no in-app setup.
 12. **Budgets are tokens, with ambiguous rows.** Several rows read just "Plan allowance", with nothing saying which
     task they belong to. Dollars appear nowhere, although API models now have prices.
+    - **Fixed (feature/dollar-budgets):**
+      - Budgets opens with "Spend": dollars spent to date for the company and for each employee, from each job's
+        recorded usage and the reviewed price table. Jobs on a model with no price, such as Codex, are counted and
+        named as such, never guessed.
+      - Each work allowance says what it is for: "employee: work", "Plan: objective" or "Meeting: title". Allowances
+        that reserve nothing fold under "Nothing reserved".
+      - Limits stay in planning tokens and say so. Company-level dollar limits would be a separate decision, as ADR
+        0036 notes.
 13. **The work log is noisy.** One ad change wrote five near-identical lines: proposed, approved, started, ready to
     send, sent, published.
     - **Fixed (feature/quiet-work-log).** The work log shows one line per piece of work: its latest step, with the

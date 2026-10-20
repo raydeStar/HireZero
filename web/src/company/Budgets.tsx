@@ -1,40 +1,101 @@
 import { useState } from "react";
 
 type Budget = { id: string; limit: number; used: number; reserved: number; version?: number };
+export type Spend = {
+  usd: number;
+  pricedJobs: number;
+  unpricedJobs: number;
+  employees: { employeeId: string; usd: number; pricedJobs: number; unpricedJobs: number }[];
+};
+
+const dollars = (usd: number) =>
+  usd.toLocaleString(undefined, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
 
 // Token budgets (ported from the legacy budget panel, Phase 2B.5j): each limit with what is used and reserved. You can
-// set the company, department and employee limits within the server's ceilings; plan allowances are approved with
-// their plan and are shown here only.
+// set the company, department and employee limits within the server's ceilings; the allowance opened for one piece of
+// work, plan or meeting is shown by name, and those reserving nothing fold away. Spend is in US dollars, from each
+// authorized job's recorded usage and the reviewed price table (owner walkthrough, 2026-10-19).
 export function Budgets({
   budgets,
+  labels,
   departments,
   employees,
+  spend,
   busy,
   run,
   open,
 }: {
   open?: boolean;
   budgets: Budget[];
+  labels?: Record<string, string>;
   departments: { id: string; name: string }[];
   employees: { id: string; name: string }[];
+  spend?: Spend;
   busy: boolean;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
 }) {
   const [editing, setEditing] = useState<string | null>(null),
     [value, setValue] = useState("");
-  const rows: { id: string; name: string; ceiling?: number }[] = [
+  const limits: { id: string; name: string; ceiling: number }[] = [
     { id: "company-total", name: "Company", ceiling: 1_000_000 },
     ...departments.map((d) => ({ id: "department:" + d.id, name: d.name, ceiling: 500_000 })),
     ...employees.map((e) => ({ id: "employee:" + e.id, name: e.name, ceiling: 250_000 })),
-    ...budgets
-      .filter((b) => !b.id.startsWith("department:") && !b.id.startsWith("employee:") && b.id !== "company-total")
-      .map((b) => ({ id: b.id, name: "Plan allowance" })),
   ];
+  const allowances = budgets.filter(
+    (b) => !b.id.startsWith("department:") && !b.id.startsWith("employee:") && b.id !== "company-total",
+  );
+  const active = allowances.filter((b) => b.reserved > 0);
+  const finished = allowances.filter((b) => b.reserved === 0);
   const byId = new Map(budgets.map((b) => [b.id, b]));
+  const nameOf = (id: string) => employees.find((e) => e.id === id)?.name ?? "Former employee";
+  const tokens = (n: number) => n.toLocaleString();
   return (
     <details className="co-budgets" open={open}>
       <summary>Budgets</summary>
-      <table>
+      <h3>Spend</h3>
+      {spend && spend.pricedJobs + spend.unpricedJobs > 0 ? (
+        <>
+          <table aria-label="Spend">
+            <thead>
+              <tr>
+                <th>For</th>
+                <th>Spent to date</th>
+                <th>Jobs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Company</td>
+                <td>{dollars(spend.usd)}</td>
+                <td>{spend.pricedJobs + spend.unpricedJobs}</td>
+              </tr>
+              {spend.employees.map((line) => (
+                <tr key={line.employeeId}>
+                  <td>{nameOf(line.employeeId)}</td>
+                  <td>{dollars(line.usd)}</td>
+                  <td>{line.pricedJobs + line.unpricedJobs}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {spend.unpricedJobs > 0 && (
+            <p className="co-muted">
+              {spend.unpricedJobs} {spend.unpricedJobs === 1 ? "job" : "jobs"} ran on a model with no price (such as
+              Codex, billed by its own plan), so {spend.unpricedJobs === 1 ? "it is" : "they are"} counted but not in
+              dollars.
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="co-muted">No model jobs have run yet.</p>
+      )}
+      <h3>Limits</h3>
+      <table aria-label="Limits">
         <thead>
           <tr>
             <th>For</th>
@@ -44,15 +105,15 @@ export function Budgets({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {limits.map((row) => {
             const b = byId.get(row.id);
             return (
               <tr key={row.id}>
                 <td>{row.name}</td>
-                <td>{(b?.used ?? 0).toLocaleString()}</td>
-                <td>{(b?.reserved ?? 0).toLocaleString()}</td>
+                <td>{tokens(b?.used ?? 0)}</td>
+                <td>{tokens(b?.reserved ?? 0)}</td>
                 <td>
-                  {editing === row.id && row.ceiling ? (
+                  {editing === row.id ? (
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
@@ -77,19 +138,17 @@ export function Budgets({
                     </form>
                   ) : (
                     <>
-                      {b ? b.limit.toLocaleString() : "not set"}{" "}
-                      {row.ceiling && (
-                        <button
-                          disabled={busy}
-                          type="button"
-                          onClick={() => {
-                            setEditing(row.id);
-                            setValue(String(b?.limit ?? 0));
-                          }}
-                        >
-                          Change
-                        </button>
-                      )}
+                      {b ? tokens(b.limit) : "not set"}{" "}
+                      <button
+                        disabled={busy}
+                        type="button"
+                        onClick={() => {
+                          setEditing(row.id);
+                          setValue(String(b?.limit ?? 0));
+                        }}
+                      >
+                        Change
+                      </button>
                     </>
                   )}
                 </td>
@@ -99,9 +158,47 @@ export function Budgets({
         </tbody>
       </table>
       <p className="co-muted">
-        Ceilings: company 1,000,000, department 500,000, employee 250,000 tokens. A limit cannot drop below what is
-        already used or reserved.
+        Limits are in planning tokens. Ceilings: company 1,000,000, department 500,000, employee 250,000. A limit cannot
+        drop below what is already used or reserved.
       </p>
+      <h3>Work allowances</h3>
+      {active.length ? (
+        <Allowances rows={active} labels={labels} label="Holding tokens" />
+      ) : (
+        <p className="co-muted">No work is holding tokens right now.</p>
+      )}
+      {finished.length > 0 && (
+        <details className="co-budgets-finished">
+          <summary>Nothing reserved ({finished.length})</summary>
+          <Allowances rows={finished} labels={labels} label="Nothing reserved" />
+        </details>
+      )}
     </details>
+  );
+}
+
+// The allowance each plan, meeting or piece of work was given, by name.
+function Allowances({ rows, labels, label }: { rows: Budget[]; labels?: Record<string, string>; label: string }) {
+  return (
+    <table aria-label={label}>
+      <thead>
+        <tr>
+          <th>For</th>
+          <th>Used</th>
+          <th>Reserved</th>
+          <th>Allowance</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((b) => (
+          <tr key={b.id}>
+            <td>{labels?.[b.id] ?? "Earlier work"}</td>
+            <td>{b.used.toLocaleString()}</td>
+            <td>{b.reserved.toLocaleString()}</td>
+            <td>{b.limit.toLocaleString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
