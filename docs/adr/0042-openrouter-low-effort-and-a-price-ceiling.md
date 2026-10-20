@@ -21,8 +21,11 @@ On the OpenRouter path, every measured request also carries:
 - `provider.max_price`, set to the route's reviewed price (input and output, US dollars per million tokens).
   OpenRouter then serves the request only from an endpoint at or below that price, and refuses it otherwise.
 
-The worst case is still computed from the reviewed price, so it becomes a ceiling OpenRouter enforces rather than
-an assumption. A variably priced router can be used: the owner reviews the most they will pay per million tokens and
+The worst case is still computed from the reviewed price, so it becomes a ceiling OpenRouter routes under rather
+than an assumption. Because a router chooses its model after the request arrives, OpenRouter might not apply the
+ceiling to it. Each request therefore also asks for usage accounting (`usage.include`). If OpenRouter's reported
+`usage.cost` is above the job's allowance, the call is an accounting fault: the reply is withheld and the job is
+never retried. A variably priced router can be used: the owner reviews the most they will pay per million tokens and
 writes it in the model prices file, and nothing is billed above it. A refusal is a clear 4xx and is reported as not
 sent, with no usage.
 
