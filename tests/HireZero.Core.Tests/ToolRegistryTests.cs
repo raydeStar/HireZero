@@ -189,4 +189,25 @@ public sealed class ToolRegistryTests
         var registry = Registry();
         Assert.Throws<InvalidOperationException>(() => registry.Register(Read, (_, _) => Task.FromResult("again")));
     }
+
+    // An integration set up while HireZero runs replaces its stand-in entirely (docs/adr/0039).
+    [Fact]
+    public async Task AdoptingAProviderReplacesItsStandInEntirely()
+    {
+        var registry = new ToolRegistry(_audit);
+        var standIn = IToolProvider.From(r =>
+        {
+            r.Register(Read, (_, _) => Task.FromResult("stand-in"));
+            r.Register(Send, (_, _) => Task.FromResult("stand-in send"));
+        });
+        var real = IToolProvider.From(r => r.Register(Read, (_, _) => Task.FromResult("real")));
+        standIn.Register(registry);
+
+        registry.Adopt(real, standIn);
+        registry.Adopt(real, standIn);
+        var tools = registry.For(Manifest(new EmployeeTool(Read.Id, ToolRisk.Read, "Read.")));
+        Assert.Equal("real", await tools.InvokeAsync(Read, new Query("x"), Token));
+        // The stand-in's send is gone rather than left behind beside the real reads.
+        Assert.False(registry.Has(Send.Id));
+    }
 }

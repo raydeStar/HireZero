@@ -568,12 +568,35 @@ public static class CompanyWorkspace
                         : Results.Json(new { error = "Select the explicit Codex connection profile." }, statusCode: 503)
             );
             // Setting up integrations in the app (docs/adr/0038-integration-setup-in-the-app.md).
+            // After a setup change, every integration that is now active starts working without a restart, in every
+            // open company (docs/adr/0039-integrations-start-without-a-restart.md).
+            void Activate()
+            {
+                if (google.Status().Active)
+                    analytics = google;
+                if (googleAds.Status().Active)
+                    ads = googleAds;
+                foreach (var registry in RuntimesOpen().Select(r => r.Tools).Append(tools).Distinct())
+                {
+                    if (agentApps.Status().Active)
+                        registry.Adopt(agentApps);
+                    if (azureDevOps.Status().Active)
+                        registry.Adopt(azureDevOps);
+                    if (openRouter.Status().Active)
+                        registry.Adopt(openRouter);
+                    if (analytics == google && google.Status().Active)
+                        registry.Adopt(google, syntheticAnalytics);
+                    if (ads == googleAds && googleAds.Status().Active)
+                        registry.Adopt(googleAds, syntheticAds);
+                }
+            }
             app.MapIntegrationSetup(
                 [google, googleAds, azureDevOps, agentApps, openRouter],
                 Integrations,
                 root,
                 pastedSecrets,
-                Store
+                Store,
+                Activate
             );
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(Store().ToolCalls(limit ?? 100)));
             // Members and their roles, for every member to see (docs/adr/0020).

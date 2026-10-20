@@ -119,6 +119,28 @@ public sealed class ToolRegistry(IToolAudit audit, IEnumerable<IToolAuthorityVer
 
     public bool Has(string toolId) => _tools.ContainsKey(toolId);
 
+    // Registers a provider's tools, replacing any already registered under the same ids. This is how an integration set
+    // up while HireZero runs starts working (docs/adr/0039-integrations-start-without-a-restart.md). Adopting the same
+    // provider again changes nothing. When it takes over from a stand-in, every tool the stand-in offers is removed
+    // first, so no stand-in tool the new provider does not offer (such as a fictional ads.change) is left behind.
+    public void Adopt(IToolProvider provider, IToolProvider? replaces = null)
+    {
+        if (replaces is not null)
+            foreach (var id in Staged(replaces).Keys)
+                _tools.TryRemove(id, out _);
+        foreach (var (id, tool) in Staged(provider))
+            _tools[id] = tool;
+    }
+
+    private static ConcurrentDictionary<string, (IToolContract Contract, Delegate Handler)> Staged(
+        IToolProvider provider
+    )
+    {
+        var staged = new ToolRegistry(new MemoryToolAudit(1));
+        provider.Register(staged);
+        return staged._tools;
+    }
+
     // The digest an approval for one exact call is bound to: the tool id and its serialized input.
     public static string Digest<TInput, TOutput>(ToolContract<TInput, TOutput> contract, TInput input) =>
         Digest(contract.Id, JsonSerializer.Serialize(input, Json));

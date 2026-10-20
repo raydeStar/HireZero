@@ -42,4 +42,5 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0035](0035-email-and-crm-read-contracts.md) | Email and CRM read contracts | Accepted |
 | [0036](0036-api-model-provider.md) | API model provider | Accepted |
 | [0037](0037-loaded-action-choices.md) | Loaded action choices | Accepted |
-| [0038](0038-integration-setup-in-the-app.md) | Integration setup in the app | Accepted |
+| [0038](0038-integration-setup-in-the-app.md) | Integration setup in the app | Accepted, partly superseded by 0039 |
+| [0039](0039-integrations-start-without-a-restart.md) | Integrations start without a restart | Accepted |

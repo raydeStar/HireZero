@@ -128,8 +128,8 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
     - **Fixed (feature/integration-setup, ADR 0038).** Integrations → Set up offers a form for each of these. Settings
       are checked by the integration's own rules and merged into the same file, keeping its other keys. Program paths
       (`az`, `steer`) stay file-only. In local mode a secret can be pasted: it is stored encrypted, read last, never
-      shown again, and audited by name. Hosted mode points to the vault instead. An integration that becomes active
-      says to restart HireZero to start using it.
+      shown again, and audited by name. Hosted mode points to the vault instead. An integration starts working as
+      soon as it is set up, with no restart (feature/live-integrations, ADR 0039).
 12. **Budgets are tokens, with ambiguous rows.** Several rows read just "Plan allowance", with nothing saying which
     task they belong to. Dollars appear nowhere, although API models now have prices.
     - **Fixed (feature/dollar-budgets):**
