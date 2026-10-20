@@ -371,6 +371,9 @@ public sealed partial class CompanyStore
                         uiSlots = r.Manifest?.UiSlots ?? [],
                         actions = r.Manifest?.Actions ?? [],
                     }),
+                    taskTimes = TaskTimes(db),
+                    // The company-wide fact fields and their help, in order (real-use batch, 2026-10-20).
+                    companyFields = CompanyFactFields.Select(f => new { id = f.Id, help = f.Help }),
                     cursor = long.Parse(
                         Scalar(db, "SELECT COALESCE(MAX(seq),0) FROM co_events WHERE company_id=$0", CompanyId)!
                     ),

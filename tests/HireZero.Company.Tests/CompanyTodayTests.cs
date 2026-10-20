@@ -57,7 +57,12 @@ public sealed class CompanyTodayTests : IDisposable
                 Body = CompanyJson.Encode(fields),
             }
         );
-        Assert.Equal("knowledge", Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou).Kind);
+        // Named by its department and the hire it finishes, and opened from that hire.
+        var draft = Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou);
+        Assert.Equal(
+            ("knowledge", "Fictional studio: approve Fictional marketer's context", hired.Id),
+            (draft.Kind, draft.Title, draft.EmployeeId)
+        );
     }
 
     [Fact]
@@ -78,7 +83,8 @@ public sealed class CompanyTodayTests : IDisposable
         );
         var now = DateTimeOffset.UtcNow;
         var today = store.Today("today", now.AddHours(-1), now.AddHours(1));
-        Assert.Equal("knowledge", Assert.Single(today.NeedsYou).Kind);
+        var waiting = Assert.Single(today.NeedsYou);
+        Assert.Equal(("knowledge", "Engineering: approve department context"), (waiting.Kind, waiting.Title));
         Assert.Equal(1, today.Events);
         Assert.Contains("department.created", today.Happened.Keys);
 

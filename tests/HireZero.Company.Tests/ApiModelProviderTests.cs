@@ -101,6 +101,35 @@ public sealed class ApiModelProviderTests
         );
     }
 
+    // OpenRouter gets low reasoning effort and the reviewed price as a ceiling, so a variably priced router cannot bill
+    // above the worst case; vendor APIs get neither.
+    [Fact]
+    public async Task OpenRouterCallsUseLowEffortAndTheReviewedPriceAsACeiling()
+    {
+        var (provider, fake) = Create(
+            new()
+            {
+                [ApiModelProvider.OpenAIKey] = "fictional-openai-key",
+                [ApiModelProvider.OpenRouterKey] = "fictional-router-key",
+            }
+        );
+        var (call, job) = Job("fictional/router");
+        await provider.CompleteMeasuredAsync(call, job, Token);
+        var (openaiCall, openaiJob) = Job("openai/fictional-mini");
+        await provider.CompleteMeasuredAsync(openaiCall, openaiJob, Token);
+
+        using var router = JsonDocument.Parse(fake.Requests[0].Body);
+        Assert.Equal("low", router.RootElement.GetProperty("reasoning").GetProperty("effort").GetString());
+        var ceiling = router.RootElement.GetProperty("provider").GetProperty("max_price");
+        Assert.Equal(
+            (3m, 15m),
+            (ceiling.GetProperty("prompt").GetDecimal(), ceiling.GetProperty("completion").GetDecimal())
+        );
+        using var openai = JsonDocument.Parse(fake.Requests[1].Body);
+        Assert.False(openai.RootElement.TryGetProperty("reasoning", out _));
+        Assert.False(openai.RootElement.TryGetProperty("provider", out _));
+    }
+
     [Fact]
     public async Task AnthropicRoutesUseTheMessagesApiWithTheKeyAndLimits()
     {
@@ -263,6 +292,22 @@ public sealed class ApiModelProviderTests
             provider.CompleteMeasuredAsync(call, job, Token)
         );
         Assert.True(fault.AccountingViolation);
+    }
+
+    // A variably priced router may not honor the price ceiling; OpenRouter's billed cost above the allowance is an
+    // accounting fault, and the reply is withheld.
+    [Fact]
+    public async Task AnOpenRouterBillAboveTheAllowanceIsAnAccountingFault()
+    {
+        var (provider, fake) = Create(new() { [ApiModelProvider.OpenRouterKey] = "fictional-router-key" });
+        fake.Reply =
+            """{"id":"gen-1","choices":[{"message":{"content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":130,"completion_tokens":40,"cost":1.25}}""";
+        var (call, job) = Job("fictional/router");
+        var fault = await Assert.ThrowsAsync<ModelTransportException>(() =>
+            provider.CompleteMeasuredAsync(call, job, Token)
+        );
+        Assert.True(fault.AccountingViolation);
+        Assert.Contains("$1.2500", fault.Message);
     }
 
     // Codex stays the model while it is selected; the API model only on explicit opt-in.

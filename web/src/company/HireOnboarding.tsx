@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import { command, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
 import { humanize } from "./labels";
 import { ContextFromSources } from "./ContextFromSources";
+import { valuesOf } from "./contextDraft";
 
 type Draft = {
   role: string;
@@ -51,16 +52,6 @@ function readDraft(snapshot: Snapshot): Draft {
   }
   const draft = fresh(snapshot);
   return { ...draft, departmentId: suggestedDepartment(snapshot, draft.role) };
-}
-function valuesOf(knowledge?: Knowledge): Record<string, string> {
-  try {
-    const value = JSON.parse(knowledge?.body || "{}");
-    return Object.fromEntries(
-      Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
-    );
-  } catch {
-    return { context: knowledge?.body || "" };
-  }
 }
 export function HireOnboarding({
   snapshot,

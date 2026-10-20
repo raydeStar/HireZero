@@ -156,6 +156,22 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                         ),
                     }
                 );
+        // Through OpenRouter (docs/adr/0042-openrouter-low-effort-and-a-price-ceiling.md): reasoning stays at low effort,
+        // the reviewed price is the ceiling OpenRouter routes under, and the reply reports what was billed, so a route
+        // whose price varies by request (a router such as Jev) is checked against the allowance either way.
+        if (endpoint.Api == "openrouter")
+        {
+            body["reasoning"] = new JsonObject { ["effort"] = "low" };
+            body["usage"] = new JsonObject { ["include"] = true };
+            body["provider"] = new JsonObject
+            {
+                ["max_price"] = new JsonObject
+                {
+                    ["prompt"] = price.InputPerMillion,
+                    ["completion"] = price.OutputPerMillion,
+                },
+            };
+        }
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(body) };
         if (endpoint.Api == "anthropic")
         {
@@ -200,10 +216,29 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                 usage,
                 accountingViolation: true
             );
+        // OpenRouter reports what it billed. A router may not honor the price ceiling, so a bill above the allowance is
+        // an accounting fault, never a reply (docs/adr/0042-openrouter-low-effort-and-a-price-ceiling.md).
+        if (endpoint.Api == "openrouter" && BilledUsd(root) is { } billed && billed > allowance)
+            throw new ModelTransportException(
+                $"OpenRouter billed ${billed:0.0000}, more than the allowance of {job.CreditAllowance:0.##} cents.",
+                total,
+                receipt,
+                usage,
+                accountingViolation: true
+            );
         if (stop != "complete")
             throw new ModelTransportException(stop, total, receipt, usage);
         return new(reply, total, receipt, usage);
     }
+
+    // OpenRouter's billed cost in US dollars (usage.cost), or null when it reports none.
+    private static decimal? BilledUsd(JsonElement root) =>
+        root.TryGetProperty("usage", out var u)
+        && u.ValueKind == JsonValueKind.Object
+        && u.TryGetProperty("cost", out var cost)
+        && cost.ValueKind == JsonValueKind.Number
+            ? cost.GetDecimal()
+            : null;
 
     private static (string Text, string Stop, ModelUsage Usage, string Id) Anthropic(JsonElement root)
     {

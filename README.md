@@ -40,6 +40,14 @@ Open <http://127.0.0.1:5065/>. The company workspace is the only startup profile
 and a data root, and refuses an existing legacy database. While `HIREZERO_EXECUTION_HOLD=1` is set it refuses to
 start, so nothing resumes until you clear the hold. Stop it with Ctrl+C.
 
+To keep running a company while you develop (a running host locks the build output), publish an install outside the
+checkout and run it from there. `-Stop` stops a host already running from that install; the data root is never touched.
+
+```powershell
+./tools/Update-CompanyLocal.ps1 -Target <install directory> -Stop
+<install directory>/tools/Start-CompanyLocal.ps1 -DataRoot <data root>
+```
+
 ### Hosted mode
 
 For real clients, run the host behind HTTPS with members signing in through any OIDC provider

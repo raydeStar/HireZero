@@ -3,6 +3,7 @@ import { Check, CircleAlert, PanelRightClose, X } from "lucide-react";
 import { api } from "../lib/api";
 import type { Snapshot, Work } from "./api";
 import { taskState, workName } from "./labels";
+import { ago, elapsed, useNow } from "./time";
 
 export type Need = {
   kind: string;
@@ -77,6 +78,7 @@ export function Cockpit({
 }) {
   const d = snapshot.data;
   const [everyone, setEveryone] = useState(false);
+  const now = useNow(15_000);
   const scoped = scope && !everyone ? d.employees.find((e) => e.id === scope) : undefined;
   const mine = (employeeId?: string) => !scoped || employeeId === scoped.id;
   const tasks = d.tasks.filter((t) => mine(t.employeeId));
@@ -99,11 +101,19 @@ export function Cockpit({
         <X size={13} />
       </button>
     );
+  // Live detail (UX round 8): running work shows how long it has run; other rows show when they last changed.
+  const when = (t: Work) => {
+    const times = d.taskTimes?.[t.id];
+    if (!times) return "";
+    return (workGroups.progress as readonly string[]).includes(t.state)
+      ? " · " + elapsed(times.started, now)
+      : " · " + ago(times.updated, now);
+  };
   const row = (t: Work) => (
     <li key={t.id}>
       <button className="fe-up-next-title" onClick={() => onOpenWork(t)} title={title(t)}>
         <span>{title(t)}</span>
-        <small>{scoped ? taskState(t.state) : nameOf(t.employeeId) + " · " + taskState(t.state)}</small>
+        <small>{(scoped ? taskState(t.state) : nameOf(t.employeeId) + " · " + taskState(t.state)) + when(t)}</small>
       </button>
       {cancel(t)}
     </li>

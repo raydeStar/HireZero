@@ -42,7 +42,14 @@ public static partial class CompanyContextSources
         string? Error
     );
 
-    private sealed record Request(string? RequestId, string? EmployeeId, string[]? Sources, decimal CreditAllowance);
+    // Scope "company" drafts the company-wide facts instead of the employee's department context.
+    private sealed record Request(
+        string? RequestId,
+        string? EmployeeId,
+        string[]? Sources,
+        decimal CreditAllowance,
+        string? Scope = null
+    );
 
     public static void MapContextSources(this WebApplication app, Func<CompanyStore> store, Func<ToolRegistry> tools) =>
         app.MapPost(
@@ -108,6 +115,7 @@ public static partial class CompanyContextSources
                 var command = new CompanyCommand(request.RequestId ?? Guid.NewGuid().ToString("D"), "context.draft")
                 {
                     EmployeeId = request.EmployeeId,
+                    Decision = request.Scope,
                     Body = bundle.ToString().TrimEnd(),
                     CreditAllowance = request.CreditAllowance,
                 };

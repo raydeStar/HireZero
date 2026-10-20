@@ -2187,3 +2187,45 @@
   cursor: pointer;
   min-height: 0;
 }
+
+/* Approved context after onboarding (real-use batch, 2026-10-20): labelled fields with their help, saved versions as
+   readable fields rather than raw JSON, and the company-wide facts below the departments. */
+.co-workspace .co-context-editor label > small {
+  display: block;
+  font-weight: normal;
+  margin: 2px 0 4px;
+}
+.co-workspace .co-context-fields {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+.co-workspace .co-context-fields dt {
+  font-size: var(--fe-t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-context-fields dd {
+  margin: 2px 0 0;
+  font-size: var(--fe-t-s);
+  white-space: pre-wrap;
+}
+.co-workspace .co-company-facts {
+  margin-top: 24px;
+  max-width: 72ch;
+}
+
+/* UX round 8: what was asked on each work card, and the day in one sentence on Home. */
+.co-workspace .co-work-item .co-work-asked {
+  color: var(--fe-fg-2);
+  font-size: var(--fe-t-s);
+  quotes: "“" "”";
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.co-workspace .co-home-today {
+  margin: 0 0 12px;
+  color: var(--fe-fg-2);
+}

@@ -2,6 +2,7 @@ import { Check, UserPlus } from "lucide-react";
 import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workTitle, type Need } from "./Cockpit";
 import { artifactState, employeeState, roleName } from "./labels";
+import { isToday, useNow } from "./time";
 
 const dollars = (usd: number) =>
   usd.toLocaleString(undefined, {
@@ -110,8 +111,21 @@ export function Home({
   ];
   const next = steps.findIndex((step) => !step.done);
   const spend = d.spend;
+  // Today so far (UX round 8): one sentence from the event times, in the viewer's day.
+  const now = useNow(60_000);
+  const times = d.taskTimes ?? {};
+  const startedToday = work.filter((t) => isToday(times[t.id]?.started, now)).length;
+  const finishedToday = work.filter((t) => t.state === "completed" && isToday(times[t.id]?.updated, now)).length;
+  const todayParts = [
+    startedToday && startedToday + " started",
+    finishedToday && finishedToday + " finished",
+    needs.length && needs.length + (needs.length === 1 ? " waits for you" : " wait for you"),
+  ].filter(Boolean);
   return (
     <div className="co-home">
+      <p className="co-home-today" aria-label="Today so far">
+        <b>Today so far:</b> {todayParts.length ? todayParts.join(" · ") : "nothing has happened yet."}
+      </p>
       <section className="co-home-tiles" aria-label="At a glance">
         {tiles.map(([label, value, attention]) =>
           // What needs you is listed in the cockpit; the tile opens the first item.

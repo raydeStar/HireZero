@@ -99,6 +99,38 @@ public sealed class ContextDraftTests : IAsyncDisposable
                 .GetString()
         );
         Assert.Contains(f.Store.Feed(0, 200), e => e.Type == "context.drafted" && e.Id == task.Id);
+        // The dashboard dates the task from its first and latest events (UX round 8).
+        var times = state.GetProperty("taskTimes").GetProperty(task.Id);
+        Assert.True(
+            times.GetProperty("updated").GetDateTimeOffset() >= times.GetProperty("started").GetDateTimeOffset()
+        );
+
+        // The company-wide facts are drafted the same way, under the fixed company fields instead of the role's.
+        var company = CompanyJson.Decode<CompanyAttempt>(
+            await f.Post(
+                C("context.draft") with
+                {
+                    EmployeeId = hired.Id,
+                    Decision = CompanyStore.CompanyScope,
+                    Body = sources,
+                    CreditAllowance = 1,
+                }
+            )
+        );
+        Assert.Equal(CompanyStore.CompanyScope, f.Store.Work(company.TaskId).ContextScope);
+        var instructions = f.Store.TextCall(company.Id).Instructions;
+        Assert.Contains("company-wide facts", instructions);
+        Assert.Contains("\"boundaries\":", instructions);
+        Assert.DoesNotContain("\"purpose\":", instructions);
+        await f.Refused(
+            C("context.draft") with
+            {
+                EmployeeId = hired.Id,
+                Decision = "everything",
+                Body = sources,
+                CreditAllowance = 1,
+            }
+        );
     }
 
     // The route reads each named source through the audited tools, reports the ones it could not read, and prepares
@@ -201,7 +233,7 @@ public sealed class ContextDraftTests : IAsyncDisposable
     [Fact]
     public void RepositoriesAreRecognisedAndPagesAreNot()
     {
-        Assert.Equal("raydestar/hire-zero", CompanyContextSources.Repository("raydestar/hire-zero"));
+        Assert.Equal("fictional-owner/crane-kit", CompanyContextSources.Repository("fictional-owner/crane-kit"));
         Assert.Equal("owner/repo", CompanyContextSources.Repository("https://github.com/owner/repo/tree/main/docs"));
         Assert.Equal("owner/repo", CompanyContextSources.Repository("https://github.com/owner/repo.git"));
         Assert.Null(CompanyContextSources.Repository("https://example.com/blog/post"));
