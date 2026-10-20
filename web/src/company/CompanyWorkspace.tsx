@@ -431,8 +431,10 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
             <Budgets
               open
               budgets={d.budgets}
+              labels={d.budgetLabels}
               departments={d.departments}
               employees={d.employees}
+              spend={d.spend}
               busy={busy}
               run={run}
             />

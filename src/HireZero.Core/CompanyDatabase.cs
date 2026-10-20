@@ -322,6 +322,9 @@ public sealed partial class CompanyStore
                     meetings = All<CompanyMeeting>(db),
                     handoffs = All<CompanyHandoff>(db),
                     budgets = All<CompanyBudget>(db),
+                    // What each budget is for, by id (owner walkthrough, 2026-10-19).
+                    budgetLabels = BudgetLabels(db),
+                    spend = Spend(All<CompanyAttempt>(db), ModelRoutes.Price),
                     executions = All<CompanyExecutionGrant>(db),
                     measured = All<CompanyAttempt>(db)
                         .Where(a => a.Measured is not null)

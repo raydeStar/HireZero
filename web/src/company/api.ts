@@ -1,3 +1,4 @@
+import type { Spend } from "./Budgets";
 import { api, ApiError } from "../lib/api";
 export type Employee = {
   id: string;
@@ -175,6 +176,9 @@ export type Snapshot = {
     handoffs?: Handoff[];
     cursor: number;
     budgets: { id: string; limit: number; used: number; reserved: number; version?: number }[];
+    budgetLabels?: Record<string, string>;
+    // Model spend in US dollars from recorded usage (owner walkthrough, 2026-10-19).
+    spend?: Spend;
   };
 };
 export type ThreadDetail = {
