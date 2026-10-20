@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api } from "../lib/api";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { api, preference, savePreference } from "../lib/api";
 import { BrandMark } from "../components/BrandMark";
 import { panels } from "../roles/company";
-import { command, type Snapshot, type Employee, type ThreadDetail, type Event, type TaskSpec } from "./api";
+import { command, type Snapshot, type Employee, type ThreadDetail, type Event, type TaskSpec, type Work } from "./api";
+import { Cockpit, useNeeds, workGroups, type Need } from "./Cockpit";
+import { WorkBoard, WorkWindow } from "./Work";
 import { CompanyConversation, type ConversationDraft } from "./CompanyConversation";
-import { MessageSquareText, Users, Building2, ClipboardList, MessagesSquare } from "lucide-react";
+import { MessageSquareText, Users, Building2, ClipboardList, MessagesSquare, PanelRightOpen } from "lucide-react";
 import { HireOnboarding } from "./HireOnboarding";
 import { Integrations } from "./Integrations";
 import { Today } from "./Today";
@@ -14,7 +16,8 @@ import { Companies } from "./Companies";
 import { Audit } from "./Audit";
 import "./company.css";
 import { employeeState, roleName } from "./labels";
-type ConversationRoute = { tab: string; selected: string; thread: string };
+// A conversation's mode (Chat or Work) and its open work are part of the address (docs/adr/0040-the-muse-layout.md).
+type ConversationRoute = { tab: string; selected: string; thread: string; mode?: "chat" | "work"; work?: string };
 function readRoute(): ConversationRoute {
   const query = new URLSearchParams(location.search),
     view = query.get("view") || "company";
@@ -22,7 +25,19 @@ function readRoute(): ConversationRoute {
     tab: ["company", "employee", "departments", "employees", "plans", "meetings"].includes(view) ? view : "company",
     selected: query.get("employee") || "",
     thread: query.get("thread") || "",
+    mode: query.get("mode") === "work" ? "work" : "chat",
+    work: query.get("work") || "",
   };
+}
+function useWide(query: string) {
+  const [wide, setWide] = useState(() => matchMedia(query).matches);
+  useEffect(() => {
+    const media = matchMedia(query),
+      change = () => setWide(media.matches);
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, [query]);
+  return wide;
 }
 function Submit({ children = "Save", busy = false }: { children?: string; busy?: boolean }) {
   return (
@@ -53,10 +68,14 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     snapshotRequest = useRef(0);
   routeRef.current = route;
   function navigate(next: ConversationRoute) {
+    const previous = routeRef.current;
     routeRef.current = next;
     current.current = { selected: next.selected, thread: next.thread };
-    threadRequest.current++;
-    setDetail(null);
+    // Changing only the mode or the open work keeps the conversation that is already loaded.
+    if (previous.tab !== next.tab || previous.selected !== next.selected || previous.thread !== next.thread) {
+      threadRequest.current++;
+      setDetail(null);
+    }
     setRoute(next);
     setShowConversations(false);
     const query = new URLSearchParams();
@@ -65,10 +84,14 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       query.set("employee", next.selected);
       query.set("thread", next.thread);
     }
+    if (next.tab === "company" || next.tab === "employee") {
+      if (next.mode === "work") query.set("mode", "work");
+      if (next.work) query.set("work", next.work);
+    }
     history.pushState(null, "", "?" + query);
   }
   function setTab(tab: string) {
-    navigate({ ...routeRef.current, tab });
+    navigate({ ...routeRef.current, tab, work: "" });
   }
   // The Company hub (owner walkthrough, 2026-10-19): what needs you and the company's settings, one section at a time,
   // starting with Today. The section is kept in the address so a reload stays on it.
@@ -94,15 +117,62 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     history.replaceState(null, "", "?" + query);
   }
   function openConversation(employeeId: string, threadId: string) {
-    navigate({ tab: "employee", selected: employeeId, thread: threadId });
+    navigate({ tab: "employee", selected: employeeId, thread: threadId, mode: routeRef.current.mode, work: "" });
+  }
+  function setMode(mode: "chat" | "work") {
+    navigate({ ...routeRef.current, mode });
+  }
+  function closeWork() {
+    navigate({ ...routeRef.current, work: "" });
+  }
+  // The cockpit: docked on wide screens, resizable and hideable, otherwise a sheet (docs/adr/0040-the-muse-layout.md).
+  const roomy = useWide("(min-width: 1280px)"),
+    splitWide = useWide("(min-width: 1440px)");
+  const [cockpitOpen, setCockpitOpen] = useState(() => preference("cockpit-open", true)),
+    [cockpitWidth, setCockpitWidth] = useState(() => Math.max(240, Math.min(480, preference("cockpit-width", 320)))),
+    [sheet, setSheet] = useState(false);
+  const drag = useRef<{ x: number; width: number } | null>(null);
+  function resizeCockpit(width: number) {
+    const next = Math.max(240, Math.min(480, Math.round(width)));
+    setCockpitWidth(next);
+    savePreference("cockpit-width", next);
+  }
+  function showCockpit(open: boolean) {
+    setCockpitOpen(open);
+    savePreference("cockpit-open", open);
+  }
+  const docked = roomy && cockpitOpen;
+  const needs = useNeeds(snapshot?.data.cursor ?? 0);
+  function openWork(task: Work) {
+    const where = snapshot?.data.threads.find((t) => t.id === task.threadId);
+    const company = !!where && (where.scope ?? "employee") !== "employee";
+    navigate({
+      tab: company ? "company" : "employee",
+      selected: company ? "" : task.employeeId,
+      thread: company ? "" : task.threadId,
+      mode: routeRef.current.mode,
+      work: task.id,
+    });
+    setSheet(false);
+  }
+  function openNeed(need: Need) {
+    const task = need.taskId ? snapshot?.data.tasks.find((t) => t.id === need.taskId) : undefined;
+    setSheet(false);
+    if (task) openWork(task);
+    else if (need.kind === "plan") setTab("plans");
+    else if (need.kind === "meeting") setTab("meetings");
+    else openHub(need.kind === "knowledge" ? "departments" : "today");
   }
   useEffect(() => {
     const pop = () => {
-      const next = readRoute();
+      const next = readRoute(),
+        previous = routeRef.current;
       routeRef.current = next;
       current.current = { selected: next.selected, thread: next.thread };
-      threadRequest.current++;
-      setDetail(null);
+      if (previous.tab !== next.tab || previous.selected !== next.selected || previous.thread !== next.thread) {
+        threadRequest.current++;
+        setDetail(null);
+      }
       setRoute(next);
       setShowConversations(false);
     };
@@ -252,6 +322,43 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     </fieldset>
   );
   const chat = tab === "company" || tab === "employee";
+  const mode = route.mode ?? "chat";
+  const boardTasks = tab === "employee" ? d.tasks.filter((t) => t.employeeId === selected) : d.tasks;
+  const activeWork = boardTasks.filter(
+    (t) =>
+      t.kind !== "conversation" &&
+      ([...workGroups.review, ...workGroups.progress, ...workGroups.next] as string[]).includes(t.state),
+  ).length;
+  const workTask = chat && route.work ? d.tasks.find((t) => t.id === route.work) : undefined;
+  const workWindow = workTask && (
+    <WorkWindow
+      key={workTask.id}
+      snapshot={snapshot}
+      task={workTask}
+      busy={busy}
+      run={run}
+      refresh={refresh}
+      open={openConversation}
+      onChat={
+        mode === "work" || !splitWide
+          ? () => navigate({ ...routeRef.current, mode: "chat", work: splitWide ? workTask.id : "" })
+          : undefined
+      }
+      onClose={closeWork}
+    />
+  );
+  const cockpit = (
+    <Cockpit
+      snapshot={snapshot}
+      needs={needs}
+      scope={tab === "employee" ? selected : undefined}
+      busy={busy}
+      run={run}
+      onOpenWork={openWork}
+      onOpenNeed={openNeed}
+      onClose={() => (sheet ? setSheet(false) : showCockpit(false))}
+    />
+  );
   const initiatingRoute = route;
   function openFromConversation(employeeId: string, threadId: string) {
     if (routeRef.current === initiatingRoute) openConversation(employeeId, threadId);
@@ -264,7 +371,10 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     ["meetings", "Board", MessagesSquare],
   ] as const;
   return (
-    <div className="fe-app dev-app co-app co-workspace">
+    <div
+      className={"fe-app dev-app co-app co-workspace" + (docked ? " with-cockpit" : "")}
+      style={{ "--fe-cockpit-w": cockpitWidth + "px" } as CSSProperties}
+    >
       <aside className="fe-rail co-navigation" aria-label="Navigation">
         <BrandMark className="fe-rail-mark" />
         <nav className="fe-rail-nav">
@@ -357,7 +467,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                 {tab === "company"
                   ? "Company context · owner control"
                   : employee
-                    ? employee.roleId +
+                    ? roleName(d.roles, employee.roleId) +
                       " · " +
                       d.departments.find((x) => x.id === employee.departmentId)?.name +
                       " · private conversation"
@@ -365,11 +475,33 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
               </small>
             )}
           </div>
+          {chat && (
+            <nav className="fe-tabs fe-mode co-mode" aria-label="Conversation mode">
+              <button aria-current={mode === "chat" ? "page" : undefined} onClick={() => setMode("chat")}>
+                Chat
+              </button>
+              <button aria-current={mode === "work" ? "page" : undefined} onClick={() => setMode("work")}>
+                Work <span className="fe-count">{activeWork}</span>
+              </button>
+            </nav>
+          )}
+          <span className="fe-topbar-spacer" />
           {/* A badge only when something is unusual (owner walkthrough, 2026-10-19). */}
           {(snapshot.capabilities.modelExecution || !snapshot.capabilities.measuredOneJob) && (
             <span className="co-status">
               {snapshot.capabilities.modelExecution ? "Synthetic test provider" : "Replies unavailable"}
             </span>
+          )}
+          {!docked && (
+            <button
+              className="fe-icon-button co-cockpit-toggle"
+              aria-label={"Open cockpit" + (needs.length ? ", " + needs.length + " need you" : "")}
+              title="Cockpit"
+              onClick={() => (roomy ? showCockpit(true) : setSheet(true))}
+            >
+              <PanelRightOpen size={17} />
+              {needs.length > 0 && <span className="fe-count attn">{needs.length}</span>}
+            </button>
           )}
         </header>
         {error && (
@@ -391,31 +523,44 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
               </button>
             </div>
           )}
-          {(tab === "company" || tab === "employee") && (
-            <CompanyConversation
-              key={tab === "company" ? "company" : selected + ":" + thread}
+          {chat && mode === "work" && !workTask && (
+            <WorkBoard
               snapshot={snapshot}
-              company={tab === "company"}
-              events={events}
-              employee={tab === "employee" ? employee : undefined}
-              thread={thread}
-              detail={detail}
-              busy={busy}
-              drafts={drafts}
-              updateDraft={updateDraft}
-              run={run}
-              refresh={refresh}
-              open={openFromConversation}
-              createThread={async () => {
-                if (!employee) return;
-                const before = routeRef.current;
-                const result = (await run("thread.create", {
-                  employeeId: employee.id,
-                  name: "Private conversation",
-                })) as { id: string } | undefined;
-                if (result && routeRef.current === before) openConversation(employee.id, result.id);
-              }}
+              tasks={boardTasks}
+              everyone={tab === "company"}
+              open={route.work ?? ""}
+              onOpen={openWork}
             />
+          )}
+          {chat && workTask && (mode === "work" || !splitWide) && workWindow}
+          {chat && mode === "chat" && (!workTask || splitWide) && (
+            <div className={workTask ? "co-chat-and-work" : "co-chat-only"}>
+              <CompanyConversation
+                key={tab === "company" ? "company" : selected + ":" + thread}
+                snapshot={snapshot}
+                company={tab === "company"}
+                events={events}
+                employee={tab === "employee" ? employee : undefined}
+                thread={thread}
+                detail={detail}
+                busy={busy}
+                drafts={drafts}
+                updateDraft={updateDraft}
+                run={run}
+                refresh={refresh}
+                open={openFromConversation}
+                createThread={async () => {
+                  if (!employee) return;
+                  const before = routeRef.current;
+                  const result = (await run("thread.create", {
+                    employeeId: employee.id,
+                    name: "Private conversation",
+                  })) as { id: string } | undefined;
+                  if (result && routeRef.current === before) openConversation(employee.id, result.id);
+                }}
+              />
+              {workTask && workWindow}
+            </div>
           )}
           {tab === "departments" && (
             <nav className="co-hub-tabs" aria-label="Company sections">
@@ -917,6 +1062,58 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           )}
         </div>
       </main>
+      {docked && (
+        <div className="fe-cockpit-dock">
+          <div
+            className="fe-cockpit-resize"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize cockpit"
+            aria-valuemin={240}
+            aria-valuemax={480}
+            aria-valuenow={cockpitWidth}
+            tabIndex={0}
+            title="Drag to resize · double-click to reset"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              drag.current = { x: event.clientX, width: cockpitWidth };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              if (drag.current) resizeCockpit(drag.current.width + drag.current.x - event.clientX);
+            }}
+            onPointerUp={() => {
+              drag.current = null;
+            }}
+            onPointerCancel={() => {
+              drag.current = null;
+            }}
+            onDoubleClick={() => resizeCockpit(320)}
+            onKeyDown={(event) => {
+              const next =
+                event.key === "ArrowLeft"
+                  ? cockpitWidth + 24
+                  : event.key === "ArrowRight"
+                    ? cockpitWidth - 24
+                    : event.key === "Home"
+                      ? 240
+                      : event.key === "End"
+                        ? 480
+                        : null;
+              if (next === null) return;
+              event.preventDefault();
+              resizeCockpit(next);
+            }}
+          />
+          {cockpit}
+        </div>
+      )}
+      {!docked && sheet && (
+        <div className="fe-sheet" role="dialog" aria-label="Cockpit">
+          <button className="fe-sheet-scrim" aria-label="Close cockpit" onClick={() => setSheet(false)} />
+          {cockpit}
+        </div>
+      )}
     </div>
   );
 }
