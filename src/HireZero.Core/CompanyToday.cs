@@ -116,7 +116,7 @@ public sealed partial class CompanyStore
                                 + ": approve "
                                 + (
                                     waiting.Length == 1 ? waiting[0].Name + "'s context"
-                                    : k.DepartmentId is null ? "shared knowledge"
+                                    : k.DepartmentId is null ? "company facts"
                                     : "department context"
                                 ),
                             waiting.Length == 1

@@ -157,7 +157,33 @@ public sealed class MarketingAnalyticsTests : IDisposable
         Assert.Contains("Search: not read (Name a Search Console site in google.json first.)", text);
     }
 
-    // Answers the token endpoint and every GA4 report with the same fictional day.
+    // A newly verified Search Console property has no rows: the read says there is no data yet rather than printing
+    // zeros and a 0.0 position as if they were measurements.
+    [Fact]
+    public async Task AnEmptySearchConsoleSaysThereIsNoDataYet()
+    {
+        File.WriteAllText(
+            Path.Combine(_root, "google.json"),
+            JsonSerializer.Serialize(new { searchConsoleSite = "sc-domain:fictional.example.invalid" })
+        );
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        var key = JsonSerializer.Serialize(
+            new
+            {
+                type = "service_account",
+                client_email = "reader@fictional-project.example.invalid",
+                private_key = rsa.ExportPkcs8PrivateKeyPem(),
+            }
+        );
+        var (tools, _) = Toolbox(new GoogleAnalyticsProvider(_root, () => key, new GoogleFake()));
+
+        var text = await MarketingAnalytics.ReadAsync(Days("7"), tools, new DateOnly(2026, 2, 10), Token);
+
+        Assert.Contains("No search data yet", text);
+        Assert.DoesNotContain("Average position", text);
+    }
+
+    // Answers the token endpoint, every GA4 report with the same fictional day, and Search Console with no rows.
     private sealed class GoogleFake : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
@@ -165,10 +191,12 @@ public sealed class MarketingAnalyticsTests : IDisposable
             var json =
                 request.RequestUri!.ToString() == GoogleServiceAccount.TokenEndpoint
                     ? """{"access_token":"fictional","expires_in":3600}"""
-                    : """
-                        {"rows":[{"dimensionValues":[{"value":"20260203"}],"metricValues":[{"value":"100"},{"value":"80"},{"value":"40"},{"value":"250"},{"value":"3"},{"value":"0.6"}]}],
-                         "totals":[{"metricValues":[{"value":"100"},{"value":"80"},{"value":"40"},{"value":"250"},{"value":"3"},{"value":"0.6"}]}]}
-                        """;
+                : request.RequestUri.Host == "searchconsole.googleapis.com"
+                    ? """{"responseAggregationType":"byProperty"}"""
+                : """
+                    {"rows":[{"dimensionValues":[{"value":"20260203"}],"metricValues":[{"value":"100"},{"value":"80"},{"value":"40"},{"value":"250"},{"value":"3"},{"value":"0.6"}]}],
+                     "totals":[{"metricValues":[{"value":"100"},{"value":"80"},{"value":"40"},{"value":"250"},{"value":"3"},{"value":"0.6"}]}]}
+                    """;
             return Task.FromResult(
                 new HttpResponseMessage(System.Net.HttpStatusCode.OK)
                 {
