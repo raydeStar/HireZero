@@ -69,9 +69,14 @@ try{
   await until(()=>evaluate("!!document.querySelector('.fe-sheet .co-cockpit')"),'cockpit sheet');
   await evaluate("document.querySelector('.fe-sheet-scrim').click()");
   await until(()=>evaluate("!document.querySelector('.fe-sheet')"),'the sheet closes');
+  // On a phone the conversation list is a drawer, closed until opened (UX round 4).
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await until(()=>evaluate("getComputedStyle(document.querySelector('.co-conversations')).display==='none'"),'drawer closed on a phone');
+  await evaluate("document.querySelector('.co-conversation-toggle').click()");
+  await until(()=>evaluate("getComputedStyle(document.querySelector('.co-conversations')).display!=='none'"),'drawer opens');
 
   assert.equal(errors.length,0,'No uncaught UI exceptions');
-  console.log('PASS real Chrome Muse layout: home overview, shortcuts, theme switch, docked cockpit lists what needs you, work window beside a loaded chat, Work board, cockpit sheet at 1100px');
+  console.log('PASS real Chrome Muse layout: home overview, shortcuts, theme switch, docked cockpit lists what needs you, work window beside a loaded chat, Work board, cockpit sheet at 1100px, phone drawer');
   await send('Browser.close').catch(()=>{});
 }catch(e){await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/muse-layout-browser-host.log'),hostLog);throw e;}
 finally{

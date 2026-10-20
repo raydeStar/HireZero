@@ -33,12 +33,20 @@ const origins: Record<string, string> = {
 
 // Integration setup in the app (docs/adr/0038-integration-setup-in-the-app.md): settings are written to the same file
 // the integration reads; in local mode a secret can be pasted, is stored encrypted and is never shown again.
-export function IntegrationSetup({ refresh }: { refresh: () => Promise<void> }) {
+export function IntegrationSetup({
+  refresh,
+  onLoaded,
+}: {
+  refresh: () => Promise<void>;
+  onLoaded?: (ids: string[]) => void;
+}) {
   const [setups, setSetups] = useState<Setup[] | null>(null);
   const [error, setError] = useState("");
   async function load() {
     try {
-      setSetups(await api<Setup[]>("/company/integrations/setup"));
+      const loaded = await api<Setup[]>("/company/integrations/setup");
+      setSetups(loaded);
+      onLoaded?.(loaded.map((setup) => setup.id));
     } catch (e) {
       setError((e as Error).message);
     }
