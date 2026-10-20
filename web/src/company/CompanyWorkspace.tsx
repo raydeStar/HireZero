@@ -6,7 +6,16 @@ import { command, type Snapshot, type Employee, type ThreadDetail, type Event, t
 import { Cockpit, useNeeds, workGroups, type Need } from "./Cockpit";
 import { WorkBoard, WorkWindow } from "./Work";
 import { CompanyConversation, type ConversationDraft } from "./CompanyConversation";
-import { MessageSquareText, Users, Building2, ClipboardList, MessagesSquare, PanelRightOpen } from "lucide-react";
+import {
+  MessageSquareText,
+  Users,
+  Building2,
+  ClipboardList,
+  MessagesSquare,
+  PanelRightOpen,
+  Settings,
+  UserPlus,
+} from "lucide-react";
 import { HireOnboarding } from "./HireOnboarding";
 import { Integrations } from "./Integrations";
 import { Today } from "./Today";
@@ -38,6 +47,17 @@ function useWide(query: string) {
     return () => media.removeEventListener("change", change);
   }, [query]);
   return wide;
+}
+// Up to two initials for an avatar.
+function initials(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]!.toUpperCase())
+      .join("") || "?"
+  );
 }
 function Submit({ children = "Save", busy = false }: { children?: string; busy?: boolean }) {
   return (
@@ -180,6 +200,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     return () => window.removeEventListener("popstate", pop);
   }, []);
   const [resumeHire, setResumeHire] = useState("");
+  const [hireActive, setHireActive] = useState(false);
   const [evidence, setEvidence] = useState<string[]>([]);
   const [newName, setNewName] = useState(""),
     [role, setRole] = useState(""),
@@ -321,6 +342,56 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       )}
     </fieldset>
   );
+  // The guide keeps one place in the page so a hire in progress is never remounted; the team moves around it.
+  const teamCards = d.employees.length > 0 && (
+    <section className="co-team" aria-label="Your team">
+      <h2>Your team</h2>
+      <div className="co-team-grid">
+        {d.employees.map((e) => (
+          <article className="co-team-card" key={e.id}>
+            <header>
+              <span className="co-avatar" aria-hidden="true">
+                {initials(e.name)}
+                <i className={"co-presence " + e.state} />
+              </span>
+              <span className="co-person-text">
+                <b>{e.name}</b>
+                <small>
+                  {roleName(snapshot.data.roles, e.roleId)} · {employeeState(e.state)}
+                </small>
+              </span>
+            </header>
+            <p>{e.responsibility}</p>
+            <small className="co-muted">
+              {d.departments.find((x) => x.id === e.departmentId)?.name ?? "No department"}
+            </small>
+            <div className="co-actions">
+              {e.state === "onboarding" ? (
+                <button className="co-primary" onClick={() => setResumeHire(e.id)}>
+                  Continue onboarding {e.name}
+                </button>
+              ) : (
+                <button className="co-list" onClick={() => chooseEmployee(e)}>
+                  Open chat with {e.name}
+                </button>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+  const hiring = hireActive || d.employees.some((e) => e.state === "onboarding");
+  const hireGuide = (
+    <HireOnboarding
+      snapshot={snapshot}
+      refresh={refresh}
+      open={openConversation}
+      resumeId={resumeHire}
+      onResumeHandled={() => setResumeHire("")}
+      onActive={setHireActive}
+    />
+  );
   const chat = tab === "company" || tab === "employee";
   const mode = route.mode ?? "chat";
   const boardTasks = tab === "employee" ? d.tasks.filter((t) => t.employeeId === selected) : d.tasks;
@@ -368,7 +439,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     ["employees", "People", Users],
     ["departments", "Company", Building2],
     ["plans", "Plans", ClipboardList],
-    ["meetings", "Board", MessagesSquare],
+    ["meetings", "Meetings", MessagesSquare],
   ] as const;
   return (
     <div
@@ -397,25 +468,36 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       <aside className={"co-conversations" + (showConversations ? " is-open" : "")} aria-label="Conversations">
         <h2>HireZero</h2>
         <button
-          className="co-list"
+          className="co-list co-person"
           aria-current={tab === "company" ? "page" : undefined}
           onClick={() => setTab("company")}
         >
-          <b>Company conversation</b>
-          <small>Owner notes and company updates</small>
+          <span className="co-avatar co-avatar-company" aria-hidden="true">
+            <Building2 size={14} />
+          </span>
+          <span className="co-person-text">
+            <b>Company conversation</b>
+            <small>Notes and company updates</small>
+          </span>
         </button>
         <h3>Employees</h3>
         {d.employees.map((person) => (
           <div key={person.id}>
             <button
-              className="co-list"
+              className="co-list co-person"
               aria-current={tab === "employee" && person.id === selected ? "page" : undefined}
               onClick={() => chooseEmployee(person)}
             >
-              <b>{person.name}</b>
-              <small>
-                {roleName(snapshot.data.roles, person.roleId)} · {employeeState(person.state)}
-              </small>
+              <span className="co-avatar" aria-hidden="true">
+                {initials(person.name)}
+                <i className={"co-presence " + person.state} />
+              </span>
+              <span className="co-person-text">
+                <b>{person.name}</b>
+                <small>
+                  {roleName(snapshot.data.roles, person.roleId)} · {employeeState(person.state)}
+                </small>
+              </span>
             </button>
             {tab === "employee" && person.id === selected && (
               <div className="co-thread-list">
@@ -431,15 +513,17 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           </div>
         ))}
         {!d.employees.length && <p>Hire and onboard an employee to open a private conversation.</p>}
-        <button onClick={() => setTab("employees")}>
-          {d.employees.length ? "Hire or manage employees" : "Hire your first employee"}
-        </button>
-        <p className="co-muted">
-          You have final authority. CEO plans and Board decisions remain subject to your review.
-        </p>
-        <button className="co-hub-link" onClick={() => openHub("today")}>
-          Today, budgets, members and settings
-        </button>
+        {/* Clear actions at the foot of the sidebar (UX audit, 2026-10-20). */}
+        <div className="co-sidebar-foot">
+          <button className="co-sidebar-action" onClick={() => setTab("employees")}>
+            <UserPlus size={15} />
+            {d.employees.length ? "Hire an employee" : "Hire your first employee"}
+          </button>
+          <button className="co-sidebar-action co-hub-link" onClick={() => openHub("today")}>
+            <Settings size={15} />
+            Company settings
+          </button>
+        </div>
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>
         <header className="fe-topbar">
@@ -460,7 +544,9 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                     ? "Board meetings"
                     : tab === "departments"
                       ? "Company"
-                      : tab[0].toUpperCase() + tab.slice(1)}
+                      : tab === "employees"
+                        ? "People"
+                        : tab[0].toUpperCase() + tab.slice(1)}
             </h1>
             {chat && (
               <small>
@@ -701,32 +787,12 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           )}
           {tab === "employees" && (
             <>
-              <HireOnboarding
-                snapshot={snapshot}
-                refresh={refresh}
-                open={openConversation}
-                resumeId={resumeHire}
-                onResumeHandled={() => setResumeHire("")}
-              />
+              {/* The team first, hiring below it; while a hire is unfinished, finishing it comes first (UX audit,
+                  2026-10-20). */}
+              {!hiring && teamCards}
+              {hireGuide}
+              {hiring && teamCards}
               <section>
-                <h2>Your employees</h2>
-                {d.employees.length === 0 ? (
-                  <p>No employees yet. Start with the guided form above.</p>
-                ) : (
-                  d.employees.map((e) => (
-                    <div className="co-hire-person" key={e.id}>
-                      <button className="co-list" onClick={() => chooseEmployee(e)}>
-                        <b>{e.name}</b>
-                        <span>
-                          {roleName(snapshot.data.roles, e.roleId)} · {employeeState(e.state)}
-                        </span>
-                      </button>
-                      {e.state === "onboarding" && (
-                        <button onClick={() => setResumeHire(e.id)}>Continue onboarding {e.name}</button>
-                      )}
-                    </div>
-                  ))
-                )}
                 <details>
                   <summary>Advanced: hire without the guide</summary>
                   <form

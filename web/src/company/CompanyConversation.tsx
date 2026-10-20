@@ -227,20 +227,15 @@ export function CompanyConversation({
       aria-label={company ? "Company conversation" : "Private employee conversation"}
     >
       <div className="co-conversation-context">
-        <p>
-          {company
-            ? "Company context only. Select an employee to reply here; private employee notes, department facts and private conversations are excluded. The human owner retains final authority."
-            : employee?.responsibility || "Choose an employee conversation from the sidebar."}
-        </p>
-        <small>
-          {snapshot.capabilities.conversationalReplies
-            ? "One text-only reply can be prepared, reviewed and explicitly authorized. Each turn needs its own approval; no tools, coding or autonomous follow-up."
-            : "Live replies unavailable. Messages remain saved locally; eligible draft jobs retain separate approval."}
-        </small>
-        {employee && (
-          <>
-            <div className="co-actions">
-              <label>
+        <div className="co-context-line">
+          <p className="co-context-summary">
+            {company
+              ? "Notes for the whole company. To get an answer, choose who replies below the message box."
+              : employee?.responsibility || "Choose an employee conversation from the sidebar."}
+          </p>
+          {employee && (
+            <>
+              <label className="co-thread-picker">
                 Conversation
                 <select
                   aria-label="Employee conversation"
@@ -256,13 +251,32 @@ export function CompanyConversation({
                     ))}
                 </select>
               </label>
-              <button disabled={busy || employee.state === "retired"} onClick={() => void createThread()}>
+              <button
+                className="co-ghost"
+                disabled={busy || employee.state === "retired"}
+                onClick={() => void createThread()}
+              >
                 New conversation
               </button>
-            </div>
-            {privateReady && <PrivateContext employee={employee} detail={detail!} busy={busy} run={run} />}
-          </>
-        )}
+            </>
+          )}
+          {employee && privateReady && <PrivateContext employee={employee} detail={detail!} busy={busy} run={run} />}
+          {/* How a reply is authorized, one click away rather than in every header (UX audit, 2026-10-20). */}
+          <details className="co-about">
+            <summary>How replies work</summary>
+            <p>
+              {snapshot.capabilities.conversationalReplies
+                ? "One text-only reply can be prepared, reviewed and explicitly authorized. Each turn needs its own approval; no tools, coding or autonomous follow-up."
+                : "Live replies unavailable. Messages remain saved locally; eligible draft jobs retain separate approval."}
+            </p>
+            <p>
+              {cents
+                ? "Preparing sends no model request. The final Send authorizes one reply, refused before sending if its worst case could cost more than the cap."
+                : "Preparing sends no model request. The final Send authorizes one native turn. Token, time and credit stops are soft; the provider may exceed the intended allowance. Included usage must be available; no purchases or API fallback."}
+            </p>
+            {company && <p>Private employee notes, department facts and private conversations are excluded.</p>}
+          </details>
+        </div>
       </div>
       <div
         className="fe-chat-scroll"
@@ -364,111 +378,18 @@ export function CompanyConversation({
           </p>
         )}
         <form
+          className="co-composer-form"
           onSubmit={(e) => {
             e.preventDefault();
             void send();
           }}
         >
-          {company ? (
-            <label>
-              Reply as
-              <select value={draft.recipient} onChange={(e) => update({ recipient: e.target.value })}>
-                <option value="">Save owner note only</option>
-                {d.employees
-                  .filter((e) => e.state === "active")
-                  .map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.name} · company context
-                    </option>
-                  ))}
-              </select>
-            </label>
-          ) : (
-            <label>
-              Work type
-              <select
-                value={draft.skill}
-                disabled={!privateReady || busy}
-                onChange={(e) => update({ skill: e.target.value })}
-              >
-                {role?.skills
-                  .filter((s) => s !== "meeting-turn" && s !== "meeting-chair")
-                  .map((s) => (
-                    <option key={s} value={s}>
-                      {workName(role, s)}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          )}
-          {eligible && (
-            <label>
-              Message action
-              <select value={draft.delivery ?? "reply"} onChange={(e) => update({ delivery: e.target.value })}>
-                <option value="reply">Prepare one reply for review</option>
-                <option value="save">Save message only</option>
-              </select>
-            </label>
-          )}
-          {reply && (
-            <>
-              <label>
-                {cents ? "Reply spend cap in US cents" : "Intended reply credit allowance"}
-                <input
-                  type="number"
-                  min="0.01"
-                  max="1000"
-                  step="0.01"
-                  required
-                  value={draft.allowance ?? ""}
-                  onChange={(e) => update({ allowance: e.target.value })}
-                />
-              </label>
-              <small className="co-reply-risk">
-                {cents
-                  ? "Preparing sends no model request. The final Send authorizes one reply, refused before sending if its worst case could cost more than the cap."
-                  : "Preparing sends no model request. The final Send authorizes one native turn. Token, time and credit stops are soft; the provider may exceed the intended allowance. Included usage must be available; no purchases or API fallback."}
-              </small>
-            </>
-          )}
           {structured ? (
             <details open className="co-brief-composer">
               <summary>{structured.label}</summary>
               <structured.Editor value={draft.brief} onChange={(brief) => update({ brief })} />
             </details>
           ) : null}
-          {!company && employee && (
-            <EmployeeActions
-              role={role}
-              employeeId={employee.id}
-              threadId={thread}
-              disabled={busy || employee.state !== "active"}
-              refresh={refresh}
-            />
-          )}
-          {!company && (
-            <details className="co-evidence">
-              <summary>Attach approved evidence ({draft.evidence.length})</summary>
-              {d.artifacts
-                .filter((a) => a.state === "approved")
-                .map((a) => (
-                  <label className="co-check" key={a.id}>
-                    <input
-                      type="checkbox"
-                      checked={draft.evidence.includes(a.id)}
-                      onChange={(e) =>
-                        update({
-                          evidence: e.target.checked
-                            ? [...draft.evidence, a.id]
-                            : draft.evidence.filter((id) => id !== a.id),
-                        })
-                      }
-                    />
-                    {d.employees.find((e) => e.id === a.employeeId)?.name}: {a.body.slice(0, 80)}
-                  </label>
-                ))}
-            </details>
-          )}
           <div className="fe-composer">
             {!structured && (
               <textarea
@@ -517,11 +438,104 @@ export function CompanyConversation({
               <ArrowUp size={19} />
             </button>
           </div>
+          <div className="co-composer-tools">
+            {company ? (
+              <label>
+                Reply as
+                <select value={draft.recipient} onChange={(e) => update({ recipient: e.target.value })}>
+                  <option value="">Save owner note only</option>
+                  {d.employees
+                    .filter((e) => e.state === "active")
+                    .map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name} · company context
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ) : (
+              <label>
+                Work type
+                <select
+                  value={draft.skill}
+                  disabled={!privateReady || busy}
+                  onChange={(e) => update({ skill: e.target.value })}
+                >
+                  {role?.skills
+                    .filter((s) => s !== "meeting-turn" && s !== "meeting-chair")
+                    .map((s) => (
+                      <option key={s} value={s}>
+                        {workName(role, s)}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+            {eligible && (
+              <label>
+                Message action
+                <select value={draft.delivery ?? "reply"} onChange={(e) => update({ delivery: e.target.value })}>
+                  <option value="reply">Prepare one reply for review</option>
+                  <option value="save">Save message only</option>
+                </select>
+              </label>
+            )}
+            {reply && (
+              <label>
+                {cents ? "Spend cap (US cents)" : "Credit allowance"}
+                <input
+                  type="number"
+                  min="0.01"
+                  max="1000"
+                  step="0.01"
+                  required
+                  value={draft.allowance ?? ""}
+                  onChange={(e) => update({ allowance: e.target.value })}
+                />
+              </label>
+            )}
+            {!company && employee && (
+              <EmployeeActions
+                role={role}
+                employeeId={employee.id}
+                threadId={thread}
+                disabled={busy || employee.state !== "active"}
+                refresh={refresh}
+              />
+            )}
+            {!company && (
+              <details className="co-evidence">
+                <summary>Evidence ({draft.evidence.length})</summary>
+                {d.artifacts
+                  .filter((a) => a.state === "approved")
+                  .map((a) => (
+                    <label className="co-check" key={a.id}>
+                      <input
+                        type="checkbox"
+                        checked={draft.evidence.includes(a.id)}
+                        onChange={(e) =>
+                          update({
+                            evidence: e.target.checked
+                              ? [...draft.evidence, a.id]
+                              : draft.evidence.filter((id) => id !== a.id),
+                          })
+                        }
+                      />
+                      {d.employees.find((e) => e.id === a.employeeId)?.name}: {a.body.slice(0, 80)}
+                    </label>
+                  ))}
+              </details>
+            )}
+          </div>
         </form>
         <p className="fe-composer-hint">
           {reply
-            ? "Prepare → inspect context → Send & authorize one reply"
-            : "Enter to save · Shift+Enter for a new line · No reply is authorized by saving"}
+            ? cents
+              ? "Prepare is free · Send authorizes one reply within the cap"
+              : "Prepare is free · Send authorizes one reply · credit stops are soft"
+            : company
+              ? "Enter saves a note · Shift+Enter for a new line"
+              : "Enter saves · Shift+Enter for a new line · saving never asks for a reply"}
         </p>
       </div>
     </section>
@@ -619,7 +633,7 @@ function PrivateContext({
   }, [detail.notes.body, detail.notes.version, dirty]);
   return (
     <details className="co-private-context">
-      <summary>Conversation context and employee settings</summary>
+      <summary>Context & settings</summary>
       <p>
         Only this employee's approved department facts, private notes, bounded conversation history and selected
         approved artifacts can enter a task. Review the exact packet before authorizing a manual job.
