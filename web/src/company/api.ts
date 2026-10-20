@@ -104,7 +104,7 @@ export type Role = {
     id: string;
     name: string;
     description: string;
-    fields: { id: string; label: string; maxLength: number }[];
+    fields: { id: string; label: string; maxLength: number; choices?: string[] | null }[];
   }[];
 };
 export type MeasuredEntry = {

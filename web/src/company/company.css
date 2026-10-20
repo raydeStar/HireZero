@@ -957,3 +957,29 @@
   font-size: 12px;
   color: var(--fe-fg-2);
 }
+/* The Company hub's section tabs (owner walkthrough, 2026-10-19). */
+.co-workspace .co-hub-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+.co-workspace .co-hub-tabs button {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.co-workspace .co-hub-tabs button[aria-current="page"] {
+  background: var(--fe-accent);
+  color: var(--fe-accent-ink);
+  border-color: var(--fe-accent);
+}
+.co-workspace .co-hub-link {
+  margin-top: 12px;
+}
+/* The action picker: one action form at a time (owner walkthrough, 2026-10-19). */
+.co-workspace .co-action-picker {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}

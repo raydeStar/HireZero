@@ -41,7 +41,7 @@ try{
   await send('Page.navigate',{url:url+route});await until(()=>evaluate("!!document.querySelector('button[aria-label=\"Prepare reply for review\"]')"),'Support conversation');
 
   // P0 2: a long action field is multi-line, so separated messages stay separate.
-  await evaluate("[...document.querySelectorAll('details')].filter(d=>d.querySelector('summary')?.textContent.includes('Gather evidence')).forEach(d=>d.open=true)");
+  await evaluate("[...document.querySelectorAll('details')].filter(d=>d.querySelector('summary')?.textContent.includes('Actions')).forEach(d=>d.open=true)");
   assert.equal(await evaluate("document.querySelector('[aria-label^=\"Customer messages\"]').tagName"),'TEXTAREA','Customer messages take several lines');
   await evaluate(`(()=>{const f=document.querySelector('[aria-label^="Customer messages"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(f,${JSON.stringify(messages)});f.dispatchEvent(new Event('input',{bubbles:true}));})()`);await delay(100);
   await evaluate("document.querySelector('[aria-label^=\"Customer messages\"]').closest('[role=group]').querySelector('button').click()");

@@ -11,7 +11,9 @@ export function Budgets({
   employees,
   busy,
   run,
+  open,
 }: {
+  open?: boolean;
   budgets: Budget[];
   departments: { id: string; name: string }[];
   employees: { id: string; name: string }[];
@@ -30,7 +32,7 @@ export function Budgets({
   ];
   const byId = new Map(budgets.map((b) => [b.id, b]));
   return (
-    <details className="co-budgets">
+    <details className="co-budgets" open={open}>
       <summary>Budgets</summary>
       <table>
         <thead>

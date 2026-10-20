@@ -26,7 +26,7 @@ public static class CompanyPullRequestStep
         [
             new("repository", "Repository (owner/name)", 140),
             new("number", "Pull request number", 10),
-            new("step", "Step (merge, rerun, rerun-base or rebase)", 12),
+            new("step", "Step", 12) { Choices = [Merge, Rerun, RerunBase, Rebase] },
         ]
     )
     {

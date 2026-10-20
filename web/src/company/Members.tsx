@@ -10,7 +10,9 @@ export function Members({
   version,
   busy,
   run,
+  open,
 }: {
+  open?: boolean;
   role?: string;
   version: number;
   busy: boolean;
@@ -30,7 +32,7 @@ export function Members({
   }, [version]);
   const owner = role === "owner";
   return (
-    <details className="co-members">
+    <details className="co-members" open={open}>
       <summary>
         Members ({members.filter((m) => m.state === "active").length})
         {role && role !== "owner" ? ` · you are ${role}` : ""}

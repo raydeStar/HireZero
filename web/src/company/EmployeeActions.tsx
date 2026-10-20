@@ -22,9 +22,15 @@ export function EmployeeActions({
   const [error, setError] = useState("");
   // One request ID per attempt, kept until the outcome is known, so a retry never runs the action twice.
   const [attempt, setAttempt] = useState<Record<string, string>>({});
+  // One action form at a time, picked by name (owner walkthrough, 2026-10-19).
+  const [picked, setPicked] = useState("");
   if (actions.length === 0) return null;
-  async function run(action: string, fields: string[]) {
-    const input = Object.fromEntries(fields.map((field) => [field, (values[action]?.[field] ?? "").trim()]));
+  const shown = actions.find((action) => action.id === picked) ?? actions[0];
+  // A field with fixed choices starts on its first choice.
+  const valueOf = (action: string, field: { id: string; choices?: string[] | null }) =>
+    values[action]?.[field.id] ?? field.choices?.[0] ?? "";
+  async function run(action: string, fields: { id: string; choices?: string[] | null }[]) {
+    const input = Object.fromEntries(fields.map((field) => [field.id, valueOf(action, field).trim()]));
     if (Object.values(input).some((value) => !value)) {
       setError("Fill in every field.");
       return;
@@ -50,22 +56,37 @@ export function EmployeeActions({
   }
   return (
     <details className="co-evidence">
-      <summary>Gather evidence</summary>
-      {actions.map((action) => {
+      <summary>Actions</summary>
+      {actions.length > 1 && (
+        <label className="co-action-picker">
+          Action
+          <select
+            aria-label="Action"
+            value={shown.id}
+            onChange={(event) => {
+              setPicked(event.target.value);
+              setError("");
+            }}
+          >
+            {actions.map((action) => (
+              <option key={action.id} value={action.id}>
+                {action.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {[shown].map((action) => {
         // The panel sits inside the conversation composer's form, and forms cannot nest: a plain group, a button
         // that is not a submit button, and Enter handled here keep the composer from submitting.
-        const start = () =>
-          void run(
-            action.id,
-            action.fields.map((field) => field.id),
-          );
+        const start = () => void run(action.id, action.fields);
         return (
           <div key={action.id} className="co-action" role="group" aria-label={action.name}>
             <p>
               <b>{action.name}</b> {action.description} The result is saved for your review before it can be used.
             </p>
             {action.fields.map((field) => {
-              const value = values[action.id]?.[field.id] ?? "";
+              const value = valueOf(action.id, field);
               const change = (text: string) =>
                 setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: text } });
               // Long fields take several lines (pasted messages, notes): Enter adds a line, Ctrl+Enter runs. Short
@@ -74,7 +95,15 @@ export function EmployeeActions({
               return (
                 <label key={field.id}>
                   {field.label}
-                  {multiline ? (
+                  {field.choices?.length ? (
+                    <select aria-label={field.label} value={value} onChange={(event) => change(event.target.value)}>
+                      {field.choices.map((choice) => (
+                        <option key={choice} value={choice}>
+                          {choice}
+                        </option>
+                      ))}
+                    </select>
+                  ) : multiline ? (
                     <textarea
                       aria-label={field.label}
                       maxLength={field.maxLength}

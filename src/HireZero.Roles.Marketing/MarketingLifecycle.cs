@@ -25,14 +25,14 @@ public static class MarketingLifecycle
         EmailAction,
         "Read email results",
         "Read sent campaigns' delivery, opens, clicks, unsubscribes, bounces and complaints for the last 28 or 90 days against the period before.",
-        [new("days", "Days (28 or 90)", 2)]
+        [new("days", "Days", 2) { Choices = ["28", "90"] }]
     );
 
     public static readonly EmployeeAction Pipeline = new(
         PipelineAction,
         "Read the sales pipeline",
         "Read open deals by stage, deals won and lost, and results by lead source for the last 28 or 90 days against the period before.",
-        [new("days", "Days (28 or 90)", 2)]
+        [new("days", "Days", 2) { Choices = ["28", "90"] }]
     );
 
     public const string ReviewInstructions =

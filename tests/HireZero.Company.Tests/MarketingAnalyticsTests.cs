@@ -125,6 +125,17 @@ public sealed class MarketingAnalyticsTests : IDisposable
     }
 
     [Fact]
+    public void AFieldWithChoicesRefusesAnyOtherValue()
+    {
+        Assert.Equal(["7", "28", "90"], MarketingAnalytics.Definition.Fields[0].Choices!);
+        Assert.Contains("28", CompanyStore.ActionInput(MarketingAnalytics.Definition, "{\"days\":\"28\"}"));
+        var error = Assert.Throws<WorkspaceException>(() =>
+            CompanyStore.ActionInput(MarketingAnalytics.Definition, "{\"days\":\"30\"}")
+        );
+        Assert.Equal((422, "Days: choose 7, 28, 90."), (error.Status, error.Message));
+    }
+
+    [Fact]
     public async Task AGoogleSourceWithOnlyAPropertyReadsTrafficAndSaysSearchWasNotRead()
     {
         File.WriteAllText(Path.Combine(_root, "google.json"), JsonSerializer.Serialize(new { ga4Property = "123456" }));
