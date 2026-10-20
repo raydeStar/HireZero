@@ -54,7 +54,7 @@ try{
   await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'reload conversation route');
   await until(()=>evaluate("document.body.innerText.includes('Draft saved for review')"),'saved receipt survives reload');assert.equal(await starts(),1,'Reload never resumes or replays');
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent==='Authorize and run one job')"),false,'Consumed grant has no run button');
-  await click('Approve content');await until(async()=>(await dashboard()).data.artifacts[0].state==='approved','exact content approval');await click('Complete after review');
+  await click('Approve result');await until(async()=>(await dashboard()).data.artifacts[0].state==='approved','exact content approval');await click('Complete after review');
   await until(async()=>(await dashboard()).data.tasks[0].state==='completed','reviewed task completed');assert.equal(await starts(),1,'Content review never calls the provider');
   await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/manual-queue-browser.json'),JSON.stringify({provider:'compiled fake only',liveModelCalls:0,fakeNativeStarts:1,assignStarts:0,prepareStarts:0,readablePacket:true,explicitAcknowledgement:true,reloadReplay:false,ownerReview:'approved',taskState:'completed'},null,2));
   assert.equal(errors.length,0,'No uncaught UI exceptions');await fs.mkdir(path.join(repo,'test-results'),{recursive:true});

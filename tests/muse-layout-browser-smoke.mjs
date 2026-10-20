@@ -30,6 +30,8 @@ try{
   const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};until.diagnose=pageDiagnosis(evaluate);
   await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1600,height:900,deviceScaleFactor:1,mobile:false});await send('Page.addScriptToEvaluateOnNewDocument',{source:fetchTracker});await send('Page.navigate',{url:url+'/'});
   await until(()=>evaluate("document.body.innerText.includes('Company conversation')"),'company UI');
+  // Home is the landing page: the company at a glance and the team with what each is doing (UX round 2).
+  await until(()=>evaluate("!!document.querySelector('.co-home-tiles')&&document.querySelectorAll('.co-home .co-team-card').length>0"),'home overview');
   // Size an A/B test result for the fictional Marketing employee through the page's own API: pure arithmetic, no tools.
   const route=await evaluate(`(async()=>{const s=await (await fetch('/api/company')).json();const m=s.data.employees.find(e=>e.roleId==='marketing');const th=s.data.threads.find(t=>t.employeeId===m.id&&(t.scope??'employee')==='employee');const r=await fetch('/api/company/actions',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action:'action.start',employeeId:m.id,threadId:th.id,skill:'ab-significance',body:JSON.stringify({'control-visitors':'1000','control-conversions':'50','variant-visitors':'1000','variant-conversions':'70',alpha:'5'})})});if(!r.ok)throw new Error('action '+r.status);return '/?view=employee&employee='+m.id+'&thread='+th.id;})()`);
   await send('Page.navigate',{url:url+route});
@@ -56,7 +58,7 @@ try{
   await until(()=>evaluate("!document.querySelector('.fe-sheet')"),'the sheet closes');
 
   assert.equal(errors.length,0,'No uncaught UI exceptions');
-  console.log('PASS real Chrome Muse layout: docked cockpit lists what needs you, work window beside a loaded chat, Work board, cockpit sheet at 1100px');
+  console.log('PASS real Chrome Muse layout: home overview, docked cockpit lists what needs you, work window beside a loaded chat, Work board, cockpit sheet at 1100px');
   await send('Browser.close').catch(()=>{});
 }catch(e){await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/muse-layout-browser-host.log'),hostLog);throw e;}
 finally{

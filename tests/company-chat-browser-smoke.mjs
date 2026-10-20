@@ -43,7 +43,7 @@ try{
   const company=async()=>{await evaluate("document.querySelector('button[aria-label=\"Chat\"]').click()");await until(()=>evaluate("!!document.querySelector('textarea[aria-label=\"Company message\"]')"),'company composer');};
   const value=(label,text)=>write(label,text);
   // The same synchronous UI event cannot create duplicate owner notes.
-  await value('Company message','Owner keeps final authority over employee work.');await submitTwice();
+  await company();await value('Company message','Owner keeps final authority over employee work.');await submitTwice();
   await until(()=>evaluate("document.querySelector('.fe-thread').textContent.includes('Owner keeps final authority over employee work.')"),'saved company note');
   let feed=await fetch(url+'/api/company/feed?after=0').then(r=>r.json());assert.equal(feed.filter(e=>e.type==='owner.note').length,1);assert.equal((await dashboard()).data.tasks.length,0);
   await value('Company message','Company draft stays here.');await openEmployee(marketing.name);assert.equal(await composerValue(),'');

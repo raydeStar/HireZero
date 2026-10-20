@@ -242,7 +242,7 @@ export function ConversationJob({
                 Prepare delegation plan from proposal
               </button>
             )}
-            <pre>{a.body}</pre>
+            <Report body={a.body} />
             {a.state === "needs_review" && (
               <div className="co-actions">
                 <button
@@ -255,7 +255,7 @@ export function ConversationJob({
                     })
                   }
                 >
-                  Approve content
+                  Approve result
                 </button>
                 <button
                   onClick={() =>
@@ -267,7 +267,7 @@ export function ConversationJob({
                     })
                   }
                 >
-                  Request changes
+                  Ask for changes
                 </button>
               </div>
             )}
@@ -309,5 +309,22 @@ function TaskInput({ input }: { input: string }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+// A long result shows its opening lines and a fade until expanded. The full text stays in the page, clipped rather than
+// removed, so nothing is hidden from search or from assistive technology (UX round 2).
+function Report({ body }: { body: string }) {
+  const long = body.split(/\r?\n/).length > 14 || body.length > 1400;
+  const [full, setFull] = useState(false);
+  return (
+    <div className={"co-report" + (long && !full ? " clamped" : "")}>
+      <pre>{body}</pre>
+      {long && (
+        <button type="button" className="co-ghost co-report-toggle" onClick={() => setFull(!full)}>
+          {full ? "Show less" : "Show full report"}
+        </button>
+      )}
+    </div>
   );
 }
