@@ -1231,3 +1231,380 @@
 .co-workspace .co-work-window .co-job-card > b:first-child {
   display: none;
 }
+/* UX round 1 (docs/history/2026-10-20-ux-audit.md): a one-line conversation header and a composer that puts the
+   message first, with its options in one compact row and actions and evidence as panels. */
+.co-workspace .co-conversation-context {
+  padding: 8px 20px;
+}
+.co-workspace .co-context-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.co-workspace .co-context-summary {
+  flex: 1 1 240px;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-thread-picker {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-thread-picker select {
+  font-size: 12px;
+  padding: 3px 6px;
+  max-width: 200px;
+}
+.co-workspace .co-ghost,
+.co-workspace .co-about > summary {
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--fe-r-s);
+  background: transparent;
+  color: var(--fe-fg-2);
+  min-height: 0;
+}
+.co-workspace .co-ghost:hover:not(:disabled),
+.co-workspace .co-about > summary:hover {
+  border-color: var(--fe-line);
+  color: var(--fe-fg);
+}
+.co-workspace .co-about {
+  margin: 0;
+}
+.co-workspace .co-about > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.co-workspace .co-about > summary::-webkit-details-marker {
+  display: none;
+}
+.co-workspace .co-about[open] {
+  flex-basis: 100%;
+  order: 10;
+  font-size: 12px;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-about[open] > summary {
+  color: var(--fe-accent);
+}
+.co-workspace .co-composer-form {
+  display: grid;
+  gap: 6px;
+}
+.co-workspace .co-composer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+.co-workspace .co-composer-tools > label {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-composer-tools select,
+.co-workspace .co-composer-tools input[type="number"] {
+  font-size: 12px;
+  padding: 3px 6px;
+  min-height: 0;
+  max-width: 230px;
+}
+.co-workspace .co-composer-tools input[type="number"] {
+  width: 80px;
+}
+.co-workspace .co-composer-tools > details {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.co-workspace .co-composer-tools > details > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--fe-line);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--fe-fg-2);
+  cursor: pointer;
+}
+.co-workspace .co-composer-tools > details > summary::-webkit-details-marker {
+  display: none;
+}
+.co-workspace .co-composer-tools > details[open] {
+  flex-basis: 100%;
+  order: -1;
+  max-height: 22vh;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--fe-line);
+  border-radius: var(--fe-r-l);
+  background: var(--fe-surface);
+}
+.co-workspace .co-composer-tools > details[open] > summary {
+  border-color: var(--fe-accent);
+  color: var(--fe-accent);
+  margin-bottom: 8px;
+}
+.co-workspace .co-conversation-composer {
+  max-height: 30vh;
+}
+.co-workspace .co-composer-tools > label {
+  white-space: nowrap;
+}
+.co-workspace .co-composer-tools > details.co-evidence {
+  max-height: none;
+  overflow: visible;
+}
+.co-workspace .co-composer-tools > details.co-evidence[open] {
+  max-height: 22vh;
+  overflow: auto;
+}
+.co-workspace .co-composer-tools > details.co-evidence > summary {
+  border: 1px solid var(--fe-line);
+  border-radius: 999px;
+  padding: 3px 12px;
+}
+.co-workspace .co-context-line > .co-private-context {
+  margin: 0;
+}
+.co-workspace .co-context-line > .co-private-context > summary {
+  list-style: none;
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--fe-r-s);
+  color: var(--fe-fg-2);
+  cursor: pointer;
+}
+.co-workspace .co-context-line > .co-private-context > summary:hover {
+  border-color: var(--fe-line);
+  color: var(--fe-fg);
+}
+.co-workspace .co-context-line > .co-private-context[open] {
+  flex-basis: 100%;
+  order: 11;
+  max-height: 40vh;
+  overflow: auto;
+}
+.co-workspace .co-context-line > .co-private-context[open] > summary {
+  color: var(--fe-accent);
+}
+/* Sidebar rows: one anatomy for the company and every employee, and clear actions at the foot (UX audit, 2026-10-20). */
+.co-workspace .co-conversations {
+  display: flex;
+  flex-direction: column;
+}
+.co-workspace .co-conversations .co-person {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 2px 0;
+  padding: 8px 10px;
+  border-radius: var(--fe-r-m);
+  text-align: left;
+}
+.co-workspace .co-conversations .co-person[aria-current="page"] {
+  background: var(--fe-surface-2, rgba(255, 255, 255, 0.06));
+  border-color: transparent;
+}
+.co-workspace .co-person-text {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+.co-workspace .co-person-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+.co-workspace .co-person-text small {
+  font-size: 11.5px;
+}
+.co-workspace .co-avatar {
+  position: relative;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--fe-accent) 22%, transparent);
+  color: var(--fe-fg);
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+.co-workspace .co-avatar-company {
+  border-radius: var(--fe-r-m);
+  background: var(--fe-surface-2, rgba(255, 255, 255, 0.08));
+}
+.co-workspace .co-presence {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--fe-surface);
+  background: var(--fe-fg-3);
+}
+.co-workspace .co-presence.active {
+  background: #3fb27f;
+}
+.co-workspace .co-presence.onboarding {
+  background: #d9a23a;
+}
+.co-workspace .co-thread-list {
+  padding: 0 0 6px 50px;
+}
+.co-workspace .co-sidebar-foot {
+  margin-top: auto;
+  display: grid;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--fe-line);
+}
+.co-workspace .co-conversations .co-sidebar-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--fe-r-m);
+  font-size: 13px;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-conversations .co-sidebar-action:hover:not(:disabled) {
+  background: var(--fe-surface-2, rgba(255, 255, 255, 0.06));
+  color: var(--fe-fg);
+}
+/* Chip and ghost summaries carry no disclosure chevron; chips get an outline that reads on the dark surface. */
+.co-workspace .co-composer-tools > details > summary::before,
+.co-workspace .co-about > summary::before,
+.co-workspace .co-context-line > .co-private-context > summary::before {
+  display: none;
+}
+.co-workspace .co-composer-tools > details > summary,
+.co-workspace .co-composer-tools > details.co-evidence > summary {
+  border-color: color-mix(in srgb, var(--fe-fg) 22%, transparent);
+  font-weight: 550;
+}
+.co-workspace .co-composer-tools > details > summary:hover {
+  border-color: var(--fe-accent);
+  color: var(--fe-fg);
+}
+.co-workspace .co-context-summary {
+  flex-basis: 160px;
+}
+/* People: the team as cards before the hiring guide (UX audit, 2026-10-20). */
+.co-workspace .co-team {
+  margin-bottom: 24px;
+}
+.co-workspace .co-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.co-workspace .co-team-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--fe-line);
+  border-radius: var(--fe-r-l);
+  background: var(--fe-surface);
+}
+.co-workspace .co-team-card header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.co-workspace .co-team-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fe-fg-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.co-workspace .co-team-card .co-actions {
+  margin: 4px 0 0;
+}
+.co-workspace .co-team-card .co-list {
+  width: auto;
+  margin: 0;
+}
+/* Today: one compact row per item, with priority and snooze inline (UX audit, 2026-10-20). */
+.co-workspace .co-today ul[aria-label="Needs you"] {
+  margin: 8px 0 16px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.co-workspace .co-today ul[aria-label="Needs you"] li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--fe-line);
+  border-radius: var(--fe-r-m);
+  background: var(--fe-surface);
+}
+.co-workspace .co-today ul[aria-label="Needs you"] li > strong {
+  font-size: 13.5px;
+}
+.co-workspace .co-today ul[aria-label="Needs you"] li > .co-muted {
+  flex: 1 1 200px;
+  font-size: 12.5px;
+}
+.co-workspace .co-today ul[aria-label="Needs you"] li > select,
+.co-workspace .co-today ul[aria-label="Needs you"] li > button {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.co-workspace .co-today [aria-label="Work log day"] {
+  align-items: center;
+}
+.co-workspace .co-today [aria-label="Work log day"] button {
+  width: auto;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.co-workspace .co-team-card header {
+  justify-content: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-height: 0;
+  height: auto;
+}
+.co-workspace .co-team-card .co-person-text b {
+  font-size: 14px;
+}

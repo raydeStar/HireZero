@@ -67,18 +67,22 @@ export function HireOnboarding({
   open,
   resumeId,
   onResumeHandled,
+  onActive,
 }: {
   snapshot: Snapshot;
   refresh: () => Promise<void>;
   open: (employee: string, thread: string) => void;
   resumeId?: string;
   onResumeHandled: () => void;
+  // Whether a hire is under way (past its first step), so the page can put the guide first (UX audit, 2026-10-20).
+  onActive?: (active: boolean) => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => readDraft(snapshot)),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [consent, setConsent] = useState(false),
     [status, setStatus] = useState("");
+  useEffect(() => onActive?.(draft.step !== "profile"), [draft.step, onActive]);
   const heading = useRef<HTMLHeadingElement>(null),
     current = useRef(draft),
     locked = useRef(false);
