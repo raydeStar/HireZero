@@ -177,7 +177,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         if (
             job.State != "dispatched"
             || job.RuntimeIdentity != RuntimeIdentity
-            || job.Policy != CompanyMeasuredPolicy.Current
+            || !CompanyMeasuredPolicy.Known(job.Policy)
             || job.CreditAllowance is <= 0 or > 1000
             || job.Route != call.ModelRoute
             || job.ContextDigest != CompanyJson.Digest(call.Context)

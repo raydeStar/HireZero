@@ -8,6 +8,8 @@ public sealed partial class CompanyStore
         {
             case "conversation.prepare":
                 return PrepareConversation(db, c);
+            case "context.draft":
+                return PrepareContextDraft(db, c);
             case "measured.prepare":
                 return PrepareMeasured(db, c);
             case "measured.run":
@@ -543,7 +545,7 @@ public sealed partial class CompanyStore
     )
     {
         var e = Need<CompanyEmployee>(db, employee);
-        if (e.State != "active")
+        if (e.State != "active" && !(e.State == "onboarding" && kind == ContextDraftKind))
             throw new WorkspaceException("This employee must be active with approved department onboarding.");
         var t = Need<CompanyThread>(db, thread);
         if (t.EmployeeId != employee)
@@ -574,7 +576,7 @@ public sealed partial class CompanyStore
             employee,
             thread,
             skill,
-            Text(input),
+            kind == ContextDraftKind ? ContextDraftInput(input) : Text(input),
             "queued",
             null,
             root,
@@ -611,11 +613,14 @@ public sealed partial class CompanyStore
         Put(db, task);
         Event(
             db,
-            kind == "conversation" ? "conversation.requested" : "task.assigned",
+            kind == ContextDraftKind ? "context.requested"
+                : kind == "conversation" ? "conversation.requested"
+                : "task.assigned",
             task.Id,
             e.Id,
-            kind == "conversation"
-                ? "Conversation message prepared for " + e.Name + "; no reply is authorized yet."
+            kind == ContextDraftKind ? "Sources read for " + e.Name + "'s context draft; nothing is authorized yet."
+                : kind == "conversation"
+                    ? "Conversation message prepared for " + e.Name + "; no reply is authorized yet."
                 : "Task assigned to " + e.Name + ": " + Role(e.RoleId).WorkName(skill)
         );
         return task;

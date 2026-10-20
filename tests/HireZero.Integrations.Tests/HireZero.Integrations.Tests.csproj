@@ -10,6 +10,8 @@
     <ProjectReference Include="../../src/HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.OpenRouter/HireZero.Integrations.OpenRouter.csproj" />
     <ProjectReference Include="../../src/HireZero.Tools.OpenRouter/HireZero.Tools.OpenRouter.csproj" />
+    <ProjectReference Include="../../src/HireZero.Integrations.Web/HireZero.Integrations.Web.csproj" />
+    <ProjectReference Include="../../src/HireZero.Tools.Web/HireZero.Tools.Web.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.Google/HireZero.Integrations.Google.csproj" />
     <ProjectReference Include="../../src/HireZero.Tools.Advertising/HireZero.Tools.Advertising.csproj" />

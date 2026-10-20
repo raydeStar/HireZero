@@ -39,6 +39,7 @@ public static class CompanyAccess
         "employee.update",
         "employee.lifecycle",
         "knowledge.save",
+        "context.draft",
         "budget.configure",
         "workspace.grant",
         "member.invite",
