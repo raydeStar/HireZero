@@ -541,7 +541,8 @@ public sealed partial class CompanyStore
         string? root,
         string? plan,
         string? meeting,
-        string kind = "work"
+        string kind = "work",
+        string? contextScope = null
     )
     {
         var e = Need<CompanyEmployee>(db, employee);
@@ -607,6 +608,7 @@ public sealed partial class CompanyStore
                     ModelRoute = ModelRouting.For(execution),
                     Runtime = ModelRouting.Runtime,
                     Kind = kind,
+                    ContextScope = kind == ContextDraftKind ? contextScope : null,
                 };
         if (execution)
             task = task with { State = "blocked", Reason = CompanyReasons.ExecutionUnavailable };

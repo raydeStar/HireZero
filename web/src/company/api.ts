@@ -179,6 +179,8 @@ export type Snapshot = {
     budgetLabels?: Record<string, string>;
     // Model spend in US dollars from recorded usage (owner walkthrough, 2026-10-19).
     spend?: Spend;
+    // The company-wide fact fields every employee inherits, in order.
+    companyFields?: { id: string; help: string }[];
   };
 };
 export type ThreadDetail = {

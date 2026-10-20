@@ -122,7 +122,9 @@ public sealed record CompanyTask(
     string? Runtime = null,
     string Kind = "work",
     // The owner allowed this work's execution network access when granting its checkout (off by default).
-    bool AllowNetwork = false
+    bool AllowNetwork = false,
+    // For a context draft: "company" for the company-wide facts; null for the employee's department context.
+    string? ContextScope = null
 );
 
 public sealed record CompanyArtifact(

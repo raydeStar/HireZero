@@ -28,6 +28,7 @@ import { Today } from "./Today";
 import { Budgets } from "./Budgets";
 import { Members } from "./Members";
 import { Companies } from "./Companies";
+import { ContextEditor } from "./ContextEditor";
 import { Audit } from "./Audit";
 import "./company.css";
 import { employeeState, roleName } from "./labels";
@@ -236,8 +237,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     [role, setRole] = useState(""),
     [department, setDepartment] = useState(""),
     [responsibility, setResponsibility] = useState("");
-  const [departmentName, setDepartmentName] = useState(""),
-    [knowledge, setKnowledge] = useState<Record<string, string>>({});
+  const [departmentName, setDepartmentName] = useState("");
   const [planText, setPlanText] = useState(""),
     [planTasks, setPlanTasks] = useState<TaskSpec[]>([]),
     [meetingTitle, setMeetingTitle] = useState(""),
@@ -768,7 +768,6 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                       key={x.id}
                       onClick={() => {
                         setDepartment(x.id);
-                        setKnowledge({});
                       }}
                     >
                       <b>{x.name}</b>
@@ -796,65 +795,36 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                       <p className="co-muted">
                         {guide?.name} guides onboarding. You approve the knowledge inherited by later hires.
                       </p>
-                      <form
-                        onSubmit={form(async () => {
-                          await run("knowledge.save", { departmentId: dept.id, body: JSON.stringify(knowledge) });
-                        })}
-                      >
-                        {deptRole.onboardingFields.map((field) => (
-                          <label key={field}>
-                            {field}
-                            <textarea
-                              required
-                              value={knowledge[field] || ""}
-                              onChange={(e) => setKnowledge({ ...knowledge, [field]: e.target.value })}
-                            />
-                          </label>
-                        ))}
-                        <Submit busy={busy}>Save knowledge draft</Submit>
-                      </form>
-                      {d.knowledge
-                        .filter((k) => k.departmentId === dept.id)
-                        .map((k) => (
-                          <article className="co-card" key={k.id}>
-                            <b>
-                              Knowledge · {k.state} · version {k.version}
-                            </b>
-                            <pre>{k.body}</pre>
-                            {k.state === "draft" && (
-                              <button
-                                onClick={() =>
-                                  void run("knowledge.review", {
-                                    id: k.id,
-                                    expectedVersion: k.version,
-                                    digest: k.digest,
-                                    decision: "approve",
-                                  })
-                                }
-                              >
-                                Approve this version
-                              </button>
-                            )}
-                            {k.state === "approved" && (
-                              <button
-                                onClick={() =>
-                                  void run("knowledge.review", {
-                                    id: k.id,
-                                    expectedVersion: k.version,
-                                    digest: k.digest,
-                                    decision: "revoke",
-                                  })
-                                }
-                              >
-                                Revoke knowledge
-                              </button>
-                            )}
-                          </article>
-                        ))}
+                      <ContextEditor
+                        snapshot={snapshot}
+                        departmentId={dept.id}
+                        fields={deptRole.onboardingFields.map((id) => ({ id, help: deptRole.onboarding?.help[id] }))}
+                        drafter={guide}
+                        busy={busy}
+                        run={run}
+                        refresh={refresh}
+                      />
                     </>
                   )}
                 </section>
               </div>
+              {/* Company-wide facts every employee inherits, whatever their role (real-use batch, 2026-10-20). */}
+              <section className="co-company-facts" aria-label="Company facts">
+                <h2>Company facts</h2>
+                <p className="co-muted">
+                  What every employee may rely on, whatever their department. Approved facts go into every employee’s
+                  context; drafts change nothing until you approve them.
+                </p>
+                <ContextEditor
+                  snapshot={snapshot}
+                  departmentId={null}
+                  fields={d.companyFields ?? []}
+                  drafter={d.employees.find((e) => e.state === "active") ?? d.employees[0]}
+                  busy={busy}
+                  run={run}
+                  refresh={refresh}
+                />
+              </section>
             </>
           )}
           {tab === "employees" && (

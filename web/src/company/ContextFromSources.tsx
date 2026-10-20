@@ -22,6 +22,7 @@ export function ContextFromSources({
   employeeId,
   employeeName,
   fields,
+  scope,
   refresh,
   onFill,
 }: {
@@ -29,6 +30,8 @@ export function ContextFromSources({
   employeeId: string;
   employeeName: string;
   fields: string[];
+  // "company" drafts the company-wide facts through this employee instead of its department context.
+  scope?: "company";
   refresh: () => Promise<void>;
   onFill: (values: Record<string, string>) => void;
 }) {
@@ -77,7 +80,7 @@ export function ContextFromSources({
       const result = await api<{ sources: SourceRead[]; attempt: { taskId: string } }>(
         "/company/context-sources",
         "POST",
-        { requestId: crypto.randomUUID(), employeeId, sources: list, creditAllowance: Number(allowance) },
+        { requestId: crypto.randomUUID(), employeeId, sources: list, creditAllowance: Number(allowance), scope },
       );
       setResults(result.sources);
       setTaskId(result.attempt.taskId);

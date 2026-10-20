@@ -1,3 +1,17 @@
+import type { Knowledge } from "./api";
+
+// A saved knowledge version as field values; a body that is not a JSON object is one "context" value.
+export function valuesOf(knowledge?: Knowledge): Record<string, string> {
+  try {
+    const value = JSON.parse(knowledge?.body || "{}");
+    return Object.fromEntries(
+      Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    );
+  } catch {
+    return { context: knowledge?.body || "" };
+  }
+}
+
 // The draft's answer as field values: the first JSON object in the reply, with only the expected string fields.
 export function parseDraft(text: string, fields: string[]): Record<string, string> | null {
   const start = text.indexOf("{"),
