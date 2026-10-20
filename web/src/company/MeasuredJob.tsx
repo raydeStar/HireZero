@@ -190,13 +190,16 @@ export function MeasuredJob({
             </b>{" "}
             · {entry.job.route.replace("openai/", "")}
           </p>
-          <p>
-            One native turn is allowed. Internal native retries can still occur. The complete application packet is{" "}
-            {entry.job.applicationBytes.toLocaleString()} / {entry.job.policy.applicationBytes.toLocaleString()} UTF-8
-            bytes.
-          </p>
           {entry.job.state === "proposed" && (
             <>
+              {/* What you are authorizing, in one line; the safety details are a click away (owner walkthrough). */}
+              <p className="co-job-summary">
+                {conversational ? "Sends one reply" : "Runs one job"} ·{" "}
+                {cents
+                  ? `spend cap ${entry.job.creditAllowance} US cents`
+                  : `intended allowance ${entry.job.creditAllowance} credits`}{" "}
+                · expires {new Date(entry.job.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              </p>
               <button disabled={busy || running} onClick={() => void review()}>
                 {conversational ? "Review reply and context" : "Review task and context"}
               </button>
@@ -243,27 +246,35 @@ export function MeasuredJob({
                   </details>
                 </div>
               )}
-              <p>
-                This job reserves {entry.job.policy.planningTokens.toLocaleString()} estimated provider tokens across
-                task, employee, department and company budgets. This unused task's planning allowance increases to that
-                amount.
-              </p>
-              <p>
-                Soft stops: {entry.job.policy.localDeadlineSeconds} seconds,{" "}
-                {entry.job.policy.visibleCharacterStop.toLocaleString()} visible characters,{" "}
-                {entry.job.policy.outputTarget.toLocaleString()} observed output tokens and{" "}
-                {entry.job.policy.planningTokens.toLocaleString()} observed total tokens. These are not upstream token
-                caps.
-              </p>
-              <p>
-                {cents
-                  ? `Spend cap: ${entry.job.creditAllowance} US cents, checked against the worst case before sending.`
-                  : `Intended existing-credit allowance: ${entry.job.creditAllowance}. There is no provider-enforced per-job credit cap; this request may exceed that amount.`}
-              </p>
-              <small>
-                Expires {new Date(entry.job.expiresAt).toLocaleString()}. Policy {entry.job.policy.version}. The server
-                binds your authorization to this exact saved task and context.
-              </small>
+              <details className="co-safety">
+                <summary>Safety details</summary>
+                <p>
+                  One request is allowed; the runtime may retry internally. The complete context is{" "}
+                  {entry.job.applicationBytes.toLocaleString()} of {entry.job.policy.applicationBytes.toLocaleString()}{" "}
+                  bytes.
+                </p>
+                <p>
+                  This job reserves {entry.job.policy.planningTokens.toLocaleString()} estimated provider tokens across
+                  task, employee, department and company budgets. This unused task's planning allowance increases to
+                  that amount.
+                </p>
+                <p>
+                  Soft stops: {entry.job.policy.localDeadlineSeconds} seconds,{" "}
+                  {entry.job.policy.visibleCharacterStop.toLocaleString()} visible characters,{" "}
+                  {entry.job.policy.outputTarget.toLocaleString()} observed output tokens and{" "}
+                  {entry.job.policy.planningTokens.toLocaleString()} observed total tokens. These are not upstream token
+                  caps.
+                </p>
+                <p>
+                  {cents
+                    ? `Spend cap: ${entry.job.creditAllowance} US cents, checked against the worst case before sending.`
+                    : `Intended existing-credit allowance: ${entry.job.creditAllowance}. There is no provider-enforced per-job credit cap; this request may exceed that amount.`}
+                </p>
+                <small>
+                  Expires {new Date(entry.job.expiresAt).toLocaleString()}. Policy {entry.job.policy.version}. The
+                  server binds your authorization to this exact saved task and context.
+                </small>
+              </details>
               {!packet && (
                 <p className="co-muted" role="note">
                   You can authorize after you have seen exactly what will be sent.{" "}

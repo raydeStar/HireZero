@@ -74,6 +74,9 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
    and "2,072 / 4,096 UTF-8 bytes".
    - *Fix:* a one-line summary ("Ask Support partner · up to 5 credits · Send"), with the safety details in a
      collapsed section, and a remembered default allowance.
+   - **Partly fixed (feature/plain-language).** The card now opens with one line ("Sends one reply · intended
+     allowance 5 credits · expires 7:16 PM"), and every technical paragraph sits in a collapsed "Safety details"
+     section. The number of steps and a remembered default allowance are still open.
 6. **Raw ids are everywhere:**
    - the work-type menu (`support-reply`, `kpi-digest`, `ads-review`);
    - task cards (`support-intake · awaiting_review`);
@@ -81,9 +84,18 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
    - Today (`Support partner: support-intake`);
    - onboarding field labels (`product`, `customers`, where the helpful question is only a placeholder).
    - *Fix:* show skill, action and field names, and plain states ("Waiting for your review").
+   - **Fixed (feature/plain-language).** One shared `labels.ts` shows names instead of ids:
+     - skill and action names (served as `skillNames`) in menus, task cards, provenance and Today;
+     - plain states ("Waiting for your review", "Needs your review");
+     - role names in lists;
+     - readable onboarding fields, with their question shown as help text.
+
+     The exact-context review panel keeps its technical ids on purpose.
 7. **Raw JSON is shown to the owner.** The task input appears as `{"messages":…}`, and the ad-change reading ends with
    a `Call: {"campaignId":…}` line meant for the machine.
    - *Fix:* hide or format both.
+   - **Partly fixed (feature/plain-language).** Structured task input now shows as labelled fields. The ad-change
+     reading's `Call:` line remains: the publication parses it, so it needs its own change.
 8. **Actions are hard to find and use:**
    - Every action sits inside a collapsed "Gather evidence" section; Marketing has seven in one long list.
    - Choices are free text: "Days (7, 28 or 90)", "Change (pause or budget)".
@@ -95,6 +107,11 @@ Chrome at 1024×768. Number 1 is also checked by `SupportModuleTests`.
    - "Message prepared… Send & authorize" stays after the reply completed.
    - "Approve content" and "Request changes" remain after approval.
    - Finished tasks still offer "Cancel" and "Complete after review".
+   - **Fixed (feature/plain-language):**
+     - the publication instruction now says what is true;
+     - "Message prepared…" clears once the reply leaves the waiting state;
+     - "Approve content" and "Request changes" show only while a result needs review;
+     - "Cancel" is hidden on work whose results are all approved.
 10. **Company-wide screens are buried.** Today, Budgets, Members, Audit and Integrations are collapsed sections at the
     bottom of the sidebar, under the employee list. The "Company" tab only manages departments.
     - *Fix:* make Company a real hub, or give Today its own tab, since it is where "needs you" lives.

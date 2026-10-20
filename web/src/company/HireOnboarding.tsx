@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { command, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
+import { humanize } from "./labels";
 
 type Draft = {
   role: string;
@@ -437,12 +438,13 @@ export function HireOnboarding({
             <legend>Shared department context</legend>
             {fields.map((field) => (
               <label key={field}>
-                {field}
+                {humanize(field)}
+                {defaults?.help[field] && <small className="co-muted">{defaults.help[field]}</small>}
                 <textarea
                   required
                   maxLength={1500}
                   value={draft.values[field] || ""}
-                  placeholder={defaults?.help[field] || "Enter verified context or explicitly mark unknowns."}
+                  placeholder="Enter verified facts, or mark what is unknown."
                   onChange={(e) => change({ ...draft, values: { ...draft.values, [field]: e.target.value } })}
                 />
               </label>

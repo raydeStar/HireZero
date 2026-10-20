@@ -4,6 +4,8 @@ import type { Snapshot, Work } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
 import { ArtifactHandoff } from "./ArtifactHandoff";
 import { ArtifactPublication, ExecutionSteps } from "./ExecutionSteps";
+import { artifactState, provenance, taskState, workName } from "./labels";
+import { humanize } from "./labels";
 const reasonLabels: Record<string, string> = {
   "handoff-awaiting-approval": "Assigned from an approved handoff. Separate execution approval is required.",
   "execution-unavailable": "Reviewed execution needs a granted checkout and your approval of its exact proposal.",
@@ -108,11 +110,16 @@ export function ConversationJob({
     };
   }
   return (
-    <article className="co-card co-job-card" data-task-id={t.id} aria-label={t.skill + " job"}>
+    <article
+      className="co-card co-job-card"
+      data-task-id={t.id}
+      data-task-state={t.state}
+      aria-label={workName(employeeRole, t.skill) + " job"}
+    >
       <b>
-        {t.skill} · {t.state}
+        {workName(employeeRole, t.skill)} · {taskState(t.state)}
       </b>
-      <p>{t.input}</p>
+      <TaskInput input={t.input} />
       {d.handoffs
         ?.filter((h) => h.targetTaskId === t.id)
         .map((h) => (
@@ -182,9 +189,15 @@ export function ConversationJob({
         </p>
       )}
       <div className="co-actions">
-        {["queued", "blocked", "running", "awaiting_review", "unknown", "failed"].includes(t.state) && (
-          <button onClick={() => void run("task.cancel", { id: t.id, expectedVersion: t.version })}>Cancel</button>
-        )}
+        {["queued", "blocked", "running", "awaiting_review", "unknown", "failed"].includes(t.state) &&
+          // Work whose results you have all approved is finished, not cancellable: complete it instead.
+          !(
+            t.state === "awaiting_review" &&
+            d.artifacts.some((a) => a.taskId === t.id) &&
+            d.artifacts.filter((a) => a.taskId === t.id).every((a) => a.state === "approved")
+          ) && (
+            <button onClick={() => void run("task.cancel", { id: t.id, expectedVersion: t.version })}>Cancel</button>
+          )}
         {["blocked", "failed"].includes(t.state) &&
           t.kind !== "action" &&
           !d.handoffs?.some((h) => h.targetTaskId === t.id) && (
@@ -218,7 +231,7 @@ export function ConversationJob({
         .map((a) => (
           <div className="co-artifact" key={a.id}>
             <small>
-              {a.provenance} · {a.state}
+              {provenance(employeeRole, a.provenance)} · {artifactState(a.state)}
             </small>
             {employeeRole?.skills.includes("company-plan") && a.state === "approved" && (
               <button
@@ -230,32 +243,34 @@ export function ConversationJob({
               </button>
             )}
             <pre>{a.body}</pre>
-            <div className="co-actions">
-              <button
-                onClick={() =>
-                  void run("artifact.review", {
-                    id: a.id,
-                    expectedVersion: a.version,
-                    digest: a.digest,
-                    decision: "approve",
-                  })
-                }
-              >
-                Approve content
-              </button>
-              <button
-                onClick={() =>
-                  void run("artifact.review", {
-                    id: a.id,
-                    expectedVersion: a.version,
-                    digest: a.digest,
-                    decision: "changes",
-                  })
-                }
-              >
-                Request changes
-              </button>
-            </div>
+            {a.state === "needs_review" && (
+              <div className="co-actions">
+                <button
+                  onClick={() =>
+                    void run("artifact.review", {
+                      id: a.id,
+                      expectedVersion: a.version,
+                      digest: a.digest,
+                      decision: "approve",
+                    })
+                  }
+                >
+                  Approve content
+                </button>
+                <button
+                  onClick={() =>
+                    void run("artifact.review", {
+                      id: a.id,
+                      expectedVersion: a.version,
+                      digest: a.digest,
+                      decision: "changes",
+                    })
+                  }
+                >
+                  Request changes
+                </button>
+              </div>
+            )}
             {(a.state === "approved" || d.handoffs?.some((h) => h.artifactId === a.id && h.targetTaskId)) && (
               <ArtifactHandoff
                 artifact={a}
@@ -272,5 +287,27 @@ export function ConversationJob({
           </div>
         ))}
     </article>
+  );
+}
+
+// A task's input as the owner wrote it: structured input as labelled fields, never raw JSON.
+function TaskInput({ input }: { input: string }) {
+  let fields: Record<string, unknown> | null = null;
+  try {
+    const value = JSON.parse(input);
+    if (value && typeof value === "object" && !Array.isArray(value)) fields = value;
+  } catch {
+    /* Plain text is shown as written. */
+  }
+  if (!fields) return <p>{input}</p>;
+  return (
+    <dl className="co-packet-fields">
+      {Object.entries(fields).map(([key, value]) => (
+        <div key={key}>
+          <dt>{humanize(key.replace(/([A-Z])/g, " $1"))}</dt>
+          <dd>{typeof value === "string" ? value : JSON.stringify(value)}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

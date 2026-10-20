@@ -13,6 +13,7 @@ import { Members } from "./Members";
 import { Companies } from "./Companies";
 import { Audit } from "./Audit";
 import "./company.css";
+import { employeeState, roleName } from "./labels";
 type ConversationRoute = { tab: string; selected: string; thread: string };
 function readRoute(): ConversationRoute {
   const query = new URLSearchParams(location.search),
@@ -280,7 +281,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
             >
               <b>{person.name}</b>
               <small>
-                {person.roleId} · {person.state}
+                {roleName(snapshot.data.roles, person.roleId)} · {employeeState(person.state)}
               </small>
             </button>
             {tab === "employee" && person.id === selected && (
@@ -519,7 +520,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                       <button className="co-list" onClick={() => chooseEmployee(e)}>
                         <b>{e.name}</b>
                         <span>
-                          {e.roleId} · {e.state}
+                          {roleName(snapshot.data.roles, e.roleId)} · {employeeState(e.state)}
                         </span>
                       </button>
                       {e.state === "onboarding" && (

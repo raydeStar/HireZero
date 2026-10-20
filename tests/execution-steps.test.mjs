@@ -10,6 +10,14 @@ const source = fs.readFileSync(new URL('../web/src/company/ExecutionSteps.tsx', 
 const code = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
+// The shared plain-language labels the panel uses, loaded as they are, not stubbed.
+const labels = {};
+vm.runInNewContext(
+  ts.transpileModule(fs.readFileSync(new URL('../web/src/company/labels.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText,
+  { exports: labels, require: () => ({}) },
+);
 
 function render(
   detail,
@@ -34,6 +42,7 @@ function render(
       name === 'react' ? react
       : name === '../lib/api' ? { api: async () => detail }
       : name === './api' ? { executionStep: async (step, id) => steps.push([step, id]) }
+      : name === './labels' ? labels
       : { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }), Fragment: 'fragment' },
   });
   const tree = exports[component]({
@@ -124,7 +133,7 @@ test('an approved publication publishes once; an unknown one is only checked', a
 test('a proposed publication is approved at its exact digest after the change', async () => {
   const done = grant('completed', { review: { digest: 'r', files: [{ path: 'Quote.cs' }] } });
   const view = render({ executions: [done], publications: [publication('proposed')] });
-  assert.match(view.text, /Approve the reviewed artifact first/);
+  assert.match(view.text, /Nothing is sent until you publish it/);
   view.button('Approve this publication').props.onClick();
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(JSON.parse(JSON.stringify(view.commands)), [
@@ -146,7 +155,7 @@ test('an approved draft, not gathered evidence, can be proposed for publication'
   assert.deepEqual(view.steps, [['propose', 'draft']]);
   const waiting = render({ publications: [] }, { component: 'ArtifactPublication', artifacts: [{ ...artifacts[1], state: 'needs_review' }] });
   assert.equal(waiting.button('Propose publication'), undefined);
-  assert.match(waiting.text, /Approve the draft/);
+  assert.match(waiting.text, /Approve the result above/);
 });
 
 test('an artifact publication uses the same exact-digest controls', async () => {
