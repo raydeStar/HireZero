@@ -48,6 +48,15 @@ checkout and run it from there. `-Stop` stops a host already running from that i
 <install directory>/tools/Start-CompanyLocal.ps1 -DataRoot <data root>
 ```
 
+Back it up and keep it running (docs/adr/0044-local-company-backups.md): `Backup-CompanyLocal.ps1` takes a
+consistent backup while the company runs, and `Register-CompanyLocalTasks.ps1` adds per-user scheduled tasks that
+start the company at sign-in and back it up nightly, keeping the newest 14.
+
+```powershell
+<install directory>/tools/Backup-CompanyLocal.ps1 -DataRoot <data root> -Destination <backup directory>
+<install directory>/tools/Register-CompanyLocalTasks.ps1 -DataRoot <data root> -BackupTo <backup directory>
+```
+
 ### Hosted mode
 
 For real clients, run the host behind HTTPS with members signing in through any OIDC provider
