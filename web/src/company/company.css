@@ -1997,3 +1997,69 @@
   outline: 2px solid var(--fe-accent);
   outline-offset: -2px;
 }
+/* UX round 6: the getting-started checklist on Home. */
+.co-workspace .co-checklist {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.co-workspace .co-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--fe-line);
+  border-radius: var(--fe-r-m);
+  background: var(--fe-surface);
+}
+.co-workspace .co-checklist li > span:nth-child(2) {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+.co-workspace .co-checklist small {
+  color: var(--fe-fg-3);
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-checklist li.done b {
+  color: var(--fe-fg-3);
+  text-decoration: line-through;
+}
+.co-workspace .co-checklist li.next {
+  border-color: var(--fe-accent-line);
+}
+.co-workspace .co-check-mark {
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--fe-line-2);
+  font-size: var(--fe-t-xs);
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-checklist li.done .co-check-mark {
+  border-color: var(--fe-ok);
+  background: var(--fe-ok-soft);
+  color: var(--fe-ok);
+}
+.co-workspace .co-checklist li.next .co-check-mark {
+  border-color: var(--fe-accent);
+  color: var(--fe-accent);
+}
+.co-workspace .co-checklist .co-primary {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.co-workspace .co-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

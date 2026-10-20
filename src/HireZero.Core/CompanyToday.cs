@@ -112,6 +112,24 @@ public sealed partial class CompanyStore
                             null
                         )
                     );
+                // An unfinished hire waits on the owner too (UX round 6), unless its department's draft context, listed
+                // above, already says so.
+                var drafted = All<CompanyKnowledge>(db)
+                    .Where(k => k.State == "draft")
+                    .Select(k => k.DepartmentId)
+                    .ToHashSet(StringComparer.Ordinal);
+                foreach (
+                    var e in employees.Values.Where(e => e.State == "onboarding" && !drafted.Contains(e.DepartmentId))
+                )
+                    needs.Add(
+                        new(
+                            "onboarding",
+                            e.Name + ": finish onboarding",
+                            "Add the shared department context to finish this hire.",
+                            e.Id,
+                            null
+                        )
+                    );
                 foreach (var p in All<CompanyPlan>(db).Where(p => p.State == "proposed"))
                     needs.Add(
                         new("plan", Clip(p.Objective), "A proposed plan waits for your approval.", p.CeoId, null)

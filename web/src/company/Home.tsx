@@ -1,4 +1,4 @@
-import { UserPlus } from "lucide-react";
+import { Check, UserPlus } from "lucide-react";
 import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workTitle, type Need } from "./Cockpit";
 import { artifactState, employeeState, roleName } from "./labels";
@@ -79,6 +79,36 @@ export function Home({
     .map((a) => ({ artifact: a, task: d.tasks.find((t) => t.id === a.taskId) }))
     .filter((r): r is { artifact: (typeof d.artifacts)[number]; task: Work } => !!r.task);
   const nameOf = (id: string) => d.employees.find((e) => e.id === id)?.name ?? "Former employee";
+  // Getting started (UX round 6): the path from an empty company to a first approved result, shown until it is done.
+  const active = d.employees.find((e) => e.state === "active");
+  const waiting = d.tasks.find((t) => d.artifacts.some((a) => a.taskId === t.id && a.state === "needs_review"));
+  const steps = [
+    {
+      label: "Hire an employee",
+      detail: "Choose a role and what they are responsible for.",
+      done: d.employees.length > 0,
+      action: ["Hire", onHire] as const,
+    },
+    {
+      label: "Finish onboarding",
+      detail: "Write and approve the shared facts their department works from.",
+      done: !!active,
+      action: ["Continue", onHire] as const,
+    },
+    {
+      label: "Ask for work",
+      detail: "Open a chat and ask a question or start an action.",
+      done: d.tasks.length > 0,
+      action: active ? (["Open chat", () => onChat(active)] as const) : null,
+    },
+    {
+      label: "Approve a first result",
+      detail: "Results wait for your review before anything uses them.",
+      done: d.artifacts.some((a) => a.state === "approved"),
+      action: waiting ? (["Review", () => onOpenWork(waiting)] as const) : null,
+    },
+  ];
+  const next = steps.findIndex((step) => !step.done);
   const spend = d.spend;
   return (
     <div className="co-home">
@@ -102,6 +132,31 @@ export function Home({
           <span>Spent to date</span>
         </div>
       </section>
+
+      {next >= 0 && (
+        <section className="co-home-section" aria-label="Getting started">
+          <h2>Getting started</h2>
+          <ol className="co-checklist">
+            {steps.map((step, i) => (
+              <li key={step.label} className={step.done ? "done" : i === next ? "next" : ""}>
+                <span className="co-check-mark" aria-hidden="true">
+                  {step.done ? <Check size={13} /> : i + 1}
+                </span>
+                <span>
+                  <b>{step.label}</b>
+                  <small>{step.detail}</small>
+                </span>
+                {!step.done && i === next && step.action && (
+                  <button className="co-primary" onClick={step.action[1]}>
+                    {step.action[0]}
+                  </button>
+                )}
+                <span className="co-sr">{step.done ? "Done" : i === next ? "Next" : "Later"}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <section className="co-home-section" aria-label="Team">
         <h2>Team</h2>
