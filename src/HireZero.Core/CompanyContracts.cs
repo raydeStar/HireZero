@@ -22,6 +22,14 @@ public sealed record CompanyRole(
     public string[] PublishingActions { get; init; } = [];
     public EmployeeManifest? Manifest { get; init; }
 
+    // A skill's or action's name as the module declares it, so the owner never reads an id.
+    public string WorkName(string skill) =>
+        skill == PlatformSkills.Chat
+            ? "Conversation"
+            : Manifest?.Skills.FirstOrDefault(s => s.Id == skill)?.Name
+                ?? Manifest?.Actions.FirstOrDefault(a => a.Id == skill)?.Name
+                ?? skill;
+
     public static CompanyRole From(IEmployeeModule module)
     {
         var manifest = module.Manifest;

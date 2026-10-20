@@ -93,6 +93,8 @@ export type Role = {
   measuredSkills?: string[];
   executionSkills?: string[];
   publishingSkills?: string[];
+  // Skill id to its display name, as the module declares it.
+  skillNames?: Record<string, string>;
   summary?: string | null;
   onboarding?: RoleOnboarding | null;
   tools?: { id: string; risk: "read" | "write" | "external" | "spend"; purpose: string }[] | null;

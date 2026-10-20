@@ -616,7 +616,7 @@ public sealed partial class CompanyStore
             e.Id,
             kind == "conversation"
                 ? "Conversation message prepared for " + e.Name + "; no reply is authorized yet."
-                : "Task assigned to " + e.Name + " (" + skill + ")"
+                : "Task assigned to " + e.Name + ": " + Role(e.RoleId).WorkName(skill)
         );
         return task;
     }

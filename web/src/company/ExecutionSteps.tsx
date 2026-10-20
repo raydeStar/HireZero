@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { executionStep, type ExecutionStep, type Work } from "./api";
+import { publicationState } from "./labels";
 
 type Grant = {
   id: string;
@@ -190,13 +191,13 @@ function publicationControls(
   return (
     <div className="co-step">
       <p>
-        Publication {publication.state}: {publication.summary}
+        Publication {publicationState(publication.state)}: {publication.summary}
       </p>
       {publication.result && <small>Result {publication.result.slice(0, 12)}</small>}
       {publication.reason && <p className="co-muted">{publication.reason}</p>}
       {publication.state === "proposed" && (
         <>
-          <p className="co-muted">Approve the reviewed artifact first, then this publication.</p>
+          <p className="co-muted">Check the exact step above, then approve it. Nothing is sent until you publish it.</p>
           <div className="co-actions">
             <button
               className="co-primary"
@@ -316,7 +317,9 @@ export function ArtifactPublication({
             Propose publication
           </button>
         ))}
-      {!publication && ready.length === 0 && <p className="co-muted">Approve the draft to publish it.</p>}
+      {!publication && ready.length === 0 && (
+        <p className="co-muted">Approve the result above to propose publishing it.</p>
+      )}
       {publication && publicationControls(publication, disabled, step, command)}
     </section>
   );

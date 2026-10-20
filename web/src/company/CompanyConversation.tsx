@@ -6,6 +6,7 @@ import { EmployeeActions } from "./EmployeeActions";
 import type { Employee, Event, Snapshot, ThreadDetail, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
 import { MeasuredJob } from "./MeasuredJob";
+import { employeeState, humanize, taskState, workName } from "./labels";
 
 export type ConversationDraft = {
   body: string;
@@ -92,6 +93,14 @@ export function CompanyConversation({
     orphaned = tasks.filter((t) => !messages.some((m) => m.sequence === t.watermark));
   // An API model enforces the reply allowance as a cap in US cents; Codex credits are only intended.
   const cents = snapshot.capabilities.allowanceUnit === "usd-cents";
+  // "Message prepared… Send" stops being true once the prepared reply is sent, cancelled or expires.
+  const replyWaiting = tasks.some((t) => d.measured?.some((m) => m.taskId === t.id && m.job.state === "proposed"));
+  const waitingBefore = useRef(false);
+  useEffect(() => {
+    if (waitingBefore.current && !replyWaiting)
+      setNotice((current) => (current.startsWith("Message prepared") ? "" : current));
+    waitingBefore.current = replyWaiting;
+  }, [replyWaiting]);
   const eligible =
       !!snapshot.capabilities.conversationalReplies &&
       target?.state === "active" &&
@@ -386,7 +395,7 @@ export function CompanyConversation({
                   .filter((s) => s !== "meeting-turn" && s !== "meeting-chair")
                   .map((s) => (
                     <option key={s} value={s}>
-                      {s === "chat" ? "Conversation" : s}
+                      {workName(role, s)}
                     </option>
                   ))}
               </select>
@@ -564,7 +573,7 @@ function ReplyTurn({
         contents
       ) : (
         <details>
-          <summary>Reply status and measured usage · {task.state}</summary>
+          <summary>Reply status and usage · {taskState(task.state)}</summary>
           {contents}
         </details>
       )}
@@ -638,7 +647,7 @@ function PrivateContext({
         </button>
       </form>
       <small>
-        {employee.state} · {employee.roleId}. Unsaved note edits stay only in this open view.
+        {employeeState(employee.state)} · {humanize(employee.roleId)}. Unsaved note edits stay only in this open view.
       </small>
       {employee.state !== "retired" && (
         <form

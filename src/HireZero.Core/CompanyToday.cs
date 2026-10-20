@@ -71,10 +71,14 @@ public sealed partial class CompanyStore
             db,
             () =>
             {
-                var employees = All<CompanyEmployee>(db).ToDictionary(e => e.Id, e => e.Name);
-                string Who(string? id) => id is not null && employees.TryGetValue(id, out var name) ? name : "Company";
+                var employees = All<CompanyEmployee>(db).ToDictionary(e => e.Id);
+                string Who(string? id) =>
+                    id is not null && employees.TryGetValue(id, out var employee) ? employee.Name : "Company";
                 var tasks = All<CompanyTask>(db).ToDictionary(t => t.Id);
-                string Skill(string taskId) => tasks.TryGetValue(taskId, out var t) ? t.Skill : "work";
+                // The work's name as the employee's module names it, never its id (owner walkthrough, 2026-10-19).
+                string Name(CompanyTask t) =>
+                    employees.TryGetValue(t.EmployeeId, out var e) ? WorkName(e.RoleId, t.Skill) : t.Skill;
+                string Skill(string taskId) => tasks.TryGetValue(taskId, out var t) ? Name(t) : "work";
                 var needs = new List<CompanyNeed>();
 
                 foreach (var k in All<CompanyKnowledge>(db).Where(k => k.State == "draft"))
@@ -111,7 +115,7 @@ public sealed partial class CompanyStore
                     needs.Add(
                         new(
                             "handoff",
-                            Who(t.EmployeeId) + ": " + t.Skill,
+                            Who(t.EmployeeId) + ": " + Name(t),
                             "Assigned from a handoff; approve it to start.",
                             t.EmployeeId,
                             t.Id
@@ -150,7 +154,7 @@ public sealed partial class CompanyStore
                     needs.Add(
                         new(
                             "unknown",
-                            Who(t.EmployeeId) + ": " + t.Skill,
+                            Who(t.EmployeeId) + ": " + Name(t),
                             "Its outcome is unknown; it is never replayed.",
                             t.EmployeeId,
                             t.Id
@@ -208,4 +212,7 @@ public sealed partial class CompanyStore
 
     private static string Clip(string text) =>
         text.ReplaceLineEndings(" ").Trim() is var flat && flat.Length > 160 ? flat[..160] + "…" : flat;
+
+    private string WorkName(string roleId, string skill) =>
+        _roles.FirstOrDefault(r => r.Id == roleId)?.WorkName(skill) ?? skill;
 }

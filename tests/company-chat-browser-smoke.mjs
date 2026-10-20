@@ -61,7 +61,7 @@ try{
   assert.equal((await threadData()).messages.filter(m=>m.body==='One saved employee message.').length,1);assert.equal(await starts(),0);
   // The scheduler re-saves a new task (queued to blocked) after the UI first renders it; cancel the version the card shows.
   const saved=await until(async()=>{const t=(await dashboard()).data.tasks[0];return t.state!=='queued'&&t;},'scheduler settled the saved task');
-  await until(()=>evaluate("[...document.querySelectorAll('.co-job-card')].some(c=>c.querySelector('b')?.textContent.trim()==="+JSON.stringify(saved.skill+' · '+saved.state)+"&&[...c.querySelectorAll('button')].some(b=>b.textContent==='Cancel'))"),'inline task controls');await idle();
+  await until(()=>evaluate("[...document.querySelectorAll('.co-job-card')].some(c=>c.dataset.taskId==="+JSON.stringify(saved.id)+"&&c.dataset.taskState==="+JSON.stringify(saved.state)+"&&[...c.querySelectorAll('button')].some(b=>b.textContent==='Cancel'))"),'inline task controls');await idle();
   await evaluate("(()=>{const b=[...document.querySelectorAll('.co-job-card button')].find(b=>b.textContent==='Cancel');b.click();b.click();})()");
   await until(async()=>(await dashboard()).data.tasks[0].state==='canceled','owner canceled inline');assert.equal(await starts(),0);
   // Delay only the HTTP reply, after the real fixture command has been committed.
