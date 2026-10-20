@@ -701,6 +701,8 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                 run={run}
                 refresh={refresh}
                 open={openFromConversation}
+                openWork={workTask && splitWide ? workTask.id : undefined}
+                onShowWork={() => document.querySelector<HTMLElement>(".co-work-window")?.focus()}
                 createThread={async () => {
                   if (!employee) return;
                   const before = routeRef.current;

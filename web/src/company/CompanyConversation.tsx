@@ -40,6 +40,10 @@ type Props = {
   refresh: () => Promise<void>;
   open: (employeeId: string, threadId: string) => void;
   createThread: () => Promise<void>;
+  // The work shown in the work window beside this chat: the chat shows a placeholder for it rather than a second,
+  // separately loading copy of the same card (UX round 5).
+  openWork?: string;
+  onShowWork?: (task: Work) => void;
 };
 
 export function CompanyConversation({
@@ -56,6 +60,8 @@ export function CompanyConversation({
   refresh,
   open,
   createThread,
+  openWork,
+  onShowWork,
 }: Props) {
   const scope = company ? "company" : (employee?.id || "missing") + ":" + thread,
     draft = drafts.get(scope) ?? emptyDraft(),
@@ -208,7 +214,11 @@ export function CompanyConversation({
     }
   }
   const job = (task: Work) =>
-    task.kind === "conversation" ? (
+    task.id === openWork ? (
+      <button key={task.id} className="co-work-placeholder" onClick={() => onShowWork?.(task)}>
+        {workName(role, task.skill)} is open in the work window beside this chat.
+      </button>
+    ) : task.kind === "conversation" ? (
       <ReplyTurn key={task.id} task={task} snapshot={snapshot} busy={busy} run={run} refresh={refresh} />
     ) : (
       <ConversationJob

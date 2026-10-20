@@ -89,7 +89,7 @@ export function WorkWindow({
 }) {
   const employee = snapshot.data.employees.find((e) => e.id === task.employeeId);
   return (
-    <section className="fe-window co-work-window" aria-label={"Work: " + workTitle(snapshot, task)}>
+    <section className="fe-window co-work-window" tabIndex={-1} aria-label={"Work: " + workTitle(snapshot, task)}>
       <header className="co-work-window-head">
         <div>
           <strong>{workTitle(snapshot, task)}</strong>
