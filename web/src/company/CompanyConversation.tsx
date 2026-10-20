@@ -284,6 +284,7 @@ export function CompanyConversation({
                 ? "Preparing sends no model request. The final Send authorizes one reply, refused before sending if its worst case could cost more than the cap."
                 : "Preparing sends no model request. The final Send authorizes one native turn. Token, time and credit stops are soft; the provider may exceed the intended allowance. Included usage must be available; no purchases or API fallback."}
             </p>
+            <p>Replies are informational. Work and decisions still need your approval.</p>
             {company && <p>Private employee notes, department facts and private conversations are excluded.</p>}
           </details>
         </div>
@@ -367,9 +368,6 @@ export function CompanyConversation({
                       <div className="fe-msg-content">
                         <p>{message.body}</p>
                       </div>
-                      {message.author !== "owner" && (
-                        <small>Informational reply. Work and decisions still need owner approval.</small>
-                      )}
                     </div>
                   </article>
                   {tasks.filter((t) => t.watermark === message.sequence).map(job)}
@@ -582,17 +580,11 @@ function ReplyTurn({
       />
     );
   return (
-    <article className="co-reply-turn" data-reply-task={task.id}>
+    // A finished turn is one quiet line; a turn that waits on you is a card (UX round 7).
+    <article className={"co-reply-turn" + (active ? "" : " finished")} data-reply-task={task.id}>
       <small>
-        {employee?.name} · {thread?.scope === "company" ? "Company" : "Private employee"} context · one informational
-        reply
+        Reply from {employee?.name} · {thread?.scope === "company" ? "company" : "private"} conversation
       </small>
-      {active && (
-        <p className="co-muted">
-          This reply uses its attached message and the saved context. Later messages are excluded until a new turn is
-          prepared.
-        </p>
-      )}
       {active ? (
         contents
       ) : (

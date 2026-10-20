@@ -2063,3 +2063,45 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+/* UX round 7: the reply card. History and evidence as lists; the locked hint sits under the box it explains. */
+.co-workspace .co-entries {
+  margin: 4px 0 10px;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-locked-hint {
+  margin: 4px 0 8px;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-reply-turn > small {
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-measured .co-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+}
+.co-workspace .co-measured .co-check input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 3px 0 0;
+}
+.co-workspace .co-reply-turn.finished {
+  border: 0;
+  background: transparent;
+  padding: 0 4px;
+  margin: 2px 0;
+  box-shadow: none;
+}
+.co-workspace .co-reply-turn.finished > small {
+  display: none;
+}
+.co-workspace .co-reply-turn.finished > details > summary {
+  font-size: var(--fe-t-xs);
+  color: var(--fe-fg-4);
+  padding: 2px 0;
+}

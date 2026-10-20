@@ -55,10 +55,10 @@ try{
   // P0 3: a locked authorization says why and unlocks where it is.
   await evaluate(`(()=>{const set=(el,v)=>{const p=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));};set(document.querySelector('.co-conversation-composer input[type=number]'),'5');set(document.querySelector('textarea[placeholder^="Message"]'),'What do customers ask most often?');})()`);await delay(100);
   await evaluate("document.querySelector('button[aria-label=\"Prepare reply for review\"]').click()");
-  await until(()=>evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.includes('to unlock'))"),'locked authorization explains itself');
+  await until(()=>evaluate("!!document.querySelector('.co-locked-hint')&&document.querySelector('.co-locked-hint').textContent.includes('first')"),'locked authorization explains itself');
   const box="[...document.querySelectorAll('input[type=checkbox]')].find(c=>c.closest('label')?.textContent.includes('I authorize'))";
   assert.equal(await evaluate(box+'.disabled'),true,'Unread context cannot be authorized');
-  await until(()=>evaluate("(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('to unlock'));if(!b||b.disabled)return false;b.click();return true;})()"),'unlock button ready');
+  await until(()=>evaluate("(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='Review reply and context');if(!b||b.disabled)return false;b.click();return true;})()"),'review button ready');
   await until(()=>evaluate(box+'.disabled===false'),'reviewing the context unlocks the box');
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.includes('to unlock'))"),false,'The hint goes once the context is shown');
 
