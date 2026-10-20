@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import type { IntegrationStatus } from "./api";
+import { IntegrationSetup } from "./IntegrationSetup";
 
 type GitHub = { state: string; code: string; url: string; error: string };
 
@@ -64,6 +65,8 @@ export function Integrations({
           </li>
         ))}
       </ul>
+      <h4>Set up</h4>
+      <IntegrationSetup refresh={refresh} />
       {notice && (
         <p role="status">{notice === "connected" ? "Microsoft 365 connected." : "Sign-in did not finish: " + notice}</p>
       )}

@@ -14,9 +14,23 @@ public sealed partial class OpenRouterToolProvider(
     string dataRoot,
     HttpMessageHandler? handler = null,
     Func<string?>? key = null
-) : IToolProvider, IIntegrationStatusSource
+) : IToolProvider, IIntegrationStatusSource, IConfigurableIntegration
 {
     public const int ReplyTokens = 60;
+
+    // In-app setup (docs/adr/0038-integration-setup-in-the-app.md): the same openrouter.json and key name.
+    public IntegrationSetup Setup { get; } =
+        new(
+            "openrouter",
+            "openrouter.json",
+            [
+                new("model", "Model", "The model's OpenRouter id, as vendor/model.", 192)
+                {
+                    Check = v => ModelId().IsMatch(v) ? null : "A model id is vendor/model.",
+                },
+            ],
+            [new("HIREZERO_OPENROUTER_API_KEY", "API key", "An OpenRouter API key.")]
+        );
     private readonly HttpMessageHandler _handler =
         handler
         ?? new SocketsHttpHandler { AllowAutoRedirect = false, PooledConnectionLifetime = TimeSpan.FromMinutes(5) };

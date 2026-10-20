@@ -18,8 +18,25 @@ public sealed class AgentAppsToolProvider(
     IEnumerable<ISessionSource> sources,
     Func<string, string, ISessionDriver>? drivers = null,
     IEnumerable<ISessionActivityReader>? readers = null
-) : IToolProvider, IIntegrationStatusSource
+) : IToolProvider, IIntegrationStatusSource, IConfigurableIntegration
 {
+    // In-app setup (docs/adr/0038-integration-setup-in-the-app.md): the app list only. Steering names a program to run,
+    // so it stays in agent-apps.json.
+    public IntegrationSetup Setup { get; } =
+        new(
+            "agent-apps",
+            "agent-apps.json",
+            [
+                new("apps", "Apps", "Which apps' sessions to list, one per line: claude, codex.", 10)
+                {
+                    List = true,
+                    MaxItems = 2,
+                    Check = v => Known.Contains(v) ? null : "Choose claude or codex.",
+                },
+            ],
+            []
+        );
+
     public static readonly string[] Known = ["claude", "codex"];
     public static readonly TimeSpan QuietPeriod = TimeSpan.FromSeconds(60);
     private readonly ISessionSource[] _sources = [.. sources];

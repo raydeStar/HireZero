@@ -10,7 +10,7 @@ namespace HireZero.Integrations.Google;
 // search performance from the Search Console API, read with a service account. Off until <data root>/google.json names
 // a GA4 property or a Search Console site and HIREZERO_GOOGLE_SERVICE_ACCOUNT holds the key. Read-only; requests go to
 // Google's API hosts only, with no redirects.
-public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusSource
+public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusSource, IConfigurableIntegration
 {
     public const string KeySecret = "HIREZERO_GOOGLE_SERVICE_ACCOUNT";
     private const string DataApi = "https://analyticsdata.googleapis.com/v1beta/";
@@ -78,6 +78,39 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
         )
             ? site
             : null;
+
+    // In-app setup (docs/adr/0038-integration-setup-in-the-app.md): the same google.json and secret name.
+    public IntegrationSetup Setup { get; } =
+        new(
+            "google-analytics",
+            "google.json",
+            [
+                new("ga4Property", "GA4 property", "The property's number, such as 123456789.", 40)
+                {
+                    Check = v => Property(new(v, null)) is null ? "A GA4 property is its number." : null,
+                },
+                new(
+                    "searchConsoleSite",
+                    "Search Console site",
+                    "A URL-prefix property (https://www.example.com/) or a domain property (sc-domain:example.com).",
+                    200
+                )
+                {
+                    Check = v =>
+                        Site(new(null, v)) is null ? "Use https://…/ or sc-domain:… for a Search Console site." : null,
+                },
+            ],
+            [
+                new(
+                    KeySecret,
+                    "Service account key",
+                    "The JSON key of a service account with read access to the property and site."
+                )
+                {
+                    Multiline = true,
+                },
+            ]
+        );
 
     public IntegrationStatus Status()
     {

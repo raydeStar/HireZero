@@ -191,6 +191,17 @@ public static class CompanyWorkspace
             var membership = new CompanyMembership();
             builder.Services.AddSingleton(membership);
             var app = builder.Build();
+            // Local mode: secrets the owner pastes in the app, read last, before any integration checks its secrets
+            // (docs/adr/0038-integration-setup-in-the-app.md). Hosted mode takes secrets only from its vault or platform.
+            var pastedSecrets = hosted is null
+                ? new LocalSecretStore(
+                    root,
+                    app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
+                    LocalSecretStore.Names
+                )
+                : null;
+            if (pastedSecrets is not null)
+                SecretSource.UseAppSecrets(pastedSecrets.Read);
             foreach (var (name, source) in settings.Sources.OrderBy(s => s.Key, StringComparer.Ordinal))
                 app.Logger.LogInformation("Setting {Name}: {Source}", name, source);
             foreach (var line in CompanySecrets.Report())
@@ -555,6 +566,14 @@ public static class CompanyWorkspace
                     model is CompanyCodexConnection connection
                         ? Results.Ok(await connection.InspectAsync(token))
                         : Results.Json(new { error = "Select the explicit Codex connection profile." }, statusCode: 503)
+            );
+            // Setting up integrations in the app (docs/adr/0038-integration-setup-in-the-app.md).
+            app.MapIntegrationSetup(
+                [google, googleAds, azureDevOps, agentApps, openRouter],
+                Integrations,
+                root,
+                pastedSecrets,
+                Store
             );
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(Store().ToolCalls(limit ?? 100)));
             // Members and their roles, for every member to see (docs/adr/0020).

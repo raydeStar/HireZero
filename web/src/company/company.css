@@ -1004,3 +1004,19 @@
   flex-direction: row;
   flex-wrap: wrap;
 }
+/* Integration setup in the app (docs/adr/0038-integration-setup-in-the-app.md). */
+.co-workspace .co-setup {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--fe-line);
+  border-radius: 8px;
+}
+.co-workspace .co-setup form,
+.co-workspace .co-setup label {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}
+.co-workspace .co-setup-secret {
+  margin: 12px 0;
+}
