@@ -98,7 +98,7 @@ public sealed class AgentAppsToolProvider(
                             ? " Read-only steering: " + string.Join(" and ", steer) + "."
                             : " Name an app's full command path under \"steer\" to allow read-only steering."
                     )
-                : "List the apps to read (claude, codex) in agent-apps.json in the data root."
+                : "Choose the apps to read (claude, codex) in Company settings → Integrations → Agent apps."
         );
     }
 

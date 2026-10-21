@@ -20,6 +20,7 @@ type Setup = {
   localSecrets: boolean;
   fields: Field[];
   secrets: Secret[];
+  steps?: { text: string; url?: string | null; linkText?: string | null }[];
 };
 
 // Where a secret comes from, in words; never its value.
@@ -99,6 +100,27 @@ function SetupForm({ setup, saved }: { setup: Setup; saved: () => Promise<void> 
         {setup.name} · {setup.active ? "active" : "not set up"}
       </summary>
       <p className="co-muted">{setup.reason}</p>
+      {/* How to connect, step by step, with a link to where each step is done; open until the integration works. */}
+      {(setup.steps?.length ?? 0) > 0 && (
+        <details className="co-setup-steps" open={!setup.active}>
+          <summary>How to connect</summary>
+          <ol>
+            {setup.steps!.map((step) => (
+              <li key={step.text}>
+                {step.text}
+                {step.url && (
+                  <>
+                    {" "}
+                    <a href={step.url} target="_blank" rel="noreferrer">
+                      {step.linkText || "Open"} ↗
+                    </a>
+                  </>
+                )}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
       {setup.fields.length > 0 && (
         <form
           onSubmit={(e) => {

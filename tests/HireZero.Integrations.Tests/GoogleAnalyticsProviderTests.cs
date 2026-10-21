@@ -117,9 +117,13 @@ public sealed class GoogleAnalyticsProviderTests : IDisposable
     public async Task NothingIsSentUntilAKeyAndASourceAreSet()
     {
         var (tools, fake, provider) = Create(null);
-        Assert.Contains(GoogleAnalyticsProvider.KeySecret, provider.Status().Reason);
+        Assert.Contains("Paste a service account key", provider.Status().Reason);
+        // With a key, the status names the email to share the property and site with, and where to set them.
         (tools, fake, provider) = Create(Key());
-        Assert.Contains("google.json", provider.Status().Reason);
+        Assert.Contains("share them with reader@fictional-project.example.invalid", provider.Status().Reason);
+        Assert.Contains("Company settings → Integrations", provider.Status().Reason);
+        Assert.All(provider.Setup.Steps.Where(s => s.Url is not null), s => Assert.StartsWith("https://", s.Url));
+        Assert.True(provider.Setup.Steps.Length >= 5);
         await Assert.ThrowsAsync<ToolFailureException>(() =>
             tools.InvokeAsync(AnalyticsTools.Traffic, new(Start, End, null, 10), Token)
         );

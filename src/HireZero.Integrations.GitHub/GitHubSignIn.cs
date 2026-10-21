@@ -22,8 +22,56 @@ public sealed class GitHubSignIn
         TimeSpan.FromMilliseconds(50)
     );
 
+    static readonly Regex Account = new(
+        @"Logged in to github\.com account (\S+)",
+        RegexOptions.None,
+        TimeSpan.FromMilliseconds(50)
+    );
+
+    // An existing sign-in on this computer (owner feedback, 2026-10-20: the page asked to sign in while the CLI was
+    // already signed in). Checked with `gh auth status`, which never prints the token, and cached briefly.
+    private readonly Func<string?> _signedIn;
+    private (DateTimeOffset At, string? Account) _known = (DateTimeOffset.MinValue, null);
+    public static readonly TimeSpan Recheck = TimeSpan.FromSeconds(30);
+
+    public GitHubSignIn(Func<string?>? signedIn = null) => _signedIn = signedIn ?? SignedInAccount;
+
     public static string? ParseCode(string text) =>
         Code.Match(text) is { Success: true } match ? match.Groups[1].Value : null;
+
+    public static string? ParseAccount(string text) =>
+        Account.Match(text) is { Success: true } match ? match.Groups[1].Value : null;
+
+    private static string? SignedInAccount()
+    {
+        try
+        {
+            var start = new ProcessStartInfo(GitHubCli.GhExecutable)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            foreach (var argument in new[] { "auth", "status", "--hostname", "github.com" })
+                start.ArgumentList.Add(argument);
+            using var process = Process.Start(start);
+            if (process is null)
+                return null;
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(5000))
+            {
+                process.Kill(entireProcessTree: true);
+                return null;
+            }
+            return process.ExitCode == 0 ? ParseAccount(output.Result + error.Result) : null;
+        }
+        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return null;
+        }
+    }
 
     public ToolRegistry Register(ToolRegistry registry)
     {
@@ -35,7 +83,16 @@ public sealed class GitHubSignIn
     public GitHubSignInStatus Status()
     {
         lock (_gate)
-            return new(_state, _code, "https://github.com/login/device", _error);
+        {
+            // A sign-in in progress speaks for itself; otherwise the computer's existing sign-in decides.
+            if (_state is "starting" or "waiting")
+                return new(_state, _code, "https://github.com/login/device", _error);
+            if (DateTimeOffset.UtcNow - _known.At > Recheck)
+                _known = (DateTimeOffset.UtcNow, _signedIn());
+            return _known.Account is { } account
+                ? new("connected", "", "https://github.com/login/device", "", account)
+                : new(_state == "connected" ? "idle" : _state, _code, "https://github.com/login/device", _error);
+        }
     }
 
     public GitHubSignInStatus Start()
@@ -143,6 +200,7 @@ public sealed class GitHubSignIn
             if (process.HasExited && process.ExitCode == 0)
             {
                 _state = "connected";
+                _known = (DateTimeOffset.MinValue, null);
             }
             else
             {

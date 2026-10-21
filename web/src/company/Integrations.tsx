@@ -3,7 +3,7 @@ import { api } from "../lib/api";
 import type { IntegrationStatus } from "./api";
 import { IntegrationSetup } from "./IntegrationSetup";
 
-type GitHub = { state: string; code: string; url: string; error: string };
+type GitHub = { state: string; code: string; url: string; error: string; account?: string | null };
 
 type Microsoft = {
   configured: boolean;
@@ -61,16 +61,30 @@ export function Integrations({
       <h4>Set up</h4>
       <IntegrationSetup refresh={refresh} onLoaded={setConfigurable} />
       <h4>Other integrations</h4>
-      <ul className="co-integration-list">
-        {integrations
-          .filter((i) => !configurable.includes(i.id))
-          .map((i) => (
-            <li key={i.id} className={i.active ? "on" : "off"}>
-              <strong>{i.name}</strong>: {i.active ? "active" : "not active"}.{" "}
-              <span className="co-muted">{i.reason}</span>
-            </li>
-          ))}
-      </ul>
+      {/* Fictional demo sources are for trying HireZero, not for a real company: grouped and closed unless one is on
+          (owner feedback, 2026-10-20). */}
+      {(() => {
+        const others = integrations.filter((i) => !configurable.includes(i.id));
+        const demo = others.filter((i) => i.id.startsWith("synthetic-"));
+        const item = (i: (typeof integrations)[number]) => (
+          <li key={i.id} className={i.active ? "on" : "off"}>
+            <strong>{i.name}</strong>: {i.active ? "active" : "not active"}.{" "}
+            <span className="co-muted">{i.reason}</span>
+          </li>
+        );
+        return (
+          <>
+            <ul className="co-integration-list">{others.filter((i) => !i.id.startsWith("synthetic-")).map(item)}</ul>
+            {demo.length > 0 && (
+              <details className="co-demo-integrations" open={demo.some((i) => i.active)}>
+                <summary>Demo data ({demo.filter((i) => i.active).length} on)</summary>
+                <p className="co-muted">Fictional sources for trying HireZero. Your real company doesn't need them.</p>
+                <ul className="co-integration-list">{demo.map(item)}</ul>
+              </details>
+            )}
+          </>
+        );
+      })()}
       {notice && (
         <p role="status">{notice === "connected" ? "Microsoft 365 connected." : "Sign-in did not finish: " + notice}</p>
       )}
@@ -80,9 +94,14 @@ export function Integrations({
           <h4>GitHub</h4>
           <p className="co-muted">
             Uses the GitHub CLI's own browser sign-in on this computer; HireZero never sees a password or token.
-            {github.state === "connected" && " Signed in."}
             {github.state === "failed" && " " + github.error}
           </p>
+          {github.state === "connected" && (
+            <p role="status" className="co-integration-connected">
+              Signed in{github.account ? " as " : ""}
+              {github.account && <strong>{github.account}</strong>}.
+            </p>
+          )}
           {github.state === "waiting" && (
             <p role="status">
               Enter <strong>{github.code}</strong> at{" "}
@@ -98,7 +117,11 @@ export function Integrations({
               type="button"
               onClick={() => void act(() => api("/company/github/sign-in", "POST", {}))}
             >
-              {github.state === "waiting" ? "Show the code again" : "Sign in to GitHub"}
+              {github.state === "waiting"
+                ? "Show the code again"
+                : github.state === "connected"
+                  ? "Sign in with another account"
+                  : "Sign in to GitHub"}
             </button>
             {github.state === "waiting" && (
               <button disabled={busy} type="button" onClick={() => void load()}>

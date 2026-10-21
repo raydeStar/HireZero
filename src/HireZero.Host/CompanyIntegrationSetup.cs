@@ -41,6 +41,7 @@ public static class CompanyIntegrationSetup
                             active = s?.Active ?? false,
                             reason = s?.Reason ?? "",
                             setup.File,
+                            setup.Steps,
                             localSecrets = secrets is not null,
                             fields = setup.Fields.Select(f => new
                             {

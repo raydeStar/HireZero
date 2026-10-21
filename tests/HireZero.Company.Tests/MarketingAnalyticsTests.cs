@@ -154,7 +154,10 @@ public sealed class MarketingAnalyticsTests : IDisposable
         var text = await MarketingAnalytics.ReadAsync(Days("7"), tools, new DateOnly(2026, 2, 10), Token);
 
         Assert.Contains("Traffic (GA4 property 123456)", text);
-        Assert.Contains("Search: not read (Name a Search Console site in google.json first.)", text);
+        Assert.Contains(
+            "Search: not read (Add a Search Console site in Company settings → Integrations → Google Analytics and Search Console.)",
+            text
+        );
     }
 
     // A newly verified Search Console property has no rows: the read says there is no data yet rather than printing

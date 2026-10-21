@@ -89,7 +89,7 @@ public sealed class OpenRouterToolProviderTests : IDisposable
         var (tools, fake, provider) = Create(key: null);
         Assert.Contains("HIREZERO_OPENROUTER_API_KEY", provider.Status().Reason);
         (tools, fake, provider) = Create();
-        Assert.Contains("openrouter.json", provider.Status().Reason);
+        Assert.Contains("Integrations → OpenRouter", provider.Status().Reason);
         Model("not a model id");
         Assert.False(provider.Status().Active);
         await Assert.ThrowsAsync<ToolFailureException>(() =>

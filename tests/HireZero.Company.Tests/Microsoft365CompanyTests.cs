@@ -220,10 +220,10 @@ public sealed class Microsoft365CompanyTests : IDisposable
             Assert.Contains(integrations, i => i.GetProperty("id").GetString() == "live-coding");
             var azure = integrations.Single(i => i.GetProperty("id").GetString() == "azure-devops");
             Assert.False(azure.GetProperty("active").GetBoolean());
-            Assert.Contains("azure-devops.json", azure.GetProperty("reason").GetString());
+            Assert.Contains("Integrations → Azure DevOps", azure.GetProperty("reason").GetString());
             var agentApps = integrations.Single(i => i.GetProperty("id").GetString() == "agent-apps");
             Assert.False(agentApps.GetProperty("active").GetBoolean());
-            Assert.Contains("agent-apps.json", agentApps.GetProperty("reason").GetString());
+            Assert.Contains("Integrations → Agent apps", agentApps.GetProperty("reason").GetString());
             var setup = JsonDocument
                 .Parse(await client.GetStringAsync("/api/connections/microsoft", Token))
                 .RootElement;

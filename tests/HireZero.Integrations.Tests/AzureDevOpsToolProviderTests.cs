@@ -50,7 +50,10 @@ public sealed class AzureDevOpsToolProviderTests : IDisposable
     public async Task NothingIsReadUntilOrganizationsAreListed()
     {
         var (tools, fake, provider) = Create();
-        Assert.Equal("List your organizations in azure-devops.json in the data root.", provider.Status().Reason);
+        Assert.Equal(
+            "Add your organizations in Company settings → Integrations → Azure DevOps.",
+            provider.Status().Reason
+        );
         await Assert.ThrowsAsync<ToolFailureException>(() =>
             tools.InvokeAsync(AzureDevOpsTools.Attention, new(null, 10), TestContext.Current.CancellationToken)
         );

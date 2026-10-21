@@ -66,7 +66,12 @@ public sealed partial class OpenRouterToolProvider(
     public IntegrationStatus Status() =>
         _key() is null ? new("openrouter", "OpenRouter", false, "Set HIREZERO_OPENROUTER_API_KEY to use OpenRouter.")
         : Model() is null
-            ? new("openrouter", "OpenRouter", false, "Name a model (vendor/model) in openrouter.json in the data root.")
+            ? new(
+                "openrouter",
+                "OpenRouter",
+                false,
+                "Choose a model (vendor/model) in Company settings → Integrations → OpenRouter."
+            )
         : new(
             "openrouter",
             "OpenRouter",

@@ -265,11 +265,21 @@ export function ConversationJob({
               Request fresh attempt
             </button>
           )}
-        {t.state === "awaiting_review" && (
-          <button onClick={() => void run("task.complete", { id: t.id, expectedVersion: t.version })}>
-            Complete after review
-          </button>
-        )}
+        {t.state === "awaiting_review" &&
+          // Completing needs an approved result (the store refuses otherwise), so the button waits for one instead of
+          // offering a click that only errors (owner feedback, 2026-10-20).
+          (() => {
+            const approved = d.artifacts.some((a) => a.taskId === t.id && a.state === "approved");
+            return (
+              <button
+                disabled={!approved}
+                title={approved ? undefined : "Approve the result first"}
+                onClick={() => void run("task.complete", { id: t.id, expectedVersion: t.version })}
+              >
+                Complete after review
+              </button>
+            );
+          })()}
       </div>
       {["blocked", "awaiting_review", "queued"].includes(t.state) && t.kind !== "action" && (
         <form

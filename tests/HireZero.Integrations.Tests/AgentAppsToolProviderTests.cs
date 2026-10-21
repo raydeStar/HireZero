@@ -108,7 +108,7 @@ public sealed class AgentAppsToolProviderTests : IDisposable
     {
         var (tools, claude, codex, provider) = Create();
         Assert.False(provider.Status().Active);
-        Assert.Contains("agent-apps.json", provider.Status().Reason);
+        Assert.Contains("Integrations → Agent apps", provider.Status().Reason);
         await Assert.ThrowsAsync<ToolFailureException>(() =>
             tools.InvokeAsync(AgentAppsTools.ListSessions, new(null, 10), TestContext.Current.CancellationToken)
         );
