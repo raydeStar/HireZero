@@ -241,14 +241,21 @@ public sealed class ContextDraftTests : IAsyncDisposable
     }
 
     [Fact]
-    public void ThePoliciesAreNamedAndOnlyThoseTwoAreKnown()
+    public void ThePoliciesAreNamedAndOnlyThoseThreeAreKnown()
     {
         Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Current));
         Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.ContextDraft));
+        Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Conversation));
         Assert.False(
             CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.ContextDraft with { ApplicationBytes = 1 << 20 })
         );
-        Assert.Equal(CompanyMeasuredPolicy.Current, CompanyMeasuredPolicy.For("conversation"));
+        Assert.False(
+            CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Conversation with { ApplicationBytes = 1 << 20 })
+        );
+        // A reply has room for approved facts and history (docs/adr/0047); other measured work keeps 4 KiB.
+        Assert.Equal(CompanyMeasuredPolicy.Conversation, CompanyMeasuredPolicy.For("conversation"));
+        Assert.Equal(16 * 1024, CompanyMeasuredPolicy.Conversation.ApplicationBytes);
+        Assert.Equal(CompanyMeasuredPolicy.Current, CompanyMeasuredPolicy.For("work"));
         Assert.Equal(CompanyMeasuredPolicy.ContextDraft, CompanyMeasuredPolicy.For(CompanyStore.ContextDraftKind));
     }
 }

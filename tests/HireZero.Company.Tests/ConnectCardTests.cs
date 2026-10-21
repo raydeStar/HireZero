@@ -94,8 +94,9 @@ public sealed class ConnectCardTests : IDisposable
     [Fact]
     public async Task AReplyAsksForAKnownMissingIntegrationAndTheLineIsRemoved()
     {
+        // As a real reply did: the tag at the end of the sentence, plus one on its own line for an unknown id.
         var (store, model, seeded) = Company(
-            "I need GitHub access to check pull requests.\n[connect: github]\n[connect: not-a-real-one]"
+            "I need GitHub access to check pull requests. [connect: github]\n[connect: not-a-real-one]"
         );
         var prepared = await Reply(store, model, seeded);
 

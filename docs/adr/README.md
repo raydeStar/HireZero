@@ -51,3 +51,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0044](0044-local-company-backups.md) | Local company backups and staying running | Accepted |
 | [0045](0045-offline-packages-for-coding-runs.md) | Offline packages for coding runs | Accepted |
 | [0046](0046-connect-cards.md) | Connect cards in the conversation | Accepted |
+| [0047](0047-conversation-packet.md) | A larger packet for conversational replies | Accepted |

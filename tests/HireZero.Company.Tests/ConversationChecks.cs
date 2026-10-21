@@ -205,22 +205,24 @@ static class ConversationChecks
                 "An unconsumed reply proposal survives recovery without automatic resumption."
             );
             await f.Cancel(pending);
-            for (var i = 0; i < 12; i++)
+            // Enough history to pass the reply packet's cap (docs/adr/0047), so the oldest must be packed away.
+            for (var i = 0; i < 16; i++)
                 f.Store.Apply(
                     C("message.send") with
                     {
                         EmployeeId = b.Employee.Id,
                         ThreadId = b.Thread.Id,
-                        Body = "OPTIONAL_HISTORY_" + i + new string('x', 250),
+                        Body = "OPTIONAL_HISTORY_" + i + new string('x', 1200),
                     }
                 );
             var packed = await f.Prepare(b, "employee", "A short new question.");
             var packedCall = f.Store.TextCall(packed.Attempt.Id);
             check(
-                packedCall.Context.History.Length < 13
+                packedCall.Context.History.Length < 16
+                    && packedCall.Context.History.Length > 0
                     && packedCall.Context.Notes == "ONLY_BETA_NOTES"
                     && packedCall.Context.DepartmentKnowledge.Contains("ONLY_BETA_FACT")
-                    && packed.Attempt.Measured!.ApplicationBytes <= 4096,
+                    && packed.Attempt.Measured!.ApplicationBytes <= CompanyMeasuredPolicy.Conversation.ApplicationBytes,
                 "Measured conversation packing removes only optional oldest history and retains required context within the hard byte limit."
             );
             await f.Cancel(packed);
@@ -235,7 +237,8 @@ static class ConversationChecks
                 {
                     EmployeeId = b.Employee.Id,
                     ExpectedVersion = notes.Version,
-                    Body = new string('n', 5000),
+                    // Required notes alone too big for the reply packet (docs/adr/0047): 8,000 two-byte characters.
+                    Body = new string('é', 8000),
                 }
             );
             var count = Items<CompanyTask>(f.Store, "tasks").Length;
@@ -311,9 +314,10 @@ static class ConversationChecks
                 );
             if (mode == "company-measured-overrun")
                 check(
-                    attempt.ReportedUsage == 9150
-                        && attempt.Usage == new ModelUsage(9000, 150, 5)
-                        && Items<CompanyBudget>(f.Store, "budgets").Single(b => b.Id == p.Task.RootId).Reserved == 8000,
+                    attempt.ReportedUsage == 15150
+                        && attempt.Usage == new ModelUsage(15000, 150, 5)
+                        && Items<CompanyBudget>(f.Store, "budgets").Single(b => b.Id == p.Task.RootId).Reserved
+                            == CompanyMeasuredPolicy.Conversation.PlanningTokens,
                     "Conversational overage preserves all measured usage and its reservation without clamping."
                 );
             if (mode == "company-measured-output")
@@ -381,7 +385,8 @@ static class ConversationChecks
                 check(
                     a.ReportedUsage is null
                         && a.Usage == new ModelUsage(4800, 20, 5)
-                        && Items<CompanyBudget>(f.Store, "budgets").Single(b => b.Id == p.Task.RootId).Reserved == 8000,
+                        && Items<CompanyBudget>(f.Store, "budgets").Single(b => b.Id == p.Task.RootId).Reserved
+                            == CompanyMeasuredPolicy.Conversation.PlanningTokens,
                     "Partial cancellation receipts retain usage and the planning reservation."
                 );
         }
@@ -536,7 +541,7 @@ static class ConversationChecks
                 && f.Store.Work(pending.Task.Id).State == "canceled"
                 && !Transcript(f.Store, pending).Contains("UNCONFIRMED_PARTIAL_REPLY")
                 && Items<CompanyBudget>(f.Store, "budgets").Single(x => x.Id == pending.Task.RootId)
-                    is { Used: 0, Reserved: 8000 },
+                    is { Used: 0, Reserved: 14000 },
             "Cancellation withholds partial review text and retains the unknown-usage reservation; duplicate Send does not replay."
         );
         reopened.Recover();

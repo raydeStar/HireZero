@@ -35,8 +35,9 @@ public sealed partial class CompanyStore
     // Every integration and whether it is active, from the host (role-agnostic); empty when the host names none.
     public Func<IntegrationStatus[]> IntegrationStatuses { get; set; } = () => [];
 
-    // A reply asks for a connection with one line "[connect: id]"; the line is removed from what the owner reads.
-    [GeneratedRegex(@"^\s*\[connect:\s*([a-z0-9][a-z0-9-]{0,47})\]\s*$", RegexOptions.Multiline)]
+    // A reply asks for a connection with "[connect: id]", on its own line or at the end of a sentence (a real reply put
+    // it inline, 2026-10-21); every such tag is removed from what the owner reads.
+    [GeneratedRegex(@"[ \t]*\[connect:\s*([a-z0-9][a-z0-9-]{0,47})\][ \t]*")]
     private static partial Regex ConnectLine();
 
     // Kept short: the whole reply packet is capped at 4 KiB, and its history grows (real use, 2026-10-21: names and
