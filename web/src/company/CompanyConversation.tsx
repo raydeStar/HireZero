@@ -6,6 +6,7 @@ import { EmployeeActions } from "./EmployeeActions";
 import type { Employee, Event, Snapshot, ThreadDetail, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
 import { MeasuredJob } from "./MeasuredJob";
+import { ConnectCard } from "./ConnectCard";
 import { employeeState, humanize, taskState, workName } from "./labels";
 
 export type ConversationDraft = {
@@ -44,6 +45,8 @@ type Props = {
   // separately loading copy of the same card (UX round 5).
   openWork?: string;
   onShowWork?: (task: Work) => void;
+  // Opens Company settings → Integrations, for a Connect card whose integration is set up there.
+  onOpenSetup?: () => void;
 };
 
 export function CompanyConversation({
@@ -62,6 +65,7 @@ export function CompanyConversation({
   createThread,
   openWork,
   onShowWork,
+  onOpenSetup,
 }: Props) {
   const scope = company ? "company" : (employee?.id || "missing") + ":" + thread,
     draft = drafts.get(scope) ?? emptyDraft(),
@@ -374,6 +378,11 @@ export function CompanyConversation({
                 </Fragment>
               ))}
               {orphaned.map(job)}
+              {/* Connect cards this conversation raised (docs/adr/0046-connect-cards.md). */}
+              {!company &&
+                (d.connections ?? [])
+                  .filter((c) => c.threadId === thread && c.state !== "dismissed")
+                  .map((c) => <ConnectCard key={c.id} request={c} run={run} onOpenSetup={() => onOpenSetup?.()} />)}
             </>
           )}
         </div>

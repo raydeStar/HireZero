@@ -64,7 +64,8 @@ export function Integrations({
       {/* Fictional demo sources are for trying HireZero, not for a real company: grouped and closed unless one is on
           (owner feedback, 2026-10-20). */}
       {(() => {
-        const others = integrations.filter((i) => !configurable.includes(i.id));
+        // GitHub has its own section below.
+        const others = integrations.filter((i) => !configurable.includes(i.id) && i.id !== "github");
         const demo = others.filter((i) => i.id.startsWith("synthetic-"));
         const item = (i: (typeof integrations)[number]) => (
           <li key={i.id} className={i.active ? "on" : "off"}>

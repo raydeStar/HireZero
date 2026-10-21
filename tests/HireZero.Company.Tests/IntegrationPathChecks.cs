@@ -612,7 +612,7 @@ static class IntegrationPathChecks
             connection.Open();
             using var q = connection.CreateCommand();
             q.CommandText =
-                "DROP TABLE IF EXISTS co_audit; ALTER TABLE co_company DROP COLUMN name; DROP TABLE IF EXISTS co_members; DROP TABLE IF EXISTS co_owner_marks; DROP TABLE IF EXISTS co_publications; DROP TABLE co_execution_grants; DROP TABLE IF EXISTS co_tool_calls; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=2";
+                "DROP TABLE IF EXISTS co_connections; DROP TABLE IF EXISTS co_audit; ALTER TABLE co_company DROP COLUMN name; DROP TABLE IF EXISTS co_members; DROP TABLE IF EXISTS co_owner_marks; DROP TABLE IF EXISTS co_publications; DROP TABLE co_execution_grants; DROP TABLE IF EXISTS co_tool_calls; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=2";
             q.ExecuteNonQuery();
         }
         var upgraded = new CompanyStore(

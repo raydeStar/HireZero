@@ -163,6 +163,9 @@ public static class CompanyWorkspace
                 routing,
                 (model as IMeasuredModelProvider)?.RuntimeIdentity
             );
+            // Every company store sees the same integrations, set once they exist below (docs/adr/0046).
+            Func<IntegrationStatus[]> currentIntegrations = () => [];
+            store.IntegrationStatuses = () => currentIntegrations();
             builder.Services.AddSingleton(store);
             // Tools employees may call, audited in the company store (docs/adr/0007-tool-registry.md).
             // The only verifier is the publication's: a write or push runs only as a call of an approved
@@ -331,6 +334,7 @@ public static class CompanyWorkspace
                             (model as IMeasuredModelProvider)?.RuntimeIdentity,
                             key
                         );
+                        companyStore.IntegrationStatuses = () => currentIntegrations();
                         var registry = new ToolRegistry(companyStore, [companyStore.PublicationAuthority]);
                         RegisterTools(registry);
                         var scheduler = new CompanyScheduler(companyStore, model);
@@ -473,9 +477,19 @@ public static class CompanyWorkspace
                         }
                     )
             );
-            // Every optional integration and why it is or is not active (docs/adr/0009).
+            // GitHub sign-in through the GitHub CLI's own browser flow (ported from the legacy profile, 2B.5j). The
+            // owner's click starts it on this computer; HireZero never sees a password or token.
+            // A fixture never reads this computer's real GitHub sign-in: its pages and screenshots stay fictional.
+            var gitHubSignIn = fixtureUrl is not null ? new GitHubSignIn(() => null) : new GitHubSignIn();
+            // Every optional integration and why it is or is not active (docs/adr/0009). GitHub is listed so a
+            // conversation can ask to connect it (docs/adr/0046-connect-cards.md).
+            IntegrationStatus GitHubStatus() =>
+                gitHubSignIn.Status() is { State: "connected" } signedIn
+                    ? new("github", "GitHub", true, "Signed in" + (signedIn.Account is { } a ? " as " + a : "") + ".")
+                    : new("github", "GitHub", false, "Not signed in to GitHub on this computer.");
             IntegrationStatus[] Integrations() =>
                 [
+                    GitHubStatus(),
                     microsoft.Status(),
                     agentApps.Status(),
                     azureDevOps.Status(),
@@ -534,6 +548,7 @@ public static class CompanyWorkspace
                             : "Start with -Coding and the pinned Codex runtime to enable live coding."
                     ),
                 ];
+            currentIntegrations = Integrations;
             app.MapMicrosoft365(Microsoft);
             app.MapGet(
                 "/api/company",
@@ -709,10 +724,6 @@ public static class CompanyWorkspace
                     return Results.Ok(new { name = Store().Name() });
                 }
             );
-            // GitHub sign-in through the GitHub CLI's own browser flow (ported from the legacy profile, 2B.5j). The
-            // owner's click starts it on this computer; HireZero never sees a password or token.
-            // A fixture never reads this computer's real GitHub sign-in: its pages and screenshots stay fictional.
-            var gitHubSignIn = fixtureUrl is not null ? new GitHubSignIn(() => null) : new GitHubSignIn();
             app.MapGet("/api/company/github/sign-in", () => Results.Ok(gitHubSignIn.Status()));
             app.MapPost("/api/company/github/sign-in", () => Results.Ok(gitHubSignIn.Start()));
             // The company's day on this machine's clock: what waits on the owner and what happened (2B.5i).
@@ -777,7 +788,8 @@ public static class CompanyWorkspace
                                 task.Id,
                                 error is WorkspaceException or ModelUnavailableException
                                     ? error.Message
-                                    : "The action failed unexpectedly (" + error.GetType().Name + ")."
+                                    : "The action failed unexpectedly (" + error.GetType().Name + ").",
+                                (error as IntegrationMissingException)?.IntegrationId
                             );
                     }
                     return Results.Ok(Store().TaskDetail(task.Id));

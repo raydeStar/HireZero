@@ -10,6 +10,10 @@ public sealed partial class CompanyStore
                 return PrepareConversation(db, c);
             case "context.draft":
                 return PrepareContextDraft(db, c);
+            case "connection.resolve":
+                return ResolveConnection(db, c, dismiss: false);
+            case "connection.dismiss":
+                return ResolveConnection(db, c, dismiss: true);
             case "measured.prepare":
                 return PrepareMeasured(db, c);
             case "measured.run":

@@ -181,7 +181,9 @@ public sealed record CompanyContext(
     string? MeetingId = null,
     CompanyColleague[]? Colleagues = null,
     CompanyWorkStatus[]? CompanyWork = null,
-    string Scope = "employee"
+    string Scope = "employee",
+    // For a reply: the company's integrations and which are connected (docs/adr/0046-connect-cards.md).
+    string? Connections = null
 );
 
 public sealed record CompanyAttempt(

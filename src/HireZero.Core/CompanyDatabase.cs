@@ -43,6 +43,7 @@ public sealed partial class CompanyStore
         [typeof(CompanyPublication)] = "co_publications",
         [typeof(CompanyOwnerMark)] = "co_owner_marks",
         [typeof(CompanyMember)] = "co_members",
+        [typeof(CompanyConnectionRequest)] = "co_connections",
     };
     private static readonly Dictionary<string, string> ParentTables = new()
     {
@@ -113,6 +114,8 @@ public sealed partial class CompanyStore
                     "CREATE TABLE co_members(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
                     "ALTER TABLE co_company ADD COLUMN name TEXT;",
                     AuditSchema,
+                    // Connect cards (docs/adr/0046-connect-cards.md).
+                    "CREATE TABLE co_connections(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
                 ];
                 try
                 {
@@ -153,7 +156,14 @@ public sealed partial class CompanyStore
         // Step 1's text is frozen by its checksum: tables added later are created by their own steps.
         foreach (
             var table in Tables.Values.Where(table =>
-                table is not ("co_execution_grants" or "co_publications" or "co_owner_marks" or "co_members")
+                table
+                    is not (
+                        "co_execution_grants"
+                        or "co_publications"
+                        or "co_owner_marks"
+                        or "co_members"
+                        or "co_connections"
+                    )
             )
         )
         {
@@ -372,6 +382,8 @@ public sealed partial class CompanyStore
                         actions = r.Manifest?.Actions ?? [],
                     }),
                     taskTimes = TaskTimes(db),
+                    // Connect cards, open and closed (docs/adr/0046-connect-cards.md).
+                    connections = All<CompanyConnectionRequest>(db),
                     // The company-wide fact fields and their help, in order (real-use batch, 2026-10-20).
                     companyFields = CompanyFactFields.Select(f => new { id = f.Id, help = f.Help }),
                     cursor = long.Parse(

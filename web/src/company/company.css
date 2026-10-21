@@ -2382,3 +2382,55 @@
 .co-workspace .co-integration-connected {
   color: var(--fe-ok);
 }
+
+/* Connect cards (docs/adr/0046-connect-cards.md): connecting an integration from the conversation that needed it. */
+.co-workspace .co-connect {
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--fe-accent) 45%, var(--fe-line));
+  border-radius: var(--fe-r-m);
+  background: color-mix(in srgb, var(--fe-accent) 6%, var(--fe-surface));
+  display: grid;
+  gap: 8px;
+  max-width: 640px;
+}
+.co-workspace .co-connect > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.co-workspace .co-connect > header > button {
+  margin-left: auto;
+}
+.co-workspace .co-connect > p {
+  margin: 0;
+}
+.co-workspace .co-connect-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.co-workspace .co-connect-code {
+  display: grid;
+  gap: 6px;
+}
+.co-workspace .co-connect-code code {
+  font-size: 1.35rem;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+.co-workspace .co-connect.done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-color: color-mix(in srgb, var(--fe-ok) 45%, var(--fe-line));
+  background: var(--fe-ok-soft);
+  color: var(--fe-ok);
+}
+.co-workspace .co-connect .co-setup {
+  border: 0;
+  padding: 0;
+}
