@@ -139,6 +139,66 @@ public static class CompanyIntegrationSetup
                 return Results.Ok(new { origin = SecretSource.Default.Describe(secret.Name).Origin });
             }
         );
+        // An assistant pointed at an environment variable that holds a key (docs/adr/0048); the owner agreed on the
+        // card. The value is read here, stored encrypted like a pasted key and never returned or logged.
+        app.MapPost(
+            "/api/company/integrations/connections/{id}/use-key-source",
+            (string id, HttpContext context) =>
+            {
+                if (secrets is null)
+                    throw new WorkspaceException(
+                        "In hosted mode, deliver secrets through your vault or platform.",
+                        403
+                    );
+                var request = store().Connection(id);
+                if (
+                    request.State != "open"
+                    || request.KeySource is not { } source
+                    || request.SecretName is not { } name
+                )
+                    throw new WorkspaceException("This card has no key source to use.", 409);
+                var setup = Find(request.IntegrationId).Setup;
+                if (setup.Secrets.All(s => s.Name != name))
+                    throw new WorkspaceException("That integration reads no such key.", 409);
+                var variable = source["env:".Length..];
+                var value =
+                    Environment.GetEnvironmentVariable(variable, EnvironmentVariableTarget.User)
+                    ?? Environment.GetEnvironmentVariable(variable);
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new WorkspaceException(variable + " is not set on this computer.", 409);
+                secrets.Write(name, value);
+                store()
+                    .IntegrationEvent(
+                        "integration.secret",
+                        setup.Id,
+                        "Secret set: " + name + ", from the environment variable " + variable + "."
+                    );
+                activate();
+                // A key alone may not finish the setup (a model to choose, a site to name): the card stays open with
+                // its form until the integration works.
+                if (statuses().FirstOrDefault(s => s.Id == request.IntegrationId) is not { Active: true })
+                    return Results.Ok(
+                        new
+                        {
+                            connected = false,
+                            reason = statuses().FirstOrDefault(s => s.Id == request.IntegrationId)?.Reason ?? "",
+                        }
+                    );
+                var resolved = CompanyJson.Decode<CompanyConnectionRequest>(
+                    store()
+                        .Apply(
+                            new CompanyCommand(Guid.NewGuid().ToString("D"), "connection.resolve")
+                            {
+                                Id = request.Id,
+                                ExpectedVersion = request.Version,
+                            },
+                            (string)context.Items["login"]!,
+                            out _
+                        )
+                );
+                return Results.Ok(new { connected = true, request = resolved });
+            }
+        );
     }
 
     private static string[] Strings(JsonNode? node) =>

@@ -141,7 +141,53 @@ export function ConnectCard({
           <X size={14} />
         </button>
       </header>
-      <p className="co-muted">{request.reason}</p>
+      {request.from ? (
+        <p>
+          <strong>{request.from}</strong> asks: <span className="co-muted">{request.reason}</span>
+        </p>
+      ) : (
+        <p className="co-muted">{request.reason}</p>
+      )}
+      {/* An assistant pointed at where the key already is (docs/adr/0048): the owner sees the variable's name, never
+          its value, and HireZero reads it on this computer only on their yes. */}
+      {request.keySource && (
+        <div className="co-connect-row">
+          <span>
+            Use the key in the environment variable <code>{request.keySource.replace(/^env:/, "")}</code> as{" "}
+            <code>{request.secretName}</code>?
+            {!request.keySource.toLowerCase().includes(request.integrationId.split("-")[0]) && (
+              <strong className="co-connect-warning">
+                {" "}
+                Check this: the variable's name doesn't mention {request.name}.
+              </strong>
+            )}
+          </span>
+          <button
+            className="co-primary"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setError("");
+              try {
+                const result = await api<{ connected: boolean; reason?: string }>(
+                  "/company/integrations/connections/" + request.id + "/use-key-source",
+                  "POST",
+                  {},
+                );
+                // The key is saved either way; anything still missing is said here and set in the form below.
+                if (!result.connected) setError("Key saved. Still needed: " + (result.reason ?? ""));
+                await refresh();
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Use this key
+          </button>
+        </div>
+      )}
       {isGitHub && github && (
         <>
           {github.state === "connected" ? (

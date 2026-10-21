@@ -3,13 +3,15 @@ using System.Text.RegularExpressions;
 namespace HireZero.Core;
 
 // A request to connect an integration, shown as a Connect card in the conversation it came from
-// (docs/adr/0046-connect-cards.md). An employee's reply or a refused action raises it; only the owner connects, and
-// only an integration the company knows. Connecting is recorded; a card never holds a secret.
+// (docs/adr/0046-connect-cards.md). An employee's reply or a refused action raises it, or an assistant through
+// HireZero's MCP endpoint (docs/adr/0048-assistant-connect-requests.md), in which case it has no conversation and
+// waits under Needs you. Only the owner connects, and only an integration the company knows. Connecting is recorded;
+// a card never holds a secret.
 public sealed record CompanyConnectionRequest(
     string Id,
     string IntegrationId,
     string Name,
-    string ThreadId,
+    string? ThreadId,
     string? EmployeeId,
     string Reason,
     string State = "open",
@@ -21,6 +23,14 @@ public sealed record CompanyConnectionRequest(
 
     // The account it was connected as, when the integration names one.
     public string? Account { get; init; }
+
+    // The assistant that asked through the MCP endpoint, as it named itself.
+    public string? From { get; init; }
+
+    // Where an assistant says the key already is (only "env:NAME"), and which of the integration's secrets it fills.
+    // The value is read on this computer when the owner agrees; it never passes through the assistant.
+    public string? KeySource { get; init; }
+    public string? SecretName { get; init; }
 }
 
 // A refusal because an integration is not connected. It names the integration so the conversation can offer to
@@ -40,8 +50,8 @@ public sealed partial class CompanyStore
     [GeneratedRegex(@"[ \t]*\[connect:\s*([a-z0-9][a-z0-9-]{0,47})\][ \t]*")]
     private static partial Regex ConnectLine();
 
-    // Kept short: the whole reply packet is capped at 4 KiB, and its history grows (real use, 2026-10-21: names and
-    // reasons pushed a real reply over the cap).
+    // Kept short: the reply packet is capped and its history grows (real use, 2026-10-21: names and reasons pushed a
+    // real reply over the cap).
     public const string ConnectInstructions =
         " If you need an integration listed as not connected, say so and end with one line [connect: id]. Only the owner connects; never ask for keys.";
 
@@ -74,7 +84,7 @@ public sealed partial class CompanyStore
     private CompanyConnectionRequest? RequestConnection(
         StoreConnection db,
         string integrationId,
-        string threadId,
+        string? threadId,
         string? employeeId,
         string reason,
         string? taskId
@@ -144,8 +154,69 @@ public sealed partial class CompanyStore
             closed.EmployeeId,
             dismiss
                 ? closed.Name + " connection request dismissed."
-                : closed.Name + " connected" + (account is null ? "" : " as " + account) + " from the conversation."
+                : closed.Name
+                    + " connected"
+                    + (account is null ? "" : " as " + account)
+                    + (closed.From is null ? " from the conversation." : " at " + closed.From + "'s request.")
         );
         return closed;
+    }
+
+    [GeneratedRegex(@"^env:[A-Za-z_][A-Za-z0-9_]{0,99}$")]
+    private static partial Regex EnvironmentSource();
+
+    // An assistant asks for a connection through the MCP endpoint (docs/adr/0048-assistant-connect-requests.md). It
+    // may say where the key already is (env:NAME) and which secret it fills; it never sends a key. The text it gives
+    // is shown as its words, and nothing happens until the owner acts on the card.
+    public CompanyConnectionRequest RequestFromAssistant(
+        string integrationId,
+        string from,
+        string reason,
+        string? keySource,
+        string? secretName
+    )
+    {
+        var status =
+            IntegrationStatuses().FirstOrDefault(s => s.Id == integrationId)
+            ?? throw new WorkspaceException("No such integration: " + Clip(integrationId) + ".", 404);
+        if (status.Active)
+            throw new WorkspaceException(status.Name + " is already connected.", 409);
+        if (keySource is not null && (!EnvironmentSource().IsMatch(keySource) || string.IsNullOrWhiteSpace(secretName)))
+            throw new WorkspaceException(
+                "A key source is env:NAME, with the secret it fills; the key itself is never sent.",
+                422
+            );
+        using var db = Open();
+        return Transaction(
+            db,
+            () =>
+            {
+                var request = new CompanyConnectionRequest(Id(), status.Id, status.Name, null, null, Text(reason, 300))
+                {
+                    From = Text(from, 60),
+                    KeySource = keySource,
+                    SecretName = keySource is null ? null : Text(secretName, 100),
+                };
+                Save(db, request, request.Id, state: request.State, version: request.Version);
+                Event(
+                    db,
+                    "connection.requested",
+                    request.Id,
+                    null,
+                    request.From
+                        + " asked to connect "
+                        + status.Name
+                        + (keySource is null ? "" : " using the key in " + keySource)
+                        + ". Nothing is connected until the owner agrees."
+                );
+                return request;
+            }
+        );
+    }
+
+    public CompanyConnectionRequest Connection(string id)
+    {
+        using var db = Open();
+        return Need<CompanyConnectionRequest>(db, Text(id, 64));
     }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
-import type { IntegrationStatus } from "./api";
+import type { IntegrationStatus, Snapshot } from "./api";
+import { ConnectCard } from "./ConnectCard";
 import { IntegrationSetup } from "./IntegrationSetup";
 
 type GitHub = { state: string; code: string; url: string; error: string; account?: string | null };
@@ -19,10 +20,15 @@ export function Integrations({
   integrations,
   refresh,
   open,
+  snapshot,
+  run,
 }: {
   open?: boolean;
   integrations: IntegrationStatus[];
   refresh: () => Promise<void>;
+  // For Connect cards raised by an assistant, which belong to no conversation (docs/adr/0048).
+  snapshot?: Snapshot;
+  run?: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
 }) {
   const [microsoft, setMicrosoft] = useState<Microsoft | null>(null),
     [github, setGitHub] = useState<GitHub | null>(null),
@@ -58,6 +64,24 @@ export function Integrations({
   return (
     <details className="co-integrations" open={open}>
       <summary>Integrations ({integrations.filter((i) => i.active).length} active)</summary>
+      {/* Connect cards an assistant raised through HireZero's MCP endpoint (docs/adr/0048). */}
+      {snapshot && run && (snapshot.data.connections ?? []).some((c) => !c.threadId && c.state === "open") && (
+        <section aria-label="Assistant requests">
+          <h4>Requests from assistants</h4>
+          {(snapshot.data.connections ?? [])
+            .filter((c) => !c.threadId && c.state === "open")
+            .map((c) => (
+              <ConnectCard
+                key={c.id}
+                request={c}
+                snapshot={snapshot}
+                run={run}
+                refresh={refresh}
+                onOpenSetup={() => {}}
+              />
+            ))}
+        </section>
+      )}
       <h4>Set up</h4>
       <IntegrationSetup refresh={refresh} onLoaded={setConfigurable} />
       <h4>Other integrations</h4>

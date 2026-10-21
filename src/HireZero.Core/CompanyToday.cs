@@ -153,7 +153,13 @@ public sealed partial class CompanyStore
                     needs.Add(
                         new CompanyNeed(
                             "connection",
-                            "Connect " + r.Name + (r.EmployeeId is null ? "" : " · asked by " + Who(r.EmployeeId)),
+                            "Connect "
+                                + r.Name
+                                + (
+                                    r.EmployeeId is not null ? " · asked by " + Who(r.EmployeeId)
+                                    : r.From is not null ? " · asked by " + r.From
+                                    : ""
+                                ),
                             r.Reason,
                             r.EmployeeId,
                             null
