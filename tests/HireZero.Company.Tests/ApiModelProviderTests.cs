@@ -351,7 +351,11 @@ public sealed class ApiModelProviderTests
             )!;
             await app.StartAsync(Token);
             var address = app.Urls.First();
-            using var client = new HttpClient { BaseAddress = new Uri(address) };
+            // The test host is local: a machine proxy (or a sandbox's dead one) must never carry this call.
+            using var client = new HttpClient(new HttpClientHandler { UseProxy = false })
+            {
+                BaseAddress = new Uri(address),
+            };
             using var request = new HttpRequestMessage(HttpMethod.Get, "/api/company");
             request.Headers.Host = "127.0.0.1:5065";
             var json = JsonDocument
