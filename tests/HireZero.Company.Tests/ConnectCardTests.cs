@@ -132,6 +132,40 @@ public sealed class ConnectCardTests : IDisposable
         );
     }
 
+    // Longer work asks the same way; the result for review has the tag removed.
+    [Fact]
+    public async Task WorkOutputAsksForAConnectionToo()
+    {
+        var (store, model, seeded) = Company("Draft ready, but the CRM numbers are missing. [connect: fictional-crm]");
+        var proposal = CompanyJson.Decode<CompanyAttempt>(
+            store.Apply(
+                C("measured.prepare") with
+                {
+                    Id = seeded.Id,
+                    ExpectedVersion = seeded.Version,
+                    CreditAllowance = 1,
+                }
+            )
+        );
+        await new CompanyScheduler(store, model).RunMeasuredOnceAsync(
+            C("measured.run") with
+            {
+                Id = proposal.Id,
+                ExpectedVersion = proposal.Version,
+                Digest = proposal.Measured!.Digest,
+                Decision = "accept-soft-limits",
+            },
+            model,
+            TestContext.Current.CancellationToken
+        );
+        Assert.Contains("not connected: github, fictional-crm", model.LastCall!.Context.Connections);
+        Assert.Contains("[connect: id]", model.LastCall.Instructions);
+        var request = Assert.Single(Requests(store));
+        Assert.Equal(("fictional-crm", seeded.ThreadId), (request.IntegrationId, request.ThreadId));
+        var artifact = Assert.Single(MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts"));
+        Assert.Equal("Draft ready, but the CRM numbers are missing.", artifact.Body);
+    }
+
     [Fact]
     public async Task AConnectedIntegrationRaisesNothing()
     {

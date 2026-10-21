@@ -234,7 +234,7 @@ public sealed partial class CompanyStore
             );
         }
         // A reply knows what is connected, so it can ask for a connection it needs (docs/adr/0046-connect-cards.md).
-        if (t.Kind == "conversation")
+        if (t.MeetingId is null && t.Kind is not (ContextDraftKind or ActionKind))
             context = context with { Connections = ConnectionsLine() };
         if (Need<CompanyThread>(db, t.ThreadId).Scope == "company")
             context = context with
@@ -627,6 +627,9 @@ public sealed partial class CompanyStore
                     );
                     return true;
                 }
+                // Work may ask for a connection too (docs/adr/0046-connect-cards.md); a meeting turn does not.
+                if (t.MeetingId is null)
+                    body = TakeConnectLines(db, body, t);
                 var artifact = new CompanyArtifact(
                     Id(),
                     t.Id,
