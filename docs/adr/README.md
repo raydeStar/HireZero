@@ -49,3 +49,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0042](0042-openrouter-low-effort-and-a-price-ceiling.md) | OpenRouter calls use low effort and a price ceiling | Accepted |
 | [0043](0043-context-after-onboarding-and-company-facts.md) | Context after onboarding, and company facts | Accepted |
 | [0044](0044-local-company-backups.md) | Local company backups and staying running | Accepted |
+| [0045](0045-offline-packages-for-coding-runs.md) | Offline packages for coding runs | Accepted |

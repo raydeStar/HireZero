@@ -42,6 +42,7 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
     private readonly Func<bool> _mayStart;
     private readonly string? _pin;
     private readonly Func<string, string?> _readRootRefusal;
+    private readonly string? _packages;
     private readonly object _gate = new();
     private readonly CancellationTokenSource _cancel = new();
     private CodingRun? _run;
@@ -55,9 +56,11 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         CompanyExecutionGrant grant,
         Func<bool> mayStart,
         string? pin,
-        Func<string, string?> readRootRefusal
+        Func<string, string?> readRootRefusal,
+        string? packages = null
     )
     {
+        _packages = packages;
         _options = options;
         _routing = routing;
         _readRoots = readRoots;
@@ -146,6 +149,8 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
             ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
             ["DOTNET_NOLOGO"] = "1",
         };
+        foreach (var (key, value) in PackageEnvironment(_packages))
+            environment[key] = value;
         if (inputs.Count > 0)
         {
             Directory.CreateDirectory(inputFolder);
@@ -564,4 +569,12 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         }
         catch (AggregateException) { }
     }
+
+    // With a package cache, restore reads every package from it as a NuGet fallback folder, so the run builds and tests
+    // with network off (docs/adr/0045-offline-packages-for-coding-runs.md). The vulnerability audit needs the network
+    // and its warning would fail a warnings-as-errors build; the lock files already pin every package.
+    public static IReadOnlyDictionary<string, string> PackageEnvironment(string? packages) =>
+        packages is null
+            ? new Dictionary<string, string>()
+            : new Dictionary<string, string> { ["RestoreFallbackFolders"] = packages, ["NuGetAudit"] = "false" };
 }

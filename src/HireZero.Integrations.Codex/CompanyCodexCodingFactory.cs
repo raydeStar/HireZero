@@ -8,19 +8,31 @@ public sealed class CompanyCodexCodingFactory : ICompanyCodingFactory
     private readonly CompanyCodexOptions _options;
     private readonly CompanyModelRouting _routing;
     private readonly string[] _readRoots;
+    private readonly string? _packages;
     private readonly string? _pin;
 
     public CompanyCodexCodingFactory(
         CompanyCodexOptions options,
         CompanyModelRouting routing,
         IEnumerable<string> readRoots,
-        string? pinSha256 = null
+        string? pinSha256 = null,
+        // A pre-filled NuGet package folder the run reads offline (docs/adr/0045-offline-packages-for-coding-runs.md).
+        string? packageCache = null
     )
     {
         _options = options;
         _routing = routing;
         _pin = pinSha256;
-        _readRoots = [.. readRoots.Select(r => Path.GetFullPath(r).TrimEnd(Path.DirectorySeparatorChar))];
+        _packages = packageCache is { Length: > 0 }
+            ? Path.GetFullPath(packageCache).TrimEnd(Path.DirectorySeparatorChar)
+            : null;
+        _readRoots =
+        [
+            .. readRoots
+                .Select(r => Path.GetFullPath(r).TrimEnd(Path.DirectorySeparatorChar))
+                .Concat(_packages is null ? [] : [_packages])
+                .Distinct(StringComparer.OrdinalIgnoreCase),
+        ];
         Refusal =
             CodexRuntimePin.Refusal(options.Executable, pinSha256)
             ?? (
@@ -50,7 +62,16 @@ public sealed class CompanyCodexCodingFactory : ICompanyCodingFactory
             throw new WorkspaceException(
                 "The checkout overlaps a read-only folder, the sign-in home or the runtime scratch."
             );
-        return new CompanyCodexCodingRunner(_options, _routing, _readRoots, grant, mayStart, _pin, ReadRootRefusal);
+        return new CompanyCodexCodingRunner(
+            _options,
+            _routing,
+            _readRoots,
+            grant,
+            mayStart,
+            _pin,
+            ReadRootRefusal,
+            _packages
+        );
     }
 
     // A named toolchain folder may be read by the run, so it must be a specific existing folder: not a drive root, not

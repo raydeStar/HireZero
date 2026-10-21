@@ -146,7 +146,12 @@ public static class CompanyWorkspace
             var coding = fixtureCoding;
             if (coding is null && codex is not null && args.Contains(CodingFlag))
             {
-                var live = new CompanyCodexCodingFactory(codex, routing, settings.CodingRead);
+                var live = new CompanyCodexCodingFactory(
+                    codex,
+                    routing,
+                    settings.CodingRead,
+                    packageCache: settings.CodingPackages
+                );
                 coding = live.Qualified
                     ? live
                     : throw new InvalidOperationException("Live company coding is not qualified: " + live.Refusal);

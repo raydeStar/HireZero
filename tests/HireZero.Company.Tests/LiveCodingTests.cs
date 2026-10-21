@@ -202,6 +202,34 @@ public sealed class LiveCodingTests : IDisposable
         Assert.Matches("^[0-9A-F]{64}$", CodexRuntimePin.Pinned.Sha256);
     }
 
+    // An offline package cache (docs/adr/0045-offline-packages-for-coding-runs.md) is held to the read-only folder
+    // rules, may not overlap the checkout, and becomes a NuGet fallback folder with the network-only audit off.
+    [Fact]
+    public void APackageCacheIsAReadOnlyFallbackFolderUnderTheSameRules()
+    {
+        var cache = Dir("packages");
+        CompanyCodexCodingFactory WithCache(string folder) =>
+            new(
+                new(Fake, CompanyCodingFactory.Identity(Fake), Dir("scratch"), Home, "coding-live-success"),
+                new CompanyModelRouting(),
+                [Toolchain],
+                CodexRuntimePin.Sha256(Fake),
+                packageCache: folder
+            );
+        Assert.True(WithCache(cache).Qualified);
+        Assert.False(WithCache(Path.Combine(_root.Path, "missing")).Qualified);
+        Assert.False(WithCache(_root.Path).Qualified); // holds the sign-in home
+        Assert.Throws<WorkspaceException>(() =>
+            WithCache(cache).Create(Grant() with { Workspace = cache }, () => true)
+        );
+
+        Assert.Equal(
+            new Dictionary<string, string> { ["RestoreFallbackFolders"] = cache, ["NuGetAudit"] = "false" },
+            CompanyCodexCodingRunner.PackageEnvironment(cache)
+        );
+        Assert.Empty(CompanyCodexCodingRunner.PackageEnvironment(null));
+    }
+
     [Fact]
     public void LiveCodingNeedsTheCodexProfile()
     {

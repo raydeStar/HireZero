@@ -5,14 +5,14 @@ set -eu
 
 usage() {
     echo "usage: $0 --data-root DIR [--owner-login EMAIL] [--text-model ROUTE] [--coding-model ROUTE]" >&2
-    echo "          [--codex --codex-executable FILE --codex-identity ID --codex-home DIR [--coding [--coding-read DIR]...]]" >&2
+    echo "          [--codex --codex-executable FILE --codex-identity ID --codex-home DIR [--coding [--coding-read DIR]... [--coding-packages DIR]]]" >&2
     exit 2
 }
 
 absolute() { (cd "$(dirname "$1")" 2>/dev/null && printf '%s/%s\n' "$(pwd)" "$(basename "$1")") || printf '%s\n' "$1"; }
 
 data_root= owner= text_model=openai/gpt-6-luna coding_model=openai/gpt-6.1-sol
-codex= codex_executable= codex_identity= codex_home= coding= coding_read=
+codex= codex_executable= codex_identity= codex_home= coding= coding_read= coding_packages=
 while [ $# -gt 0 ]; do
     case "$1" in
         --data-root) data_root=$2; shift 2 ;;
@@ -25,6 +25,7 @@ while [ $# -gt 0 ]; do
         --codex-home) codex_home=$2; shift 2 ;;
         --coding) coding=1; shift ;;
         --coding-read) coding_read=${coding_read:+$coding_read;}$(absolute "$2"); shift 2 ;;
+        --coding-packages) coding_packages=$(absolute "$2"); shift 2 ;;
         *) usage ;;
     esac
 done
@@ -65,4 +66,5 @@ exec env \
     ${codex_settings:+HIREZERO_COMPANY_CODEX_IDENTITY="$codex_identity"} \
     ${codex_settings:+HIREZERO_COMPANY_CODEX_HOME="$(absolute "$codex_home")"} \
     ${coding:+HIREZERO_COMPANY_CODING_READ="$coding_read"} \
+    ${coding:+${coding_packages:+HIREZERO_COMPANY_CODING_PACKAGES="$coding_packages"}} \
     dotnet "$binary" "$@"
