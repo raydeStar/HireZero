@@ -116,6 +116,12 @@ public sealed class CompanySettings
                 s.CodingRead = v.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         ),
         new(
+            "HIREZERO_COMPANY_CODING_PACKAGES",
+            "Codex",
+            "A pre-filled NuGet package folder live coding runs read offline.",
+            (s, v) => s.CodingPackages = v.Trim()
+        ),
+        new(
             "HIREZERO_SYNTHETIC_WIKI",
             "Integrations",
             "1 turns on the synthetic Wiki pilot.",
@@ -164,6 +170,7 @@ public sealed class CompanySettings
     public string? CodexIdentity { get; private set; }
     public string? CodexHome { get; private set; }
     public string[] CodingRead { get; private set; } = [];
+    public string? CodingPackages { get; private set; }
     public bool SyntheticWiki { get; private set; }
     public bool ApiModels { get; private set; }
     public bool SyntheticAnalytics { get; private set; }
