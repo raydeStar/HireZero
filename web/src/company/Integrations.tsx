@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import type { IntegrationStatus, Snapshot } from "./api";
 import { ConnectCard } from "./ConnectCard";
+import { GoogleConnect } from "./GoogleConnect";
 import { IntegrationSetup } from "./IntegrationSetup";
 
 type GitHub = { state: string; code: string; url: string; error: string; account?: string | null };
@@ -82,6 +83,11 @@ export function Integrations({
             ))}
         </section>
       )}
+      {/* Google sign-in (docs/adr/0049): the client is set in the Google setup below; signing in and picking happen here. */}
+      <section aria-label="Google sign-in">
+        <h4>Google</h4>
+        <GoogleConnect onReady={() => void refresh()} />
+      </section>
       <h4>Set up</h4>
       <IntegrationSetup refresh={refresh} onLoaded={setConfigurable} />
       <h4>Other integrations</h4>

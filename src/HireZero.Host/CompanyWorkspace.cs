@@ -636,6 +636,14 @@ public static class CompanyWorkspace
             currentSetups = () => [.. configurable.Select(i => i.Setup)];
             app.MapIntegrationSetup(configurable, Integrations, root, pastedSecrets, Store, Activate);
             app.MapContextSources(Store, Tools);
+            // Google sign-in for Analytics and Search Console (docs/adr/0049-google-sign-in.md), on this host's origin.
+            app.MapGoogleSignIn(
+                google,
+                pastedSecrets,
+                Store,
+                Activate,
+                "http://" + (fixtureUrl is null || uri.Port != 0 ? uri.Authority : "127.0.0.1:5065")
+            );
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(Store().ToolCalls(limit ?? 100)));
             // Members and their roles, for every member to see (docs/adr/0020).
             app.MapGet("/api/company/members", () => Results.Ok(Store().Members()));

@@ -278,11 +278,16 @@ public sealed class LocalSecretStore
 {
     public const int MaxBytes = 64 * 1024;
 
-    // The integration secrets that may be pasted. Host secrets (database, audit and key-encryption keys, sign-in) never
-    // are: they protect this store or the company itself. A test keeps this equal to what integrations declare.
+    // The integration secrets that may be pasted, and those a sign-in writes. Host secrets (database, audit and
+    // key-encryption keys, sign-in) never are: they protect this store or the company itself. A test keeps this equal
+    // to what integrations declare plus SignedIn.
+    public static readonly string[] SignedIn = [HireZero.Integrations.Google.GoogleOAuth.RefreshTokenName];
+
     public static readonly string[] Names =
     [
         HireZero.Integrations.Google.GoogleAnalyticsProvider.KeySecret,
+        HireZero.Integrations.Google.GoogleOAuth.ClientSecretName,
+        .. SignedIn,
         HireZero.Integrations.Google.GoogleAdsProvider.DeveloperTokenSecret,
         HireZero.Integrations.Google.GoogleAdsProvider.ClientSecretSecret,
         HireZero.Integrations.Google.GoogleAdsProvider.RefreshTokenSecret,

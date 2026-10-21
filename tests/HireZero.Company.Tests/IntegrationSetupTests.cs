@@ -39,7 +39,15 @@ public sealed class IntegrationSetupTests : IAsyncDisposable
         ];
         Assert.Equal(
             LocalSecretStore.Names.Order(StringComparer.Ordinal),
-            integrations.SelectMany(i => i.Setup.Secrets.Select(s => s.Name)).Order(StringComparer.Ordinal)
+            integrations
+                .SelectMany(i => i.Setup.Secrets.Select(s => s.Name))
+                .Concat(LocalSecretStore.SignedIn)
+                .Order(StringComparer.Ordinal)
+        );
+        // A sign-in's token is written by the sign-in, never offered for pasting.
+        Assert.DoesNotContain(
+            integrations.SelectMany(i => i.Setup.Secrets),
+            s => LocalSecretStore.SignedIn.Contains(s.Name)
         );
         Assert.DoesNotContain(CompanyKeyProtection.Variable, LocalSecretStore.Names);
         // Nothing that names a program to run is offered as a setting.

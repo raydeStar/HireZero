@@ -57,6 +57,14 @@ start the company at sign-in and back it up nightly, keeping the newest 14.
 <install directory>/tools/Register-CompanyLocalTasks.ps1 -DataRoot <data root> -BackupTo <backup directory>
 ```
 
+Assistants on this computer (Claude Code, Codex) can see what is connected and ask you to connect something through
+HireZero's local MCP endpoint (docs/adr/0048-assistant-connect-requests.md). They never send or receive keys; at most
+they name the environment variable that holds one, and you decide on the card.
+
+```powershell
+claude mcp add --transport http hirezero http://127.0.0.1:5065/mcp
+```
+
 ### Hosted mode
 
 For real clients, run the host behind HTTPS with members signing in through any OIDC provider

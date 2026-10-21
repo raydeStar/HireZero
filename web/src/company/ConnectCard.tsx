@@ -3,6 +3,7 @@ import { Check, Link2, X } from "lucide-react";
 import { api } from "../lib/api";
 import { runAction, type ConnectionRequest, type Snapshot } from "./api";
 import { SetupForm, type Setup } from "./IntegrationSetup";
+import { GoogleConnect } from "./GoogleConnect";
 
 type GitHub = { state: string; code: string; url: string; error: string; account?: string | null };
 
@@ -239,10 +240,20 @@ export function ConnectCard({
         </>
       )}
       {isMicrosoft && <MicrosoftConnect busy={busy} onConnected={(address) => void resolve(address)} />}
+      {request.integrationId === "google-analytics" && (
+        <GoogleConnect
+          onReady={async () => {
+            // Once the picked property or site makes it work, the card closes as connected.
+            const all = await api<Setup[]>("/company/integrations/setup");
+            if (all.find((s) => s.id === request.integrationId)?.active) await resolve();
+          }}
+        />
+      )}
       {!isGitHub && setup && (
         <SetupForm
           setup={setup}
-          open
+          // A key-source card leads with its one question; the full form stays folded until needed.
+          open={!request.keySource}
           saved={async () => {
             // Once the saved settings or key make it active, the card closes as connected.
             const all = await api<Setup[]>("/company/integrations/setup");
