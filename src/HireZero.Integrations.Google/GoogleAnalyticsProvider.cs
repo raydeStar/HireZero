@@ -7,27 +7,35 @@ using HireZero.Tools.Analytics;
 namespace HireZero.Integrations.Google;
 
 // The analytics.* tools from Google (docs/adr/0029-marketing-analytics-reads.md): traffic from the GA4 Data API and
-// search performance from the Search Console API, read with a service account. Off until <data root>/google.json names
-// a GA4 property or a Search Console site and HIREZERO_GOOGLE_SERVICE_ACCOUNT holds the key. Read-only; requests go to
-// Google's API hosts only, with no redirects.
+// search performance from the Search Console API, read as the owner's own Google sign-in (docs/adr/0049) or a service
+// account. Off until <data root>/google.json names a GA4 property or a Search Console site and one of the two is set.
+// Read-only; requests go to Google's API hosts only, with no redirects.
 public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusSource, IConfigurableIntegration
 {
     public const string KeySecret = "HIREZERO_GOOGLE_SERVICE_ACCOUNT";
     private const string DataApi = "https://analyticsdata.googleapis.com/v1beta/";
     private const string SearchApi = "https://searchconsole.googleapis.com/webmasters/v3/sites/";
+    private const string AdminApi = "https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=200";
 
-    private sealed record Settings(string? Ga4Property, string? SearchConsoleSite);
+    private sealed record Settings(string? Ga4Property, string? SearchConsoleSite, string? OAuthClientId = null);
+
+    // A GA4 property or Search Console site the signed-in account can read, for the owner to pick.
+    public sealed record Choice(string Value, string Label);
 
     private readonly string _dataRoot;
     private readonly Func<string?> _key;
     private readonly HttpClient _http;
     private readonly GoogleServiceAccount _account;
 
+    // The owner's own Google sign-in, preferred over a service account when present (docs/adr/0049).
+    public GoogleOAuth OAuth { get; }
+
     public GoogleAnalyticsProvider(
         string dataRoot,
         Func<string?>? key = null,
         HttpMessageHandler? handler = null,
-        Func<DateTimeOffset>? clock = null
+        Func<DateTimeOffset>? clock = null,
+        Func<string, string?>? secrets = null
     )
     {
         _dataRoot = dataRoot;
@@ -45,6 +53,7 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
             Timeout = TimeSpan.FromSeconds(20),
         };
         _account = new GoogleServiceAccount(_key, _http, clock);
+        OAuth = new GoogleOAuth(secrets ?? SecretSource.Default.Read, () => Read().OAuthClientId, _http, clock);
     }
 
     private Settings Read()
@@ -85,6 +94,18 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
             "google-analytics",
             "google.json",
             [
+                new(
+                    "oauthClientId",
+                    "OAuth client ID",
+                    "Your Google Cloud OAuth client (Desktop app) ID, ending in .apps.googleusercontent.com.",
+                    200
+                )
+                {
+                    Check = v =>
+                        v.EndsWith(".apps.googleusercontent.com", StringComparison.Ordinal)
+                            ? null
+                            : "An OAuth client ID ends in .apps.googleusercontent.com.",
+                },
                 new("ga4Property", "GA4 property", "The property's number, such as 123456789.", 40)
                 {
                     Check = v => Property(new(v, null)) is null ? "A GA4 property is its number." : null,
@@ -101,10 +122,11 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
                 },
             ],
             [
+                new(GoogleOAuth.ClientSecretName, "OAuth client secret", "The client secret of that OAuth client."),
                 new(
                     KeySecret,
-                    "Service account key",
-                    "The JSON key of a service account with read access to the property and site."
+                    "Service account key (instead of signing in)",
+                    "Optional: the JSON key of a service account with read access to the property and site."
                 )
                 {
                     Multiline = true,
@@ -115,31 +137,21 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
             Steps =
             [
                 new(
-                    "In Google Cloud, pick or create a project.",
-                    "https://console.cloud.google.com/projectselector2/home/dashboard",
-                    "Open Google Cloud"
+                    "Once: in Google Cloud, pick or create a project, and enable the Google Analytics Data API, the Google Analytics Admin API and the Google Search Console API.",
+                    "https://console.cloud.google.com/apis/library/analyticsadmin.googleapis.com",
+                    "Analytics Admin API"
                 ),
                 new(
-                    "Enable the Google Analytics Data API and the Google Search Console API for that project.",
-                    "https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com",
-                    "Analytics Data API"
+                    "Set up the OAuth consent screen as External and publish it (In production). Unverified is fine for your own account; test mode sign-ins expire after 7 days.",
+                    "https://console.cloud.google.com/apis/credentials/consent",
+                    "Consent screen"
                 ),
                 new(
-                    "Create a service account (no roles needed), then under Keys add a JSON key. Paste the file's contents below.",
-                    "https://console.cloud.google.com/iam-admin/serviceaccounts",
-                    "Service accounts"
+                    "Create credentials → OAuth client ID → Desktop app. Enter its client ID and client secret below.",
+                    "https://console.cloud.google.com/apis/credentials",
+                    "Credentials"
                 ),
-                new(
-                    "Share your GA4 property with the service account's email as Viewer (Admin → Property access management).",
-                    "https://analytics.google.com/analytics/web/#/admin",
-                    "GA4 admin"
-                ),
-                new(
-                    "Add the same email to your Search Console site as a Restricted user (Settings → Users and permissions).",
-                    "https://search.google.com/search-console/users",
-                    "Search Console users"
-                ),
-                new("Enter the GA4 property number and/or the Search Console site below, and save."),
+                new("Sign in with Google, then pick your GA4 property and Search Console site."),
             ],
         };
 
@@ -151,14 +163,15 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
         try
         {
             // The service account's email is not secret; it is what the owner shares the property and site with.
-            if (GoogleServiceAccount.Parse(_key()) is not { } key)
-                reason =
-                    "Paste a service account key in Company settings → Integrations → Google Analytics and Search Console.";
+            var key = OAuth.SignedIn ? null : GoogleServiceAccount.Parse(_key());
+            if (!OAuth.SignedIn && key is null)
+                reason = OAuth.Configured
+                    ? "Sign in with Google in Company settings → Integrations → Google Analytics and Search Console."
+                    : "Add your Google OAuth client and sign in, or paste a service account key, in Company settings → Integrations → Google Analytics and Search Console.";
             else if (Property(settings) is null && Site(settings) is null)
                 reason =
-                    "Add a GA4 property or a Search Console site in Company settings → Integrations → Google Analytics and Search Console, and share them with "
-                    + key.ClientEmail
-                    + ".";
+                    "Pick a GA4 property or a Search Console site in Company settings → Integrations → Google Analytics and Search Console"
+                    + (key is null ? "." : ", and share them with " + key.ClientEmail + ".");
             else
             {
                 active = true;
@@ -172,9 +185,11 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
                             Site(settings) is { } s ? "Search Console " + s : null,
                         }.OfType<string>()
                     )
-                    + " as "
-                    + key.ClientEmail
-                    + " (read-only). Each must be shared with that email.";
+                    + (
+                        key is null
+                            ? " with your Google sign-in (read-only)."
+                            : " as " + key.ClientEmail + " (read-only). Each must be shared with that email."
+                    );
             }
         }
         catch (InvalidOperationException error)
@@ -342,7 +357,7 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(body) };
-            request.Headers.Authorization = await _account.AuthorizeAsync(token);
+            request.Headers.Authorization = await AuthorizeAsync(token);
             using var response = await _http.SendAsync(request, token);
             var text = await response.Content.ReadAsStringAsync(token);
             if (!response.IsSuccessStatusCode)
@@ -369,6 +384,54 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
         {
             throw new ToolFailureException("unavailable", "Google could not be read: " + error.Message);
         }
+    }
+
+    private Task<System.Net.Http.Headers.AuthenticationHeaderValue> AuthorizeAsync(CancellationToken token) =>
+        OAuth.SignedIn ? OAuth.AuthorizeAsync(token) : _account.AuthorizeAsync(token);
+
+    // The GA4 properties and Search Console sites this sign-in can read, for the owner to pick (docs/adr/0049). A list
+    // that cannot be read (an API not enabled, say) comes back empty with the reason.
+    public async Task<(Choice[] Properties, Choice[] Sites, string[] Problems)> ChoicesAsync(CancellationToken token)
+    {
+        var problems = new List<string>();
+        async Task<JsonDocument?> Get(string url, string what)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Authorization = await AuthorizeAsync(token);
+                using var response = await _http.SendAsync(request, token);
+                if (response.IsSuccessStatusCode)
+                    return JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
+                problems.Add(what + " could not be listed (HTTP " + (int)response.StatusCode + ").");
+            }
+            catch (Exception error) when (error is HttpRequestException or InvalidOperationException or JsonException)
+            {
+                problems.Add(what + " could not be listed: " + error.Message);
+            }
+            return null;
+        }
+        var properties = new List<Choice>();
+        using (var admin = await Get(AdminApi, "GA4 properties"))
+            if (admin?.RootElement.TryGetProperty("accountSummaries", out var accounts) == true)
+                foreach (var account in accounts.EnumerateArray())
+                    if (account.TryGetProperty("propertySummaries", out var summaries))
+                        foreach (var property in summaries.EnumerateArray())
+                            properties.Add(
+                                new(
+                                    property.GetProperty("property").GetString()!.Replace("properties/", ""),
+                                    property.TryGetProperty("displayName", out var name) ? name.GetString()! : "GA4"
+                                )
+                            );
+        var sites = new List<Choice>();
+        using (var search = await Get(SearchApi.TrimEnd('/'), "Search Console sites"))
+            if (search?.RootElement.TryGetProperty("siteEntry", out var entries) == true)
+                foreach (var entry in entries.EnumerateArray())
+                    if (entry.GetProperty("permissionLevel").GetString() != "siteUnverifiedUser")
+                        sites.Add(
+                            new(entry.GetProperty("siteUrl").GetString()!, entry.GetProperty("siteUrl").GetString()!)
+                        );
+        return ([.. properties], [.. sites], [.. problems]);
     }
 
     private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

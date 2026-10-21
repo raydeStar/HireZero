@@ -94,13 +94,14 @@ public sealed class ConnectCardTests : IDisposable
     [Fact]
     public async Task AReplyAsksForAKnownMissingIntegrationAndTheLineIsRemoved()
     {
+        // As a real reply did: the tag at the end of the sentence, plus one on its own line for an unknown id.
         var (store, model, seeded) = Company(
-            "I need GitHub access to check pull requests.\n[connect: github]\n[connect: not-a-real-one]"
+            "I need GitHub access to check pull requests. [connect: github]\n[connect: not-a-real-one]"
         );
         var prepared = await Reply(store, model, seeded);
 
         // The reply knew what is connected, and was told how to ask.
-        Assert.Contains("github (GitHub): not connected", model.LastCall!.Context.Connections);
+        Assert.Equal("connected: ; not connected: github, fictional-crm", model.LastCall!.Context.Connections);
         Assert.Contains("[connect: id]", model.LastCall.Instructions);
 
         var request = Assert.Single(Requests(store));
@@ -118,6 +119,51 @@ public sealed class ConnectCardTests : IDisposable
         // Asking again in the same conversation keeps one open card.
         await Reply(store, model, seeded);
         Assert.Single(Requests(store));
+
+        // It waits on the owner under Needs you, and opens the conversation it lives in.
+        var now = DateTimeOffset.UtcNow;
+        var need = Assert.Single(
+            store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou,
+            n => n.Kind == "connection"
+        );
+        Assert.Equal(
+            ("Connect GitHub · asked by Draft fixture", prepared.Task.ThreadId, seeded.EmployeeId),
+            (need.Title, need.ThreadId, need.EmployeeId)
+        );
+    }
+
+    // Longer work asks the same way; the result for review has the tag removed.
+    [Fact]
+    public async Task WorkOutputAsksForAConnectionToo()
+    {
+        var (store, model, seeded) = Company("Draft ready, but the CRM numbers are missing. [connect: fictional-crm]");
+        var proposal = CompanyJson.Decode<CompanyAttempt>(
+            store.Apply(
+                C("measured.prepare") with
+                {
+                    Id = seeded.Id,
+                    ExpectedVersion = seeded.Version,
+                    CreditAllowance = 1,
+                }
+            )
+        );
+        await new CompanyScheduler(store, model).RunMeasuredOnceAsync(
+            C("measured.run") with
+            {
+                Id = proposal.Id,
+                ExpectedVersion = proposal.Version,
+                Digest = proposal.Measured!.Digest,
+                Decision = "accept-soft-limits",
+            },
+            model,
+            TestContext.Current.CancellationToken
+        );
+        Assert.Contains("not connected: github, fictional-crm", model.LastCall!.Context.Connections);
+        Assert.Contains("[connect: id]", model.LastCall.Instructions);
+        var request = Assert.Single(Requests(store));
+        Assert.Equal(("fictional-crm", seeded.ThreadId), (request.IntegrationId, request.ThreadId));
+        var artifact = Assert.Single(MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts"));
+        Assert.Equal("Draft ready, but the CRM numbers are missing.", artifact.Body);
     }
 
     [Fact]

@@ -776,7 +776,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                     || mode == "company-conversation-browser";
                 var input =
                     mode == "company-observed-overrun" ? 6000
-                    : mode == "company-measured-overrun" ? 9000
+                    : mode == "company-measured-overrun" ? 15000
                     : measured ? 4800
                     : 100;
                 var output =

@@ -272,8 +272,8 @@ static class MeasuredQueueChecks
             );
             if (mode == "company-measured-overrun")
                 check(
-                    result.ReportedUsage == 9150
-                        && result.Usage == new ModelUsage(9000, 150, 5)
+                    result.ReportedUsage == 15150
+                        && result.Usage == new ModelUsage(15000, 150, 5)
                         && budget.Reserved == 8000,
                     "A token tripwire overrun retains full actual usage without clamping it to the planning reservation."
                 );

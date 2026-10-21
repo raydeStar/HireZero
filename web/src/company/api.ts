@@ -42,10 +42,14 @@ export type ConnectionRequest = {
   id: string;
   integrationId: string;
   name: string;
-  threadId: string;
+  // None when an assistant asked through HireZero's MCP endpoint (docs/adr/0048).
+  threadId: string | null;
   employeeId: string | null;
   reason: string;
   state: "open" | "connected" | "dismissed";
+  from?: string | null;
+  keySource?: string | null;
+  secretName?: string | null;
   version: number;
   taskId?: string | null;
   account?: string | null;

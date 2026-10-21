@@ -382,7 +382,16 @@ export function CompanyConversation({
               {!company &&
                 (d.connections ?? [])
                   .filter((c) => c.threadId === thread && c.state !== "dismissed")
-                  .map((c) => <ConnectCard key={c.id} request={c} run={run} onOpenSetup={() => onOpenSetup?.()} />)}
+                  .map((c) => (
+                    <ConnectCard
+                      key={c.id}
+                      request={c}
+                      snapshot={snapshot}
+                      run={run}
+                      refresh={refresh}
+                      onOpenSetup={() => onOpenSetup?.()}
+                    />
+                  ))}
             </>
           )}
         </div>

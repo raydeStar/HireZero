@@ -2434,3 +2434,12 @@
   border: 0;
   padding: 0;
 }
+.co-workspace .co-connect.done > button {
+  margin-left: auto;
+}
+.co-workspace .co-connect-warning {
+  color: var(--fe-warn, #b45309);
+}
+.co-workspace .co-connect code {
+  font-size: 0.95em;
+}

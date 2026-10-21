@@ -12,6 +12,8 @@ export type Need = {
   detail: string;
   employeeId?: string;
   taskId?: string;
+  // The conversation an item lives in (a Connect card).
+  threadId?: string | null;
   key: string;
   priority: string;
 };

@@ -165,6 +165,7 @@ public static class CompanyWorkspace
             );
             // Every company store sees the same integrations, set once they exist below (docs/adr/0046).
             Func<IntegrationStatus[]> currentIntegrations = () => [];
+            Func<IntegrationSetup[]> currentSetups = () => [];
             store.IntegrationStatuses = () => currentIntegrations();
             builder.Services.AddSingleton(store);
             // Tools employees may call, audited in the company store (docs/adr/0007-tool-registry.md).
@@ -380,6 +381,23 @@ public static class CompanyWorkspace
                         }
                         origin = "http://" + expected;
                         c.Items["login"] = owner;
+                        // Assistants on this computer (docs/adr/0048-assistant-connect-requests.md). A browser always
+                        // sends Origin on such a request, so none is accepted: no web page can reach this endpoint.
+                        if (c.Request.Path == CompanyMcp.Path)
+                        {
+                            if (c.Request.Headers.Origin.Count > 0)
+                            {
+                                c.Response.StatusCode = 403;
+                                return;
+                            }
+                            await CompanyMcp.HandleAsync(
+                                c,
+                                Store(),
+                                () => currentIntegrations(),
+                                () => currentSetups()
+                            );
+                            return;
+                        }
                     }
                     else
                     {
@@ -614,15 +632,18 @@ public static class CompanyWorkspace
                         registry.Adopt(googleAds, syntheticAds);
                 }
             }
-            app.MapIntegrationSetup(
-                [google, googleAds, azureDevOps, agentApps, openRouter],
-                Integrations,
-                root,
+            IConfigurableIntegration[] configurable = [google, googleAds, azureDevOps, agentApps, openRouter];
+            currentSetups = () => [.. configurable.Select(i => i.Setup)];
+            app.MapIntegrationSetup(configurable, Integrations, root, pastedSecrets, Store, Activate);
+            app.MapContextSources(Store, Tools);
+            // Google sign-in for Analytics and Search Console (docs/adr/0049-google-sign-in.md), on this host's origin.
+            app.MapGoogleSignIn(
+                google,
                 pastedSecrets,
                 Store,
-                Activate
+                Activate,
+                "http://" + (fixtureUrl is null || uri.Port != 0 ? uri.Authority : "127.0.0.1:5065")
             );
-            app.MapContextSources(Store, Tools);
             app.MapGet("/api/company/tool-calls", (int? limit) => Results.Ok(Store().ToolCalls(limit ?? 100)));
             // Members and their roles, for every member to see (docs/adr/0020).
             app.MapGet("/api/company/members", () => Results.Ok(Store().Members()));

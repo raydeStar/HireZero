@@ -206,6 +206,11 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     const task = need.taskId ? snapshot?.data.tasks.find((t) => t.id === need.taskId) : undefined;
     setSheet(false);
     if (task) openWork(task);
+    // A Connect card opens the conversation it lives in (docs/adr/0046-connect-cards.md).
+    else if (need.kind === "connection" && need.employeeId && need.threadId)
+      openConversation(need.employeeId, need.threadId);
+    // An assistant's request has no conversation; its card waits on the Integrations page.
+    else if (need.kind === "connection") openHub("integrations");
     else if (need.kind === "plan") setTab("plans");
     else if (need.kind === "meeting") setTab("meetings");
     else if ((need.kind === "onboarding" || need.kind === "knowledge") && need.employeeId) {
@@ -747,7 +752,13 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
             <Members open role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
           )}
           {tab === "departments" && section === "integrations" && (
-            <Integrations open integrations={snapshot.capabilities.integrations ?? []} refresh={refresh} />
+            <Integrations
+              open
+              integrations={snapshot.capabilities.integrations ?? []}
+              refresh={refresh}
+              snapshot={snapshot}
+              run={run}
+            />
           )}
           {tab === "departments" && section === "audit" && <Audit open role={memberRole} version={d.cursor ?? 0} />}
           {tab === "departments" && section === "companies" && (

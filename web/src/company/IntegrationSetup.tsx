@@ -164,7 +164,7 @@ export function SetupForm({ setup, saved, open }: { setup: Setup; saved: () => P
           <button disabled={busy} type="submit">
             Save settings
           </button>
-          {!open && (
+          {open === undefined && (
             <small className="co-muted">Saved to {setup.file} in the data root; other keys there are kept.</small>
           )}
         </form>
