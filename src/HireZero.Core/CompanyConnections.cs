@@ -39,19 +39,22 @@ public sealed partial class CompanyStore
     [GeneratedRegex(@"^\s*\[connect:\s*([a-z0-9][a-z0-9-]{0,47})\]\s*$", RegexOptions.Multiline)]
     private static partial Regex ConnectLine();
 
+    // Kept short: the whole reply packet is capped at 4 KiB, and its history grows (real use, 2026-10-21: names and
+    // reasons pushed a real reply over the cap).
     public const string ConnectInstructions =
-        " The connections line in the packet lists the company's integrations by id and says which are connected. If answering needs one that is not connected, say so in a sentence and end your reply with one line [connect: id] using its exact id. The owner connects it; you cannot, and you never ask for passwords or keys in the reply.";
+        " If you need an integration listed as not connected, say so and end with one line [connect: id]. Only the owner connects; never ask for keys.";
 
-    // The connections line for a reply's packet: what is connected and what is not, by id, name and reason.
-    private string ConnectionsLine() =>
-        string.Join(
-            "; ",
-            IntegrationStatuses()
-                .Where(s => !s.Id.StartsWith("synthetic-", StringComparison.Ordinal))
-                .Select(s =>
-                    s.Id + " (" + s.Name + "): " + (s.Active ? "connected" : "not connected - " + Clip(s.Reason))
-                )
-        );
+    // The connections line for a reply's packet: integration ids only, connected first. Demo sources are left out.
+    private string ConnectionsLine()
+    {
+        var real = IntegrationStatuses().Where(s => !s.Id.StartsWith("synthetic-", StringComparison.Ordinal)).ToArray();
+        var line =
+            "connected: "
+            + string.Join(", ", real.Where(s => s.Active).Select(s => s.Id))
+            + "; not connected: "
+            + string.Join(", ", real.Where(s => !s.Active).Select(s => s.Id));
+        return line.Length <= 400 ? line : line[..400];
+    }
 
     // The connect lines a reply carried, removed from its text, and the open requests they raised.
     private string TakeConnectLines(StoreConnection db, string body, CompanyTask task)

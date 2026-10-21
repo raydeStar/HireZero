@@ -100,7 +100,7 @@ public sealed class ConnectCardTests : IDisposable
         var prepared = await Reply(store, model, seeded);
 
         // The reply knew what is connected, and was told how to ask.
-        Assert.Contains("github (GitHub): not connected", model.LastCall!.Context.Connections);
+        Assert.Equal("connected: ; not connected: github, fictional-crm", model.LastCall!.Context.Connections);
         Assert.Contains("[connect: id]", model.LastCall.Instructions);
 
         var request = Assert.Single(Requests(store));
