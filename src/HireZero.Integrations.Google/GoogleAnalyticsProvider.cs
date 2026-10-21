@@ -110,7 +110,38 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
                     Multiline = true,
                 },
             ]
-        );
+        )
+        {
+            Steps =
+            [
+                new(
+                    "In Google Cloud, pick or create a project.",
+                    "https://console.cloud.google.com/projectselector2/home/dashboard",
+                    "Open Google Cloud"
+                ),
+                new(
+                    "Enable the Google Analytics Data API and the Google Search Console API for that project.",
+                    "https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com",
+                    "Analytics Data API"
+                ),
+                new(
+                    "Create a service account (no roles needed), then under Keys add a JSON key. Paste the file's contents below.",
+                    "https://console.cloud.google.com/iam-admin/serviceaccounts",
+                    "Service accounts"
+                ),
+                new(
+                    "Share your GA4 property with the service account's email as Viewer (Admin → Property access management).",
+                    "https://analytics.google.com/analytics/web/#/admin",
+                    "GA4 admin"
+                ),
+                new(
+                    "Add the same email to your Search Console site as a Restricted user (Settings → Users and permissions).",
+                    "https://search.google.com/search-console/users",
+                    "Search Console users"
+                ),
+                new("Enter the GA4 property number and/or the Search Console site below, and save."),
+            ],
+        };
 
     public IntegrationStatus Status()
     {
@@ -119,11 +150,15 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
         var active = false;
         try
         {
-            if (GoogleServiceAccount.Parse(_key()) is null)
-                reason = "Set " + KeySecret + " to a service account key (see docs/SECRETS.md).";
+            // The service account's email is not secret; it is what the owner shares the property and site with.
+            if (GoogleServiceAccount.Parse(_key()) is not { } key)
+                reason =
+                    "Paste a service account key in Company settings → Integrations → Google Analytics and Search Console.";
             else if (Property(settings) is null && Site(settings) is null)
                 reason =
-                    "Name a GA4 property (ga4Property) or a Search Console site (searchConsoleSite) in google.json.";
+                    "Add a GA4 property or a Search Console site in Company settings → Integrations → Google Analytics and Search Console, and share them with "
+                    + key.ClientEmail
+                    + ".";
             else
             {
                 active = true;
@@ -137,7 +172,9 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
                             Site(settings) is { } s ? "Search Console " + s : null,
                         }.OfType<string>()
                     )
-                    + " with a read-only service account.";
+                    + " as "
+                    + key.ClientEmail
+                    + " (read-only). Each must be shared with that email.";
             }
         }
         catch (InvalidOperationException error)
@@ -179,7 +216,11 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
         AnalyticsTools.Check(request);
         var property =
             Property(Read())
-            ?? throw new ToolFailureException("refused", "Name a GA4 property in google.json first.", 409);
+            ?? throw new ToolFailureException(
+                "refused",
+                "Add a GA4 property in Company settings → Integrations → Google Analytics and Search Console.",
+                409
+            );
         var body = new JsonObject
         {
             ["dateRanges"] = new JsonArray(
@@ -246,7 +287,11 @@ public sealed class GoogleAnalyticsProvider : IToolProvider, IIntegrationStatusS
         AnalyticsTools.Check(request);
         var site =
             Site(Read())
-            ?? throw new ToolFailureException("refused", "Name a Search Console site in google.json first.", 409);
+            ?? throw new ToolFailureException(
+                "refused",
+                "Add a Search Console site in Company settings → Integrations → Google Analytics and Search Console.",
+                409
+            );
         var url = SearchApi + Uri.EscapeDataString(site) + "/searchAnalytics/query";
         JsonObject Body(bool rows)
         {

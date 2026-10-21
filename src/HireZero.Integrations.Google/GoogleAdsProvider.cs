@@ -144,12 +144,17 @@ public sealed partial class GoogleAdsProvider : IToolProvider, IIntegrationStatu
             .Select(s => s.Item1)
             .ToArray();
         var (active, reason) =
-            CustomerId(settings.CustomerId) is null ? (false, "Name the ten-digit customerId in google-ads.json.")
-            : string.IsNullOrWhiteSpace(settings.ClientId) ? (false, "Name the OAuth clientId in google-ads.json.")
+            CustomerId(settings.CustomerId) is null
+                ? (false, "Add the ten-digit customer ID in Company settings → Integrations → Google Ads.")
+            : string.IsNullOrWhiteSpace(settings.ClientId)
+                ? (false, "Add the OAuth client ID in Company settings → Integrations → Google Ads.")
             : settings.LoginCustomerId is { Length: > 0 } login && CustomerId(login) is null
-                ? (false, "The loginCustomerId in google-ads.json is not a ten-digit id.")
+                ? (
+                    false,
+                    "The manager account ID in Company settings → Integrations → Google Ads is not a ten-digit ID."
+                )
             : settings.ApiVersion is { } v && !ApiVersion().IsMatch(v)
-                ? (false, "The apiVersion in google-ads.json is not like v22.")
+                ? (false, "The API version in Company settings → Integrations → Google Ads is not like v22.")
             : missing.Length > 0
                 ? (false, "Set the secrets " + string.Join(", ", missing) + " (see docs/ANALYTICS.md).")
             : (

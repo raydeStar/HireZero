@@ -12,7 +12,14 @@ public interface IIntegrationStatusSource
 // What the owner can set up in the app for one integration (docs/adr/0038-integration-setup-in-the-app.md): the
 // settings file it already reads, the fields the app may write there, and the secrets it reads by name. Values that
 // name a program to run are never declared, so a form can never make HireZero run one.
-public sealed record IntegrationSetup(string Id, string File, IntegrationField[] Fields, IntegrationSecret[] Secrets);
+public sealed record IntegrationSetup(string Id, string File, IntegrationField[] Fields, IntegrationSecret[] Secrets)
+{
+    // How to connect, step by step, shown beside the form (owner feedback, 2026-10-20: linking Google took a chat
+    // walkthrough). A step may link to the page where it is done.
+    public IntegrationStep[] Steps { get; init; } = [];
+}
+
+public sealed record IntegrationStep(string Text, string? Url = null, string? LinkText = null);
 
 // One setting. Check returns why a value is refused, or null; a list field holds up to MaxItems values.
 public sealed record IntegrationField(string Id, string Label, string Help, int MaxLength = 200)

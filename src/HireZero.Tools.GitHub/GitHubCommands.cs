@@ -57,7 +57,8 @@ public static partial class GitHubCommands
 
 public sealed record GitHubSignInRequest(string Hostname = "github.com");
 
-public sealed record GitHubSignInStatus(string State, string Code, string Url, string Error);
+// Account is the signed-in GitHub login when the CLI reports one.
+public sealed record GitHubSignInStatus(string State, string Code, string Url, string Error, string? Account = null);
 
 public static class GitHubSignInTools
 {

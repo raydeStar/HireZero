@@ -68,12 +68,13 @@ public sealed class AzureDevOpsToolProvider(string dataRoot, AzureDevOpsClient? 
         var settings = Read();
         var organizations = Organizations();
         var (active, reason) =
-            organizations.Length == 0 ? (false, "List your organizations in azure-devops.json in the data root.")
+            organizations.Length == 0
+                ? (false, "Add your organizations in Company settings → Integrations → Azure DevOps.")
             : organizations.Length > 5 ? (false, "List at most five organizations.")
             : organizations.FirstOrDefault(o => !AzureDevOpsClient.ValidOrganization(o)) is { } bad
                 ? (false, "An organization name is not valid: " + bad)
             : settings.Az is { } az && (!Path.IsPathFullyQualified(az) || !File.Exists(az))
-                ? (false, "The Azure CLI path in azure-devops.json does not exist.")
+                ? (false, "The Azure CLI path set in Company settings → Integrations → Azure DevOps does not exist.")
             : (
                 true,
                 $"Reading pull requests in {organizations.Length} organization(s) through your Azure CLI sign-in."

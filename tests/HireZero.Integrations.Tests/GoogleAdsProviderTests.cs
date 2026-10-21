@@ -117,9 +117,9 @@ public sealed class GoogleAdsProviderTests : IDisposable
     public async Task NothingIsSentUntilTheAccountClientAndSecretsAreSet()
     {
         var (tools, fake, provider) = Create();
-        Assert.Contains("customerId", provider.Status().Reason);
+        Assert.Contains("customer ID", provider.Status().Reason);
         Configure(new { customerId = "123-456-7890" });
-        Assert.Contains("clientId", provider.Status().Reason);
+        Assert.Contains("client ID", provider.Status().Reason);
         Configure(
             new
             {
@@ -128,7 +128,7 @@ public sealed class GoogleAdsProviderTests : IDisposable
                 apiVersion = "latest",
             }
         );
-        Assert.Contains("apiVersion", provider.Status().Reason);
+        Assert.Contains("API version", provider.Status().Reason);
         Configure(new { customerId = "123-456-7890", clientId = "fictional.apps.example.invalid" });
         var partial = Create(new() { [GoogleAdsProvider.DeveloperTokenSecret] = "fictional" });
         Assert.Contains(GoogleAdsProvider.RefreshTokenSecret, partial.Provider.Status().Reason);
