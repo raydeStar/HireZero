@@ -51,6 +51,7 @@ export function ConnectCard({
     }
   }
   const isGitHub = request.integrationId === "github";
+  const isMicrosoft = request.integrationId === "microsoft365";
 
   async function resolve(account?: string | null) {
     setBusy(true);
@@ -95,7 +96,7 @@ export function ConnectCard({
 
   // Other integrations: their setup form, when they have one.
   useEffect(() => {
-    if (!open || isGitHub) return;
+    if (!open || isGitHub || isMicrosoft) return;
     let current = true;
     api<Setup[]>("/company/integrations/setup")
       .then((all) => current && setSetup(all.find((s) => s.id === request.integrationId) ?? null))
@@ -103,7 +104,7 @@ export function ConnectCard({
     return () => {
       current = false;
     };
-  }, [open, isGitHub, request.integrationId]);
+  }, [open, isGitHub, isMicrosoft, request.integrationId]);
 
   if (!open)
     return request.state === "connected" ? (
@@ -237,6 +238,7 @@ export function ConnectCard({
           )}
         </>
       )}
+      {isMicrosoft && <MicrosoftConnect busy={busy} onConnected={(address) => void resolve(address)} />}
       {!isGitHub && setup && (
         <SetupForm
           setup={setup}
@@ -250,7 +252,7 @@ export function ConnectCard({
           }}
         />
       )}
-      {!isGitHub && setup === null && (
+      {!isGitHub && !isMicrosoft && setup === null && (
         <div className="co-connect-row">
           <span className="co-muted">This integration is set up in Company settings.</span>
           <button className="co-primary" onClick={onOpenSetup}>
@@ -260,5 +262,121 @@ export function ConnectCard({
       )}
       {error && <p role="alert">{error}</p>}
     </aside>
+  );
+}
+
+type Microsoft = {
+  configured: boolean;
+  redirectUri: string;
+  account: { address: string } | null;
+};
+
+// Microsoft 365 in a Connect card: the owner's own Entra app (its client ID, once), then "Sign in with Microsoft"
+// opens Microsoft's consent page in a new tab, and the card records the connection once the sign-in lands.
+function MicrosoftConnect({ busy, onConnected }: { busy: boolean; onConnected: (address: string) => void }) {
+  const [status, setStatus] = useState<Microsoft | null>(null);
+  const [clientId, setClientId] = useState("");
+  const [waiting, setWaiting] = useState(false);
+  const [error, setError] = useState("");
+  const load = () =>
+    api<Microsoft>("/connections/microsoft")
+      .then(setStatus)
+      .catch((e: Error) => setError(e.message));
+  useEffect(() => {
+    void load();
+  }, []);
+  // While a sign-in is open in another tab, check every few seconds; once it lands, the card connects.
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = window.setInterval(async () => {
+      const next = await api<Microsoft>("/connections/microsoft").catch(() => null);
+      if (next?.account) {
+        window.clearInterval(timer);
+        setWaiting(false);
+        setStatus(next);
+        onConnected(next.account.address);
+      }
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [waiting]);
+  if (!status) return error ? <p role="alert">{error}</p> : null;
+  if (status.account)
+    return (
+      <div className="co-connect-row">
+        <span>
+          Signed in as <strong>{status.account.address}</strong>.
+        </span>
+        <button className="co-primary" disabled={busy} onClick={() => onConnected(status.account!.address)}>
+          Use this sign-in
+        </button>
+      </div>
+    );
+  if (!status.configured)
+    return (
+      <form
+        className="co-connect-code"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setError("");
+          try {
+            await api("/connections/microsoft", "PUT", { clientId: clientId.trim() });
+            await load();
+          } catch (failure) {
+            setError((failure as Error).message);
+          }
+        }}
+      >
+        <span className="co-muted">
+          Once: register an app in Microsoft Entra with <code>{status.redirectUri}</code> as a desktop redirect URI,
+          then paste its application (client) ID here.{" "}
+          <a
+            href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open Entra app registrations ↗
+          </a>
+        </span>
+        <input
+          aria-label="Application (client) ID"
+          placeholder="00000000-0000-0000-0000-000000000000"
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+        />
+        <button className="co-primary" disabled={!clientId.trim()} type="submit">
+          Save client ID
+        </button>
+        {error && <p role="alert">{error}</p>}
+      </form>
+    );
+  return (
+    <div className="co-connect-row">
+      <span className="co-muted">
+        {waiting
+          ? "Finish signing in in the new tab; this card updates by itself."
+          : "Read-only: nothing is sent, moved or deleted."}
+      </span>
+      <button
+        className="co-primary"
+        disabled={busy}
+        onClick={async () => {
+          // Opened during the click so the browser allows it; pointed at Microsoft once the URL is ready.
+          const tab = window.open("", "_blank");
+          setError("");
+          try {
+            const { url } = await api<{ url: string }>("/connections/microsoft/start", "POST", {});
+            if (tab) tab.location.href = url;
+            else window.location.href = url;
+            setWaiting(true);
+          } catch (failure) {
+            tab?.close();
+            setError((failure as Error).message);
+          }
+        }}
+      >
+        {waiting ? "Open sign-in again" : "Sign in with Microsoft"}
+      </button>
+      {error && <p role="alert">{error}</p>}
+    </div>
   );
 }
