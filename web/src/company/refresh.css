@@ -1,0 +1,682 @@
+/* Visual refresh (UX round 9, docs/history/2026-10-20-ux-audit.md): one current system over the older layers.
+   Inter, a calmer type scale, hairline borders instead of boxes inside boxes, 8–12px radii instead of pills,
+   sentence-case section labels, quieter surfaces and one clear primary action. Loaded last; tokens first. */
+
+:root {
+  --fe-font:
+    "Inter Variable", Inter, "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui,
+    sans-serif;
+  --fe-t-xs: 11.5px;
+  --fe-t-s: 13px;
+  --fe-t-m: 14px;
+  --fe-t-l: 15.5px;
+  --fe-t-xl: 19px;
+  --fe-t-2xl: 26px;
+  --fe-r-s: 6px;
+  --fe-r-m: 10px;
+  --fe-r-l: 14px;
+  --fe-r-xl: 18px;
+}
+
+:root,
+:root[data-theme="light"] {
+  --fe-bg: #f7f7f8;
+  --fe-surface: #ffffff;
+  --fe-surface-2: #f3f3f5;
+  --fe-surface-3: #e9e9ed;
+  --fe-hover: rgba(17, 17, 26, 0.045);
+  --fe-line: rgba(17, 17, 26, 0.08);
+  --fe-line-2: rgba(17, 17, 26, 0.14);
+  --fe-fg: #111114;
+  --fe-fg-2: #3c3c44;
+  --fe-fg-3: #6b6b76;
+  --fe-fg-4: #9a9aa4;
+  --fe-accent: #5e4ff0;
+  --fe-accent-hover: #4f40e0;
+  --fe-accent-soft: #f0eeff;
+  --fe-accent-line: #d8d3ff;
+  --fe-accent-ink: #ffffff;
+  --fe-user-bubble: #f0eeff;
+  --fe-shadow: 0 1px 2px rgba(17, 17, 26, 0.04), 0 1px 1px rgba(17, 17, 26, 0.02);
+  --fe-shadow-lg: 0 12px 32px -12px rgba(17, 17, 26, 0.18), 0 2px 6px rgba(17, 17, 26, 0.05);
+  --fe-glow: none;
+}
+
+:root[data-theme="dark"] {
+  --fe-bg: #0b0b0d;
+  --fe-surface: #131316;
+  --fe-surface-2: #19191d;
+  --fe-surface-3: #222227;
+  --fe-hover: rgba(255, 255, 255, 0.045);
+  --fe-line: rgba(255, 255, 255, 0.07);
+  --fe-line-2: rgba(255, 255, 255, 0.12);
+  --fe-fg: #ececef;
+  --fe-fg-2: #c3c3ca;
+  --fe-fg-3: #8c8c97;
+  --fe-fg-4: #64646e;
+  --fe-accent: #8a7dff;
+  --fe-accent-hover: #9c91ff;
+  --fe-accent-soft: rgba(138, 125, 255, 0.13);
+  --fe-accent-line: rgba(138, 125, 255, 0.35);
+  --fe-accent-ink: #ffffff;
+  --fe-user-bubble: rgba(138, 125, 255, 0.14);
+  --fe-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --fe-shadow-lg: 0 16px 40px -16px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --fe-glow: none;
+}
+
+/* Type */
+.co-workspace {
+  font-family: var(--fe-font);
+  font-size: var(--fe-t-m);
+  line-height: 1.5;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  letter-spacing: -0.003em;
+  background: var(--fe-bg);
+}
+.co-workspace h1,
+.co-workspace h2,
+.co-workspace h3,
+.co-workspace h4 {
+  font-family: var(--fe-font);
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+.co-workspace h2 {
+  font-size: var(--fe-t-l);
+}
+.co-workspace small,
+.co-workspace .co-muted {
+  color: var(--fe-fg-3);
+}
+.co-workspace code {
+  font-family: var(--fe-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--fe-surface-2);
+  border: 1px solid var(--fe-line);
+}
+
+/* Section labels: sentence case and readable, not tiny capitals. */
+.co-workspace .fe-cockpit-section h3,
+.co-workspace .co-home-section > h2,
+.co-workspace .co-conversations h2,
+.co-workspace .co-conversations h3,
+.co-workspace .co-eyebrow,
+.co-workspace .fe-cockpit-head h2 {
+  text-transform: none;
+  letter-spacing: -0.005em;
+  font-size: var(--fe-t-s);
+  font-weight: 600;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-eyebrow {
+  color: var(--fe-accent);
+}
+
+/* Buttons: 8px corners, one height, a clear primary. */
+.co-workspace button,
+.co-workspace .fe-button {
+  font: inherit;
+  font-size: var(--fe-t-s);
+  font-weight: 500;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--fe-line-2);
+  background: var(--fe-surface);
+  color: var(--fe-fg);
+  box-shadow: var(--fe-shadow);
+  transition:
+    background 120ms var(--fe-ease),
+    border-color 120ms var(--fe-ease),
+    box-shadow 120ms var(--fe-ease),
+    color 120ms var(--fe-ease);
+}
+.co-workspace button:hover:not(:disabled) {
+  background: var(--fe-surface-2);
+  border-color: var(--fe-line-2);
+}
+.co-workspace button:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+.co-workspace .co-primary,
+.co-workspace button.primary,
+.co-workspace button.co-primary {
+  background: var(--fe-accent);
+  border-color: transparent;
+  color: var(--fe-accent-ink);
+  font-weight: 550;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 1px 2px rgba(17, 17, 26, 0.18);
+}
+.co-workspace .co-primary:hover:not(:disabled),
+.co-workspace button.primary:hover:not(:disabled) {
+  background: var(--fe-accent-hover);
+  border-color: transparent;
+}
+.co-workspace .fe-icon-button {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 7px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fe-fg-3);
+}
+.co-workspace .fe-icon-button:hover:not(:disabled) {
+  background: var(--fe-hover);
+  border-color: transparent;
+  color: var(--fe-fg);
+}
+.co-workspace .co-link {
+  min-height: 0;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  text-decoration: none;
+  font-weight: 500;
+}
+.co-workspace .co-link:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
+}
+.co-workspace button:focus-visible,
+.co-workspace a:focus-visible,
+.co-workspace summary:focus-visible,
+.co-workspace input:focus-visible,
+.co-workspace textarea:focus-visible,
+.co-workspace select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--fe-accent-soft);
+  border-color: var(--fe-accent);
+}
+
+/* Fields */
+.co-workspace input:not([type="checkbox"]):not([type="radio"]),
+.co-workspace textarea,
+.co-workspace select {
+  font: inherit;
+  font-size: var(--fe-t-m);
+  border-radius: 8px;
+  border: 1px solid var(--fe-line-2);
+  background: var(--fe-surface);
+  color: var(--fe-fg);
+  padding: 7px 10px;
+  box-shadow: inset 0 1px 1px rgba(17, 17, 26, 0.03);
+}
+.co-workspace input::placeholder,
+.co-workspace textarea::placeholder {
+  color: var(--fe-fg-4);
+}
+.co-workspace label {
+  font-size: var(--fe-t-s);
+  font-weight: 500;
+  color: var(--fe-fg-2);
+}
+
+/* Navigation rail */
+.co-workspace .fe-rail {
+  background: var(--fe-bg);
+  border-right: 1px solid var(--fe-line);
+}
+.co-workspace .fe-rail-button {
+  border-radius: 10px;
+  box-shadow: none;
+  border-color: transparent;
+  background: transparent;
+  color: var(--fe-fg-3);
+}
+.co-workspace .fe-rail-button:hover:not(:disabled) {
+  background: var(--fe-hover);
+  color: var(--fe-fg);
+  border-color: transparent;
+}
+.co-workspace .fe-rail-button.active,
+.co-workspace .fe-rail-button[aria-current="page"] {
+  background: var(--fe-accent-soft);
+  color: var(--fe-accent);
+}
+.co-workspace .fe-rail-caption {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Conversation sidebar */
+.co-workspace .co-conversations {
+  background: var(--fe-bg);
+  border-right: 1px solid var(--fe-line);
+}
+.co-workspace .co-list {
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  background: transparent;
+  padding: 7px 9px;
+}
+.co-workspace .co-list:hover:not(:disabled) {
+  background: var(--fe-hover);
+}
+.co-workspace .co-list[aria-current="true"],
+.co-workspace .co-list[aria-pressed="true"],
+.co-workspace .co-list.active {
+  background: var(--fe-surface);
+  box-shadow:
+    var(--fe-shadow),
+    0 0 0 1px var(--fe-line);
+}
+.co-workspace .co-avatar {
+  border-radius: 8px;
+  background: var(--fe-accent-soft);
+  color: var(--fe-accent);
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.co-workspace .co-sidebar-action {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--fe-fg-2);
+  justify-content: flex-start;
+}
+.co-workspace .co-sidebar-action:hover:not(:disabled) {
+  background: var(--fe-hover);
+}
+
+/* Main column */
+.co-workspace .fe-main,
+.co-workspace .co-main {
+  background: var(--fe-bg);
+}
+.co-workspace .fe-topbar {
+  background: color-mix(in srgb, var(--fe-bg) 85%, transparent);
+  backdrop-filter: saturate(140%) blur(8px);
+  border-bottom: 1px solid var(--fe-line);
+  min-height: 52px;
+}
+.co-workspace .fe-topbar h1,
+.co-workspace .fe-topbar strong {
+  font-size: var(--fe-t-l);
+  font-weight: 600;
+}
+
+/* Cards and panels: one surface, one hairline, 12px corners. */
+.co-workspace .co-card,
+.co-workspace .co-team-card,
+.co-workspace .co-onboarding,
+.co-workspace .co-connect,
+.co-workspace .co-setup-steps,
+.co-workspace .co-action-strip .co-action,
+.co-workspace .co-from-sources,
+.co-workspace details.co-setup {
+  border-radius: 12px;
+  border: 1px solid var(--fe-line);
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow);
+}
+.co-workspace .co-team-card {
+  transition:
+    border-color 120ms var(--fe-ease),
+    box-shadow 120ms var(--fe-ease);
+}
+.co-workspace .co-team-card:hover {
+  border-color: var(--fe-line-2);
+  box-shadow: var(--fe-shadow-lg);
+}
+
+/* Home: quiet stat tiles in one row, a checklist that reads as one list. */
+.co-workspace .co-home {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px 32px 48px;
+}
+.co-workspace .co-home-today {
+  font-size: var(--fe-t-l);
+  color: var(--fe-fg-2);
+  margin-bottom: 18px;
+}
+.co-workspace .co-home-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 10px;
+}
+.co-workspace .co-tile {
+  border-radius: 12px;
+  border: 1px solid var(--fe-line);
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow);
+  padding: 14px 16px;
+  min-height: 0;
+  text-align: left;
+}
+.co-workspace .co-tile strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.co-workspace .co-tile span {
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-tile.attention {
+  border-color: var(--fe-accent-line);
+  background: linear-gradient(180deg, var(--fe-accent-soft), var(--fe-surface));
+}
+.co-workspace .co-tile.attention strong {
+  color: var(--fe-accent);
+}
+.co-workspace .co-home-section {
+  margin-top: 28px;
+}
+.co-workspace .co-home-section > h2 {
+  margin-bottom: 10px;
+}
+.co-workspace .co-checklist {
+  border-radius: 12px;
+  border: 1px solid var(--fe-line);
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow);
+  overflow: hidden;
+  padding: 0;
+}
+.co-workspace .co-checklist > li {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  border-bottom: 1px solid var(--fe-line);
+  padding: 12px 16px;
+}
+.co-workspace .co-checklist > li:last-child {
+  border-bottom: 0;
+}
+.co-workspace .co-checklist > li.done {
+  opacity: 0.65;
+}
+.co-workspace .co-checklist > li.next {
+  background: linear-gradient(90deg, var(--fe-accent-soft), transparent 60%);
+}
+.co-workspace .co-team-grid {
+  gap: 12px;
+}
+
+/* Cockpit: lists under labels, no boxes inside the panel. */
+.co-workspace .fe-cockpit,
+.co-workspace .co-cockpit {
+  background: var(--fe-bg);
+  border-left: 1px solid var(--fe-line);
+}
+.co-workspace .fe-cockpit-section {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--fe-line);
+}
+.co-workspace .fe-cockpit-section:last-of-type {
+  border-bottom: 0;
+}
+.co-workspace .fe-count {
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--fe-surface-3);
+  color: var(--fe-fg-2);
+}
+.co-workspace .fe-count.attn {
+  background: var(--fe-accent);
+  color: var(--fe-accent-ink);
+}
+.co-workspace .fe-up-next-title {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 8px;
+}
+.co-workspace .fe-up-next-title:hover:not(:disabled) {
+  background: var(--fe-hover);
+}
+
+/* Chips: the action strip and other choices. */
+.co-workspace .co-action-chip,
+.co-workspace .co-action-more {
+  border-radius: 999px;
+  background: var(--fe-surface);
+  border: 1px solid var(--fe-line-2);
+  box-shadow: none;
+  min-height: 28px;
+  padding: 3px 11px;
+  font-size: 12.5px;
+}
+.co-workspace .co-action-chip[aria-pressed="true"] {
+  background: var(--fe-accent-soft);
+  border-color: var(--fe-accent-line);
+  color: var(--fe-accent);
+}
+
+/* Conversation: a centred reading column and a floating composer. */
+.co-workspace .fe-thread {
+  max-width: 760px;
+  margin-inline: auto;
+}
+.co-workspace .co-conversation-composer .fe-composer {
+  border-radius: 14px;
+  border: 1px solid var(--fe-line-2);
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow-lg);
+}
+.co-workspace .co-conversation-composer .fe-composer textarea {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.co-workspace .fe-send {
+  border-radius: 9px;
+  background: var(--fe-accent);
+  color: var(--fe-accent-ink);
+  border-color: transparent;
+}
+.co-workspace .fe-send:disabled {
+  background: var(--fe-surface-3);
+  color: var(--fe-fg-4);
+}
+
+/* Thin scrollbars that stay out of the way. */
+.co-workspace * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--fe-line-2) transparent;
+}
+
+/* The conversation's toolbar: a compact picker and text buttons on one quiet row. */
+.co-workspace .co-conversation-context {
+  border-bottom: 1px solid var(--fe-line);
+  background: var(--fe-bg);
+  gap: 6px;
+}
+.co-workspace .co-conversation-context select {
+  min-height: 28px;
+  padding: 3px 28px 3px 9px;
+  font-size: var(--fe-t-s);
+  font-weight: 500;
+}
+.co-workspace .co-conversation-context .co-ghost,
+.co-workspace .co-conversation-context details > summary {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--fe-fg-2);
+  min-height: 28px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  font-size: var(--fe-t-s);
+  font-weight: 500;
+}
+.co-workspace .co-conversation-context .co-ghost:hover:not(:disabled),
+.co-workspace .co-conversation-context details > summary:hover {
+  background: var(--fe-hover);
+  color: var(--fe-fg);
+}
+.co-workspace .co-conversation-context details[open] > summary {
+  background: var(--fe-surface-2);
+  color: var(--fe-fg);
+}
+
+/* The action strip: its buttons never shrink away; an open form scrolls inside it, so the composer stays on
+   screen (walkthrough check at 1024x768). */
+.co-workspace .co-action-strip {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--fe-line);
+  padding: 10px 20px 4px;
+}
+.co-workspace .co-action-strip > .co-action-buttons {
+  flex: none;
+}
+.co-workspace .co-action-strip > .co-action {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Reply settings under the composer: small, quiet controls. */
+.co-workspace .co-composer-tools {
+  gap: 8px 14px;
+  font-size: 12.5px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-composer-tools label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-composer-tools select,
+.co-workspace .co-composer-tools input {
+  min-height: 28px;
+  padding: 3px 8px;
+  font-size: 12.5px;
+}
+.co-workspace .co-composer-tools > details.co-evidence > summary {
+  border-radius: 7px;
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+.co-workspace .co-action-more {
+  width: auto;
+  max-width: 180px;
+  padding-right: 24px;
+}
+
+/* Form groups: the same hairline card, with a quiet label. */
+.co-workspace fieldset {
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  padding: 12px 16px 16px;
+  background: var(--fe-surface);
+}
+.co-workspace fieldset > legend {
+  padding: 0 6px;
+  font-size: var(--fe-t-s);
+  font-weight: 600;
+  color: var(--fe-fg-2);
+}
+
+@media (max-width: 640px) {
+  .co-workspace .co-home {
+    padding: 20px 16px 40px;
+  }
+}
+
+/* The main work area floats as one inset panel on the app background. */
+@media (min-width: 900px) {
+  .co-workspace .co-main.fe-main {
+    margin: 8px 8px 8px 0;
+    border-radius: 12px;
+    border: 1px solid var(--fe-line);
+    background: var(--fe-surface);
+    box-shadow: var(--fe-shadow);
+    overflow: hidden;
+    /* Sized inside its margins, so nothing in it falls below the window. */
+    height: calc(100dvh - 16px);
+    max-height: calc(100dvh - 16px);
+    align-self: start;
+  }
+  .co-workspace.with-cockpit .co-main.fe-main {
+    margin-right: 0;
+  }
+  .co-workspace .co-main .fe-topbar,
+  .co-workspace .co-main .co-conversation-context {
+    background: var(--fe-surface);
+  }
+  .co-workspace .co-conversations,
+  .co-workspace .fe-rail,
+  .co-workspace .fe-cockpit,
+  .co-workspace .co-cockpit {
+    border-color: transparent;
+  }
+}
+
+/* The cockpit's scope: a small segmented control. */
+.co-workspace .co-cockpit-scope {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--fe-surface-2);
+  border: 1px solid var(--fe-line);
+}
+.co-workspace .co-cockpit-scope > button {
+  min-height: 26px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fe-fg-3);
+  font-size: 12.5px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.co-workspace .co-cockpit-scope > button[aria-pressed="true"] {
+  background: var(--fe-surface);
+  color: var(--fe-fg);
+  box-shadow: var(--fe-shadow);
+}
+
+/* Small details */
+.co-workspace .co-action-chip,
+.co-workspace .co-action-more {
+  font-weight: 500;
+}
+.co-workspace .co-composer-tools input,
+.co-workspace .co-composer-tools select {
+  height: 28px;
+  min-height: 28px;
+}
+.co-workspace .co-cockpit-scope > button {
+  display: block;
+  text-align: center;
+}
+.co-workspace .co-action-strip .co-action-chip,
+.co-workspace .co-action-strip .co-action-more {
+  font-weight: 500;
+}
+.co-workspace .co-action-strip .co-action-more {
+  max-width: 130px;
+}
