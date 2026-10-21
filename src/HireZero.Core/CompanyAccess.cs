@@ -40,6 +40,8 @@ public static class CompanyAccess
         "employee.lifecycle",
         "knowledge.save",
         "context.draft",
+        "connection.resolve",
+        "connection.dismiss",
         "budget.configure",
         "workspace.grant",
         "member.invite",

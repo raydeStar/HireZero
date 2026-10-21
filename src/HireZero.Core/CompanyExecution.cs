@@ -233,6 +233,9 @@ public sealed partial class CompanyStore
                 t.Input
             );
         }
+        // A reply knows what is connected, so it can ask for a connection it needs (docs/adr/0046-connect-cards.md).
+        if (t.Kind == "conversation")
+            context = context with { Connections = ConnectionsLine() };
         if (Need<CompanyThread>(db, t.ThreadId).Scope == "company")
             context = context with
             {
@@ -612,6 +615,7 @@ public sealed partial class CompanyStore
                 }
                 if (t.Kind == "conversation")
                 {
+                    body = TakeConnectLines(db, body, t);
                     Message(db, Need<CompanyThread>(db, t.ThreadId), t.EmployeeId, body);
                     Put(db, t with { State = "completed", Version = t.Version + 1 });
                     Event(

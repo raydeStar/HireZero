@@ -97,12 +97,12 @@ public static class MarketingAnalytics
         catch (ToolRefusedException)
         {
             throw new WorkspaceException(
-                "No analytics source is connected. Connect Google Analytics and Search Console (see docs/SECRETS.md) or turn on synthetic analytics.",
+                "No analytics source is connected. Connect Google Analytics and Search Console in Company settings → Integrations.",
                 409
             );
         }
         if (!status.Active)
-            throw new WorkspaceException("Analytics is not connected: " + status.Reason, 409);
+            throw new IntegrationMissingException(status.Id, "Analytics is not connected: " + status.Reason);
 
         var text = new StringBuilder();
         text.AppendLine(

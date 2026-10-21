@@ -38,6 +38,18 @@ export type Work = {
   // For a context draft: "company" for the company-wide facts.
   contextScope?: string | null;
 };
+export type ConnectionRequest = {
+  id: string;
+  integrationId: string;
+  name: string;
+  threadId: string;
+  employeeId: string | null;
+  reason: string;
+  state: "open" | "connected" | "dismissed";
+  version: number;
+  taskId?: string | null;
+  account?: string | null;
+};
 export type Artifact = {
   id: string;
   taskId: string;
@@ -181,6 +193,8 @@ export type Snapshot = {
     budgetLabels?: Record<string, string>;
     // Model spend in US dollars from recorded usage (owner walkthrough, 2026-10-19).
     spend?: Spend;
+    // Connect cards, open and closed (docs/adr/0046-connect-cards.md).
+    connections?: ConnectionRequest[];
     // When each task's first and latest events happened, by task id.
     taskTimes?: Record<string, { started: string; updated: string }>;
     // The company-wide fact fields every employee inherits, in order.

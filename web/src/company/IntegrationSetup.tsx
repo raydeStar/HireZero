@@ -11,7 +11,7 @@ type Field = {
   value: string | string[] | null;
 };
 type Secret = { name: string; label: string; help: string; multiline: boolean; origin: string; pastedIgnored: boolean };
-type Setup = {
+export type Setup = {
   id: string;
   name: string;
   active: boolean;
@@ -72,7 +72,8 @@ export function IntegrationSetup({
   );
 }
 
-function SetupForm({ setup, saved }: { setup: Setup; saved: () => Promise<void> }) {
+// Also embedded, open, in a Connect card (docs/adr/0046-connect-cards.md).
+export function SetupForm({ setup, saved, open }: { setup: Setup; saved: () => Promise<void>; open?: boolean }) {
   const initial = () =>
     Object.fromEntries(setup.fields.map((f) => [f.id, Array.isArray(f.value) ? f.value.join("\n") : (f.value ?? "")]));
   const [values, setValues] = useState<Record<string, string>>(initial);
@@ -95,7 +96,7 @@ function SetupForm({ setup, saved }: { setup: Setup; saved: () => Promise<void> 
     }
   }
   return (
-    <details className="co-setup" aria-label={setup.name + " setup"}>
+    <details className="co-setup" aria-label={setup.name + " setup"} open={open}>
       <summary>
         {setup.name} · {setup.active ? "active" : "not set up"}
       </summary>
@@ -163,7 +164,9 @@ function SetupForm({ setup, saved }: { setup: Setup; saved: () => Promise<void> 
           <button disabled={busy} type="submit">
             Save settings
           </button>
-          <small className="co-muted">Saved to {setup.file} in the data root; other keys there are kept.</small>
+          {!open && (
+            <small className="co-muted">Saved to {setup.file} in the data root; other keys there are kept.</small>
+          )}
         </form>
       )}
       {setup.secrets.map((s) => (

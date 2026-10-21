@@ -120,7 +120,9 @@ public sealed partial class CompanyStore
         return text.Length <= 12000 ? text : text[..12000];
     }
 
-    public CompanyTask FailAction(string taskId, string reason)
+    // An action refused because an integration is not connected also raises a Connect card in its conversation
+    // (docs/adr/0046-connect-cards.md).
+    public CompanyTask FailAction(string taskId, string reason, string? integrationId = null)
     {
         using var db = Open();
         return Transaction(
@@ -133,6 +135,8 @@ public sealed partial class CompanyStore
                 task = task with { State = "failed", Reason = Text(reason, 300), Version = task.Version + 1 };
                 Put(db, task);
                 Event(db, "action.failed", task.Id, task.EmployeeId, "The action did not complete: " + task.Reason);
+                if (integrationId is not null)
+                    RequestConnection(db, integrationId, task.ThreadId, task.EmployeeId, task.Reason!, task.Id);
                 return task;
             }
         );
