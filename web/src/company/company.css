@@ -2434,3 +2434,6 @@
   border: 0;
   padding: 0;
 }
+.co-workspace .co-connect.done > button {
+  margin-left: auto;
+}

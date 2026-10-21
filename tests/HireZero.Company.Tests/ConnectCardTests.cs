@@ -118,6 +118,17 @@ public sealed class ConnectCardTests : IDisposable
         // Asking again in the same conversation keeps one open card.
         await Reply(store, model, seeded);
         Assert.Single(Requests(store));
+
+        // It waits on the owner under Needs you, and opens the conversation it lives in.
+        var now = DateTimeOffset.UtcNow;
+        var need = Assert.Single(
+            store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou,
+            n => n.Kind == "connection"
+        );
+        Assert.Equal(
+            ("Connect GitHub · asked by Draft fixture", prepared.Task.ThreadId, seeded.EmployeeId),
+            (need.Title, need.ThreadId, need.EmployeeId)
+        );
     }
 
     [Fact]

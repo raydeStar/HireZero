@@ -7,6 +7,9 @@ public sealed record CompanyNeed(string Kind, string Title, string Detail, strin
     public string Key => Kind + ":" + (TaskId ?? ContentGuard.Digest(Title)[..16]);
     public string Priority { get; init; } = "normal";
     public int MarkVersion { get; init; }
+
+    // The conversation to open, when the item lives in one (a Connect card).
+    public string? ThreadId { get; init; }
 }
 
 // The owner's priority and snooze for one waiting item.
@@ -144,6 +147,20 @@ public sealed partial class CompanyStore
                             e.Id,
                             null
                         )
+                    );
+                // An open Connect card waits on the owner wherever they are (docs/adr/0046-connect-cards.md).
+                foreach (var r in All<CompanyConnectionRequest>(db).Where(r => r.State == "open"))
+                    needs.Add(
+                        new CompanyNeed(
+                            "connection",
+                            "Connect " + r.Name + (r.EmployeeId is null ? "" : " · asked by " + Who(r.EmployeeId)),
+                            r.Reason,
+                            r.EmployeeId,
+                            null
+                        )
+                        {
+                            ThreadId = r.ThreadId,
+                        }
                     );
                 foreach (var p in All<CompanyPlan>(db).Where(p => p.State == "proposed"))
                     needs.Add(

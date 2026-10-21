@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Link2, X } from "lucide-react";
 import { api } from "../lib/api";
-import type { ConnectionRequest } from "./api";
+import { runAction, type ConnectionRequest, type Snapshot } from "./api";
 import { SetupForm, type Setup } from "./IntegrationSetup";
 
 type GitHub = { state: string; code: string; url: string; error: string; account?: string | null };
@@ -12,11 +12,15 @@ type GitHub = { state: string; code: string; url: string; error: string; account
 // Connecting is recorded by connection.resolve; nothing is connected without the owner.
 export function ConnectCard({
   request,
+  snapshot,
   run,
+  refresh,
   onOpenSetup,
 }: {
   request: ConnectionRequest;
+  snapshot: Snapshot;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
+  refresh: () => Promise<void>;
   onOpenSetup: () => void;
 }) {
   const [github, setGithub] = useState<GitHub | null>(null);
@@ -24,6 +28,28 @@ export function ConnectCard({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const open = request.state === "open";
+  // The action that was refused for want of this connection, offered again once it is connected.
+  const refused = snapshot.data.tasks.find((t) => t.id === request.taskId && t.state === "failed");
+  const [rerun, setRerun] = useState<"idle" | "running" | "started">("idle");
+  async function runAgain() {
+    if (!refused) return;
+    setRerun("running");
+    setError("");
+    try {
+      await runAction(
+        crypto.randomUUID(),
+        refused.employeeId,
+        refused.threadId,
+        refused.skill,
+        JSON.parse(refused.input || "{}") as Record<string, string>,
+      );
+      setRerun("started");
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+      setRerun("idle");
+    }
+  }
   const isGitHub = request.integrationId === "github";
 
   async function resolve(account?: string | null) {
@@ -56,6 +82,17 @@ export function ConnectCard({
     };
   }, [open, isGitHub, github?.state]);
 
+  // A sign-in started from this card finishes by itself: once GitHub reports it approved, the connection is recorded
+  // without a further click (real-use check, 2026-10-21).
+  const signingIn = useRef(false);
+  useEffect(() => {
+    if (github?.state === "waiting" || github?.state === "starting") signingIn.current = true;
+    else if (github?.state === "connected" && signingIn.current && open) {
+      signingIn.current = false;
+      void resolve(github.account);
+    }
+  }, [github?.state, github?.account, open]);
+
   // Other integrations: their setup form, when they have one.
   useEffect(() => {
     if (!open || isGitHub) return;
@@ -79,6 +116,13 @@ export function ConnectCard({
           </>
         ) : null}
         .
+        {refused && rerun !== "started" && (
+          <button className="co-primary" disabled={rerun === "running"} onClick={() => void runAgain()}>
+            {rerun === "running" ? "Running…" : "Run again"}
+          </button>
+        )}
+        {rerun === "started" && <span className="co-muted"> Ran again; the result is below.</span>}
+        {error && <span role="alert"> {error}</span>}
       </aside>
     ) : null;
 

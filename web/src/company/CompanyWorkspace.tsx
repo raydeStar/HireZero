@@ -206,6 +206,9 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     const task = need.taskId ? snapshot?.data.tasks.find((t) => t.id === need.taskId) : undefined;
     setSheet(false);
     if (task) openWork(task);
+    // A Connect card opens the conversation it lives in (docs/adr/0046-connect-cards.md).
+    else if (need.kind === "connection" && need.employeeId && need.threadId)
+      openConversation(need.employeeId, need.threadId);
     else if (need.kind === "plan") setTab("plans");
     else if (need.kind === "meeting") setTab("meetings");
     else if ((need.kind === "onboarding" || need.kind === "knowledge") && need.employeeId) {
