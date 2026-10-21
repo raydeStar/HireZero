@@ -12,6 +12,35 @@ public sealed class CompanySpendTests
         };
 
     [Fact]
+    public void BilledCostOverridesTheEstimateAndNeedsNoReviewedPrice()
+    {
+        var billed = Job("writer", "fictional/router", 1_000_000, 100_000) with
+        {
+            Usage = new(1_000_000, 100_000, BilledUsd: 0.25m),
+        };
+        var estimated = Job("writer", "fictional/router", 1_000_000, 100_000);
+        var free = billed with { Usage = billed.Usage! with { BilledUsd = 0m } };
+        var spend = CompanyStore.Spend([billed, estimated, free], _ => new(3m, 15m));
+
+        Assert.Equal((4.75m, 3, 0), (spend.Usd, spend.PricedJobs, spend.UnpricedJobs));
+        Assert.Equal(new CompanySpendLine("writer", 4.75m, 3, 0), Assert.Single(spend.Employees));
+        var unpriced = CompanyStore.Spend([billed, estimated], _ => null);
+        Assert.Equal((0.25m, 1, 1), (unpriced.Usd, unpriced.PricedJobs, unpriced.UnpricedJobs));
+    }
+
+    [Fact]
+    public void AttemptUsagePreservesBilledCostAndLoadsOldJsonWithoutIt()
+    {
+        var attempt = Job("writer", "fictional/router", 130, 40) with { Usage = new(130, 40, BilledUsd: 0.0025m) };
+
+        var restored = CompanyJson.Decode<CompanyAttempt>(CompanyJson.Encode(attempt));
+
+        Assert.Equal(attempt.Usage, restored.Usage);
+        var oldUsage = CompanyJson.Decode<ModelUsage>("""{"inputTokens":130,"outputTokens":40}""");
+        Assert.Equal(new ModelUsage(130, 40), oldUsage);
+    }
+
+    [Fact]
     public void SpendIsPricedUsagePerEmployeeAndUnpricedJobsAreOnlyCounted()
     {
         var priced = new ModelPrice(3m, 15m);

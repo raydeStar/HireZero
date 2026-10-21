@@ -1,8 +1,9 @@
 namespace HireZero.Core;
 
-// What the company has spent on models, in US dollars, from the usage each authorized job recorded and the reviewed
-// price table (docs/adr/0036-api-model-provider.md). A job whose model has no price (Codex, or a route nobody priced)
-// is counted, not guessed (owner walkthrough, 2026-10-19: budgets showed tokens only).
+// What the company has spent on models, in US dollars: the cost a provider billed when it reports one
+// (docs/adr/0042-openrouter-low-effort-and-a-price-ceiling.md), otherwise the usage each authorized job recorded at
+// the reviewed price (docs/adr/0036-api-model-provider.md). A job with neither (Codex, or a route nobody priced) is
+// counted, not guessed (owner walkthrough, 2026-10-19: budgets showed tokens only).
 public sealed record CompanySpend(decimal Usd, int PricedJobs, int UnpricedJobs, CompanySpendLine[] Employees);
 
 public sealed record CompanySpendLine(string EmployeeId, decimal Usd, int PricedJobs, int UnpricedJobs);
@@ -13,7 +14,7 @@ public sealed partial class CompanyStore
     {
         var jobs = attempts
             .Where(a => a.Measured is not null && a.Usage is not null)
-            .Select(a => (a.EmployeeId, Usd: price(a.Measured!.Route)?.Cost(a.Usage!)))
+            .Select(a => (a.EmployeeId, Usd: a.Usage!.BilledUsd ?? price(a.Measured!.Route)?.Cost(a.Usage!)))
             .ToArray();
         return new(
             jobs.Sum(j => j.Usd ?? 0),

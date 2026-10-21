@@ -34,6 +34,7 @@ reasoning effort on models that do not reason.
 
 ## Consequences
 
+- Recorded spend uses OpenRouter's billed cost when it reports one.
 - A price set too low makes OpenRouter refuse the job. The owner raises it after checking the route's listing.
 - Low effort can shorten reasoning on hard tasks; measured jobs are single short turns, where that is the right
   trade.
