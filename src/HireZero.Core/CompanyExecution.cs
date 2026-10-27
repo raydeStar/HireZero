@@ -266,6 +266,8 @@ public sealed partial class CompanyStore
                         t.ScheduleRunId is null
                         && t.Kind != ContextDraftKind
                         && m.ThreadId == t.ThreadId
+                        // The current request already has a seat in Input; history need not set a second place.
+                        && !(m.Author == "owner" && m.Sequence == t.Watermark && m.Body == t.Input)
                         && (
                             t.Kind == "conversation"
                                 ? m.Sequence < t.Watermark

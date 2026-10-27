@@ -9,7 +9,14 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
-Current checkpoint (2026-10-27): the first-draft gap is now tested separately from revision quality. Three fresh
+Current checkpoint (2026-10-27): new task packets omit only the exact current owner request duplicated in history,
+preserving saved messages, earlier feedback and already-reviewed packets under [ADR 0138](adr/0138-single-current-request-in-context.md).
+The observed first-plan request had 1,890 duplicated characters. Thirty-three focused facts and four shared-path
+check groups pass without a live model call; no provider-token or billing saving is claimed. See
+[context-cost evidence](history/2026-10-27-current-request-context-deduplication.md). Owner usefulness and the
+broader phase gates remain open.
+
+Earlier first-draft checkpoint (2026-10-27): the first-draft gap is now tested separately from revision quality. Three fresh
 Luna calls through Codex OAuth used the actual suggested assignment and approved brief in new private conversations,
 without an earlier draft. The existing default exposed incomplete example assets and weak schedule coverage.
 [ADR 0137](adr/0137-complete-first-assignment-assets.md) strengthens the new default request and role instructions.

@@ -142,3 +142,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0135](0135-retained-revision-feedback.md) | Retain earlier owner feedback across revisions | Accepted; ordered feedback and the immediate prior draft stay separately reviewable |
 | [0136](0136-local-draft-checks-and-reviewed-repair.md) | Show role-owned format checks and editable repair feedback | Accepted; no automatic execution or usefulness claim |
 | [0137](0137-complete-first-assignment-assets.md) | Require complete useful assets in the default first Marketing assignment | Accepted; fresh native case evaluated without a previous draft |
+| [0138](0138-single-current-request-in-context.md) | Send the current task request once | Accepted; new packets omit only the exact owner-message duplicate at the task watermark |

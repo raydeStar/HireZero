@@ -74,6 +74,138 @@ public sealed class CompanyAssignmentTests : IDisposable
         };
 
     [Fact]
+    public void FreshAssignmentSendsItsRequestOnceAndKeepsTheSavedMessage()
+    {
+        var store = Store();
+        var seed = MeasuredQueueChecks.Seed(store);
+        var prepared = A<Prepared>(store, Prepare(seed, Knowledge(store)));
+        var call = store.TextCall(prepared.Attempt.Id);
+        Assert.Equal(prepared.Message.Body, call.Context.Input);
+        Assert.Empty(call.Context.History);
+        using var db = new StoreConnection(store.Database.Open(), store.Database);
+        Assert.Equal("1", db.Scalar("SELECT count(*) FROM co_messages WHERE company_id=$0", store.CompanyId));
+        Assert.Equal(CompanyJson.Encode(call), CompanyJson.Encode(Store().TextCall(prepared.Attempt.Id)));
+        Assert.Equal("proposed", store.Attempt(prepared.Attempt.Id).Measured!.State);
+    }
+
+    [Fact]
+    public void AssignmentKeepsEarlierIdenticalRequestsAndDoesNotRepackReviewedContext()
+    {
+        var store = Store();
+        var seed = MeasuredQueueChecks.Seed(store);
+        var command = Prepare(seed, Knowledge(store));
+        var earlier = new[] { command.Body! }
+            .Concat(Enumerable.Range(1, 15).Select(i => $"Earlier fictional paper-kit decision {i}."))
+            .ToArray();
+        foreach (var body in earlier)
+            store.Apply(C("message.send") with { EmployeeId = seed.EmployeeId, ThreadId = seed.ThreadId, Body = body });
+        var prepared = A<Prepared>(store, command);
+        var call = store.TextCall(prepared.Attempt.Id);
+        Assert.Equal(earlier, call.Context.History.Select(m => m.Body));
+        Assert.DoesNotContain(call.Context.History, m => m.Id == prepared.Message.Id);
+        var frozen = CompanyJson.Encode(call);
+        store.Apply(
+            C("message.send") with
+            {
+                EmployeeId = seed.EmployeeId,
+                ThreadId = seed.ThreadId,
+                Body = "A later discussion.",
+            }
+        );
+        Assert.Equal(frozen, CompanyJson.Encode(Store().TextCall(prepared.Attempt.Id)));
+        Assert.True(store.VerifyAudit().Intact);
+    }
+
+    [Fact]
+    public void ATaskWithoutItsOwnMessageKeepsDifferentHistoryAtTheWatermark()
+    {
+        var store = Store();
+        var seed = MeasuredQueueChecks.Seed(store);
+        store.Apply(
+            C("message.send") with
+            {
+                EmployeeId = seed.EmployeeId,
+                ThreadId = seed.ThreadId,
+                Body = "Use only the approved paper-kit facts.",
+            }
+        );
+        var task = A<CompanyTask>(
+            store,
+            C("task.create") with
+            {
+                EmployeeId = seed.EmployeeId,
+                ThreadId = seed.ThreadId,
+                Skill = MarketingModule.StarterPlan,
+                Body = "Prepare a fictional weekly plan.",
+            }
+        );
+        store.Apply(
+            C("message.send") with
+            {
+                EmployeeId = seed.EmployeeId,
+                ThreadId = seed.ThreadId,
+                Body = "Do not include this later request.",
+            }
+        );
+        var attempt = A<CompanyAttempt>(
+            store,
+            C("measured.prepare") with
+            {
+                Id = task.Id,
+                ExpectedVersion = task.Version,
+                CreditAllowance = 1,
+            }
+        );
+        var history = Assert.Single(store.TextCall(attempt.Id).Context.History);
+        Assert.Equal("Use only the approved paper-kit facts.", history.Body);
+        Assert.Equal(task.Watermark, history.Sequence);
+    }
+
+    [Fact]
+    public void EmployeeTextMatchingTheNewTaskIsStillHistory()
+    {
+        var store = Store();
+        var seed = MeasuredQueueChecks.Seed(store);
+        const string reply = "Prepare a fictional weekly plan.";
+        var conversation = A<Prepared>(
+            store,
+            C("conversation.prepare") with
+            {
+                EmployeeId = seed.EmployeeId,
+                ThreadId = seed.ThreadId,
+                Scope = "employee",
+                Body = "Which internal task comes next?",
+                CreditAllowance = 1,
+            }
+        );
+        store.Apply(Run(conversation.Attempt));
+        store.Finish(conversation.Attempt.Id, new ModelReply(reply, 20, "fictional-history-reply", new(10, 10)));
+        var task = A<CompanyTask>(
+            store,
+            C("task.create") with
+            {
+                EmployeeId = seed.EmployeeId,
+                ThreadId = seed.ThreadId,
+                Skill = MarketingModule.StarterPlan,
+                Body = reply,
+            }
+        );
+        var attempt = A<CompanyAttempt>(
+            store,
+            C("measured.prepare") with
+            {
+                Id = task.Id,
+                ExpectedVersion = task.Version,
+                CreditAllowance = 1,
+            }
+        );
+        Assert.Contains(
+            store.TextCall(attempt.Id).Context.History,
+            m => m.Sequence == task.Watermark && m.Author == seed.EmployeeId && m.Body == reply
+        );
+    }
+
+    [Fact]
     public void AnAssignmentIsAtomicBoundedAndNeedsArtifactReviewBeforeCompletion()
     {
         var store = Store();
