@@ -41,6 +41,13 @@ saved schedule authority, two separately reviewed occurrences, pause/resume and 
 installed locally with existing work/accounts and audit history preserved. It is mechanical continuity; the owner
 assessment of the corrected real plan and actual recurring usefulness are pending.
 
+The real weekly plan is stored in the separate acceptance workspace, not the existing installed company's task
+history. That saved workspace now has a reopenable local review host using the verified current build, with all
+execution providers disabled and no short automatic shutdown. The actual task and editorial copy are visible in
+the browser; exact saved text, three unchanged native runs and the intact pilot audit were checked. The existing
+installed workspace is unchanged. See [the review handoff](history/2026-10-27-reopenable-pilot-review.md). Owner
+usefulness assessment remains pending; this is not a migration or hosted launch.
+
 Current checkpoint (2026-10-27): the first real weekly-plan result was judged useful but basic, with weak actionability and
 formatting. It is not accepted. A private editorial revision is ready; the actual distribution channel remains
 unconfirmed. The generated text/receipt are preserved. A separately authorized revision has now completed; its
