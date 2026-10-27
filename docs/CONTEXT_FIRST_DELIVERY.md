@@ -9,7 +9,18 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
-Current checkpoint (2026-10-27): the owner authorized Luna runs as needed through Codex OAuth. Three sequential
+Current checkpoint (2026-10-27): the first-draft gap is now tested separately from revision quality. Three fresh
+Luna calls through Codex OAuth used the actual suggested assignment and approved brief in new private conversations,
+without an earlier draft. The existing default exposed incomplete example assets and weak schedule coverage.
+[ADR 0137](adr/0137-complete-first-assignment-assets.md) strengthens the new default request and role instructions.
+The final fresh result contains two business-grounded observations, complete assets, a numeric learning target,
+three posts of 57/58/55 words and a 55-minute review schedule in 423 words total. Local format checks pass ten
+items; two inline open decisions require manual review because the checker recognizes lists. This is one sample,
+not a quality guarantee or owner usefulness acceptance. Three calls used 20,268 input and 4,384 output tokens;
+actual credits were not reported. Existing outputs remain intact. See
+[fresh first-assignment evidence](history/2026-10-27-fresh-starter-plan-quality.md).
+
+Earlier revision checkpoint (2026-10-27): the owner authorized Luna runs as needed through Codex OAuth. Three sequential
 high-effort revisions completed with preserved prior outputs: 25,748 input and 4,058 output tokens, including
 2,306 reasoning tokens in output. The final unchanged native plan has 406 words, three posts of 64/49/49 words,
 complete worked assets, the intended marketer audience, a numeric learning goal and three unknowns. A correction
