@@ -318,7 +318,19 @@ try {
     "document.querySelector('.co-work-window .co-measured input[type=checkbox]').click()",
   );
   await click("Authorize and run one job");
-  await click("Approve result");
+  await until(async () => (await snapshot()).data.artifacts.some(a => a.taskId === originalTask.id),
+    "First deliverable saved for editing");
+  const generated = (await snapshot()).data;
+  const originalResult = generated.artifacts.find(a => a.taskId === originalTask.id);
+  const editedResult = await post("artifact.create", {
+    id: originalTask.id,
+    expectedVersion: generated.tasks.find(t => t.id === originalTask.id).version,
+    body: "Fictional edited plan: give readers a complete folding checklist. Align the corners, crease the diagonal, and check the edge. Ask which step they used or changed.",
+  });
+  await send("Page.reload");
+  await until(() => evaluate(`!!document.querySelector('[data-artifact-id="${editedResult.id}"]')`),
+    "Edited result ready for review");
+  await evaluate(`[...document.querySelectorAll('[data-artifact-id="${editedResult.id}"] button')].find(b=>b.textContent.trim()==='Approve result').click()`);
   await click("Complete after review");
   await until(
     async () =>
@@ -335,6 +347,13 @@ try {
     "completed work becomes a separate schedule draft",
   );
   assert.ok(await evaluate("location.search.includes('repeatWork=')"));
+  const referenceSection = '[aria-label="Selected result references"]';
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('${referenceSection} [data-reference-id]')].map(el=>el.dataset.referenceId)`),
+    [editedResult.id], "Only the approved edited result is included in the new recurring draft");
+  await evaluate(`document.querySelector('${referenceSection} summary').click()`);
+  assert.equal(await evaluate(`document.querySelector('${referenceSection} pre').innerText`), editedResult.body,
+    "The owner can inspect the exact accepted copy before saving");
+  assert.equal((await snapshot()).data.artifacts.find(a => a.id === originalResult.id).state, "needs_review");
   assert.equal(
     await evaluate(
       "JSON.parse(sessionStorage.getItem('hirezero-schedule-draft-v1:local-company')).name",
@@ -403,6 +422,10 @@ try {
   let records = await schedules();
   assert.equal(records.length, 1);
   assert.equal(records[0].definition.skill, "marketing-starter-plan");
+  assert.deepEqual(records[0].definition.evidence, [editedResult.id]);
+  assert.ok(records[0].authority.context.selectedResults.includes(editedResult.body));
+  assert.equal(records[0].authority.context.selectedResults.includes(originalResult.body), false,
+    "Unapproved original output does not enter the schedule authority");
   assert.equal(records[0].authority.policy.planningTokens, 22000);
   const id = records[0].id;
   assert.equal(
@@ -598,6 +621,9 @@ try {
         completedWorkStartsSeparateDraft: true,
         unrelatedDraftPreserved: true,
         selectedSkillRetained: true,
+        approvedEditorialCopyRetained: true,
+        referencePreviewMatchesExactBody: true,
+        unapprovedOriginalExcluded: true,
         recurringResultApproved: true,
         draftSurvivesReload: true,
         lostSaveReconciled: true,

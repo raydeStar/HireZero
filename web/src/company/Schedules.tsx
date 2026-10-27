@@ -141,7 +141,10 @@ export function Schedules({
         ...new Set([
           ...(sourceTask.evidence || []),
           ...snapshot.data.artifacts
-            .filter((a) => sourceTask.dependencies?.includes(a.taskId) && a.state === "approved")
+            .filter(
+              (a) =>
+                (a.taskId === sourceTask.id || sourceTask.dependencies?.includes(a.taskId)) && a.state === "approved",
+            )
             .map((a) => a.id),
         ]),
       ],
@@ -358,7 +361,7 @@ export function Schedules({
       {initialTaskId && (
         <p role="status">
           {sourceTask
-            ? `Start from ${workTitle(snapshot, sourceTask)}. Its request, skill and selected result references are copied into a separate draft. Review the timing, current context and allowance before authorizing any runs.`
+            ? `Start from ${workTitle(snapshot, sourceTask)}. New drafts include its request, skill and approved results as references. Your saved edits are kept. Review what each run should produce, the timing, context and allowance before authorizing any runs.`
             : "The original work is no longer available to repeat. Any saved schedule draft is preserved for your review."}
         </p>
       )}
@@ -477,22 +480,29 @@ export function Schedules({
                   <section aria-label="Selected result references">
                     <h4>Approved results supplied on each run</h4>
                     <p>
-                      Review these references with the schedule context. Revoking or changing a selected result stops
-                      future runs.
+                      Keep the copies that show the quality and detail you want. These are fixed references; later
+                      results are not added automatically. Revoking or changing a selected result stops future runs.
                     </p>
-                    {form.evidence!.map((id) => {
+                    {form.evidence!.map((id, index) => {
                       const artifact = snapshot.data.artifacts.find((a) => a.id === id);
                       const task = snapshot.data.tasks.find((t) => t.id === artifact?.taskId);
                       return (
-                        <p key={id}>
-                          {task ? workTitle(snapshot, task) : "Previous result"} · {artifact?.state || "unavailable"}{" "}
+                        <div key={id} data-reference-id={id}>
+                          <details>
+                            <summary>
+                              Reference {index + 1}: {task ? workTitle(snapshot, task) : "Previous result"} ·{" "}
+                              {artifact?.state || "unavailable"}
+                            </summary>
+                            {artifact && <pre>{artifact.body}</pre>}
+                          </details>
                           <button
                             type="button"
+                            aria-label={`Remove reference ${index + 1}`}
                             onClick={() => edit({ ...form, evidence: form.evidence!.filter((item) => item !== id) })}
                           >
                             Remove reference
                           </button>
-                        </p>
+                        </div>
                       );
                     })}
                   </section>
@@ -513,9 +523,12 @@ export function Schedules({
                   </p>
                 )}
                 <p>
-                  Use a repeatable request, such as a weekly content outline or a review of approved campaign notes.
-                  Results stay private. This workflow has no browsing, publishing or other external actions.
+                  Say what should be fresh each run and what a useful result contains. For a content plan, ask for new
+                  examples using approved facts, with complete drafts and a way to assess their use. Save audience
+                  feedback as approved memory accessible to this employee so later work can find it. The schedule does
+                  not gather feedback on its own.
                 </p>
+                <p>Results stay private. This workflow has no browsing, publishing or other external actions.</p>
                 <ModelChoice
                   options={snapshot.capabilities.modelChoices}
                   value={form.modelRoute ?? ""}

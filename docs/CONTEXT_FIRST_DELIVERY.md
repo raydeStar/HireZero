@@ -27,6 +27,20 @@ owner-authored-artifact command, preserves the original, retains unfinished text
 and still requires separate review. The fictional first-plan journey verifies the edited copy and unchanged
 model-request records; this removes the need to leave the product for ordinary text corrections.
 
+The completed edit/review flow now has one active review item per task and an explicit completion item after an
+approved current result exists (ADR 0131). Completed, canceled and superseded tasks leave the active review queue;
+earlier drafts remain intact, and completed work opens the approved copy first. Twelve focused backend facts and
+the expanded fictional first-plan browser journey pass. The change is installed, with preserved work/accounts
+and an intact audit chain.
+
+The next continuity gap was the recurring shortcut omitting the approved output itself. New **Repeat this work**
+drafts now include the accepted copies as inspectable, removable references (ADR 0132), alongside earlier approved
+evidence. Unapproved alternatives are excluded. Existing saved drafts and authorized schedules stay unchanged.
+Seventeen schedule facts and the expanded fictional recurring journey pass, including exact edited-text review,
+saved schedule authority, two separately reviewed occurrences, pause/resume and no live model calls. This is
+installed locally with existing work/accounts and audit history preserved. It is mechanical continuity; the owner
+assessment of the corrected real plan and actual recurring usefulness are pending.
+
 Current checkpoint (2026-10-27): the first real weekly-plan result was judged useful but basic, with weak actionability and
 formatting. It is not accepted. A private editorial revision is ready; the actual distribution channel remains
 unconfirmed. The generated text/receipt are preserved. A separately authorized revision has now completed; its
@@ -110,7 +124,7 @@ had not yet been deployed to the existing workspace; the successful result was r
 | P1.5 | Editable concise brief; confirm/correct/remove; corrections authoritative                             | Saved and unsaved corrections, exact review/unknown/revoke, immutable paged correction history and mobile source/date display verified locally with fictional fixtures                               | verified                 |
 | P1.6 | Persist isolated company knowledge, documents and identity; no model use before approval              | Identity, evidence, approved profiles and private text documents persist with tenant isolation. UTF-8 and bounded Word imports, draft recovery, separate approval and scoped retrieval have fictional proof under ADR 0089. Selected Drive document copies now have fictional owner/setup/read/approval proof under ADR 0090. Selectable PDF text now has a bounded parser process, page labels, missing-text notices and separately approved scoped retrieval with local proof under ADR 0098. OCR, visual fidelity, broader formats, live private-source acceptance and further connectors remain pending | partial                  |
 | P1.7 | Recommend and set up one Marketing employee from approved company knowledge                           | Role-owned Marketing setup and goal-based Marketing/Developer/CEO suggestions reuse the current approved brief. Editable setup, existing-employee reuse and first assignments are verified in fictional browser journeys; real recommendation relevance remains pending | partial                  |
-| P1.8 | First useful modest research/marketing deliverable, observations separate from hypotheses             | The initial real Marketing run and one separately authorized revision completed. ADR 0128 preserves feedback and exact revision context. The revision is more structured but still generic; owner usefulness acceptance remains pending. Fictional mechanics and installed delivery are verified | partial                  |
+| P1.8 | First useful modest research/marketing deliverable, observations separate from hypotheses             | The initial real run, revision and separately authorized quality check completed. A separate editorial correction adds coherent worked examples and a use-based learning goal. ADRs 0128–0131 preserve feedback, edits and review/completion history. Owner usefulness acceptance remains pending; fictional mechanics and installed delivery are verified | partial                  |
 | P1.9 | Minimal-assistance onboarding that customers recognize as useful                                      | Requires observed prospective-customer sessions, not synthetic fixtures                                                                                                                              | field validation pending |
 
 ## Phase 2 — persistent employee workflows
