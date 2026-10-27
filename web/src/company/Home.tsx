@@ -21,11 +21,14 @@ export function initials(name: string) {
 
 // The first line worth reading in a result, for a one-line preview.
 export function firstLine(body: string, max = 140) {
-  const line =
-    body
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .find((l) => l.length > 0) ?? "";
+  const lines = body
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const line = (lines.find((l) => !/^#{1,6}\s|^```|^[-*_]{3,}$/.test(l)) ?? lines[0] ?? "")
+    .replace(/^(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)/, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/\*\*|__|`/g, "");
   return line.length > max ? line.slice(0, max - 1) + "…" : line;
 }
 

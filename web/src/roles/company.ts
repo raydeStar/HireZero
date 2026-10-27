@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { BusinessProfile, Role, Snapshot } from "../company/api";
+import type { BusinessProfile, Role, Snapshot, Work } from "../company/api";
 
 // What an employee module contributes to the company workspace. Each web/src/roles/<id>/company.tsx exports one,
 // and it renders only in the UI slots that module's manifest declares (docs/adr/0002-employee-module-contract.md).
@@ -14,7 +14,14 @@ export type CompanyRoleUi = {
   panels?: Record<string, ComponentType>;
   businessSetup?: (profile: BusinessProfile) => BusinessSetup;
   recommendation?: (profile: BusinessProfile) => { reason: string; priority: number } | undefined;
+  draftChecks?: Record<string, (body: string, task: Work, tasks: Work[]) => DraftCheck[]>;
 };
+export type DraftCheck = { label: string; detail: string; state: "pass" | "fail" | "review" };
+
+export function draftChecks(role: Role | undefined, body: string, task: Work, tasks: Work[]): DraftCheck[] {
+  if (!role?.uiSlots?.includes("draft-checks:" + task.skill)) return [];
+  return byRole[role.id]?.draftChecks?.[task.skill]?.(body, task, tasks) ?? [];
+}
 export type BusinessSetup = {
   reason: string;
   responsibility: string;

@@ -170,6 +170,7 @@ dotnet csharpier check .                                   # C# formatting (dotn
 npm run typecheck --prefix web
 npm run format:check --prefix web
 node --test tests/*.test.mjs                               # frontend unit tests
+node tests/marketing-draft-checks.test.mjs                  # local starter-plan counts and feedback limits
 node tests/company-browser-smoke.mjs                       # headless Chrome smoke tests (build first)
 pwsh tests/company-launcher.test.ps1                       # launcher test (mocked process)
 sh tests/company-launcher.test.sh                          # POSIX launcher test (fake dotnet)

@@ -9,12 +9,14 @@ export function ArtifactRevision({
   busy,
   run,
   onCreated,
+  suggestedFeedback,
 }: {
   artifact: Artifact;
   canRevise: boolean;
   busy: boolean;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
   onCreated?: (task: Work) => void;
+  suggestedFeedback?: string;
 }) {
   const key = `hirezero-artifact-feedback-v1:${company() || "local-company"}:${artifact.id}:${artifact.version}`;
   const [open, setOpen] = useState(false);
@@ -77,6 +79,11 @@ export function ArtifactRevision({
           placeholder="What missed the mark, what should stay, and what would make the next draft useful?"
         />
       </label>
+      {suggestedFeedback && !feedback.trim() && (
+        <button type="button" disabled={busy} onClick={() => change(suggestedFeedback)}>
+          Use draft check findings
+        </button>
+      )}
       <p className="co-muted">
         {canRevise
           ? "Saves your feedback and creates a separate revision request. Review its model and allowance before authorizing another run. The original draft stays in your history."

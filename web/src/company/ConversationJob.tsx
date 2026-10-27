@@ -8,6 +8,8 @@ import { MeasuredJob } from "./MeasuredJob";
 import { providerName } from "./ModelChoice";
 import { ArtifactHandoff } from "./ArtifactHandoff";
 import { ArtifactRevision } from "./ArtifactRevision";
+import { draftChecks } from "../roles/company";
+import { DraftChecks, draftRepairFeedback } from "./DraftChecks";
 import { ArtifactPublication, ExecutionSteps } from "./ExecutionSteps";
 import { artifactState, provenance, taskState } from "./labels";
 import { humanize } from "./labels";
@@ -312,6 +314,7 @@ export function ConversationJob({
           ) : (
             <Report body={a.body} onEdit={canAuthor ? () => editCopy(a.body) : undefined} busy={busy} />
           )}
+          <DraftChecks checks={draftChecks(employeeRole, a.body, t, d.tasks)} />
           {a.reviewFeedback && (
             <section aria-label="Saved review feedback">
               <strong>Requested changes</strong>
@@ -354,6 +357,7 @@ export function ConversationJob({
                 busy={busy}
                 run={run}
                 onCreated={onOpenResult}
+                suggestedFeedback={draftRepairFeedback(draftChecks(employeeRole, a.body, t, d.tasks))}
                 canRevise={
                   t.kind === "work" &&
                   t.state === "awaiting_review" &&

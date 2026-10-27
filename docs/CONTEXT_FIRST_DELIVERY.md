@@ -9,17 +9,34 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
-Current checkpoint (2026-10-27): the handoff's revision requirements and high-effort deliverable policy
+Current checkpoint (2026-10-27): the owner authorized Luna runs as needed through Codex OAuth. Three sequential
+high-effort revisions completed with preserved prior outputs: 25,748 input and 4,058 output tokens, including
+2,306 reasoning tokens in output. The final unchanged native plan has 406 words, three posts of 64/49/49 words,
+complete worked assets, the intended marketer audience, a numeric learning goal and three unknowns. A correction
+introduced audience ambiguity and a final correction explicitly resolved it. This establishes a reviewed revision
+result, not generation from scratch or owner usefulness acceptance. Actual subscription-credit consumption was
+not reported. No further model call is currently needed to repair this result.
+
+[ADR 0136](adr/0136-local-draft-checks-and-reviewed-repair.md) adds role-owned local format checks and an explicit
+button to fill editable repair feedback for definite count failures. No check starts a request or grants approval.
+The parser checks and full fictional first-plan/revision browser journey pass, including retained feedback,
+refresh recovery and no automatic execution. The update is installed with backup, preserved accounts/work and
+an intact audit. Home result previews now use readable content instead of raw Markdown headings. The actual
+result, its eleven format checks, exact copy and navigation are verified in the installed UI.
+See [native revision and review evidence](history/2026-10-27-native-content-and-draft-checks.md).
+Owner usefulness acceptance, recurring usefulness, the company-safe Jev connector and high-effort CEO/Developer
+quality remain open. The existing run authorization remains available for purposeful follow-up work; it does not
+authorize publishing, outreach, credit purchases or replay of uncertain outcomes.
+
+Earlier handoff checkpoint (2026-10-27): the handoff's revision requirements and high-effort deliverable policy
 (ADRs 0133/0134) are installed locally with the usual application/data recovery backup. New revisions also retain
 the complete ordered earlier feedback chain under [ADR 0135](adr/0135-retained-revision-feedback.md), while supplying
 only the immediate prior draft. Oversized context is refused without dropping requirements or starting a request.
 Forty focused backend facts, the production build and the fictional first-plan/repeated-revision browser journey
 pass. The actual installed pilot review visibly shows high reasoning effort, a 3,000-output-token soft target and
 both earlier feedback requests. The installed company and separate pilot have no schedules to re-approve.
-One native revision of the corrected editorial draft is prepared, not run, with fresh owner authorization pending;
-the three earlier native requests remain unchanged. This is a revision-quality test, not generation from scratch.
-Owner usefulness acceptance and recurring usefulness remain open. The proposed deterministic checklist/repair
-workflow and safe Jev connector are not implemented; high-effort CEO/Developer output quality is unverified.
+At that checkpoint one native revision was prepared but unrun, pending fresh owner authorization. The subsequent
+approved pass is recorded above. Owner usefulness acceptance and recurring usefulness remain open.
 See [installation and verification evidence](history/2026-10-27-high-effort-revision-handoff.md).
 
 Earlier usefulness pass (2026-10-27): the private editorial plan now includes finished posts, a filled brief,

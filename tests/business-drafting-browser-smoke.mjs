@@ -1046,8 +1046,24 @@ try {
     Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
   const revisionCopy = await ownerPost("artifact.create", {
     id: revision.id, expectedVersion: completedState.tasks.find(t => t.id === revision.id).version,
-    body: "Fictional revised folding checklist with its full worked example.",
+    body: "Fictional folding checklist. " + "Fold the fictional paper. ".repeat(130),
   });
+  await send("Page.navigate", { url: `${url}/?view=employee&employee=${revision.employeeId}&thread=${revision.threadId}&work=${revision.id}&mode=work` });
+  await bodyText("500-word starter-plan limit");
+  await bodyText("Outside limit");
+  await click("Ask for changes");
+  await click("Use draft check findings");
+  const repairText = await evaluate("document.querySelector('.co-revision-feedback textarea').value");
+  assert.match(repairText, /Total length:/);
+  assert.match(repairText, /earlier feedback/);
+  const measuredBeforeRepair = (await snapshot()).data.measured;
+  await send("Page.reload");
+  await bodyText("Continue requested changes");
+  await click("Continue requested changes");
+  assert.equal(await evaluate("document.querySelector('.co-revision-feedback textarea').value"), repairText);
+  assert.deepEqual((await snapshot()).data.measured, measuredBeforeRepair, "Draft check findings never dispatch a model request");
+  await click("Keep draft and close");
+  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
   const latestFeedback = "Keep the worked example and checklist. Remove the closing question.";
   const nextRevision = await ownerPost("artifact.revise", {
     id: revisionCopy.id, expectedVersion: revisionCopy.version, digest: revisionCopy.digest, body: latestFeedback,
@@ -1069,7 +1085,7 @@ try {
   await evaluate("document.querySelector('.co-work-window .co-safety summary').click()");
   await bodyText("Reasoning effort: high");
   await bodyText("3,000 observed output tokens");
-  assert.equal((await snapshot()).data.measured.find(m => m.attemptId === preparedRevision.id)?.job.state ?? preparedRevision.measured.state, "proposed");
+  assert.equal((await snapshot()).data.measured.find(m => m.id === preparedRevision.id).job.state, "proposed");
   assert.deepEqual(errors, []);
   await fs.writeFile(
     path.join(repo, "test-results/business-drafting-browser.json"),
@@ -1118,6 +1134,7 @@ try {
         completedWorkShowsApprovedCopyFirst: true,
         repeatedRevisionRetainsFeedback: true,
         deliverableReviewShowsHighEffortAnd3000Tokens: true,
+        draftCheckFeedbackIsEditableAndNeverAutoRuns: true,
         boundedDeliverablePolicy: true,
         resultBeforeCollapsedRequestAndReceipt: true,
         mobileResultUsesWorkView: true,

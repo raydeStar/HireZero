@@ -119,7 +119,7 @@ public sealed class MarketingModule : IEmployeeModule
                 new("drafts-approved", "Drafts approved", "count", "Drafts the owner approved without revision."),
                 new("review-rounds", "Review rounds", "rounds", "Average owner review rounds per approved draft."),
             ],
-            UiSlots = ["skill-input:" + Draft, "business-setup"],
+            UiSlots = ["skill-input:" + Draft, "business-setup", "draft-checks:" + StarterPlan],
             DisplayOrder = 10,
         };
 
