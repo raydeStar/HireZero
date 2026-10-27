@@ -9,7 +9,20 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
-Latest usefulness pass (2026-10-27): the private editorial plan now includes finished posts, a filled brief,
+Current checkpoint (2026-10-27): the handoff's revision requirements and high-effort deliverable policy
+(ADRs 0133/0134) are installed locally with the usual application/data recovery backup. New revisions also retain
+the complete ordered earlier feedback chain under [ADR 0135](adr/0135-retained-revision-feedback.md), while supplying
+only the immediate prior draft. Oversized context is refused without dropping requirements or starting a request.
+Forty focused backend facts, the production build and the fictional first-plan/repeated-revision browser journey
+pass. The actual installed pilot review visibly shows high reasoning effort, a 3,000-output-token soft target and
+both earlier feedback requests. The installed company and separate pilot have no schedules to re-approve.
+One native revision of the corrected editorial draft is prepared, not run, with fresh owner authorization pending;
+the three earlier native requests remain unchanged. This is a revision-quality test, not generation from scratch.
+Owner usefulness acceptance and recurring usefulness remain open. The proposed deterministic checklist/repair
+workflow and safe Jev connector are not implemented; high-effort CEO/Developer output quality is unverified.
+See [installation and verification evidence](history/2026-10-27-high-effort-revision-handoff.md).
+
+Earlier usefulness pass (2026-10-27): the private editorial plan now includes finished posts, a filled brief,
 a fictional worked example and a reusable checklist. ADR 0129 aligns Marketing defaults with complete useful
 assets, expands reports by default, adds exact copy/download and opens revision requests directly. Ten backend
 facts and three fictional desktop/mobile journeys passed, including a repeat of the affected first-result flow.
@@ -42,13 +55,13 @@ installed locally with existing work/accounts and audit history preserved. It is
 assessment of the corrected real plan and actual recurring usefulness are pending.
 
 The real weekly plan is stored in the separate acceptance workspace, not the existing installed company's task
-history. That saved workspace now has a reopenable local review host using the verified current build, with all
+history. That saved workspace first gained a reopenable local review host using the verified current build, with all
 execution providers disabled and no short automatic shutdown. The actual task and editorial copy are visible in
 the browser; exact saved text, three unchanged native runs and the intact pilot audit were checked. The existing
 installed workspace is unchanged. See [the review handoff](history/2026-10-27-reopenable-pilot-review.md). Owner
 usefulness assessment remains pending; this is not a migration or hosted launch.
 
-Current checkpoint (2026-10-27): the first real weekly-plan result was judged useful but basic, with weak actionability and
+Earlier checkpoint (2026-10-27): the first real weekly-plan result was judged useful but basic, with weak actionability and
 formatting. It is not accepted. A private editorial revision is ready; the actual distribution channel remains
 unconfirmed. The generated text/receipt are preserved. A separately authorized revision has now completed; its
 clearer structure and decision rule still require owner assessment. No further run is authorized. ADR 0127 now

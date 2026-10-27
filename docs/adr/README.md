@@ -135,5 +135,8 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0128](0128-artifact-feedback-and-revision-requests.md) | Save requested changes with a separate, explicitly authorized revision | Implemented; backend and browser verified |
 | [0129](0129-usable-weekly-deliverables.md) | Include complete useful assets and open revisions directly for review | Installed locally; native output reviewed and editorial correction saved; owner acceptance pending |
 | [0130](0130-editable-draft-copies.md) | Edit a separate draft with tab recovery and unchanged model authority | Installed locally; fictional editing, recovery and navigation journey passed |
+| [0131](0131-review-and-completion-needs.md) | One review decision per active task and explicit completion after approval | Installed locally; earlier drafts and approvals remain separate |
+| [0132](0132-accepted-results-in-recurring-drafts.md) | Include accepted copies in new recurring drafts | Installed locally; exact references reviewed and no automatic activation |
 | [0133](0133-revisions-keep-original-requirements.md) | Keep original requirements in revisions unless feedback removes them | Accepted; private native replay evaluated, owner acceptance pending |
 | [0134](0134-high-effort-deliverables.md) | Run measured deliverables at high effort with a 3,000-token output target | Accepted; approved schedules keep their policy, API routes stay low |
+| [0135](0135-retained-revision-feedback.md) | Retain earlier owner feedback across revisions | Accepted; ordered feedback and the immediate prior draft stay separately reviewable |

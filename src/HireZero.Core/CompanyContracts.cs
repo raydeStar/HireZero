@@ -147,7 +147,14 @@ public sealed record CompanyTaskRevision(
     string Feedback
 );
 
-public sealed record CompanyRevisionContext(CompanyTaskRevision Request, string OriginalDraft);
+public sealed record CompanyRevisionContext(
+    CompanyTaskRevision Request,
+    string OriginalDraft,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyTaskRevision[]? PriorFeedback = null
+);
 
 public sealed record CompanyArtifact(
     string Id,

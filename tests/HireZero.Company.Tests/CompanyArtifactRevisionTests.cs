@@ -16,6 +16,21 @@ public sealed class CompanyArtifactRevisionTests : IDisposable
 
     private static CompanyCommand C(string action) => MeasuredQueueChecks.C(action);
 
+    private static CompanyTask Deliverable(CompanyStore store)
+    {
+        var seeded = MeasuredQueueChecks.Seed(store);
+        return Apply<CompanyTask>(
+            store,
+            C("task.create") with
+            {
+                EmployeeId = seeded.EmployeeId,
+                ThreadId = seeded.ThreadId,
+                Skill = "marketing-starter-plan",
+                Body = "Prepare a complete fictional paper-folding plan with three usable drafts.",
+            }
+        );
+    }
+
     private static T Apply<T>(CompanyStore store, CompanyCommand command) =>
         CompanyJson.Decode<T>(store.Apply(command));
 
@@ -115,6 +130,8 @@ public sealed class CompanyArtifactRevisionTests : IDisposable
         Assert.Equal(artifact.Body, call.Context.Revision!.OriginalDraft);
         Assert.Equal(request.Body, call.Context.Revision.Request.Feedback);
         Assert.Equal(revision.Revision, call.Context.Revision.Request);
+        Assert.Null(call.Context.Revision.PriorFeedback);
+        Assert.DoesNotContain("priorFeedback", CompanyJson.Encode(call.Context.Revision));
         Assert.Empty(call.Context.History);
         Assert.DoesNotContain(call.Context.Evidence, e => e.Id == artifact.Id);
         Assert.Contains("previous unapproved draft", call.Instructions);
@@ -182,10 +199,10 @@ public sealed class CompanyArtifactRevisionTests : IDisposable
     }
 
     [Fact]
-    public void ASecondRevisionCarriesOnlyTheImmediatelyPreviousDraftAndNeedsAnotherAuthorization()
+    public void LaterRevisionsKeepEarlierFeedbackButOnlyTheImmediatelyPreviousDraft()
     {
         var store = Store();
-        var original = MeasuredQueueChecks.Seed(store);
+        var original = Deliverable(store);
         var first = Finish(store, original, "Fictional first draft with first-only phrase.");
         var revision = Apply<CompanyTask>(store, Revision(first));
         var second = Finish(store, revision, "Fictional replacement with second-only phrase.");
@@ -200,8 +217,65 @@ public sealed class CompanyArtifactRevisionTests : IDisposable
         var call = store.TextCall(prepared.Id);
         Assert.Equal(second.Body, call.Context.Revision!.OriginalDraft);
         Assert.DoesNotContain("first-only phrase", call.Context.Revision.OriginalDraft);
+        Assert.Equal(revision.Revision, Assert.Single(call.Context.Revision.PriorFeedback!));
+        Assert.Equal(next.Revision!.Feedback, call.Context.Revision.Request.Feedback);
+        Assert.Contains("oldest first", call.Instructions);
+        Assert.Empty(call.Context.History);
         Assert.Equal(2, MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts").Length);
         Assert.Equal("proposed", prepared.Measured!.State);
+        store.Apply(Run(prepared));
+        store.Finish(
+            prepared.Id,
+            new ModelReply("Fictional third draft with third-only phrase.", 20, "fictional-third", new(10, 10))
+        );
+        var third = MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts").Single(a => a.TaskId == next.Id);
+        var last = Apply<CompanyTask>(
+            store,
+            Revision(third) with
+            {
+                Body = "Remove the final question; keep the earlier concrete experiment and three drafts.",
+            }
+        );
+        store = Store();
+        var lastPrepared = Prepare(store, store.Work(last.Id));
+        var finalCall = store.TextCall(lastPrepared.Id);
+        Assert.Equal(new[] { revision.Revision, next.Revision }, finalCall.Context.Revision!.PriorFeedback);
+        Assert.Equal(third.Body, finalCall.Context.Revision.OriginalDraft);
+        Assert.Equal(last.Revision!.Feedback, finalCall.Context.Revision.Request.Feedback);
+        Assert.DoesNotContain("first-only phrase", CompanyJson.Encode(finalCall.Context));
+        Assert.DoesNotContain("second-only phrase", CompanyJson.Encode(finalCall.Context));
+        Assert.Equal("proposed", lastPrepared.Measured!.State);
+        Assert.True(store.VerifyAudit().Intact);
+    }
+
+    [Fact]
+    public void OversizedFeedbackHistoryIsRefusedWithoutDroppingEarlierRequirementsOrDispatching()
+    {
+        var store = Store();
+        var task = Deliverable(store);
+        for (var i = 0; i < 7; i++)
+        {
+            var artifact = Apply<CompanyArtifact>(
+                store,
+                C("artifact.create") with
+                {
+                    Id = task.Id,
+                    ExpectedVersion = store.Work(task.Id).Version,
+                    Body = "Fictional manually revised folding instruction.",
+                }
+            );
+            task = Apply<CompanyTask>(
+                store,
+                Revision(artifact) with
+                {
+                    Body = $"Owner requirement {i}: " + new string('x', 3850),
+                }
+            );
+        }
+        Assert.Throws<WorkspaceException>(() => Prepare(store, task));
+        Assert.Equal("blocked", store.Work(task.Id).State);
+        Assert.Equal(7, MeasuredQueueChecks.Items<CompanyTask>(store, "tasks").Count(t => t.Revision is not null));
+        Assert.Empty(MeasuredQueueChecks.Items<System.Text.Json.JsonElement>(store, "measured"));
         Assert.True(store.VerifyAudit().Intact);
     }
 

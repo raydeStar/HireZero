@@ -332,7 +332,11 @@ public sealed partial class CompanyStore
             context = context with
             {
                 History = [],
-                Revision = new(revisionRequest, Need<CompanyArtifact>(db, revisionRequest.ArtifactId).Body),
+                Revision = new(
+                    revisionRequest,
+                    Need<CompanyArtifact>(db, revisionRequest.ArtifactId).Body,
+                    EarlierRevisionFeedback(db, t)
+                ),
             };
         if (!KnowledgeCurrent(db, context, t))
             throw new WorkspaceException("Knowledge was revoked; request fresh admission.");

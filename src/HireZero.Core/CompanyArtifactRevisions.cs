@@ -80,6 +80,8 @@ public sealed partial class CompanyStore
             RequestedModelRoute = source.RequestedModelRoute ?? source.ModelRoute,
             Revision = new(source.Id, artifact.Id, artifact.Version, artifact.Digest, feedback),
         };
+        // Keep every owner's note, but never turn a family tree into an unbounded prompt.
+        _ = EarlierRevisionFeedback(db, revision);
         Put(db, revision);
         // Retain the first draft and receipt. The butler replaces the assignment, not the evidence.
         Put(
@@ -102,6 +104,34 @@ public sealed partial class CompanyStore
         return revision;
     }
 
+    private CompanyTaskRevision[]? EarlierRevisionFeedback(StoreConnection db, CompanyTask task)
+    {
+        if (task.Revision is not { } current)
+            return null;
+        var earlier = new List<CompanyTaskRevision>();
+        var seen = new HashSet<string> { task.Id };
+        var source = Need<CompanyTask>(db, current.SourceTaskId);
+        while (true)
+        {
+            if (
+                !seen.Add(source.Id)
+                || seen.Count > 16
+                || source.EmployeeId != task.EmployeeId
+                || source.ThreadId != task.ThreadId
+            )
+                throw new WorkspaceException(
+                    "The revision history cannot fit a valid bounded chain. Start a separate task with owner-consolidated requirements.",
+                    409
+                );
+            if (source.Revision is not { } previous)
+                break;
+            earlier.Add(previous);
+            source = Need<CompanyTask>(db, previous.SourceTaskId);
+        }
+        earlier.Reverse();
+        return earlier.Count == 0 ? null : earlier.ToArray();
+    }
+
     private bool RevisionCurrent(StoreConnection db, CompanyContext context, CompanyTask task, int depth)
     {
         if (task.Revision is not { } revision)
@@ -118,6 +148,12 @@ public sealed partial class CompanyStore
             || source.Id != artifact.TaskId
             || source.EmployeeId != task.EmployeeId
             || source.ThreadId != task.ThreadId
+        )
+            return false;
+        // Legacy snapshots keep their original bytes; new snapshots bind the complete feedback history.
+        if (
+            context.Revision.PriorFeedback is { } prior
+            && !prior.SequenceEqual(EarlierRevisionFeedback(db, task) ?? [])
         )
             return false;
         return artifact.ContextId is null

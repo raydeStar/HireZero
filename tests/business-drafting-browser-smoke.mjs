@@ -1044,6 +1044,32 @@ try {
   assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
   await fs.writeFile(path.join(repo, "test-results/content-completed-mobile.png"),
     Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  const revisionCopy = await ownerPost("artifact.create", {
+    id: revision.id, expectedVersion: completedState.tasks.find(t => t.id === revision.id).version,
+    body: "Fictional revised folding checklist with its full worked example.",
+  });
+  const latestFeedback = "Keep the worked example and checklist. Remove the closing question.";
+  const nextRevision = await ownerPost("artifact.revise", {
+    id: revisionCopy.id, expectedVersion: revisionCopy.version, digest: revisionCopy.digest, body: latestFeedback,
+  });
+  const preparedRevision = await ownerPost("measured.prepare", {
+    id: nextRevision.id, expectedVersion: nextRevision.version, creditAllowance: 1,
+  });
+  const revisionPacket = await fetch(url + "/api/company/measured/" + preparedRevision.id).then(r => r.json());
+  assert.equal(revisionPacket.call.context.revision.priorFeedback[0].feedback, reviewFeedback);
+  assert.equal(revisionPacket.call.context.revision.request.feedback, latestFeedback);
+  assert.equal(revisionPacket.call.context.revision.originalDraft, revisionCopy.body);
+  assert.equal(preparedRevision.measured.policy.effort, "high");
+  assert.equal(preparedRevision.measured.policy.outputTarget, 3000);
+  await send("Page.navigate", { url: `${url}/?view=employee&employee=${nextRevision.employeeId}&thread=${nextRevision.threadId}&work=${nextRevision.id}&mode=work` });
+  await click("Review task and context");
+  await bodyText("Earlier requested changes retained");
+  await bodyText(reviewFeedback);
+  await bodyText(latestFeedback);
+  await evaluate("document.querySelector('.co-work-window .co-safety summary').click()");
+  await bodyText("Reasoning effort: high");
+  await bodyText("3,000 observed output tokens");
+  assert.equal((await snapshot()).data.measured.find(m => m.attemptId === preparedRevision.id)?.job.state ?? preparedRevision.measured.state, "proposed");
   assert.deepEqual(errors, []);
   await fs.writeFile(
     path.join(repo, "test-results/business-drafting-browser.json"),
@@ -1090,6 +1116,8 @@ try {
         completionPreservesEarlierDrafts: true,
         completedAndSupersededWorkLeavesReviewQueue: true,
         completedWorkShowsApprovedCopyFirst: true,
+        repeatedRevisionRetainsFeedback: true,
+        deliverableReviewShowsHighEffortAnd3000Tokens: true,
         boundedDeliverablePolicy: true,
         resultBeforeCollapsedRequestAndReceipt: true,
         mobileResultUsesWorkView: true,

@@ -23,7 +23,7 @@ type Packet = {
       notes: string;
       history: unknown[];
       evidence: unknown[];
-      revision?: { request: { feedback: string }; originalDraft: string };
+      revision?: { request: { feedback: string }; originalDraft: string; priorFeedback?: { feedback: string }[] };
       memory?: {
         notice: string;
         items: {
@@ -289,6 +289,22 @@ export function MeasuredJob({
                   <Contents body={packet.call.context.input} />
                   {packet.call.context.revision && (
                     <section aria-label="Revision context">
+                      {!!packet.call.context.revision.priorFeedback?.length && (
+                        <section aria-label="Earlier requested changes">
+                          <h4>Earlier requested changes retained</h4>
+                          <ol>
+                            {packet.call.context.revision.priorFeedback.map((item, index) => (
+                              <li key={index}>
+                                <Contents body={item.feedback} />
+                              </li>
+                            ))}
+                          </ol>
+                          <p>
+                            Oldest first. The latest feedback only replaces earlier directions where it explicitly
+                            changes them.
+                          </p>
+                        </section>
+                      )}
                       <h4>Requested changes</h4>
                       <Contents body={packet.call.context.revision.request.feedback} />
                       <details>
