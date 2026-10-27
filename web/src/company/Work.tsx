@@ -101,6 +101,7 @@ export function WorkWindow({
   open,
   onChat,
   onClose,
+  onOpenResult,
   onOpenPlans,
   onRememberResult,
   onRepeatWork,
@@ -113,6 +114,7 @@ export function WorkWindow({
   open: (employeeId: string, threadId: string) => void;
   onChat?: () => void;
   onClose: () => void;
+  onOpenResult?: (task: Work) => void;
   onOpenPlans?: () => void;
   onRememberResult?: (artifactId: string) => void;
   onRepeatWork?: (taskId: string) => void;
@@ -140,12 +142,14 @@ export function WorkWindow({
           <p className="fe-muted">This is a reply in the conversation. Its review and send steps are in Chat.</p>
         ) : employee ? (
           <ConversationJob
+            focused
             task={task}
             snapshot={snapshot}
             busy={busy}
             run={run}
             refresh={refresh}
             open={open}
+            onOpenResult={onOpenResult}
             onOpenPlans={onOpenPlans}
             onRememberResult={onRememberResult}
             onRepeatWork={onRepeatWork}

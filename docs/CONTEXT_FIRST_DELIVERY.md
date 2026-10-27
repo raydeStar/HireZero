@@ -9,6 +9,24 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
+Latest usefulness pass (2026-10-27): the private editorial plan now includes finished posts, a filled brief,
+a fictional worked example and a reusable checklist. ADR 0129 aligns Marketing defaults with complete useful
+assets, expands reports by default, adds exact copy/download and opens revision requests directly. Ten backend
+facts and three fictional desktop/mobile journeys passed, including a repeat of the affected first-result flow.
+The new build is now installed locally: all 181 staged files match, all preexisting database rows and both model
+accounts are preserved, and the audit chain is intact. The editorial plan now follows the proposal's initial
+market of independent marketers and small agencies. The separately approved native quality check completed once:
+7,261 input and 576 output tokens. It supplies usable examples but still needs editorial corrections for coherence,
+channel selection and attribution. A separate corrected draft is saved for review; the native output is preserved.
+The actual result review also exposed long feedback obscuring the draft. Feedback now collapses when a result
+exists; the build, fictional journey and live pilot review passed, and the fix is installed. Owner acceptance remains unverified. See
+[the walkthrough](history/2026-10-27-useful-content-walkthrough.md).
+
+Small result corrections now have an in-product **Edit a copy** path under ADR 0130. It reuses the existing
+owner-authored-artifact command, preserves the original, retains unfinished text across tab refresh/navigation,
+and still requires separate review. The fictional first-plan journey verifies the edited copy and unchanged
+model-request records; this removes the need to leave the product for ordinary text corrections.
+
 Current checkpoint (2026-10-27): the first real weekly-plan result was judged useful but basic, with weak actionability and
 formatting. It is not accepted. A private editorial revision is ready; the actual distribution channel remains
 unconfirmed. The generated text/receipt are preserved. A separately authorized revision has now completed; its
@@ -74,12 +92,12 @@ data preserved. Owner edits
 and usefulness assessment precede any separately approved recurring run. This owner trial does not replace the later
 customer cohort or the remaining two phases.
 
-The installed local application was independently inspected and is older than the current checkout: its API lacks
+Earlier installation checkpoint, superseded by the installation recorded above: the local application's API lacked
 the current onboarding fields and its host assembly differs. It was left running unchanged. The current real host
 was separately started on another loopback port with model/compute providers absent; an unconfirmed acceptance
 identity survived browser refresh. The preview was stopped and its private data preserved. ADR 0124 makes this
 parallel preview possible by honoring the local listener setting. The newer build and corrected OAuth configuration
-have not been deployed to the existing workspace; the successful result is retained in the separate acceptance data.
+had not yet been deployed to the existing workspace; the successful result was retained in the separate acceptance data.
 
 ## Phase 1 — context-first onboarding
 

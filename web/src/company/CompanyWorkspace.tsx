@@ -232,7 +232,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
           })
       : undefined;
   function setMode(mode: "chat" | "work") {
-    navigate({ ...routeRef.current, mode });
+    navigate({ ...routeRef.current, mode, ...(mode === "chat" && !splitWide ? { work: "" } : {}) });
   }
   function closeWork() {
     navigate({ ...routeRef.current, work: "" });
@@ -241,6 +241,10 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
   const roomy = useWide("(min-width: 1280px)"),
     splitWide = useWide("(min-width: 1440px)"),
     compactHub = useWide("(max-width: 640px)");
+  const visibleMode =
+    !splitWide && snapshot?.data.tasks.some((task) => task.id === route.work && task.kind !== "conversation")
+      ? "work"
+      : (route.mode ?? "chat");
   const hubNavigation = useRef<HTMLElement>(null);
   const loaded = !!snapshot;
   useEffect(() => {
@@ -283,7 +287,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
     go: (place) => (place === "settings" ? openHub("today") : setTab(place)),
     toggleMode: () => {
       const r = routeRef.current;
-      if (r.tab === "company" || r.tab === "employee") setMode((r.mode ?? "chat") === "chat" ? "work" : "chat");
+      if (r.tab === "company" || r.tab === "employee") setMode(visibleMode === "chat" ? "work" : "chat");
     },
     toggleCockpit: () => (roomy ? showCockpit(!cockpitOpen) : setSheet((open) => !open)),
     focusMessage: () => document.querySelector<HTMLTextAreaElement>(".fe-composer textarea")?.focus(),
@@ -615,6 +619,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
           : undefined
       }
       onClose={closeWork}
+      onOpenResult={(task) => openWork(task, "work")}
       onOpenPlans={() => setTab("plans")}
       onRememberResult={rememberResult}
       onRepeatWork={repeatWork}
@@ -782,10 +787,10 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
           </div>
           {chat && (
             <nav className="fe-tabs fe-mode co-mode" aria-label="Conversation mode">
-              <button aria-current={mode === "chat" ? "page" : undefined} onClick={() => setMode("chat")}>
+              <button aria-current={visibleMode === "chat" ? "page" : undefined} onClick={() => setMode("chat")}>
                 Chat
               </button>
-              <button aria-current={mode === "work" ? "page" : undefined} onClick={() => setMode("work")}>
+              <button aria-current={visibleMode === "work" ? "page" : undefined} onClick={() => setMode("work")}>
                 Work <span className="fe-count">{activeWork}</span>
               </button>
             </nav>

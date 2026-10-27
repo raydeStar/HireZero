@@ -651,6 +651,25 @@ try {
   assert.equal(firstTask().state, "awaiting_review");
   assert.equal(data.artifacts.length, 1);
   assert.equal(data.artifacts[0].state, "needs_review");
+  const savedDraft = data.artifacts[0].body;
+  await evaluate(
+    "Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.copiedDraft=text}}});",
+  );
+  await click("Copy draft");
+  await bodyText("Draft copied.");
+  assert.equal(await evaluate("window.copiedDraft"), savedDraft, "Copy retains the exact saved draft");
+  await evaluate(
+    "window.savedCreateObjectURL=URL.createObjectURL;window.savedAnchorClick=HTMLAnchorElement.prototype.click;URL.createObjectURL=blob=>{window.downloadedDraft=blob.text();return window.savedCreateObjectURL(blob)};HTMLAnchorElement.prototype.click=function(){window.downloadName=this.download};",
+  );
+  await click("Download draft");
+  assert.equal(await evaluate("window.downloadedDraft"), savedDraft, "Download retains the exact saved draft");
+  assert.equal(await evaluate("window.downloadName"), "hirezero-draft.md");
+  await evaluate(
+    "URL.createObjectURL=window.savedCreateObjectURL;HTMLAnchorElement.prototype.click=window.savedAnchorClick;navigator.clipboard.writeText=async()=>{throw Error('Fictional blocked clipboard')};",
+  );
+  await click("Copy draft");
+  await bodyText("Clipboard unavailable. Use Download draft or select the text below.");
+  assert.equal((await snapshot()).data.artifacts[0].state, "needs_review", "Using a draft does not approve it");
   assert.equal(
     await evaluate(
       "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Complete after review').disabled",
@@ -882,6 +901,106 @@ try {
       ),
     "Completed Home progress survives reload",
   );
+  // A later editorial review must lead directly to its revision, including on a phone.
+  const editorial = await ownerPost("task.create", {
+    employeeId: firstTask().employeeId,
+    threadId: firstTask().threadId,
+    skill: "marketing-starter-plan",
+    body: "Prepare one useful fictional paper-craft week, including the complete example.",
+  });
+  const editorialBody = [
+    "## Monday — Prepare your folding space", "", "Place your paper and the printed guide on a clear surface.", "",
+    "## Wednesday — Show one step", "", "Use the guide to choose a step. Describe that step without promising a finished result.", "",
+    "## Friday — Review the explanation", "", "Name the instruction that was unclear and propose one wording change.", "",
+    "### Complete review checklist", "", "- Can the reader identify the next step?", "- Is the example present?",
+    "- Are product claims supported?", "", "### Owner notes", "", "Fictional internal draft only. No publication or offer.",
+  ].join("\n");
+  await ownerPost("artifact.create", { id: editorial.id, expectedVersion: editorial.version, body: editorialBody });
+  const editorialUrl = `${url}/?view=employee&employee=${editorial.employeeId}&thread=${editorial.threadId}&work=${editorial.id}`;
+  await send("Page.navigate", { url: editorialUrl });
+  await bodyText("Complete review checklist");
+  assert.match(await evaluate("document.querySelector('[aria-label=\"Conversation mode\"] [aria-current=\"page\"]').textContent"), /^Work/,
+    "A narrow work link without an explicit mode selects the visible Work tab");
+  await evaluate("[...document.querySelectorAll('[aria-label=\"Conversation mode\"] button')].find(button=>button.textContent.trim()==='Chat').click()");
+  await until(() => evaluate("!!document.querySelector('.fe-composer') && !document.querySelector('.co-work-window')"),
+    "Chat exits the full-width work window instead of leaving the owner stuck");
+  await send("Page.navigate", { url: editorialUrl });
+  await bodyText("Complete review checklist");
+  assert.equal(await evaluate("document.querySelectorAll('.co-work-window .co-report.clamped').length"), 0,
+    "The full multi-section draft opens without hiding the useful asset");
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-work-window button')].some(b=>b.textContent.trim()==='Read result')"), false,
+    "A focused result does not offer to open itself again");
+  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
+  await fs.writeFile(path.join(repo, "test-results/content-result-mobile.png"),
+    Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  const beforeCopy = (await snapshot()).data;
+  const sourceCopy = beforeCopy.artifacts.find(artifact => artifact.taskId === editorial.id);
+  await click("Edit a copy");
+  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), editorialBody);
+  const editedBody = editorialBody.replace("Describe that step", "Show the fold with its printed step number, then describe it");
+  await send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
+  const taskEditors = `.co-job-card[data-task-id="${editorial.id}"] .co-artifact-editor textarea`;
+  await until(() => evaluate(`document.querySelectorAll(${JSON.stringify(taskEditors)}).length===1 && !!document.querySelector('.co-work-placeholder')`),
+    "Wide Chat defers to the task's one work editor");
+  await evaluate(`(()=>{const el=document.querySelector(${JSON.stringify(taskEditors)});Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(editedBody)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await evaluate("document.querySelector('.co-work-window [aria-label=\"Close work\"]').click()");
+  await until(() => evaluate(`!document.querySelector('.co-work-window') && document.querySelector(${JSON.stringify(taskEditors)})?.value===${JSON.stringify(editedBody)}`),
+    "Closing wide work restores the draft in its conversation card");
+  await evaluate(`[...document.querySelectorAll('.co-job-card[data-task-id="${editorial.id}"] button')].find(button=>button.textContent.trim()==='Read result').click()`);
+  await until(() => evaluate(`!!document.querySelector('.co-work-window') && document.querySelector(${JSON.stringify(taskEditors)})?.value===${JSON.stringify(editedBody)}`),
+    "Reopening the focused result retains unfinished edits");
+  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await send("Page.reload");
+  await bodyText("Complete review checklist");
+  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), editedBody,
+    "Unfinished edits survive refresh");
+  await click("Edit a copy");
+  await bodyText("You already have an unsaved draft");
+  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), editedBody,
+    "Opening a copy never replaces unfinished edits");
+  await fs.writeFile(path.join(repo, "test-results/content-editor-mobile.png"),
+    Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  await click("Save for review");
+  await until(async () => (await snapshot()).data.artifacts.some(artifact => artifact.taskId === editorial.id && artifact.body === editedBody),
+    "The edited copy saves as its own draft");
+  const afterCopy = (await snapshot()).data;
+  const savedCopy = afterCopy.artifacts.find(artifact => artifact.taskId === editorial.id && artifact.body === editedBody);
+  assert.equal(savedCopy.provenance, "owner-authored");
+  assert.equal(savedCopy.state, "needs_review");
+  assert.deepEqual(afterCopy.artifacts.find(artifact => artifact.id === sourceCopy.id), sourceCopy,
+    "Editing preserves the original body, provenance, digest and review state");
+  assert.deepEqual(afterCopy.measured, beforeCopy.measured, "Manual editing makes no model request");
+  await send("Page.reload");
+  await bodyText("Show the fold with its printed step number");
+  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), "",
+    "Confirmed save clears this tab's recovery draft");
+  await click("Ask for changes");
+  const reviewFeedback = "Keep the checklist. Replace the vague Wednesday instruction with the full worked example.";
+  await evaluate(`(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(reviewFeedback)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await send("Page.reload");
+  await click("Continue requested changes");
+  assert.equal(await evaluate("document.querySelector('.co-revision-feedback textarea').value"), reviewFeedback);
+  await click("Create revision request");
+  await until(async () => {
+    const state = await snapshot();
+    const revision = state.data.tasks.find(t => t.revision?.sourceTaskId === editorial.id);
+    return revision && await evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(revision.id)}`);
+  }, "Creating a revision opens that exact request in focused work");
+  const revisedState = (await snapshot()).data;
+  const revision = revisedState.tasks.find(t => t.revision?.sourceTaskId === editorial.id);
+  assert.equal(revisedState.tasks.find(t => t.id === editorial.id).state, "superseded");
+  assert.equal(revision.state, "blocked");
+  await send("Page.reload");
+  await bodyText(reviewFeedback);
+  assert.equal(await evaluate("document.querySelector('.co-work-window .co-job-card')?.dataset.taskId"), revision.id);
+  await fs.writeFile(path.join(repo, "test-results/content-revision-mobile.png"),
+    Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  await send("Page.navigate", { url: editorialUrl });
+  await click("Review revision request");
+  await until(() => evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(revision.id)}`),
+    "History opens the exact revision instead of dropping into the chat");
+  assert.equal(await evaluate("!!document.querySelector('.fe-composer')"), false);
+  assert.deepEqual(errors, []);
   await fs.writeFile(
     path.join(repo, "test-results/business-drafting-browser.json"),
     JSON.stringify(
@@ -909,6 +1028,19 @@ try {
         firstPlanIsTrackedWork: true,
         firstPlanNeedsResultApproval: true,
         firstPlanCompletedAfterReview: true,
+        exactDraftCopyAndDownload: true,
+        clipboardFailureRecovery: true,
+        fullDraftVisibleOnMobile: true,
+        revisionFeedbackSurvivesRefresh: true,
+        revisionOpensDirectly: true,
+        revisionHistoryKeepsFocusedWork: true,
+        narrowWorkLinkSelectsVisibleTab: true,
+        chatLeavesNarrowWorkWindow: true,
+        editableCopyPreservesOriginal: true,
+        editorDraftSurvivesRefresh: true,
+        editorNeverOverwritesUnsavedText: true,
+        manualEditNeedsReviewWithoutModelCall: true,
+        wideWorkKeepsSingleEditorAndDraft: true,
         boundedDeliverablePolicy: true,
         resultBeforeCollapsedRequestAndReceipt: true,
         mobileResultUsesWorkView: true,

@@ -1,8 +1,8 @@
 import { canRepeatWork } from "./recurringWork";
 import { useMemberAccess } from "./MemberAccess";
-import { lazy, Suspense, useState, type FormEvent } from "react";
+import { lazy, Suspense, useRef, useState, type FormEvent } from "react";
 import Markdown from "react-markdown";
-import { api, company } from "../lib/api";
+import { api, company, memberStorage } from "../lib/api";
 import type { Snapshot, Work } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
 import { providerName } from "./ModelChoice";
@@ -109,6 +109,7 @@ export function ConversationJob({
   onOpenPlans,
   onRememberResult,
   onRepeatWork,
+  focused = false,
 }: {
   task: Work;
   snapshot: Snapshot;
@@ -120,15 +121,44 @@ export function ConversationJob({
   onOpenPlans?: () => void;
   onRememberResult?: (artifactId: string) => void;
   onRepeatWork?: (taskId: string) => void;
+  focused?: boolean;
 }) {
   const { canWork } = useMemberAccess();
   const d = snapshot.data,
     employee = d.employees.find((e) => e.id === t.employeeId)!,
     employeeRole = d.roles.find((r) => r.id === employee.roleId);
-  const [outcome, setOutcome] = useState("");
+  const draftKey = `hirezero-artifact-edit-v1:${company() || "local-company"}:${t.id}`;
+  const [outcome, setOutcome] = useState(() => {
+    try {
+      return memberStorage.getItem(draftKey) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [editorNotice, setEditorNotice] = useState("");
+  const editor = useRef<HTMLTextAreaElement>(null);
   const artifacts = d.artifacts.filter((a) => a.taskId === t.id);
   const measured = d.measured?.filter((m) => m.taskId === t.id).slice(-1)[0];
   const scheduledOccurrence = !!t.scheduleRunId;
+  const canAuthor =
+    canWork && ["blocked", "awaiting_review", "queued"].includes(t.state) && t.kind === "work" && !scheduledOccurrence;
+  function changeOutcome(value: string) {
+    setOutcome(value);
+    setEditorNotice("");
+    try {
+      if (value) memberStorage.setItem(draftKey, value);
+      else memberStorage.removeItem(draftKey);
+    } catch {
+      setEditorNotice("Tab recovery is unavailable. Keep a copy of your edits before leaving this page.");
+    }
+  }
+  function editCopy(body: string) {
+    // Keep the owner's unfinished prose; the butler does not replace a letter mid-sentence.
+    if (outcome.trim() && outcome !== body)
+      setEditorNotice("You already have an unsaved draft. Save it or clear its text before editing another copy.");
+    else changeOutcome(body);
+    editor.current?.focus();
+  }
   const scheduledIsolatedWork = t.kind === "work" && scheduledOccurrence && !t.modelRoute;
   const savedResult = measured?.job.state === "completed" && artifacts.length > 0;
   const measuredJob =
@@ -166,8 +196,8 @@ export function ConversationJob({
         {workTitle(snapshot, t)} · {taskState(workState(snapshot, t), canWork)}
       </b>
       {t.revision && (
-        <section aria-label="Revision request">
-          <strong>Requested changes</strong>
+        <details aria-label="Revision request" open={!artifacts.length}>
+          <summary>Requested changes</summary>
           <p style={{ whiteSpace: "pre-wrap" }}>{t.revision.feedback}</p>
           <p className="co-muted">
             {artifacts.length
@@ -180,9 +210,9 @@ export function ConversationJob({
               <Report body={d.artifacts.find((artifact) => artifact.id === t.revision?.artifactId)!.body} />
             </details>
           )}
-        </section>
+        </details>
       )}
-      {artifacts.length > 0 && onOpenResult && (
+      {artifacts.length > 0 && onOpenResult && !focused && (
         <button className="co-primary" onClick={() => onOpenResult(t)}>
           Read result
         </button>
@@ -271,7 +301,11 @@ export function ConversationJob({
                 Prepare delegation plan from proposal
               </button>
             )}
-          {t.skill === "company-plan" ? <PlanProposal body={a.body} snapshot={snapshot} /> : <Report body={a.body} />}
+          {t.skill === "company-plan" ? (
+            <PlanProposal body={a.body} snapshot={snapshot} />
+          ) : (
+            <Report body={a.body} onEdit={canAuthor ? () => editCopy(a.body) : undefined} busy={busy} />
+          )}
           {a.reviewFeedback && (
             <section aria-label="Saved review feedback">
               <strong>Requested changes</strong>
@@ -313,6 +347,7 @@ export function ConversationJob({
                 artifact={a}
                 busy={busy}
                 run={run}
+                onCreated={onOpenResult}
                 canRevise={
                   t.kind === "work" &&
                   t.state === "awaiting_review" &&
@@ -436,24 +471,42 @@ export function ConversationJob({
             })()}
         </div>
       )}
-      {canWork &&
-        ["blocked", "awaiting_review", "queued"].includes(t.state) &&
-        t.kind !== "action" &&
-        !scheduledOccurrence && (
-          <form
-            onSubmit={form(async () => {
-              const body = outcome;
-              const saved = await run("artifact.create", { id: t.id, expectedVersion: t.version, body });
-              if (saved) setOutcome("");
-            })}
-          >
-            <label>
-              Owner-authored artifact
-              <textarea required value={outcome || ""} onChange={(e) => setOutcome(e.target.value)} />
-            </label>
-            <Submit busy={busy}>Save for review</Submit>
-          </form>
-        )}
+      {(canAuthor || (canWork && outcome.trim())) && (
+        <form
+          className="co-artifact-editor"
+          onSubmit={form(async () => {
+            if (!canAuthor || busy || !outcome.trim() || outcome.length > 12000) return;
+            const body = outcome;
+            const saved = await run("artifact.create", { id: t.id, expectedVersion: t.version, body });
+            if (saved) changeOutcome("");
+          })}
+        >
+          <label>
+            Your draft
+            <textarea
+              ref={editor}
+              required
+              rows={outcome ? 12 : 4}
+              maxLength={12000}
+              disabled={busy}
+              readOnly={!canAuthor}
+              value={outcome}
+              onChange={(e) => changeOutcome(e.target.value)}
+            />
+          </label>
+          <p className="co-muted">
+            {canAuthor
+              ? "Save a separate draft for review. The original stays in history. No model request is made. Unsaved edits stay in this tab."
+              : "This task no longer accepts drafts. Your unsaved text is preserved in this editor for copying."}
+          </p>
+          <p className="co-muted">
+            {outcome.trim() ? outcome.trim().split(/\s+/).length : 0} words · {outcome.length.toLocaleString()} / 12,000
+            characters
+          </p>
+          {editorNotice && <p role="status">{editorNotice}</p>}
+          {canAuthor && <Submit busy={busy || !outcome.trim() || outcome.length > 12000}>Save for review</Submit>}
+        </form>
+      )}
     </article>
   );
 }
@@ -480,9 +533,8 @@ function TaskInput({ input }: { input: string }) {
   );
 }
 
-// A long result shows its opening lines and a fade until expanded. The full text stays in the page, clipped rather than
-// removed, so nothing is hidden from search or from assistive technology (UX round 2).
-function Report({ body }: { body: string }) {
+// Review starts with the whole deliverable; the useful bit should not hide behind the butler's curtain.
+function Report({ body, onEdit, busy = false }: { body: string; onEdit?: () => void; busy?: boolean }) {
   // A publishing reading ends with the exact call it allows ("Call: {json}", docs/adr/0017). It is shown apart from
   // the reading and formatted; the approved text itself is unchanged.
   const lines = body.split(/\r?\n/);
@@ -503,9 +555,41 @@ function Report({ body }: { body: string }) {
   }
   const shown = callAt >= 0 ? lines.filter((_, i) => i !== callAt).join("\n") : body;
   const long = shown.split(/\r?\n/).length > 14 || shown.length > 1400;
-  const [full, setFull] = useState(false);
+  const [full, setFull] = useState(true);
+  const [copyStatus, setCopyStatus] = useState("");
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(body);
+      setCopyStatus("Draft copied.");
+    } catch {
+      setCopyStatus("Clipboard unavailable. Use Download draft or select the text below.");
+    }
+  }
+  function download() {
+    const url = URL.createObjectURL(new Blob([body], { type: "text/markdown;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "hirezero-draft.md";
+    link.click();
+    // Let the browser finish accepting the local download before releasing its URL.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   return (
     <div className={"co-report" + (long && !full ? " clamped" : "")}>
+      <div className="co-actions co-report-tools" aria-label="Use this draft">
+        <button type="button" className="co-ghost" onClick={() => void copy()}>
+          Copy draft
+        </button>
+        <button type="button" className="co-ghost" onClick={download}>
+          Download draft
+        </button>
+        {onEdit && (
+          <button type="button" className="co-ghost" disabled={busy} onClick={onEdit}>
+            Edit a copy
+          </button>
+        )}
+        <span role="status">{copyStatus}</span>
+      </div>
       <div className="co-report-content">
         <Markdown
           skipHtml

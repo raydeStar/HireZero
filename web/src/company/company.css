@@ -1786,6 +1786,13 @@
 .co-workspace .co-report-content {
   line-height: 1.65;
   overflow-wrap: anywhere;
+  max-width: 76ch;
+}
+.co-workspace .co-report-tools {
+  margin-bottom: 16px;
+}
+.co-workspace .co-report-tools [role="status"] {
+  font-size: 0.85rem;
 }
 .co-workspace .co-report-content :is(p, li) {
   white-space: pre-wrap;

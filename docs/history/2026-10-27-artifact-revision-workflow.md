@@ -27,3 +27,9 @@ Previous executables remain recoverable. Saved model accounts, existing work and
 The owner's actual feedback was then saved through the supported application command against the preserved
 pilot result. A separate revision was prepared but not dispatched. These mechanics do not establish improved
 model output, owner acceptance, repeat usage or payment. The three-phase goal remains open.
+
+Later checkpoint: the owner separately approved that revision, which completed once through Codex OAuth with
+6,927 input and 579 output tokens. It remains unaccepted. The subsequent
+[useful-content walkthrough](2026-10-27-useful-content-walkthrough.md) records the editorial and product-review
+improvements, followed by a separately approved native quality check. Its later manual corrections and editor
+verification made no further native requests.

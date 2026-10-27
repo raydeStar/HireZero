@@ -133,3 +133,5 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0126](0126-readable-internal-reports.md) | Render report formatting while preserving exact artifact text and approval | Accepted; raw HTML and remote images stay disabled |
 | [0127](0127-explicit-text-model-accounts.md) | Retain the host default beside separately selected API text models | Accepted; exact provider terms, per-route usage and no fallback |
 | [0128](0128-artifact-feedback-and-revision-requests.md) | Save requested changes with a separate, explicitly authorized revision | Implemented; backend and browser verified |
+| [0129](0129-usable-weekly-deliverables.md) | Include complete useful assets and open revisions directly for review | Installed locally; native output reviewed and editorial correction saved; owner acceptance pending |
+| [0130](0130-editable-draft-copies.md) | Edit a separate draft with tab recovery and unchanged model authority | Installed locally; fictional editing, recovery and navigation journey passed |

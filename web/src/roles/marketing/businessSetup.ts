@@ -35,9 +35,9 @@ export function marketingBusinessSetup(profile: BusinessProfile): BusinessSetup 
     },
     firstAssignment: {
       title: "Your first marketing plan",
-      description: "A short plan, three small experiments and sample copy, based on the brief you approved.",
+      description: "One focused week, three finished drafts and a useful example your audience can try.",
       skill: "marketing-starter-plan",
-      prompt: `Prepare a concise one-week marketing starter plan for this goal: ${objective}. Use the approved company brief and department context supplied with this request. Separate: 1. Observations grounded in approved facts, with their field names; 2. Up to three hypotheses or small experiments, with an action and a success measure; 3. One short sample message for owner review; 4. Missing facts and at most three useful questions. Label hypotheses and unknowns clearly. Do not imply you visited a website or verified results. Keep the plan practical for a team of one to five people. Return a draft for internal review; do not perform any actions.`,
+      prompt: `Prepare a concise one-week marketing starter plan for this goal: ${objective}. Use the approved company brief and department context supplied with this request. Recommend one audience problem and one weekly experiment. Deliver three distinct, finished post drafts, plus the actual template, checklist or worked example they refer to. Give the reader something useful before asking for a response. Keep post copy separate from production notes. Include a realistic preparation schedule, a small tally of observed use or feedback, and a decision rule for next week. Cite the brief fields behind factual claims in a short review section; label proposed audiences, experiments and fictional examples. If distribution is unknown, keep the copy portable and flag that once. Do not invent customer results, prices, inspected websites, product availability or offers the owner must fulfill. End with at most three consequential open decisions. Return a draft for internal review; do not perform any actions.`,
     },
   };
 }

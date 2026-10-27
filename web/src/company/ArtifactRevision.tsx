@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { company, memberStorage } from "../lib/api";
-import type { Artifact } from "./api";
+import type { Artifact, Work } from "./api";
 import "./artifact-revision.css";
 
 export function ArtifactRevision({
@@ -8,11 +8,13 @@ export function ArtifactRevision({
   canRevise,
   busy,
   run,
+  onCreated,
 }: {
   artifact: Artifact;
   canRevise: boolean;
   busy: boolean;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
+  onCreated?: (task: Work) => void;
 }) {
   const key = `hirezero-artifact-feedback-v1:${company() || "local-company"}:${artifact.id}:${artifact.version}`;
   const [open, setOpen] = useState(false);
@@ -42,7 +44,7 @@ export function ArtifactRevision({
         digest: artifact.digest,
         decision: "changes",
         body: feedback.trim(),
-      })) as { id?: string } | undefined;
+      })) as Work | undefined;
       if (result?.id) {
         try {
           memberStorage.removeItem(key);
@@ -50,6 +52,7 @@ export function ArtifactRevision({
           /* Retaining a local draft is harmless. */
         }
         setOpen(false);
+        if (canRevise) onCreated?.(result);
       }
     } finally {
       lock.current = false;
