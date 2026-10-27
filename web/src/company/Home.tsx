@@ -77,17 +77,16 @@ export function Home({
   const status = (e: Employee) => {
     if (e.state !== "active") return employeeState(e.state);
     const mine = d.tasks.filter((t) => t.employeeId === e.id);
-    // Results that still need a decision, not work whose results are already approved.
-    const review = d.artifacts.filter((a) => a.employeeId === e.id && a.state === "needs_review").length;
+    const review = needs.filter((n) => n.employeeId === e.id && n.kind === "review").length;
+    const completion = needs.filter((n) => n.employeeId === e.id && n.kind === "completion").length;
     const authorizing = mine.some((t) => workState(snapshot, t) === "awaiting_authorization");
     const running = mine.find((t) => (workGroups.progress as readonly string[]).includes(workState(snapshot, t)));
     const queued = mine.filter((t) => (workGroups.next as readonly string[]).includes(t.state)).length;
     if (running) return "Working on " + workTitle(snapshot, running);
     if (authorizing) return canWork ? "Waiting for your authorization" : "Waiting for authorization";
     if (review)
-      return (
-        review + (review === 1 ? " result waits" : " results wait") + (canWork ? " for your review" : " for review")
-      );
+      return review + (review === 1 ? " task waits" : " tasks wait") + (canWork ? " for your review" : " for review");
+    if (completion) return completion + (completion === 1 ? " task is" : " tasks are") + " ready to complete";
     if (queued) return queued + " queued";
     return "Idle";
   };
@@ -117,7 +116,11 @@ export function Home({
     (t) => t.state === "completed" && d.artifacts.some((a) => a.taskId === t.id && a.state === "approved"),
   );
   const waiting =
-    assignments.find((t) => d.artifacts.some((a) => a.taskId === t.id && a.state === "needs_review")) ??
+    assignments.find(
+      (t) =>
+        !["completed", "canceled", "superseded"].includes(t.state) &&
+        d.artifacts.some((a) => a.taskId === t.id && a.state === "needs_review"),
+    ) ??
     assignments.find((t) => t.state === "awaiting_review") ??
     assignments.find((t) => !["completed", "failed", "canceled", "superseded"].includes(t.state)) ??
     assignments.at(-1);
@@ -375,7 +378,11 @@ export function Home({
                     </b>
                     <small>{firstLine(artifact.body)}</small>
                   </span>
-                  <em className={"co-chip state-" + artifact.state}>{artifactState(artifact.state)}</em>
+                  <em className={"co-chip state-" + artifact.state}>
+                    {["completed", "canceled", "superseded"].includes(task.state) && artifact.state === "needs_review"
+                      ? "Earlier draft"
+                      : artifactState(artifact.state)}
+                  </em>
                 </button>
               </li>
             ))}

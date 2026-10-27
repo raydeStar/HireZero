@@ -996,10 +996,54 @@ try {
   await fs.writeFile(path.join(repo, "test-results/content-revision-mobile.png"),
     Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
   await send("Page.navigate", { url: editorialUrl });
+  await bodyText("Earlier draft · not approved");
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-work-window button')].some(b=>b.textContent.trim()==='Approve result')"), false,
+    "Superseded work does not offer a review command the store refuses");
   await click("Review revision request");
   await until(() => evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(revision.id)}`),
     "History opens the exact revision instead of dropping into the chat");
   assert.equal(await evaluate("!!document.querySelector('.fe-composer')"), false);
+  const taskNeeds = async (taskId) => (await fetch(url + "/api/company/today").then(r => r.json())).needsYou.filter(n => n.taskId === taskId);
+  assert.deepEqual(await taskNeeds(editorial.id), [], "Superseded drafts leave the active review queue");
+  const completion = await ownerPost("task.create", {
+    employeeId: editorial.employeeId, threadId: editorial.threadId, skill: editorial.skill,
+    body: "Prepare a fictional folding instruction for final review.",
+  });
+  const original = await ownerPost("artifact.create", {
+    id: completion.id, expectedVersion: completion.version, body: "Original fictional instruction: fold the paper.",
+  });
+  const completionState = (await snapshot()).data;
+  const corrected = await ownerPost("artifact.create", {
+    id: completion.id, expectedVersion: completionState.tasks.find(t => t.id === completion.id).version,
+    body: "Corrected fictional instruction: align opposite corners, then crease the diagonal.",
+  });
+  const pendingReview = await taskNeeds(completion.id);
+  assert.equal(pendingReview.length, 1, "Two drafts produce one active review request");
+  assert.match(pendingReview[0].detail, /2 drafts/);
+  const completionUrl = `${url}/?view=employee&employee=${completion.employeeId}&thread=${completion.threadId}&work=${completion.id}`;
+  await send("Page.navigate", { url: completionUrl });
+  await bodyText("Corrected fictional instruction");
+  await evaluate(`[...document.querySelectorAll('[data-artifact-id="${corrected.id}"] button')].find(button=>button.textContent.trim()==='Approve result').click()`);
+  await until(async () => (await taskNeeds(completion.id)).some(n => n.kind === "completion"),
+    "Approval offers the completion step");
+  assert.equal((await taskNeeds(completion.id)).length, 1);
+  assert.deepEqual((await snapshot()).data.artifacts.find(a => a.id === original.id), original);
+  await click("Complete after review");
+  await until(async () => (await snapshot()).data.tasks.find(t => t.id === completion.id).state === "completed",
+    "Owner completes the task using the corrected copy");
+  await send("Page.reload");
+  await bodyText("Earlier draft · not approved");
+  const completedState = (await snapshot()).data;
+  assert.deepEqual(await taskNeeds(completion.id), [], "Completed work leaves no stale review request");
+  assert.deepEqual(completedState.artifacts.find(a => a.id === original.id), original,
+    "Completion does not approve or change the original draft");
+  assert.equal(completedState.artifacts.find(a => a.id === corrected.id).state, "approved");
+  assert.equal(await evaluate("document.querySelector('.co-work-window [data-artifact-id]')?.dataset.artifactId"), corrected.id,
+    "Completed work opens with the approved copy first");
+  assert.deepEqual(completedState.measured, completionState.measured, "Review and completion make no model request");
+  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
+  await fs.writeFile(path.join(repo, "test-results/content-completed-mobile.png"),
+    Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
   assert.deepEqual(errors, []);
   await fs.writeFile(
     path.join(repo, "test-results/business-drafting-browser.json"),
@@ -1041,6 +1085,11 @@ try {
         editorNeverOverwritesUnsavedText: true,
         manualEditNeedsReviewWithoutModelCall: true,
         wideWorkKeepsSingleEditorAndDraft: true,
+        multipleDraftsShareReviewNeed: true,
+        approvedCopyOffersCompletion: true,
+        completionPreservesEarlierDrafts: true,
+        completedAndSupersededWorkLeavesReviewQueue: true,
+        completedWorkShowsApprovedCopyFirst: true,
         boundedDeliverablePolicy: true,
         resultBeforeCollapsedRequestAndReceipt: true,
         mobileResultUsesWorkView: true,

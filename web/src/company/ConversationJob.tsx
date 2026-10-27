@@ -138,6 +138,9 @@ export function ConversationJob({
   const [editorNotice, setEditorNotice] = useState("");
   const editor = useRef<HTMLTextAreaElement>(null);
   const artifacts = d.artifacts.filter((a) => a.taskId === t.id);
+  if (t.state === "completed")
+    artifacts.sort((a, b) => Number(b.state === "approved") - Number(a.state === "approved"));
+  const hasApprovedResult = artifacts.some((a) => a.state === "approved");
   const measured = d.measured?.filter((m) => m.taskId === t.id).slice(-1)[0];
   const scheduledOccurrence = !!t.scheduleRunId;
   const canAuthor =
@@ -266,7 +269,10 @@ export function ConversationJob({
       {artifacts.map((a) => (
         <div className="co-artifact" key={a.id} data-artifact-id={a.id} tabIndex={-1}>
           <small>
-            {provenance(employeeRole, a.provenance)} · {artifactState(a.state, canWork)}
+            {provenance(employeeRole, a.provenance)} ·{" "}
+            {["completed", "canceled", "superseded"].includes(t.state) && a.state === "needs_review"
+              ? "Earlier draft · not approved"
+              : artifactState(a.state, canWork)}
           </small>
           {a.sandboxOrigin && (
             <p className="co-muted">
@@ -328,7 +334,7 @@ export function ConversationJob({
               Remember feedback for future work
             </button>
           )}
-          {canWork && a.state === "needs_review" && (
+          {canWork && !["canceled", "superseded"].includes(t.state) && a.state === "needs_review" && (
             <div className="co-actions">
               <button
                 onClick={() =>
@@ -437,12 +443,8 @@ export function ConversationJob({
       {canWork && (
         <div className="co-actions">
           {["queued", "blocked", "running", "awaiting_review", "unknown", "failed"].includes(t.state) &&
-            // Work whose results you have all approved is finished, not cancellable: complete it instead.
-            !(
-              t.state === "awaiting_review" &&
-              d.artifacts.some((a) => a.taskId === t.id) &&
-              d.artifacts.filter((a) => a.taskId === t.id).every((a) => a.state === "approved")
-            ) && (
+            // An approved copy can finish the work; the earlier drafts keep their own history.
+            !(["awaiting_review", "blocked"].includes(t.state) && hasApprovedResult) && (
               <button onClick={() => void run("task.cancel", { id: t.id, expectedVersion: t.version })}>Cancel</button>
             )}
           {["blocked", "failed"].includes(t.state) &&
@@ -454,7 +456,8 @@ export function ConversationJob({
                 Request fresh attempt
               </button>
             )}
-          {t.state === "awaiting_review" &&
+          {(t.state === "awaiting_review" || (t.state === "blocked" && hasApprovedResult)) &&
+            t.kind !== "conversation" &&
             // Completing needs an approved result (the store refuses otherwise), so the button waits for one instead of
             // offering a click that only errors (owner feedback, 2026-10-20).
             (() => {

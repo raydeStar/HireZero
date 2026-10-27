@@ -266,24 +266,41 @@ public sealed partial class CompanyStore
                         }
                     );
                 }
-                foreach (
-                    var a in All<CompanyArtifact>(db)
-                        .Where(a =>
-                            a.State == "needs_review"
-                            && (!tasks.TryGetValue(a.TaskId, out var task) || task.MeetingId is null)
-                        )
-                )
+                // One task needs one decision; yesterday's drafts need not ring the bell again.
+                foreach (var results in All<CompanyArtifact>(db).GroupBy(a => a.TaskId))
+                {
+                    if (
+                        !tasks.TryGetValue(results.Key, out var task)
+                        || task.MeetingId is not null
+                        || task.State is "completed" or "canceled" or "superseded"
+                    )
+                        continue;
+                    var canComplete =
+                        task.Kind != "conversation"
+                        && task.State is "awaiting_review" or "blocked"
+                        && results.Any(a => a.State == "approved" && SandboxArtifactCurrent(db, a));
+                    var pending = results.Where(a => a.State == "needs_review").ToArray();
+                    if (!canComplete && pending.Length == 0)
+                        continue;
                     needs.Add(
-                        new(
-                            "review",
-                            Who(a.EmployeeId) + ": " + Skill(a.TaskId),
-                            a.Provenance.StartsWith("action:", StringComparison.Ordinal)
-                                ? "Gathered evidence waits for your review."
+                        new CompanyNeed(
+                            canComplete ? "completion" : "review",
+                            Who(task.EmployeeId) + ": " + Skill(task.Id),
+                            canComplete
+                                    ? "An approved result is ready. Complete this task when you have finished reviewing."
+                                : pending.Length > 1
+                                    ? $"{pending.Length} drafts wait for review. Approve the copy you want to use."
+                                : pending[0].Provenance.StartsWith("action:", StringComparison.Ordinal)
+                                    ? "Gathered evidence waits for your review."
                                 : "A result waits for your review.",
-                            a.EmployeeId,
-                            a.TaskId
+                            task.EmployeeId,
+                            task.Id
                         )
+                        {
+                            ThreadId = task.ThreadId,
+                        }
                     );
+                }
                 foreach (
                     var t in tasks.Values.Where(t =>
                         t.State == "blocked" && t.Reason is "handoff-awaiting-approval" or "revision-awaiting-approval"

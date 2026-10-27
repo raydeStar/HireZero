@@ -120,3 +120,29 @@ check was corrected to exercise the actual navigation lifecycle and passed. No a
 The editor is installed locally. All 181 staged files match the installation; existing work, both model accounts
 and the intact 93-entry audit chain are preserved. The previous application and full data backup remain available
 for rollback. No complete product phase or owner usefulness acceptance is claimed.
+
+## Completing the edited result
+
+The final review step exposed three projection defects: multiple unreviewed copies produced duplicate Today
+items, approving one copy did not offer completion, and completed/canceled/superseded tasks kept old review
+requests. Three focused facts reproduced the defects. [ADR 0131](../adr/0131-review-and-completion-needs.md)
+groups reviews by active task and offers an explicit completion step when a current approved result permits it.
+Completing the task preserves the original drafts and their review states. Completed work opens the approved
+copy first. Home uses the active needs for employee status, and superseded work no longer offers a review
+command the store refuses.
+
+The initial test command used an unsupported filter flag; the corrected command ran the intended facts.
+A concurrent frontend/backend build encountered a replaced static asset and was rerun in sequence. One new
+fixture needed the existing structured campaign brief before it could exercise supersession. After correction,
+all 12 focused completion, Today and revision facts passed. TypeScript and the production web build passed.
+
+The full fictional business-drafting browser journey passed with the added completion sequence: two copies
+produce one review request, approving the corrected copy offers completion, completing and reloading removes
+the active request, and the unchanged original remains in history. Superseded work also leaves the review queue
+and does not offer the invalid approval action. The mobile completion screenshot was inspected; the approved
+copy appears first without horizontal overflow. The fixture reports three fictional model responses, zero live
+model calls and zero external requests. No new native quality-check request was made.
+
+The completion fix is installed locally. All 181 staged files match; saved work, both model accounts and the
+intact 93-entry audit chain are preserved. The previous application and full data backup are retained for
+recovery. The real pilot's drafts remain unapproved; fictional acceptance checks do not approve the owner's work.
