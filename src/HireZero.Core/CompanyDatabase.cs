@@ -15,8 +15,13 @@ public sealed partial class CompanyStore
     // Every query is scoped to this company; other companies' rows in the same database are invisible.
     public string CompanyId { get; }
     public CompanyRole[] Roles => _roles;
-    public CompanyModelRouting ModelRouting { get; }
-    public string? MeasuredRuntimeIdentity { get; }
+    private readonly CompanyModelRouting _modelRouting;
+    private readonly string? _measuredRuntimeIdentity;
+    public Func<CompanyModelRouting>? CurrentModelRouting { get; init; }
+    public Func<string?>? CurrentMeasuredRuntimeIdentity { get; init; }
+    public CompanyModelRouting ModelRouting => CurrentModelRouting?.Invoke() ?? _modelRouting;
+    public string? MeasuredRuntimeIdentity =>
+        CurrentMeasuredRuntimeIdentity is { } current ? current() : _measuredRuntimeIdentity;
     public SemaphoreSlim ProviderGate { get; } = new(1, 1);
 
     // The limits proposed with each execution grant unless the module asks for others; the owner approves them.
@@ -44,6 +49,35 @@ public sealed partial class CompanyStore
         [typeof(CompanyOwnerMark)] = "co_owner_marks",
         [typeof(CompanyMember)] = "co_members",
         [typeof(CompanyConnectionRequest)] = "co_connections",
+        [typeof(CompanyBusinessIdentity)] = "co_business",
+        [typeof(CompanyBusinessSource)] = "co_business_sources",
+        [typeof(CompanyBusinessProfile)] = "co_business_profiles",
+        [typeof(CompanyBusinessDraft)] = "co_business_drafts",
+        [typeof(CompanyBusinessLookup)] = "co_business_lookups",
+        [typeof(CompanyProfileRevision)] = "co_business_history",
+        [typeof(CompanyDocument)] = "co_documents",
+        [typeof(CompanySourceRefresh)] = "co_business_refreshes",
+        [typeof(CompanySourceCheck)] = "co_business_checks",
+        [typeof(CompanyFactReview)] = "co_business_fact_reviews",
+        [typeof(CompanySchedule)] = "co_schedules",
+        [typeof(CompanyScheduleRun)] = "co_schedule_runs",
+        [typeof(CompanyNotice)] = "co_notices",
+        [typeof(CompanyNoticePreferences)] = "co_notice_preferences",
+        [typeof(CompanyNoticeDelivery)] = "co_notice_deliveries",
+        [typeof(CompanyVerifiedEmail)] = "co_verified_emails",
+        [typeof(CompanyMemoryItem)] = "co_memory",
+        [typeof(CompanyMemoryAnalysis)] = "co_memory_analyses",
+        [typeof(CompanyTaskCostReview)] = "co_task_cost_reviews",
+        [typeof(CompanyUsagePolicy)] = "co_usage_policy",
+        [typeof(CompanyUsageEntry)] = "co_usage_entries",
+        [typeof(CompanyBillingCheckout)] = "co_billing_checkouts",
+        [typeof(CompanyBillingState)] = "co_billing_state",
+        [typeof(CompanyBillingPortal)] = "co_billing_portals",
+        [typeof(CompanySandboxJob)] = "co_sandbox_jobs",
+        [typeof(CompanyBrowserJob)] = "co_browser_jobs",
+        [typeof(CompanyBrowserRetention)] = "co_browser_retention",
+        [typeof(CompanyComputePolicy)] = "co_compute_policy",
+        [typeof(CompanyDocumentRetention)] = "co_document_retention",
     };
     private static readonly Dictionary<string, string> ParentTables = new()
     {
@@ -83,9 +117,9 @@ public sealed partial class CompanyStore
         _database = database;
         _owner = owner;
         _roles = roles;
-        ModelRouting = routing ?? new();
+        _modelRouting = routing ?? new();
         ModelRouting.Validate();
-        MeasuredRuntimeIdentity = measuredRuntimeIdentity;
+        _measuredRuntimeIdentity = measuredRuntimeIdentity;
         if (roles.Select(r => r.Id).Distinct().Count() != roles.Length)
             throw new InvalidOperationException("Duplicate role definition.");
         using var db = Open();
@@ -116,6 +150,25 @@ public sealed partial class CompanyStore
                     AuditSchema,
                     // Connect cards (docs/adr/0046-connect-cards.md).
                     "CREATE TABLE co_connections(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id));",
+                    BusinessContextSchema,
+                    BusinessDraftSchema,
+                    BusinessLookupSchema,
+                    BusinessHistorySchema,
+                    DocumentSchema,
+                    BusinessFreshnessSchema,
+                    ScheduleSchema,
+                    NotificationSchema,
+                    MemorySchema,
+                    UsageSchema,
+                    WorkspaceLeaseSchema,
+                    SandboxSchema,
+                    DocumentRetentionSchema,
+                    BrowserSchema,
+                    BrowserRetentionSchema,
+                    BillingSchema,
+                    BillingDeliverySchema,
+                    MemoryAnalysisSchema,
+                    TaskCostSchema,
                 ];
                 try
                 {
@@ -163,6 +216,35 @@ public sealed partial class CompanyStore
                         or "co_owner_marks"
                         or "co_members"
                         or "co_connections"
+                        or "co_business"
+                        or "co_business_sources"
+                        or "co_business_profiles"
+                        or "co_business_drafts"
+                        or "co_business_lookups"
+                        or "co_business_history"
+                        or "co_documents"
+                        or "co_business_refreshes"
+                        or "co_business_checks"
+                        or "co_business_fact_reviews"
+                        or "co_schedules"
+                        or "co_schedule_runs"
+                        or "co_notices"
+                        or "co_notice_preferences"
+                        or "co_notice_deliveries"
+                        or "co_verified_emails"
+                        or "co_memory"
+                        or "co_memory_analyses"
+                        or "co_task_cost_reviews"
+                        or "co_usage_policy"
+                        or "co_usage_entries"
+                        or "co_billing_checkouts"
+                        or "co_billing_state"
+                        or "co_billing_portals"
+                        or "co_sandbox_jobs"
+                        or "co_browser_jobs"
+                        or "co_browser_retention"
+                        or "co_compute_policy"
+                        or "co_document_retention"
                     )
             )
         )
@@ -286,6 +368,7 @@ public sealed partial class CompanyStore
                 text,
             }
         );
+        NoticeFromEvent(db, type, id, text);
     }
 
     private static string Id() => Guid.NewGuid().ToString("N");
@@ -307,8 +390,11 @@ public sealed partial class CompanyStore
     private void Put(StoreConnection db, CompanyTask t) =>
         Save(db, t, t.Id, t.ThreadId, t.EmployeeId, t.State, t.Version);
 
-    private void Put(StoreConnection db, CompanyAttempt a) =>
+    private void Put(StoreConnection db, CompanyAttempt a)
+    {
         Save(db, a, a.Id, a.TaskId, a.EmployeeId, a.Phase, a.Version);
+        SyncUsage(db, a.Id);
+    }
 
     private void Put(StoreConnection db, CompanyMeeting m) => Save(db, m, m.Id, state: m.State, version: m.Version);
 
@@ -316,17 +402,67 @@ public sealed partial class CompanyStore
 
     public object Dashboard()
     {
+        RefreshModelReviews();
         using var db = Open();
         return Transaction(
             db,
             () =>
                 new
                 {
+                    workControl = WorkControl(db),
                     departments = All<CompanyDepartment>(db),
                     employees = All<CompanyEmployee>(db),
                     knowledge = All<CompanyKnowledge>(db),
+                    business = Find<CompanyBusinessIdentity>(db, BusinessIdentityId),
+                    businessProfiles = All<CompanyBusinessProfile>(db),
+                    businessDrafts = All<CompanyBusinessDraft>(db)
+                        .Select(d => new
+                        {
+                            d.Id,
+                            d.BusinessVersion,
+                            d.SourceIds,
+                            d.Job,
+                            d.State,
+                            d.Version,
+                            d.UpdatedAt,
+                            d.ProfileId,
+                            d.Error,
+                            d.Usage,
+                            d.ReportedUsage,
+                            d.ProviderReceipt,
+                        }),
+                    businessLookups = All<CompanyBusinessLookup>(db),
+                    businessSources = All<CompanyBusinessSource>(db)
+                        .Select(s => new
+                        {
+                            s.Id,
+                            s.BusinessVersion,
+                            s.Url,
+                            s.Title,
+                            s.Digest,
+                            s.RetrievedAt,
+                            s.Clipped,
+                        }),
                     threads = All<CompanyThread>(db),
                     tasks = All<CompanyTask>(db),
+                    sandboxTaskIds = Rows(
+                        db,
+                        "SELECT DISTINCT parent_id FROM co_sandbox_jobs WHERE company_id=$0 AND parent_id IS NOT NULL",
+                        r => r.GetString(0),
+                        CompanyId
+                    ),
+                    browserTaskIds = Rows(
+                        db,
+                        "SELECT DISTINCT parent_id FROM co_browser_jobs WHERE company_id=$0 AND parent_id IS NOT NULL",
+                        r => r.GetString(0),
+                        CompanyId
+                    ),
+                    browserRunningTaskIds = Rows(
+                        db,
+                        "SELECT DISTINCT parent_id FROM co_browser_jobs WHERE company_id=$0 AND state='running' AND parent_id IS NOT NULL",
+                        r => r.GetString(0),
+                        CompanyId
+                    ),
                     artifacts = All<CompanyArtifact>(db),
                     plans = All<CompanyPlan>(db),
                     meetings = All<CompanyMeeting>(db),
@@ -334,7 +470,12 @@ public sealed partial class CompanyStore
                     budgets = All<CompanyBudget>(db),
                     // What each budget is for, by id (owner walkthrough, 2026-10-19).
                     budgetLabels = BudgetLabels(db),
-                    spend = Spend(All<CompanyAttempt>(db), ModelRoutes.Price),
+                    spend = Spend(
+                        All<CompanyAttempt>(db),
+                        ModelRoutes.Price,
+                        All<CompanyBusinessDraft>(db),
+                        All<CompanyUsageEntry>(db)
+                    ),
                     executions = All<CompanyExecutionGrant>(db),
                     measured = All<CompanyAttempt>(db)
                         .Where(a => a.Measured is not null)
@@ -434,6 +575,8 @@ public sealed partial class CompanyStore
             handoffs = All<CompanyHandoff>(db).Where(h => h.TargetTaskId == id).ToArray(),
             executions = All<CompanyExecutionGrant>(db).Where(g => g.TaskId == id).ToArray(),
             publications = All<CompanyPublication>(db).Where(p => p.TaskId == id).ToArray(),
+            sandboxes = All<CompanySandboxJob>(db).Where(j => j.TaskId == id).ToArray(),
+            browsers = All<CompanyBrowserJob>(db).Where(j => j.TaskId == id).ToArray(),
             contexts = All<CompanyContext>(db)
                 .Where(c => attempts.Any(a => a.ContextId == c.Id))
                 .Select(c => new

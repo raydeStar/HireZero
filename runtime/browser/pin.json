@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "status": "qualification-candidate",
+  "platform": "linux/amd64",
+  "baseImage": "mcr.microsoft.com/playwright@sha256:d65108d1a8095d8b0c4a5e32bf1807a40a5ce90ff0c78473e1116b1c243235e8",
+  "upstreamTag": "v1.64.1-noble",
+  "upstreamIndexDigest": "sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea",
+  "upstreamConfigDigest": "sha256:d8e19ba36e1441fcd3f8a6d3d84c1eeb713ed5f1f46476918b9c3c1c6e765ead",
+  "compressedBaseBytes": 983886837,
+  "recordedAt": "2026-10-26",
+  "node": { "major": 24, "executable": "/usr/bin/node" },
+  "chromium": {
+    "revision": "1248",
+    "version": "156.0.8078.4",
+    "executable": "/ms-playwright/chromium-1248/chrome-linux64/chrome"
+  },
+  "sources": [
+    "https://mcr.microsoft.com/v2/playwright/manifests/v1.64.1-noble",
+    "https://raw.githubusercontent.com/microsoft/playwright/v1.64.1/packages/playwright-core/browsers.json",
+    "https://raw.githubusercontent.com/microsoft/playwright/v1.64.1/utils/docker/Dockerfile.noble",
+    "https://playwright.dev/docs/docker"
+  ]
+}

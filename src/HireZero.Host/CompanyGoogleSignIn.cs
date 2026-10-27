@@ -1,88 +1,95 @@
-using System.Collections.Concurrent;
 using HireZero.Integrations.Google;
 
-// Signing in with Google for read-only Analytics and Search Console (docs/adr/0049-google-sign-in.md). The owner's
-// click starts it; Google returns the browser to the loopback callback with a one-time state that must match a
-// pending sign-in from this host; the refresh token is stored encrypted like a pasted key and never shown. Local mode.
 public static class CompanyGoogleSignIn
 {
     public const string CallbackPath = "/oauth/google/callback";
-    private static readonly TimeSpan Window = TimeSpan.FromMinutes(10);
 
-    public static void MapGoogleSignIn(
-        this WebApplication app,
-        GoogleAnalyticsProvider google,
-        LocalSecretStore? secrets,
-        Func<CompanyStore> store,
-        Action activate,
-        string origin
-    )
+    public static void MapGoogleSignIn(this WebApplication app, Func<CompanyIntegrationScope> connection, string origin)
     {
-        var pending = new ConcurrentDictionary<string, (string Verifier, DateTimeOffset Expires)>();
+        var pending = new CompanyConnectionSignIns("google");
         var redirect = origin + CallbackPath;
-        const string ReturnTo = "/?view=departments&section=integrations&google=";
-
+        CompanyIntegrationScope Owner(HttpContext context)
+        {
+            var scope = connection();
+            CompanyAccess.Demand(
+                scope.Store.Actor((string)context.Items["login"]!),
+                CompanyRoles.Owner,
+                "manage Google connections"
+            );
+            return scope;
+        }
         app.MapGet(
             "/api/connections/google",
-            () =>
-                Results.Ok(
+            (HttpContext context) =>
+            {
+                var scope = Owner(context);
+                return Results.Ok(
                     new
                     {
-                        configured = google.OAuth.Configured,
-                        signedIn = google.OAuth.SignedIn,
+                        configured = scope.Google.OAuth.Configured,
+                        signedIn = scope.Google.OAuth.SignedIn,
                         redirectUri = redirect,
-                        local = secrets is not null,
+                        local = scope.PastedSecrets is not null,
+                        companyId = scope.Store.CompanyId,
                     }
-                )
+                );
+            }
         );
         app.MapPost(
             "/api/connections/google/start",
-            () =>
+            (HttpContext context) =>
             {
-                if (secrets is null)
+                var scope = Owner(context);
+                if (scope.PastedSecrets is null)
                     throw new WorkspaceException("Google sign-in is available in local mode.", 403);
-                if (!google.OAuth.Configured)
+                if (!scope.Google.OAuth.Configured)
                     throw new WorkspaceException("Add your Google OAuth client ID and secret first.", 409);
-                foreach (var stale in pending.Where(p => p.Value.Expires < DateTimeOffset.UtcNow).Select(p => p.Key))
-                    pending.TryRemove(stale, out _);
-                var (url, state, verifier) = google.OAuth.Begin(redirect);
-                pending[state] = (verifier, DateTimeOffset.UtcNow + Window);
-                return Results.Ok(new { url });
+                return Results.Ok(
+                    new
+                    {
+                        url = pending.Begin(
+                            scope,
+                            (string)context.Items["login"]!,
+                            () => scope.Google.OAuth.Begin(redirect)
+                        ),
+                    }
+                );
             }
         );
-        // Not under /api: the browser arrives here from Google. The one-time state, not a session, authorizes it.
         app.MapGet(
             CallbackPath,
             async (string? code, string? state, string? error, CancellationToken token) =>
-            {
-                if (
-                    error is not null
-                    || code is null
-                    || state is null
-                    || !pending.TryRemove(state, out var sign)
-                    || sign.Expires < DateTimeOffset.UtcNow
-                    || secrets is null
+                Results.Redirect(
+                    await pending.CompleteAsync(
+                        state,
+                        code,
+                        error,
+                        async (sign, value, cancellation) =>
+                        {
+                            var refresh = await sign.Scope.Google.OAuth.CompleteAsync(
+                                value,
+                                sign.Verifier,
+                                redirect,
+                                cancellation
+                            );
+                            sign.DemandCurrent();
+                            sign.Scope.PastedSecrets!.Write(GoogleOAuth.RefreshTokenName, refresh);
+                            sign.Scope.Store.IntegrationEvent(
+                                "integration.connected",
+                                "google-analytics",
+                                "Signed in with Google for this company."
+                            );
+                        },
+                        token
+                    )
                 )
-                    return Results.Redirect(ReturnTo + Uri.EscapeDataString(error ?? "expired"));
-                try
-                {
-                    var refresh = await google.OAuth.CompleteAsync(code, sign.Verifier, redirect, token);
-                    secrets.Write(GoogleOAuth.RefreshTokenName, refresh);
-                    store().IntegrationEvent("integration.connected", "google-analytics", "Signed in with Google.");
-                    activate();
-                    return Results.Redirect(ReturnTo + "connected");
-                }
-                catch (Exception failure) when (failure is HttpRequestException or InvalidOperationException)
-                {
-                    return Results.Redirect(ReturnTo + Uri.EscapeDataString(failure.Message));
-                }
-            }
         );
         app.MapGet(
             "/api/connections/google/choices",
-            async (CancellationToken token) =>
+            async (HttpContext context, CancellationToken token) =>
             {
-                var (properties, sites, problems) = await google.ChoicesAsync(token);
+                var scope = Owner(context);
+                var (properties, sites, problems) = await scope.Google.ChoicesAsync(token);
                 return Results.Ok(
                     new
                     {
@@ -95,12 +102,32 @@ public static class CompanyGoogleSignIn
         );
         app.MapDelete(
             "/api/connections/google",
-            () =>
+            (HttpContext context) =>
             {
-                secrets?.Remove(GoogleOAuth.RefreshTokenName);
-                store().IntegrationEvent("integration.secret", "google-analytics", "Signed out of Google.");
-                activate();
-                return Results.Ok(new { signedOut = true });
+                var scope = Owner(context);
+                if (scope.PastedSecrets is null)
+                    throw new WorkspaceException(
+                        "Remove the refresh token from this company's credential source.",
+                        403
+                    );
+                scope.Change(() =>
+                {
+                    if (
+                        scope.Secrets.Describe(GoogleOAuth.RefreshTokenName).Origin
+                        is not (SecretOrigin.App or SecretOrigin.Missing)
+                    )
+                        throw new WorkspaceException(
+                            "The Google refresh token is managed outside the app. Remove it from its credential source to sign out.",
+                            409
+                        );
+                    scope.PastedSecrets.Remove(GoogleOAuth.RefreshTokenName);
+                    scope.Store.IntegrationEvent(
+                        "integration.secret",
+                        "google-analytics",
+                        "Signed out of Google for this company."
+                    );
+                });
+                return Results.Ok(new { signedOut = true, analyticsActive = scope.Google.Status().Active });
             }
         );
     }

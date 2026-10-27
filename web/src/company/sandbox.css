@@ -1,0 +1,89 @@
+.co-sandbox {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line, #d2d8d6);
+  border-radius: 12px;
+  min-width: 0;
+}
+.co-sandbox summary {
+  cursor: pointer;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.co-sandbox details {
+  margin-block: 0.7rem;
+  min-width: 0;
+}
+.co-sandbox p,
+.co-sandbox small,
+.co-sandbox code {
+  overflow-wrap: anywhere;
+}
+.co-sandbox pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 22rem;
+  overflow: auto;
+  padding: 0.8rem;
+  background: var(--panel, #f3f5f4);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+.co-sandbox fieldset {
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+  border: 0;
+  padding: 0.5rem 0;
+}
+.co-sandbox label:not(.co-check) {
+  display: grid;
+  gap: 0.35rem;
+}
+.co-sandbox input:not([type="checkbox"]),
+.co-sandbox textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.co-workspace .co-sandbox .co-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+.co-workspace .co-sandbox .co-check > input[type="checkbox"] {
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+.co-sandbox-job {
+  border-top: 1px solid var(--line, #d2d8d6);
+  padding-top: 1rem;
+  margin-top: 1rem;
+  min-width: 0;
+}
+.co-sandbox-job header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.co-sandbox-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-block: 0.8rem;
+}
+.co-sandbox-actions p,
+.co-sandbox-actions label {
+  flex-basis: 100%;
+}
+.co-sandbox-allowance {
+  padding: 0.8rem;
+  background: var(--panel, #f3f5f4);
+  border-radius: 8px;
+  margin-block: 0.8rem;
+}
+.co-sandbox-released {
+  color: var(--accent, #225b45);
+}

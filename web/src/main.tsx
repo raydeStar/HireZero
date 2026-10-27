@@ -13,4 +13,8 @@ import { SignInGate } from "./company/SignIn";
 
 applyTheme(preference("theme", "system"));
 const root = createRoot(document.getElementById("root")!);
-root.render(<SignInGate>{(session) => <CompanyWorkspace memberRole={session.role} />}</SignInGate>);
+root.render(
+  <SignInGate>
+    {(session, onSignOut) => <CompanyWorkspace memberRole={session.role} onSignOut={onSignOut} />}
+  </SignInGate>,
+);

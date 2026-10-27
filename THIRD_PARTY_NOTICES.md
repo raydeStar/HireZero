@@ -14,5 +14,12 @@ Installed locked package metadata was reviewed at the publication checkpoint:
 | lucide-react 0.468.0 | ISC |
 | TypeScript 5.8.3 | Apache 2.0 |
 | Vite 6.4.3 | MIT |
+| PdfPig 0.1.16 | Apache 2.0 |
 
 Transitive packages retain their own package license notices. A future binary/distribution release must preserve the notices and any applicable attribution for everything it redistributes. These notes record the inspected primary package metadata; they do not replace the licenses or constitute an audit of every future build/distribution. Gitleaks and the local test browser are audit tools and are not included in the source release.
+
+The optional browser image build candidate references the official Microsoft Playwright image by digest in
+`runtime/browser/pin.json`. No base-image binaries are vendored here. Building or distributing that image includes
+Ubuntu, Node, Chrome for Testing and other browser/system components with their own notices and obligations.
+Preserve the upstream notices and complete a distribution review before publishing an image; the table above
+does not constitute a license audit of that optional image. See ADR 0100 for its unqualified candidate status.

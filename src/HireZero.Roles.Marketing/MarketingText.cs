@@ -13,6 +13,16 @@ public static class MarketingText
         Instructions
         + " Draft the requested asset from the versioned brief. Separate draft copy, claim sources, missing facts and owner review questions. "
         + "Return plain text, clearly marked draft for internal review. Never invent proof, prices, performance or customer claims.";
+
+    public const string StarterPlanInstructions =
+        Instructions
+        + " Prepare a practical one-week marketing starter plan for an independent professional or team of one to five people. "
+        + "Follow the owner's requested deliverables, format and number of drafts within the overall output limit. "
+        + "Make one concrete recommendation from the available facts before offering alternatives. Name the audience, the job to be done, the actual draft or asset, and the next decision the evidence will support. A company description or a list of possible outreach channels is not a deliverable. "
+        + "Keep claim checks, assumptions and owner approvals in a short review section outside the public-facing copy. Do not repeat the same development caveat in every post; retain any qualification needed to avoid a misleading claim. Use clear headings and short, distinct drafts. "
+        + "When no format is requested, use four short sections: concise approved observations with field names and supplied citations; one recommended weekly experiment with an action, a day, a success measure and a decision rule; ready-to-use sample copy; missing facts and at most three owner decisions. "
+        + "Label experiments as hypotheses. Do not infer prices, customers, competitors, results or a website inspection. Mark sample copy as a draft for internal owner review. "
+        + "Make the plan usable within the supplied facts, but ask before filling consequential gaps. No publication, outreach, tool use or spending is authorized.";
 }
 
 public sealed record MarketingBrief(

@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { Role } from "../company/api";
+import type { BusinessProfile, Role, Snapshot } from "../company/api";
 
 // What an employee module contributes to the company workspace. Each web/src/roles/<id>/company.tsx exports one,
 // and it renders only in the UI slots that module's manifest declares (docs/adr/0002-employee-module-contract.md).
@@ -12,6 +12,15 @@ export type SkillInput = {
 export type CompanyRoleUi = {
   skillInputs?: Record<string, SkillInput>;
   panels?: Record<string, ComponentType>;
+  businessSetup?: (profile: BusinessProfile) => BusinessSetup;
+  recommendation?: (profile: BusinessProfile) => { reason: string; priority: number } | undefined;
+};
+export type BusinessSetup = {
+  reason: string;
+  responsibility: string;
+  values: Record<string, string>;
+  firstAssignment: { title: string; description: string; prompt: string; skill: string };
+  companyKnowledge?: { id: string; version: number; digest: string };
 };
 
 // Picked up automatically: adding web/src/roles/<id>/company.tsx needs no edit here (docs/adr/0006).
@@ -23,6 +32,43 @@ const byRole: Record<string, CompanyRoleUi> = Object.fromEntries(
 export function skillInput(role: Role | undefined, skill: string): SkillInput | undefined {
   if (!role?.uiSlots?.includes("skill-input:" + skill)) return undefined;
   return byRole[role.id]?.skillInputs?.[skill];
+}
+
+export function approvedBusinessProfile(snapshot: Snapshot): BusinessProfile | undefined {
+  if (snapshot.data.business?.state !== "confirmed") return undefined;
+  const knowledge = snapshot.data.knowledge.filter((k) => !k.departmentId && k.state === "approved").at(-1);
+  return snapshot.data.businessProfiles
+    ?.filter(
+      (p) =>
+        p.state === "approved" &&
+        p.businessVersion === snapshot.data.business?.version &&
+        p.knowledgeId === knowledge?.id,
+    )
+    .at(-1);
+}
+
+export function businessSetup(snapshot: Snapshot, roleId: string): BusinessSetup | undefined {
+  const role = snapshot.data.roles.find((r) => r.id === roleId);
+  if (!role?.uiSlots?.includes("business-setup")) return undefined;
+  const profile = approvedBusinessProfile(snapshot);
+  const setup = profile ? byRole[roleId]?.businessSetup?.(profile) : undefined;
+  const knowledge = snapshot.data.knowledge.find((k) => k.id === profile?.knowledgeId);
+  return setup && knowledge
+    ? { ...setup, companyKnowledge: { id: knowledge.id, version: knowledge.version, digest: knowledge.digest } }
+    : undefined;
+}
+
+export function teamRecommendations(snapshot: Snapshot) {
+  const profile = approvedBusinessProfile(snapshot);
+  if (!profile) return [];
+  const choices = snapshot.data.roles.flatMap((role) => {
+    if (!role.uiSlots?.includes("business-setup") || !byRole[role.id]?.businessSetup) return [];
+    const match = byRole[role.id]?.recommendation?.(profile);
+    return match ? [{ role, ...match }] : [];
+  });
+  // A module may offer a general starting point, but a matching goal gets the first seat at the table.
+  const relevant = choices.some((c) => c.priority > 0) ? choices.filter((c) => c.priority > 0) : choices;
+  return relevant.sort((a, b) => b.priority - a.priority || a.role.name.localeCompare(b.role.name)).slice(0, 3);
 }
 
 // Every panel contributed to a named slot by the given roles, in role order.

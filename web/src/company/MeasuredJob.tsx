@@ -1,8 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { command, type MeasuredEntry, type Work } from "./api";
+import { MonthlyAllowance, type UsageAllowance } from "./Usage";
+import { useMemberAccess } from "./MemberAccess";
+import { ModelChoice, providerName, type ModelOption } from "./ModelChoice";
 
 type Packet = {
+  usage?: UsageAllowance;
   attempt: { id: string; measured: { digest: string } };
   call: {
     instructions: string;
@@ -19,6 +23,20 @@ type Packet = {
       notes: string;
       history: unknown[];
       evidence: unknown[];
+      revision?: { request: { feedback: string }; originalDraft: string };
+      memory?: {
+        notice: string;
+        items: {
+          memoryId: string;
+          version: number;
+          title: string;
+          statement: string;
+          rationale: string;
+          approvedAt: string;
+          reviewOn?: string;
+          origin?: { quote: string; artifactId: string; version: number };
+        }[];
+      };
     };
   };
 };
@@ -60,7 +78,8 @@ export function MeasuredJob({
   prepare,
   refresh,
   conversational = false,
-  cents = false,
+  cents: defaultCents = false,
+  modelChoices = [],
 }: {
   task: Work;
   entry?: MeasuredEntry;
@@ -71,35 +90,57 @@ export function MeasuredJob({
   conversational?: boolean;
   // An API model enforces the allowance as a cap in US cents before sending (docs/adr/0036-api-model-provider.md).
   cents?: boolean;
+  modelChoices?: ModelOption[];
 }) {
+  const { canWork } = useMemberAccess();
   const authorizing = useRef(false),
     reviewRequest = useRef(0);
   const [allowance, setAllowance] = useState(""),
     [packet, setPacket] = useState<Packet | null>(null),
     [ack, setAck] = useState(false),
+    [reviewing, setReviewing] = useState(false),
     [running, setRunning] = useState(false),
     [error, setError] = useState("");
+  const [modelRoute, setModelRoute] = useState(task.requestedModelRoute ?? "");
+  const formCents =
+    (modelChoices.find((option) => option.route === modelRoute)?.allowanceUnit ??
+      (defaultCents ? "usd-cents" : "credits")) === "usd-cents";
+  const cents = entry?.job.terms ? entry.job.terms.allowanceUnit === "usd-cents" : defaultCents;
+  useEffect(() => {
+    // A fresh envelope needs fresh eyes. Never carry consent or an old context preview into its replacement.
+    reviewRequest.current++;
+    setPacket(null);
+    setAck(false);
+    setError("");
+    setReviewing(false);
+  }, [entry?.id, entry?.job.digest]);
   async function review() {
     if (!entry) return;
     const request = ++reviewRequest.current;
     setError("");
     setAck(false);
     setPacket(null);
+    setReviewing(true);
     try {
       const next = await api<Packet>("/company/measured/" + entry.id);
       if (next.attempt.id !== entry.id || next.attempt.measured.digest !== entry.job.digest)
         throw new Error("The saved proposal changed. Refresh before reviewing it.");
       if (request === reviewRequest.current) setPacket(next);
     } catch (e) {
-      setError((e as Error).message);
+      if (request === reviewRequest.current) setError((e as Error).message);
+    } finally {
+      if (request === reviewRequest.current) setReviewing(false);
     }
   }
   async function authorize() {
+    if (!canWork) return;
     if (
       authorizing.current ||
       !entry ||
       !ack ||
       !packet ||
+      packet.attempt.id !== entry.id ||
+      packet.attempt.measured.digest !== entry.job.digest ||
       running ||
       !available ||
       entry.job.state !== "proposed" ||
@@ -126,47 +167,73 @@ export function MeasuredJob({
   }
   return (
     <section className="co-measured">
-      {!conversational && <h3>Run one internal draft</h3>}
+      {!conversational && <h3>{entry?.job.state === "completed" ? "Execution receipt" : "Run one internal draft"}</h3>}
       {conversational && running && (
         <p role="status" aria-live="polite">
           Reply pending. Waiting for complete text and measured usage.
         </p>
       )}
-      {!available && <p className="co-muted">A pinned native connection is required for manual jobs.</p>}
+      {!available && <p className="co-muted">A configured model connection is required for manual jobs.</p>}
       {error && <p role="alert">{error}</p>}
-      {!entry && available && ["queued", "blocked"].includes(task.state) && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void prepare("measured.prepare", {
-              id: task.id,
-              expectedVersion: task.version,
-              creditAllowance: Number(allowance),
-            });
-          }}
-        >
-          <label>
-            {cents ? "Spend cap in US cents" : "Intended existing-credit allowance"}
-            <input
-              type="number"
-              min="0.01"
-              max="1000"
-              step="0.01"
-              required
-              value={allowance}
-              onChange={(e) => setAllowance(e.target.value)}
-            />
-          </label>
-          <p className="co-muted">
-            {cents
-              ? "Nothing is sent if the worst case (the whole context and the full reply limit at the model's listed price) could cost more than this."
-              : "This records your intended allowance. It cannot stop an in-flight request at that credit amount. Included usage must be available first. No purchases, recharge or API-key fallback."}
-          </p>
-          <button disabled={busy} type="submit">
-            Prepare job for review
-          </button>
-        </form>
+      {entry?.job.terms && (
+        <p>
+          Account: {providerName(entry.job.terms.provider)} · {entry.job.route}
+        </p>
       )}
+      {entry?.job.state === "expired" && (
+        <p>The review expired or its model connection changed. Nothing was sent. Prepare a fresh review below.</p>
+      )}
+      {!canWork && (
+        <p className="co-muted">
+          An approver or owner can prepare and authorize work. Saved status and context remain available.
+        </p>
+      )}
+      {canWork &&
+        (!entry || entry.job.state === "expired") &&
+        available &&
+        ["queued", "blocked"].includes(task.state) && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void prepare("measured.prepare", {
+                id: task.id,
+                expectedVersion: task.version,
+                creditAllowance: Number(allowance),
+                modelRoute,
+              });
+            }}
+          >
+            <ModelChoice
+              options={modelChoices}
+              value={modelRoute}
+              disabled={busy}
+              onChange={(route) => {
+                setModelRoute(route);
+                setAllowance("");
+              }}
+            />
+            <label>
+              {formCents ? "Spend cap in US cents" : "Intended existing-credit allowance"}
+              <input
+                type="number"
+                min="0.01"
+                max="1000"
+                step="0.01"
+                required
+                value={allowance}
+                onChange={(e) => setAllowance(e.target.value)}
+              />
+            </label>
+            <p className="co-muted">
+              {formCents
+                ? "Nothing is sent if the worst case (the whole context and the full reply limit at the model's listed price) could cost more than this."
+                : "This records your intended allowance. It cannot stop an in-flight request at that credit amount. Included usage must be available first. No purchases, recharge or API-key fallback."}
+            </p>
+            <button disabled={busy} type="submit">
+              Prepare job for review
+            </button>
+          </form>
+        )}
       {entry && (
         <>
           <p>
@@ -181,9 +248,11 @@ export function MeasuredJob({
                   )[entry.job.state] ??
                   states[entry.job.state] ??
                   entry.job.state)
-                : states[entry.job.state] || entry.job.state}
+                : entry.job.state === "completed" && task.state === "completed"
+                  ? "Result approved and task complete"
+                  : states[entry.job.state] || entry.job.state}
             </b>{" "}
-            · {entry.job.route.replace("openai/", "")}
+            · {entry.job.route}
           </p>
           {entry.job.state === "proposed" && (
             <>
@@ -195,22 +264,40 @@ export function MeasuredJob({
                   : `intended allowance ${entry.job.creditAllowance} ${entry.job.creditAllowance === 1 ? "credit" : "credits"}`}{" "}
                 · expires {new Date(entry.job.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
               </p>
-              <button disabled={busy || running} onClick={() => void review()}>
-                {conversational ? "Review reply and context" : "Review task and context"}
+              <button disabled={busy || running || reviewing} aria-busy={reviewing} onClick={() => void review()}>
+                {reviewing
+                  ? "Loading review…"
+                  : conversational
+                    ? "Review reply and context"
+                    : "Review task and context"}
               </button>
               {packet && (
                 <div className="co-packet">
-                  <h4>Sealed recipient and context</h4>
+                  <h4>Context for this request</h4>
                   <p>
                     {packet.call.context.roleId} · {packet.call.context.scope ?? "employee"} context
                   </p>
-                  <small>
-                    Employee {packet.call.context.employeeId} · conversation {packet.call.context.threadId}
-                  </small>
+                  <details>
+                    <summary>Request identifiers</summary>
+                    <small>
+                      Employee {packet.call.context.employeeId} · conversation {packet.call.context.threadId}
+                    </small>
+                  </details>
                   <h4>Responsibility included</h4>
                   <Contents body={packet.call.context.responsibility} />
                   <h4>Requested work</h4>
                   <Contents body={packet.call.context.input} />
+                  {packet.call.context.revision && (
+                    <section aria-label="Revision context">
+                      <h4>Requested changes</h4>
+                      <Contents body={packet.call.context.revision.request.feedback} />
+                      <details>
+                        <summary>Previous unapproved draft included for revision</summary>
+                        <Contents body={packet.call.context.revision.originalDraft} />
+                      </details>
+                      <p>The previous draft is reference material, not approved company knowledge.</p>
+                    </section>
+                  )}
                   <h4>Approved department facts</h4>
                   <Contents body={packet.call.context.departmentKnowledge} />
                   {packet.call.context.companyKnowledge && (
@@ -219,12 +306,40 @@ export function MeasuredJob({
                       <Contents body={packet.call.context.companyKnowledge} />
                     </>
                   )}
+                  {packet.usage && <MonthlyAllowance usage={packet.usage} />}
                   <h4>Private notes included</h4>
                   <Contents body={packet.call.context.notes} />
                   <h4>Conversation history included</h4>
                   <Entries items={packet.call.context.history} />
                   <h4>Selected evidence included</h4>
                   <Entries items={packet.call.context.evidence} />
+                  {packet.call.context.memory && (
+                    <>
+                      <h4>Approved organizational memory included</h4>
+                      <p>{packet.call.context.memory.notice}</p>
+                      {packet.call.context.memory.items.map((item) => (
+                        <article key={item.memoryId}>
+                          <h5>
+                            {item.title} · version {item.version}
+                          </h5>
+                          <p>{item.statement}</p>
+                          {item.rationale && <p>{item.rationale}</p>}
+                          <small>
+                            Approved {new Date(item.approvedAt).toLocaleString()}
+                            {item.reviewOn ? ` · Review on ${item.reviewOn} (UTC)` : ""}
+                          </small>
+                          {item.origin && (
+                            <blockquote>
+                              {item.origin.quote}
+                              <small>
+                                Approved result {item.origin.artifactId} · version {item.origin.version}
+                              </small>
+                            </blockquote>
+                          )}
+                        </article>
+                      ))}
+                    </>
+                  )}
                   <details>
                     <summary>Complete sealed application context</summary>
                     <pre>{JSON.stringify(packet.call.context, null, 2)}</pre>
@@ -269,32 +384,43 @@ export function MeasuredJob({
                   server binds your authorization to this exact saved task and context.
                 </small>
               </details>
-              <label className="co-check">
-                <input type="checkbox" checked={ack} disabled={!packet} onChange={(e) => setAck(e.target.checked)} />
-                {conversational
-                  ? "I reviewed the message, recipient and context, and I authorize one reply. Token, time and credit limits are soft and can be exceeded upstream."
-                  : "I reviewed the work and context, and I authorize one job. Token, time and credit limits are soft and can be exceeded upstream."}
-              </label>
-              {!packet && (
-                <p className="co-muted co-locked-hint" role="note">
-                  Review {conversational ? "the reply" : "the task"} and context first: you authorize only what you have
-                  seen.
-                </p>
+              {canWork && (
+                <>
+                  <label className="co-check">
+                    <input
+                      type="checkbox"
+                      checked={ack}
+                      disabled={!packet}
+                      onChange={(e) => setAck(e.target.checked)}
+                    />
+                    {cents
+                      ? `I reviewed the ${conversational ? "message, recipient" : "work"}, context, selected API account and spend allowance, and I authorize one ${conversational ? "reply" : "job"}.`
+                      : conversational
+                        ? "I reviewed the message, recipient and context, and I authorize one reply. Token, time and credit limits are soft and can be exceeded upstream."
+                        : "I reviewed the work and context, and I authorize one job. Token, time and credit limits are soft and can be exceeded upstream."}
+                  </label>
+                  {!packet && (
+                    <p className="co-muted co-locked-hint" role="note">
+                      Review {conversational ? "the reply" : "the task"} and context first: you authorize only what you
+                      have seen.
+                    </p>
+                  )}
+                  <button
+                    disabled={
+                      !available || busy || running || !ack || !packet || Date.parse(entry.job.expiresAt) <= Date.now()
+                    }
+                    onClick={() => void authorize()}
+                  >
+                    {conversational
+                      ? running
+                        ? "Waiting for this reply."
+                        : "Send & authorize one reply"
+                      : running
+                        ? "Waiting for this job."
+                        : "Authorize and run one job"}
+                  </button>
+                </>
               )}
-              <button
-                disabled={
-                  !available || busy || running || !ack || !packet || Date.parse(entry.job.expiresAt) <= Date.now()
-                }
-                onClick={() => void authorize()}
-              >
-                {conversational
-                  ? running
-                    ? "Waiting for this reply."
-                    : "Send & authorize one reply"
-                  : running
-                    ? "Waiting for this job."
-                    : "Authorize and run one job"}
-              </button>
             </>
           )}
           {entry.usage && (

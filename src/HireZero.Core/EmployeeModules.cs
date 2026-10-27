@@ -93,6 +93,18 @@ public enum SkillMode
 
 public sealed record EmployeeSkill(string Id, string Name, string Description, SkillMode Mode = SkillMode.Text)
 {
+    // Opt in to a platform-bounded response profile; modules cannot supply arbitrary runtime limits.
+    [System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+    public string? MeasuredProfile { get; init; }
+
+    // A role declares the work's purpose; the owner selects the model. The role cannot order a pricier bottle.
+    [System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+    public string? ModelProfile { get; init; }
+
     // A skill whose reviewed result the module can publish: an execution's changes or a measured skill's approved
     // artifact (docs/adr/0012-company-publication.md, docs/adr/0015-publishing-an-approved-artifact.md).
     public bool Publishes { get; init; }
@@ -227,7 +239,21 @@ public static partial class EmployeeModuleCatalog
         Require(manifest.Skills.Length > 0, "at least one skill is required.");
         Require(manifest.Skills.All(s => Identifier().IsMatch(s.Id)), "skill ids must be lowercase identifiers.");
         Require(manifest.Skills.Select(s => s.Id).Distinct().Count() == manifest.Skills.Length, "skill ids repeat.");
+        Require(
+            manifest.Skills.All(s =>
+                s.MeasuredProfile is null
+                || s.Mode == SkillMode.Measured && s.MeasuredProfile == CompanyMeasuredPolicy.DeliverableProfile
+            ),
+            "only measured skills may select the bounded deliverable response profile."
+        );
         Require(manifest.Onboarding.Fields.Length > 0, "at least one onboarding field is required.");
+        Require(
+            manifest.Skills.All(s =>
+                s.ModelProfile is null
+                || s.Mode == SkillMode.Measured && s.ModelProfile == CompanyModelRouting.AnalysisProfile
+            ),
+            "only measured skills may select the owner-configured analysis model profile."
+        );
         Require(
             manifest.Onboarding.Fields.All(f => Identifier().IsMatch(f.Id) && !string.IsNullOrWhiteSpace(f.Help)),
             "onboarding fields need lowercase ids and help text."

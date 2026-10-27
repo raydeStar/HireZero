@@ -1,14 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import type { Need as CockpitNeed } from "./Cockpit";
+import { useMemberAccess } from "./MemberAccess";
 
-type Need = {
-  kind: string;
-  title: string;
-  detail: string;
-  employeeId?: string;
-  taskId?: string;
-  key: string;
-  priority: string;
+type Need = CockpitNeed & {
   markVersion: number;
 };
 type Entry = {
@@ -30,8 +25,8 @@ type CompanyToday = {
 };
 
 const shift = (day: string, days: number) => {
-  const date = new Date(day + "T12:00:00");
-  date.setDate(date.getDate() + days);
+  const date = new Date(day + "T12:00:00Z");
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 };
 
@@ -42,25 +37,53 @@ export function Today({
   busy,
   run,
   open,
+  onOpenNeed,
 }: {
   open?: boolean;
   version: number;
   busy: boolean;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
+  onOpenNeed?: (need: CockpitNeed) => void;
 }) {
+  const { canWork } = useMemberAccess();
   const [today, setToday] = useState<CompanyToday | null>(null),
     [day, setDay] = useState<string | null>(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true),
+    [retry, setRetry] = useState(0);
   useEffect(() => {
+    let current = true;
+    setLoading(true);
+    setError("");
     api<CompanyToday>("/company/today" + (day ? "?day=" + day : ""))
       .then((result) => {
+        if (!current) return;
         setToday(result);
-        setError("");
       })
-      .catch((e: Error) => setError(e.message));
-  }, [version, day]);
-  if (error) return <p role="alert">{error}</p>;
-  if (!today) return null;
+      .catch((e: Error) => current && setError(e.message))
+      .finally(() => current && setLoading(false));
+    // An earlier day's reply must not show up late to today's meeting.
+    return () => {
+      current = false;
+    };
+  }, [version, day, retry]);
+  if (error)
+    return (
+      <div className="co-today">
+        <p role="alert">Could not load company activity. {error}</p>
+        <div className="co-actions">
+          <button type="button" onClick={() => setRetry((value) => value + 1)}>
+            Retry activity
+          </button>
+          {day && (
+            <button type="button" onClick={() => setDay(null)}>
+              Back to today
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  if (loading || !today) return <p role="status">Loading company activity…</p>;
   const mark = (n: Need, priority: string, snoozedUntil = "") =>
     void run("owner.mark", { id: n.key, expectedVersion: n.markVersion, decision: priority, body: snoozedUntil });
   return (
@@ -70,20 +93,31 @@ export function Today({
         <ul aria-label="Needs you">
           {today.needsYou.map((n) => (
             <li key={n.key}>
-              <strong>{n.title}</strong> <span className="co-muted">{n.detail}</span>{" "}
-              <select
-                aria-label={"Priority of " + n.title}
-                disabled={busy}
-                value={n.priority}
-                onChange={(e) => mark(n, e.target.value)}
-              >
-                <option value="high">High</option>
-                <option value="normal">Normal</option>
-                <option value="low">Low</option>
-              </select>{" "}
-              <button disabled={busy} type="button" onClick={() => mark(n, n.priority, shift(today.day, 1))}>
-                Snooze to tomorrow
-              </button>
+              {onOpenNeed ? (
+                <button className="co-link" type="button" onClick={() => onOpenNeed(n)} aria-label={"Open " + n.title}>
+                  <strong>{n.title}</strong>
+                </button>
+              ) : (
+                <strong>{n.title}</strong>
+              )}{" "}
+              <span className="co-muted">{n.detail}</span>{" "}
+              {canWork && (
+                <>
+                  <select
+                    aria-label={"Priority of " + n.title}
+                    disabled={busy}
+                    value={n.priority}
+                    onChange={(e) => mark(n, e.target.value)}
+                  >
+                    <option value="high">High</option>
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                  </select>{" "}
+                  <button disabled={busy} type="button" onClick={() => mark(n, n.priority, shift(today.day, 1))}>
+                    Snooze to tomorrow
+                  </button>
+                </>
+              )}
             </li>
           ))}
         </ul>

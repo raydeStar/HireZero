@@ -10,6 +10,7 @@ public sealed record CompanyNeed(string Kind, string Title, string Detail, strin
 
     // The conversation to open, when the item lives in one (a Connect card).
     public string? ThreadId { get; init; }
+    public string? TargetId { get; init; }
 }
 
 // The owner's priority and snooze for one waiting item.
@@ -97,6 +98,53 @@ public sealed partial class CompanyStore
                     : t.Skill;
                 string Skill(string taskId) => tasks.TryGetValue(taskId, out var t) ? Name(t) : "work";
                 var needs = new List<CompanyNeed>();
+                foreach (
+                    var memory in All<CompanyMemoryItem>(db)
+                        .Where(m =>
+                            m.State is "draft" or "needs_review"
+                            || m.State == "approved" && MemoryExclusion(db, m) is not null
+                        )
+                )
+                    needs.Add(
+                        new(
+                            "memory",
+                            "Review memory: " + memory.Definition.Title,
+                            memory.State == "draft"
+                                ? "Review its statement, evidence, audience and review date before approval."
+                                : MemoryExclusion(db, memory)!,
+                            memory.Definition.EmployeeId,
+                            memory.Id
+                        )
+                    );
+                foreach (var schedule in All<CompanySchedule>(db).Where(s => s.State is "blocked" or "draft"))
+                    needs.Add(
+                        new(
+                            "schedule",
+                            "Recurring work: " + schedule.Definition.Name,
+                            schedule.State == "draft"
+                                ? "Review the schedule, scope and remaining allowance before authorizing."
+                                : schedule.Reason
+                                    ?? "A recurring occurrence needs your review before the schedule can continue.",
+                            null,
+                            null
+                        )
+                    );
+                foreach (var profile in All<CompanyBusinessProfile>(db).Where(p => p.State == "approved"))
+                {
+                    var freshness = BusinessFreshness(db, profile);
+                    if (freshness.Blocked || freshness.Fields.Any(f => f.Status is "possible" or "unavailable"))
+                        needs.Add(
+                            new(
+                                "business-freshness",
+                                "Review business source changes",
+                                freshness.Blocked
+                                    ? "Work using the business brief is paused. Resolve conflicting or outdated facts."
+                                    : "A source changed or could not be checked. Compare the evidence and review the affected facts.",
+                                null,
+                                null
+                            )
+                        );
+                }
                 var work = WorkIndex(db, tasks.Values);
                 string? WorkOf(string id) => work.TryGetValue(id, out var task) ? task : null;
 
@@ -170,11 +218,61 @@ public sealed partial class CompanyStore
                     );
                 foreach (var p in All<CompanyPlan>(db).Where(p => p.State == "proposed"))
                     needs.Add(
-                        new("plan", Clip(p.Objective), "A proposed plan waits for your approval.", p.CeoId, null)
+                        new CompanyNeed(
+                            "plan",
+                            Clip(p.Objective),
+                            "A proposed plan waits for your approval.",
+                            p.CeoId,
+                            null
+                        )
+                        {
+                            TargetId = p.Id,
+                        }
                     );
-                foreach (var m in All<CompanyMeeting>(db).Where(m => m.State == "awaiting_owner"))
-                    needs.Add(new("meeting", Clip(m.Title), "A meeting outcome waits for your decision.", null, null));
-                foreach (var a in All<CompanyArtifact>(db).Where(a => a.State == "needs_review"))
+                foreach (var m in All<CompanyMeeting>(db).Where(m => m.State is "outcome_proposed" or "awaiting_owner"))
+                    needs.Add(
+                        new CompanyNeed(
+                            "meeting",
+                            Clip(m.Title),
+                            m.State == "outcome_proposed"
+                                ? "The discussion is complete. Review the turns and propose minutes."
+                                : "Meeting minutes wait for your approval.",
+                            null,
+                            null
+                        )
+                        {
+                            TargetId = m.Id,
+                        }
+                    );
+                // Preparation claims the task, but starts no model request. The owner still holds the starting bell.
+                foreach (var a in All<CompanyAttempt>(db).Where(a => a.Measured is { State: "proposed" }))
+                {
+                    if (!tasks.TryGetValue(a.TaskId, out var task) || task.State != "running")
+                        continue;
+                    needs.Add(
+                        new CompanyNeed(
+                            "authorization",
+                            Who(task.EmployeeId)
+                                + ": "
+                                + (task.Kind == "conversation" ? "authorize a reply" : "authorize " + Name(task)),
+                            Clock() >= a.Measured!.ExpiresAt
+                                ? "This preparation expired without running. Open it to cancel the unused proposal."
+                                : "Review the prepared context, then authorize it to start. Nothing has run yet.",
+                            task.EmployeeId,
+                            task.Id
+                        )
+                        {
+                            ThreadId = task.ThreadId,
+                        }
+                    );
+                }
+                foreach (
+                    var a in All<CompanyArtifact>(db)
+                        .Where(a =>
+                            a.State == "needs_review"
+                            && (!tasks.TryGetValue(a.TaskId, out var task) || task.MeetingId is null)
+                        )
+                )
                     needs.Add(
                         new(
                             "review",
@@ -187,13 +285,17 @@ public sealed partial class CompanyStore
                         )
                     );
                 foreach (
-                    var t in tasks.Values.Where(t => t.State == "blocked" && t.Reason == "handoff-awaiting-approval")
+                    var t in tasks.Values.Where(t =>
+                        t.State == "blocked" && t.Reason is "handoff-awaiting-approval" or "revision-awaiting-approval"
+                    )
                 )
                     needs.Add(
                         new(
-                            "handoff",
+                            t.Revision is null ? "handoff" : "revision",
                             Who(t.EmployeeId) + ": " + Name(t),
-                            "Assigned from a handoff; approve it to start.",
+                            t.Revision is null
+                                ? "Assigned from a handoff; approve it to start."
+                                : "Your requested changes are saved. Review the revision before authorizing a new run.",
                             t.EmployeeId,
                             t.Id
                         )

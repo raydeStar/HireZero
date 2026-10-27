@@ -74,6 +74,11 @@
         "resolved": "5.0.0",
         "contentHash": "dDoKi0PnDz31yAyETfRntsLArTlVAVzUzCIvvEDsDsucrl33Dl8pIJG06ePTJTI3tGpeyHS9Cq7Foc/s4EeKcg=="
       },
+      "PdfPig": {
+        "type": "Transitive",
+        "resolved": "0.1.16",
+        "contentHash": "qQcbsNMYVY+K5ELptax2S8thNMk0+rSQq3H/KdYj3LLcko8yTCz8y5KIvsKxIyAuTN0ZYNnfsZkM+0EvxTwHVA=="
+      },
       "SQLite": {
         "type": "Transitive",
         "resolved": "3.53.4",
@@ -210,10 +215,17 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.documents": {
+        "type": "Project",
+        "dependencies": {
+          "PdfPig": "[0.1.16, )"
+        }
+      },
       "hirezero.integrations.google": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
+          "HireZero.Integrations.Documents": "[1.0.0, )",
           "HireZero.Tools.Advertising": "[1.0.0, )",
           "HireZero.Tools.Analytics": "[1.0.0, )"
         }
@@ -243,6 +255,18 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.OpenRouter": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.sandbox": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.stripe": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.integrations.web": {

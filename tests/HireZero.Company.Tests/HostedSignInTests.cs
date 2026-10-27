@@ -159,9 +159,19 @@ public sealed class HostedSignInTests : IAsyncDisposable
     {
         private readonly Dictionary<string, string> _cookies = [];
 
-        public async Task<HttpResponseMessage> Host(HttpMethod method, string path, bool forwarded = true)
+        public async Task<HttpResponseMessage> Host(
+            HttpMethod method,
+            string path,
+            bool forwarded = true,
+            string? memberScope = null,
+            string? company = null
+        )
         {
             var request = new HttpRequestMessage(method, path);
+            if (memberScope is not null)
+                request.Headers.Add(CompanyHosting.BrowserScopeHeader, memberScope);
+            if (company is not null)
+                request.Headers.Add("X-HireZero-Company", company);
             if (forwarded)
             {
                 request.Headers.Add("X-Forwarded-Proto", "https");
@@ -260,6 +270,11 @@ public sealed class HostedSignInTests : IAsyncDisposable
                 Assert.Equal(_authority + "|sub-owner", session.RootElement.GetProperty("login").GetString());
             }
             Assert.Equal(HttpStatusCode.OK, (await owner.Host(HttpMethod.Get, "/api/company")).StatusCode);
+            var originalScope = CompanyHosting.BrowserScope(_authority + "|sub-owner");
+            Assert.Equal(
+                HttpStatusCode.OK,
+                (await owner.Host(HttpMethod.Get, "/api/company", memberScope: originalScope)).StatusCode
+            );
 
             // Someone the company never invited signs in at the provider but gets no session.
             _email = "stranger@example.invalid";
@@ -268,8 +283,214 @@ public sealed class HostedSignInTests : IAsyncDisposable
             Assert.Equal("/?signin=not-invited", refused.Headers.Location!.OriginalString);
             Assert.Equal(HttpStatusCode.Unauthorized, (await stranger.Host(HttpMethod.Get, "/api/company")).StatusCode);
 
+            // The same cookie jar signs in as another invited owner. A stale tab cannot act with that new identity.
+            var store = app.Services.GetRequiredService<CompanyStore>();
+            store.Apply(
+                new CompanyCommand(Guid.NewGuid().ToString("D"), "member.invite")
+                {
+                    Body = "second@example.invalid",
+                    Decision = CompanyRoles.Owner,
+                },
+                _authority + "|sub-owner",
+                out _
+            );
+            _email = "second@example.invalid";
+            Assert.Equal(HttpStatusCode.Redirect, (await owner.SignInAsync()).StatusCode);
+            using var changedSession = JsonDocument.Parse(
+                await (
+                    await owner.Host(HttpMethod.Get, "/api/session", memberScope: originalScope)
+                ).Content.ReadAsStringAsync(Token)
+            );
+            var nextScope = changedSession.RootElement.GetProperty("browserScope").GetString()!;
+            Assert.NotEqual(originalScope, nextScope);
+            Assert.Equal(CompanyHosting.BrowserScope(_authority + "|sub-second"), nextScope);
+            foreach (var method in new[] { HttpMethod.Get, HttpMethod.Post })
+            {
+                var refusedStale = await owner.Host(
+                    method,
+                    method == HttpMethod.Get ? "/api/company" : "/api/company/commands",
+                    memberScope: originalScope
+                );
+                Assert.Equal(HttpStatusCode.Conflict, refusedStale.StatusCode);
+                using var refusal = JsonDocument.Parse(await refusedStale.Content.ReadAsStringAsync(Token));
+                Assert.Equal("session-changed", refusal.RootElement.GetProperty("code").GetString());
+            }
+            Assert.Equal(
+                HttpStatusCode.OK,
+                (await owner.Host(HttpMethod.Get, "/api/company", memberScope: nextScope)).StatusCode
+            );
+
             Assert.Equal(HttpStatusCode.OK, (await owner.Host(HttpMethod.Post, "/signout")).StatusCode);
             Assert.Equal(HttpStatusCode.Unauthorized, (await owner.Host(HttpMethod.Get, "/api/company")).StatusCode);
+            await app.StopAsync(Token);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ExecutionHold.Variable, previous);
+        }
+    }
+
+    [Fact]
+    public async Task SecondaryCompanyInviteAndRevocationKeepAnAuthenticatedWayHome()
+    {
+        await StartProviderAsync();
+        var previous = Environment.GetEnvironmentVariable(ExecutionHold.Variable);
+        Environment.SetEnvironmentVariable(ExecutionHold.Variable, "0");
+        try
+        {
+            var hosted = new HostedOptions(
+                new Uri("https://" + Public + "/"),
+                new Uri("http://127.0.0.1:0"),
+                _authority,
+                ClientId,
+                TrustedProxy: IPAddress.Loopback
+            ).Validated();
+            await using var app = CompanyWorkspace.TryCreate(
+                [CompanyHosting.HostedFlag],
+                "owner@example.invalid",
+                false,
+                Path.Combine(_root.Path, "host"),
+                new UnavailableModelProvider(),
+                fixtureUrl: "http://127.0.0.1:0",
+                fixtureTools: _ => { },
+                fixtureHosted: hosted
+            )!;
+            await app.StartAsync(Token);
+            using var hostClient = new HttpClient(
+                new HttpClientHandler
+                {
+                    AllowAutoRedirect = false,
+                    UseCookies = false,
+                    UseProxy = false,
+                }
+            )
+            {
+                BaseAddress = new Uri(
+                    app.Services.GetRequiredService<IServer>()
+                        .Features.Get<IServerAddressesFeature>()!
+                        .Addresses.First()
+                ),
+            };
+            using var idpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
+            var owner = new Browser(hostClient, idpClient);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await owner.Host(HttpMethod.Get, "/api/companies")).StatusCode);
+            Assert.Equal(HttpStatusCode.Redirect, (await owner.SignInAsync()).StatusCode);
+            var store = app.Services.GetRequiredService<CompanyStore>();
+            var ownerSubject = _authority + "|sub-owner";
+            var created = store.CreateCompany("Fictional Harbor", Guid.NewGuid().ToString("D"), ownerSubject);
+            var second = new CompanyStore(
+                Path.Combine(_root.Path, "host", "workspace.sqlite"),
+                ownerSubject,
+                CompanyWorkspace.Definitions(),
+                companyId: created.Id
+            );
+            second.Apply(
+                new CompanyCommand(Guid.NewGuid().ToString("D"), "member.invite")
+                {
+                    Body = "guest@example.invalid",
+                    Decision = CompanyRoles.Viewer,
+                },
+                ownerSubject,
+                out _
+            );
+            _email = "guest@example.invalid";
+            var guest = new Browser(hostClient, idpClient);
+            Assert.Equal("/", (await guest.SignInAsync()).Headers.Location!.OriginalString);
+            var scope = CompanyHosting.BrowserScope(_authority + "|sub-guest");
+            foreach (var selected in new string?[] { null, "co-does-not-exist" })
+            {
+                var response = await guest.Host(HttpMethod.Get, "/api/session", company: selected);
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                Assert.True(response.Headers.CacheControl!.NoStore);
+                using var session = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token));
+                Assert.True(session.RootElement.GetProperty("signedIn").GetBoolean());
+                Assert.True(session.RootElement.GetProperty("companySelectionRequired").GetBoolean());
+                Assert.Equal(scope, session.RootElement.GetProperty("browserScope").GetString());
+                var choice = Assert.Single(session.RootElement.GetProperty("companies").EnumerateArray());
+                Assert.Equal(created.Id, choice.GetProperty("id").GetString());
+                Assert.Equal("Fictional Harbor", choice.GetProperty("name").GetString());
+                Assert.Equal("viewer", choice.GetProperty("role").GetString());
+                Assert.False(session.RootElement.TryGetProperty("agentModel", out _));
+                Assert.False(session.RootElement.TryGetProperty("role", out _));
+            }
+            var directory = await guest.Host(
+                HttpMethod.Get,
+                "/api/companies",
+                memberScope: scope,
+                company: "co-does-not-exist"
+            );
+            Assert.Equal(HttpStatusCode.OK, directory.StatusCode);
+            Assert.True(directory.Headers.CacheControl!.NoStore);
+            using (var choices = JsonDocument.Parse(await directory.Content.ReadAsStringAsync(Token)))
+                Assert.Equal(
+                    created.Id,
+                    Assert.Single(choices.RootElement.EnumerateArray()).GetProperty("id").GetString()
+                );
+            Assert.Equal(
+                HttpStatusCode.Conflict,
+                (
+                    await guest.Host(
+                        HttpMethod.Get,
+                        "/api/companies",
+                        memberScope: CompanyHosting.BrowserScope(ownerSubject)
+                    )
+                ).StatusCode
+            );
+            Assert.Equal(HttpStatusCode.Forbidden, (await guest.Host(HttpMethod.Get, "/api/company")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await guest.Host(HttpMethod.Post, "/api/companies")).StatusCode);
+            Assert.Equal(
+                HttpStatusCode.Forbidden,
+                (await guest.Host(HttpMethod.Post, "/api/companies", company: created.Id)).StatusCode
+            );
+            Assert.Equal(
+                HttpStatusCode.OK,
+                (await guest.Host(HttpMethod.Get, "/api/company", company: created.Id)).StatusCode
+            );
+            using (
+                var selected = JsonDocument.Parse(
+                    await (
+                        await guest.Host(HttpMethod.Get, "/api/session", company: created.Id)
+                    ).Content.ReadAsStringAsync(Token)
+                )
+            )
+            {
+                Assert.Equal("viewer", selected.RootElement.GetProperty("role").GetString());
+                Assert.False(selected.RootElement.TryGetProperty("companySelectionRequired", out _));
+            }
+
+            var member = second.Members().Single(m => m.Id == _authority + "|sub-guest");
+            second.Apply(
+                new CompanyCommand(Guid.NewGuid().ToString("D"), "member.revoke")
+                {
+                    Id = member.Id,
+                    ExpectedVersion = member.Version,
+                },
+                ownerSubject,
+                out _
+            );
+            using (
+                var revoked = JsonDocument.Parse(
+                    await (
+                        await guest.Host(HttpMethod.Get, "/api/session", company: created.Id)
+                    ).Content.ReadAsStringAsync(Token)
+                )
+            )
+            {
+                Assert.True(revoked.RootElement.GetProperty("companySelectionRequired").GetBoolean());
+                Assert.Empty(revoked.RootElement.GetProperty("companies").EnumerateArray());
+            }
+            Assert.Equal(
+                HttpStatusCode.Forbidden,
+                (await guest.Host(HttpMethod.Get, "/api/company", company: created.Id)).StatusCode
+            );
+            using (
+                var choices = JsonDocument.Parse(
+                    await (await guest.Host(HttpMethod.Get, "/api/companies")).Content.ReadAsStringAsync(Token)
+                )
+            )
+                Assert.Empty(choices.RootElement.EnumerateArray());
+            Assert.Equal(HttpStatusCode.OK, (await guest.Host(HttpMethod.Post, "/signout")).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await guest.Host(HttpMethod.Get, "/api/companies")).StatusCode);
             await app.StopAsync(Token);
         }
         finally

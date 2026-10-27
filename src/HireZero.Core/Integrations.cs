@@ -27,6 +27,12 @@ public sealed record IntegrationField(string Id, string Label, string Help, int 
     public bool List { get; init; }
     public int MaxItems { get; init; } = 5;
 
+    // Opaque provider IDs must not be folded like friendly labels.
+    public bool CaseSensitive { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Func<string, string>? Normalize { get; init; }
+
     [System.Text.Json.Serialization.JsonIgnore]
     public Func<string, string?>? Check { get; init; }
 }

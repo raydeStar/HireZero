@@ -3,6 +3,7 @@ import type { Employee, Knowledge, Snapshot } from "./api";
 import { ContextFromSources } from "./ContextFromSources";
 import { valuesOf } from "./contextDraft";
 import { humanize } from "./labels";
+import { useMemberAccess } from "./MemberAccess";
 
 // Approved context after onboarding (real-use batch, 2026-10-20): a department's shared facts or the company-wide facts,
 // edited from the latest saved version rather than from blank, re-draftable from sources, and saved as a new draft the
@@ -26,6 +27,7 @@ export function ContextEditor({
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
   refresh: () => Promise<void>;
 }) {
+  const { canManage, canWork } = useMemberAccess();
   const versions = snapshot.data.knowledge.filter((k) => k.departmentId === departmentId);
   const latest = versions.at(-1);
   const draft = versions.filter((k) => k.state === "draft").at(-1);
@@ -44,7 +46,7 @@ export function ContextEditor({
 
   return (
     <div className="co-context-editor">
-      {drafter && !sourcesOpen && (
+      {canManage && drafter && !sourcesOpen && (
         <p className="co-muted">
           Start from your website or repositories:{" "}
           <button type="button" className="co-link" onClick={() => setSourcesOpen(true)}>
@@ -52,7 +54,7 @@ export function ContextEditor({
           </button>
         </p>
       )}
-      {drafter && sourcesOpen && (
+      {canManage && drafter && sourcesOpen && (
         <ContextFromSources
           snapshot={snapshot}
           employeeId={drafter.id}
@@ -63,34 +65,42 @@ export function ContextEditor({
           onFill={(filled) => setValues({ ...values, ...filled })}
         />
       )}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (missing.length) {
-            setError("Complete every field. If a fact is unknown, say so explicitly.");
-            return;
-          }
-          setError("");
-          // A pending draft is revised in place; otherwise this becomes a new draft beside the approved version.
-          void run("knowledge.save", {
-            departmentId,
-            body: JSON.stringify(Object.fromEntries(fields.map((f) => [f.id, values[f.id].trim()]))),
-            ...(draft ? { id: draft.id, expectedVersion: draft.version } : {}),
-          });
-        }}
-      >
-        {fields.map((f) => (
-          <label key={f.id}>
-            {humanize(f.id)}
-            {f.help && <small className="co-muted">{f.help}</small>}
-            <textarea value={values[f.id] || ""} onChange={(e) => setValues({ ...values, [f.id]: e.target.value })} />
-          </label>
-        ))}
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" className="co-primary" disabled={busy}>
-          {draft ? "Update the draft" : latest ? "Save as a new draft" : "Save draft"}
-        </button>
-      </form>
+      {canManage ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (missing.length) {
+              setError("Complete every field. If a fact is unknown, say so explicitly.");
+              return;
+            }
+            setError("");
+            // A pending draft is revised in place; otherwise this becomes a new draft beside the approved version.
+            void run("knowledge.save", {
+              departmentId,
+              body: JSON.stringify(Object.fromEntries(fields.map((f) => [f.id, values[f.id].trim()]))),
+              ...(draft ? { id: draft.id, expectedVersion: draft.version } : {}),
+            });
+          }}
+        >
+          {fields.map((f) => (
+            <label key={f.id}>
+              {humanize(f.id)}
+              {f.help && <small className="co-muted">{f.help}</small>}
+              <textarea value={values[f.id] || ""} onChange={(e) => setValues({ ...values, [f.id]: e.target.value })} />
+            </label>
+          ))}
+          {error && <p role="alert">{error}</p>}
+          <button type="submit" className="co-primary" disabled={busy}>
+            {draft ? "Update the draft" : latest ? "Save as a new draft" : "Save draft"}
+          </button>
+        </form>
+      ) : (
+        <p className="co-muted">
+          An owner edits shared facts.
+          {canWork ? " You can review saved versions below." : " You can read saved versions below."}
+        </p>
+      )}
+      {!canManage && versions.length === 0 && <p>No shared facts have been saved yet.</p>}
       {versions
         .slice()
         .reverse()
@@ -110,12 +120,12 @@ export function ContextEditor({
                   </div>
                 ))}
               </dl>
-              {k.state === "draft" && (
+              {canWork && k.state === "draft" && (
                 <button className="co-primary" disabled={busy} onClick={() => review(k, "approve")}>
                   Approve this version
                 </button>
               )}
-              {k.state === "approved" && (
+              {canWork && k.state === "approved" && (
                 <button disabled={busy} onClick={() => review(k, "revoke")}>
                   Revoke
                 </button>

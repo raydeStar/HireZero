@@ -1,0 +1,42 @@
+.co-model-connection {
+  margin-block: 1.5rem;
+  padding-block: 1rem;
+  border-block: 1px solid var(--fe-line);
+  overflow-wrap: anywhere;
+}
+.co-model-connection fieldset {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1rem;
+  margin-block: 1rem;
+  border: 1px solid var(--fe-line);
+  border-radius: 0.75rem;
+}
+.co-model-connection label {
+  display: grid;
+  gap: 0.4rem;
+}
+.co-model-connection select,
+.co-model-connection input {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.co-workspace .co-model-connection .co-model-consent {
+  display: grid;
+  grid-template-columns: 1.2rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.7rem;
+}
+.co-workspace .co-model-connection .co-model-consent input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0.2rem 0 0;
+}
+.co-model-current {
+  padding: 0.8rem;
+  background: var(--fe-accent-soft);
+  border-radius: 0.6rem;
+  margin-bottom: 0.7rem;
+}

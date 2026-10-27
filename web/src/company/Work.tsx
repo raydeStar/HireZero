@@ -1,15 +1,18 @@
 import { MessageSquareText, X } from "lucide-react";
+import { useState } from "react";
 import type { Snapshot, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
-import { workGroups, workTitle } from "./Cockpit";
+import { workGroups, workState, workTitle } from "./Cockpit";
 import { taskState } from "./labels";
 import { ago, useNow } from "./time";
+import { useMemberAccess } from "./MemberAccess";
 
 const sections = [
   ["Needs review", workGroups.review],
   ["In progress", workGroups.progress],
   ["Up next", workGroups.next],
   ["Done", workGroups.done],
+  ["Replaced", ["superseded"]],
 ] as const;
 
 // The Work board (docs/adr/0040-the-muse-layout.md): a conversation's work by what it needs next.
@@ -26,10 +29,12 @@ export function WorkBoard({
   open: string;
   onOpen: (task: Work) => void;
 }) {
+  const { canWork } = useMemberAccess();
   const d = snapshot.data;
   const nameOf = (id: string) => d.employees.find((e) => e.id === id)?.name ?? "Former employee";
   const work = tasks.filter((t) => t.kind !== "conversation");
   const now = useNow();
+  const [doneLimit, setDoneLimit] = useState(12);
   // What was asked, in a line (UX round 8); structured action input is left to the work window.
   const asked = (t: Work) => {
     const line = t.input.trim().split(/\r?\n/)[0] ?? "";
@@ -39,11 +44,15 @@ export function WorkBoard({
   return (
     <section className="co-work-board" aria-label="Work">
       {work.length === 0 && (
-        <p className="fe-cockpit-clear">No work yet. Ask for something in Chat, or start an action.</p>
+        <p className="fe-cockpit-clear">
+          {canWork
+            ? "No work yet. Ask for something in Chat, or start an action."
+            : "No work has been saved in this conversation yet."}
+        </p>
       )}
       {sections.map(([label, states]) => {
-        const items = work.filter((t) => (states as readonly string[]).includes(t.state));
-        const shown = label === "Done" ? items.slice(-12).reverse() : items;
+        const items = work.filter((t) => (states as readonly string[]).includes(workState(snapshot, t)));
+        const shown = label === "Done" ? items.slice(-doneLimit).reverse() : items;
         return (
           items.length > 0 && (
             <div key={label} className="co-work-group" role="group" aria-label={label}>
@@ -61,7 +70,7 @@ export function WorkBoard({
                       <span>{workTitle(snapshot, t)}</span>
                       {asked(t) && <q className="co-work-asked">{asked(t)}</q>}
                       <small>
-                        {(everyone ? nameOf(t.employeeId) + " · " : "") + taskState(t.state)}
+                        {(everyone ? nameOf(t.employeeId) + " · " : "") + taskState(workState(snapshot, t), canWork)}
                         {t.reason && t.state !== "completed" ? " · " + t.reason.replaceAll("-", " ") : ""}
                         {d.taskTimes?.[t.id] ? " · " + ago(d.taskTimes[t.id]!.updated, now) : ""}
                       </small>
@@ -69,6 +78,11 @@ export function WorkBoard({
                   </li>
                 ))}
               </ul>
+              {label === "Done" && shown.length < items.length && (
+                <button className="co-work-older" onClick={() => setDoneLimit((limit) => limit + 12)}>
+                  Show earlier work ({items.length - shown.length} more)
+                </button>
+              )}
             </div>
           )
         );
@@ -87,6 +101,9 @@ export function WorkWindow({
   open,
   onChat,
   onClose,
+  onOpenPlans,
+  onRememberResult,
+  onRepeatWork,
 }: {
   snapshot: Snapshot;
   task: Work;
@@ -96,14 +113,18 @@ export function WorkWindow({
   open: (employeeId: string, threadId: string) => void;
   onChat?: () => void;
   onClose: () => void;
+  onOpenPlans?: () => void;
+  onRememberResult?: (artifactId: string) => void;
+  onRepeatWork?: (taskId: string) => void;
 }) {
+  const { canWork } = useMemberAccess();
   const employee = snapshot.data.employees.find((e) => e.id === task.employeeId);
   return (
     <section className="fe-window co-work-window" tabIndex={-1} aria-label={"Work: " + workTitle(snapshot, task)}>
       <header className="co-work-window-head">
         <div>
           <strong>{workTitle(snapshot, task)}</strong>
-          <small>{(employee?.name ?? "Former employee") + " · " + taskState(task.state)}</small>
+          <small>{(employee?.name ?? "Former employee") + " · " + taskState(workState(snapshot, task), canWork)}</small>
         </div>
         {onChat && (
           <button className="fe-icon-button" aria-label="Show in chat" title="Show in chat" onClick={onChat}>
@@ -118,7 +139,17 @@ export function WorkWindow({
         {task.kind === "conversation" ? (
           <p className="fe-muted">This is a reply in the conversation. Its review and send steps are in Chat.</p>
         ) : employee ? (
-          <ConversationJob task={task} snapshot={snapshot} busy={busy} run={run} refresh={refresh} open={open} />
+          <ConversationJob
+            task={task}
+            snapshot={snapshot}
+            busy={busy}
+            run={run}
+            refresh={refresh}
+            open={open}
+            onOpenPlans={onOpenPlans}
+            onRememberResult={onRememberResult}
+            onRepeatWork={onRepeatWork}
+          />
         ) : (
           <p className="fe-muted">This work belonged to an employee who is no longer here.</p>
         )}

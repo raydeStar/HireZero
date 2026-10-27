@@ -1,31 +1,57 @@
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import test from 'node:test';
-import vm from 'node:vm';
-import ts from '../web/node_modules/typescript/lib/typescript.js';
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import test from "node:test";
+import vm from "node:vm";
+import ts from "../web/node_modules/typescript/lib/typescript.js";
 
 // The reviewed-execution panel (docs/adr/0012-company-publication.md) offers exactly the next step the saved state
 // allows, and sends approvals at the exact digest.
-const source = fs.readFileSync(new URL('../web/src/company/ExecutionSteps.tsx', import.meta.url), 'utf8');
+const source = fs.readFileSync(
+  new URL("../web/src/company/ExecutionSteps.tsx", import.meta.url),
+  "utf8",
+);
 const code = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  compilerOptions: {
+    module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2022,
+    jsx: ts.JsxEmit.ReactJSX,
+  },
 }).outputText;
 // The shared plain-language labels the panel uses, loaded as they are, not stubbed.
 const labels = {};
 vm.runInNewContext(
-  ts.transpileModule(fs.readFileSync(new URL('../web/src/company/labels.ts', import.meta.url), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText,
+  ts.transpileModule(
+    fs.readFileSync(
+      new URL("../web/src/company/labels.ts", import.meta.url),
+      "utf8",
+    ),
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+    },
+  ).outputText,
   { exports: labels, require: () => ({}) },
 );
 
 function render(
   detail,
-  { resource = 'C:/fictional/checkout', state = 'blocked', publishes = true, component = 'ExecutionSteps', artifacts = [] } = {},
+  {
+    resource = "C:/fictional/checkout",
+    state = "blocked",
+    publishes = true,
+    runtimeAvailable = true,
+    component = "ExecutionSteps",
+    artifacts = [],
+    canWork = true,
+    canManage = true,
+  } = {},
 ) {
-  const slots = [detail, '', '', false];
+  const slots = [detail, "", "", false];
   let cursor = 0;
-  const commands = [], steps = [];
+  const commands = [],
+    steps = [];
   const react = {
     useState: (value) => {
       const i = cursor++;
@@ -39,15 +65,26 @@ function render(
   vm.runInNewContext(code, {
     exports,
     require: (name) =>
-      name === 'react' ? react
-      : name === '../lib/api' ? { api: async () => detail }
-      : name === './api' ? { executionStep: async (step, id) => steps.push([step, id]) }
-      : name === './labels' ? labels
-      : { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }), Fragment: 'fragment' },
+      name === "react"
+        ? react
+        : name === "../lib/api"
+          ? { api: async () => detail }
+          : name === "./api"
+            ? { executionStep: async (step, id) => steps.push([step, id]) }
+            : name === "./labels"
+              ? labels
+              : name === "./MemberAccess"
+                ? { useMemberAccess: () => ({ canWork, canManage }) }
+                : {
+                    jsx: (type, props) => ({ type, props }),
+                    jsxs: (type, props) => ({ type, props }),
+                    Fragment: "fragment",
+                  },
   });
   const tree = exports[component]({
-    task: { id: 'task-1', version: 3, state, resource },
+    task: { id: "task-1", version: 3, state, resource },
     publishes,
+    runtimeAvailable,
     artifacts,
     busy: false,
     run: async (action, fields) => commands.push([action, fields]),
@@ -55,118 +92,302 @@ function render(
   });
   const nodes = [];
   (function walk(node) {
-    if (!node || typeof node !== 'object') return;
+    if (!node || typeof node !== "object") return;
     if (Array.isArray(node)) return node.forEach(walk);
     nodes.push(node);
     walk(node.props?.children);
   })(tree);
   const text = (node) =>
-    typeof node === 'string' || typeof node === 'number' ? String(node)
-    : Array.isArray(node) ? node.map(text).join('')
-    : node && typeof node === 'object' ? text(node.props?.children)
-    : '';
-  const button = (label) => nodes.find((n) => n.type === 'button' && text(n).includes(label));
+    typeof node === "string" || typeof node === "number"
+      ? String(node)
+      : Array.isArray(node)
+        ? node.map(text).join("")
+        : node && typeof node === "object"
+          ? text(node.props?.children)
+          : "";
+  const button = (label) =>
+    nodes.find((n) => n.type === "button" && text(n).includes(label));
   return { nodes, button, commands, steps, text: text(tree) };
 }
 
 const grant = (state, extra = {}) => ({
-  id: 'grant-1', state, digest: 'g'.repeat(64), version: 2, workspace: 'C:/fictional/checkout',
-  revision: 'a'.repeat(40), route: 'openai/fixture', expiresAt: '2026-10-17T12:00:00Z', review: null, ...extra,
+  id: "grant-1",
+  state,
+  digest: "g".repeat(64),
+  version: 2,
+  workspace: "C:/fictional/checkout",
+  revision: "a".repeat(40),
+  route: "openai/fixture",
+  expiresAt: "2026-10-17T12:00:00Z",
+  review: null,
+  ...extra,
 });
 const publication = (state, extra = {}) => ({
-  id: 'pub-1', state, digest: 'p'.repeat(64), version: 4, summary: 'Commit 1 reviewed file to owner/quotes:fix/x',
-  expiresAt: '2026-10-17T12:00:00Z', result: null, reason: null, ...extra,
+  id: "pub-1",
+  state,
+  digest: "p".repeat(64),
+  version: 4,
+  summary: "Commit 1 reviewed file to owner/quotes:fix/x",
+  expiresAt: "2026-10-17T12:00:00Z",
+  result: null,
+  reason: null,
+  ...extra,
 });
 
-test('a task without a checkout offers only the checkout grant', () => {
+test("a task without a checkout offers only the checkout grant", () => {
   const view = render({ executions: [], publications: [] }, { resource: null });
-  assert.ok(view.nodes.some((n) => n.type === 'form'));
-  assert.equal(view.button('Prepare'), undefined);
+  assert.ok(view.nodes.some((n) => n.type === "form"));
+  assert.equal(view.button("Prepare"), undefined);
 });
 
-test('a proposed grant is approved at its exact digest', async () => {
+test("a proposed grant is approved at its exact digest", async () => {
   const view = render({
-    executions: [grant('proposed', { bounds: { tokens: 8000, seconds: 900, effort: 'medium' } })],
+    executions: [
+      grant("proposed", {
+        bounds: { tokens: 8000, seconds: 900, effort: "medium" },
+      }),
+    ],
     publications: [],
   });
-  assert.equal(view.button('Prepare'), undefined);
+  assert.equal(view.button("Prepare"), undefined);
   assert.match(view.text, /900 seconds/);
   assert.match(view.text, /medium effort/);
-  view.button('Approve this execution').props.onClick();
+  view.button("Approve this execution").props.onClick();
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(JSON.parse(JSON.stringify(view.commands)), [
-    ['execution.review', { id: 'grant-1', expectedVersion: 2, digest: 'g'.repeat(64), decision: 'approve' }],
+    [
+      "execution.review",
+      {
+        id: "grant-1",
+        expectedVersion: 2,
+        digest: "g".repeat(64),
+        decision: "approve",
+      },
+    ],
   ]);
 });
 
-test('an approved grant runs once through its step', async () => {
-  const view = render({ executions: [grant('approved')], publications: [] });
-  view.button('Run once').props.onClick();
+test("an approved grant runs once through its step", async () => {
+  const view = render({ executions: [grant("approved")], publications: [] });
+  view.button("Run once").props.onClick();
   await new Promise((r) => setImmediate(r));
-  assert.deepEqual(view.steps, [['run', 'grant-1']]);
+  assert.deepEqual(view.steps, [["run", "grant-1"]]);
 });
 
-test('only publishing skills offer a publication, and only for a completed change', () => {
-  const done = { executions: [grant('completed', { review: { digest: 'r', files: [{ path: 'Quote.cs' }] } })], publications: [] };
-  assert.ok(render(done).button('Propose publication'));
-  assert.equal(render(done, { publishes: false }).button('Propose publication'), undefined);
-  const empty = { executions: [grant('completed', { review: { digest: 'r', files: [] } })], publications: [] };
-  assert.equal(render(empty).button('Propose publication'), undefined);
+test("runtime release distinguishes removed files, retained files and an unconfirmed stop", () => {
+  const released = render({
+    executions: [
+      grant("completed", {
+        release: {
+          processStopped: true,
+          temporaryFilesRemoved: true,
+          status: "released",
+        },
+      }),
+    ],
+  });
+  assert.match(released.text, /temporary files removed/);
+  assert.match(released.text, /checkout and reviewed results are kept/);
+  assert.equal(
+    released.nodes.some((n) => n.props?.role === "alert"),
+    false,
+  );
+  const retained = render({
+    executions: [
+      grant("completed", {
+        release: {
+          processStopped: true,
+          temporaryFilesRemoved: false,
+          status: "cleanup-incomplete",
+        },
+      }),
+    ],
+  });
+  assert.match(retained.text, /temporary files need cleanup/);
+  assert.equal(
+    retained.nodes.some((n) => n.props?.role === "alert"),
+    true,
+  );
+  const unknown = render({
+    executions: [
+      grant("unknown", {
+        release: {
+          processStopped: false,
+          temporaryFilesRemoved: false,
+          status: "termination-unconfirmed",
+        },
+      }),
+    ],
+  });
+  assert.match(unknown.text, /Do not start another run/);
+  assert.equal(unknown.button("Run once"), undefined);
+  assert.equal(unknown.button("Prepare"), undefined);
+  assert.equal(
+    render({ executions: [grant("unknown")] }).button("Prepare"),
+    undefined,
+  );
+  assert.doesNotMatch(
+    render({ executions: [grant("completed")] }).text,
+    /temporary files removed/,
+  );
 });
 
-test('an approved publication publishes once; an unknown one is only checked', async () => {
-  const done = grant('completed', { review: { digest: 'r', files: [{ path: 'Quote.cs' }] } });
-  const approved = render({ executions: [done], publications: [publication('approved')] });
-  assert.equal(approved.button('Propose publication'), undefined);
-  approved.button('Publish once').props.onClick();
-  await new Promise((r) => setImmediate(r));
-  assert.deepEqual(approved.steps, [['publish', 'pub-1']]);
+test("an unavailable company runtime explains the saved task without offering a dead-end start", () => {
+  const unscoped = render(
+    { executions: [] },
+    { resource: null, runtimeAvailable: false },
+  );
+  assert.match(unscoped.text, /Coding is not available for this company/);
+  assert.equal(
+    unscoped.nodes.some((n) => n.type === "form"),
+    false,
+  );
+  assert.equal(
+    render({ executions: [] }, { runtimeAvailable: false }).button("Prepare"),
+    undefined,
+  );
+  assert.equal(
+    render(
+      { executions: [grant("approved")] },
+      { runtimeAvailable: false },
+    ).button("Run once"),
+    undefined,
+  );
+});
 
-  const unknown = render({ executions: [done], publications: [publication('unknown', { result: 'c'.repeat(40) })] });
-  assert.equal(unknown.button('Publish once'), undefined);
+test("only publishing skills offer a publication, and only for a completed change", () => {
+  const done = {
+    executions: [
+      grant("completed", {
+        review: { digest: "r", files: [{ path: "Quote.cs" }] },
+      }),
+    ],
+    publications: [],
+  };
+  assert.ok(render(done).button("Propose publication"));
+  assert.equal(
+    render(done, { publishes: false }).button("Propose publication"),
+    undefined,
+  );
+  const empty = {
+    executions: [grant("completed", { review: { digest: "r", files: [] } })],
+    publications: [],
+  };
+  assert.equal(render(empty).button("Propose publication"), undefined);
+});
+
+test("an approved publication publishes once; an unknown one is only checked", async () => {
+  const done = grant("completed", {
+    review: { digest: "r", files: [{ path: "Quote.cs" }] },
+  });
+  const approved = render({
+    executions: [done],
+    publications: [publication("approved")],
+  });
+  assert.equal(approved.button("Propose publication"), undefined);
+  approved.button("Publish once").props.onClick();
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(approved.steps, [["publish", "pub-1"]]);
+
+  const unknown = render({
+    executions: [done],
+    publications: [publication("unknown", { result: "c".repeat(40) })],
+  });
+  assert.equal(unknown.button("Publish once"), undefined);
   assert.match(unknown.text, /will not be retried/);
-  unknown.button('Check whether it was published').props.onClick();
+  unknown.button("Check whether it was published").props.onClick();
   await new Promise((r) => setImmediate(r));
-  assert.deepEqual(unknown.steps, [['reconcile', 'pub-1']]);
+  assert.deepEqual(unknown.steps, [["reconcile", "pub-1"]]);
 });
 
-test('a proposed publication is approved at its exact digest after the change', async () => {
-  const done = grant('completed', { review: { digest: 'r', files: [{ path: 'Quote.cs' }] } });
-  const view = render({ executions: [done], publications: [publication('proposed')] });
+test("a proposed publication is approved at its exact digest after the change", async () => {
+  const done = grant("completed", {
+    review: { digest: "r", files: [{ path: "Quote.cs" }] },
+  });
+  const view = render({
+    executions: [done],
+    publications: [publication("proposed")],
+  });
   assert.match(view.text, /Nothing is sent until you publish it/);
-  view.button('Approve this publication').props.onClick();
+  view.button("Approve this publication").props.onClick();
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(JSON.parse(JSON.stringify(view.commands)), [
-    ['publication.review', { id: 'pub-1', expectedVersion: 4, digest: 'p'.repeat(64), decision: 'approve' }],
+    [
+      "publication.review",
+      {
+        id: "pub-1",
+        expectedVersion: 4,
+        digest: "p".repeat(64),
+        decision: "approve",
+      },
+    ],
   ]);
 });
 
-test('an approved draft, not gathered evidence, can be proposed for publication', async () => {
+test("an approved draft, not gathered evidence, can be proposed for publication", async () => {
   const artifacts = [
-    { id: 'evidence', state: 'approved', provenance: 'action:wiki-read' },
-    { id: 'draft', state: 'approved', provenance: 'model-output' },
+    { id: "evidence", state: "approved", provenance: "action:wiki-read" },
+    { id: "draft", state: "approved", provenance: "model-output" },
   ];
-  const view = render({ publications: [] }, { component: 'ArtifactPublication', artifacts });
+  const view = render(
+    { publications: [] },
+    { component: "ArtifactPublication", artifacts },
+  );
   // Only the draft gets a button; the gathered evidence does not.
-  const propose = view.nodes.filter((n) => n.type === 'button');
+  const propose = view.nodes.filter((n) => n.type === "button");
   assert.equal(propose.length, 1);
   propose[0].props.onClick();
   await new Promise((r) => setImmediate(r));
-  assert.deepEqual(view.steps, [['propose', 'draft']]);
-  const waiting = render({ publications: [] }, { component: 'ArtifactPublication', artifacts: [{ ...artifacts[1], state: 'needs_review' }] });
-  assert.equal(waiting.button('Propose publication'), undefined);
+  assert.deepEqual(view.steps, [["propose", "draft"]]);
+  const waiting = render(
+    { publications: [] },
+    {
+      component: "ArtifactPublication",
+      artifacts: [{ ...artifacts[1], state: "needs_review" }],
+    },
+  );
+  assert.equal(waiting.button("Propose publication"), undefined);
   assert.match(waiting.text, /Approve the result above/);
 });
 
-test('an artifact publication uses the same exact-digest controls', async () => {
-  const artifacts = [{ id: 'draft', state: 'approved', provenance: 'model-output' }];
+test("an artifact publication uses the same exact-digest controls", async () => {
+  const artifacts = [
+    { id: "draft", state: "approved", provenance: "model-output" },
+  ];
   const view = render(
-    { publications: [{ ...publication('approved'), artifactId: 'draft' }] },
-    { component: 'ArtifactPublication', artifacts },
+    { publications: [{ ...publication("approved"), artifactId: "draft" }] },
+    { component: "ArtifactPublication", artifacts },
   );
-  assert.equal(view.button('Propose publication'), undefined);
-  view.button('Publish once').props.onClick();
+  assert.equal(view.button("Propose publication"), undefined);
+  view.button("Publish once").props.onClick();
   await new Promise((r) => setImmediate(r));
-  assert.deepEqual(view.steps, [['publish', 'pub-1']]);
+  assert.deepEqual(view.steps, [["publish", "pub-1"]]);
 });
 
+test("viewers can read execution and publication receipts without active mutation controls", () => {
+  for (const state of ["proposed", "approved", "executed", "unknown"]) {
+    const view = render(
+      { executions: [grant(state)], publications: [publication(state)] },
+      { canWork: false, canManage: false },
+    );
+    assert.ok(
+      view.nodes
+        .filter((node) => node.type === "button")
+        .every((node) => node.props.disabled),
+    );
+  }
+  const view = render(
+    { publications: [publication("approved")] },
+    { component: "ArtifactPublication", canWork: false, canManage: false },
+  );
+  assert.equal(view.button("Publish once").props.disabled, true);
+  const approver = render(
+    { executions: [] },
+    { resource: null, canWork: true, canManage: false },
+  );
+  assert.equal(
+    approver.nodes.some((node) => node.type === "form"),
+    false,
+    "Checkout grants stay with owners",
+  );
+});

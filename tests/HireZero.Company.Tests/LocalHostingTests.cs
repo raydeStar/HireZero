@@ -7,6 +7,23 @@ public sealed class LocalHostingTests
 {
     private const string Expected = "127.0.0.1:5065";
 
+    [Fact]
+    public void AConfiguredLocalListenerCannotExposeTheOwnerOnTheNetwork()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "hirezero-listen-" + Guid.NewGuid().ToString("N"));
+        var values = new Dictionary<string, string>
+        {
+            ["HIREZERO_DATA_ROOT"] = root,
+            ["HIREZERO_LISTEN"] = "http://0.0.0.0:5099",
+        };
+        var settings = CompanySettings.Load(name => values.GetValueOrDefault(name));
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            CompanyWorkspace.TryCreate(["--company-local"], "owner@example.invalid", true, root, settings: settings)
+        );
+        Assert.Contains("loopback", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(root));
+    }
+
     private static DefaultHttpContext Request(
         string host,
         string path = "/",

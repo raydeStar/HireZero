@@ -82,7 +82,9 @@ public sealed class GoogleOAuth(
         var refresh = secret(RefreshTokenName);
         if (string.IsNullOrWhiteSpace(refresh))
             throw new InvalidOperationException("Sign in with Google first.");
-        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refresh)));
+        var digest = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(ClientId + "\n" + secret(ClientSecretName) + "\n" + refresh))
+        );
         await _gate.WaitAsync(token);
         try
         {

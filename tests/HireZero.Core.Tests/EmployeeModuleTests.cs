@@ -101,10 +101,57 @@ public sealed class EmployeeModuleTests
         Assert.Equal(["draft"], CompanyRole.From(new Module(manifest)).PublishingSkills);
     }
 
+    [Fact]
+    public void DeliverableProfilesAreBoundedAndOnlyAvailableToMeasuredSkills()
+    {
+        var skill = new EmployeeSkill("draft", "Draft", "Fictional draft.", SkillMode.Measured)
+        {
+            MeasuredProfile = CompanyMeasuredPolicy.DeliverableProfile,
+        };
+        EmployeeModuleCatalog.Validate([new Module(Manifest() with { Skills = [skill] })]);
+        Assert.Throws<InvalidOperationException>(() =>
+            EmployeeModuleCatalog.Validate([
+                new Module(Manifest() with { Skills = [skill with { Mode = SkillMode.Text }] }),
+            ])
+        );
+        Assert.Throws<InvalidOperationException>(() =>
+            EmployeeModuleCatalog.Validate([
+                new Module(Manifest() with { Skills = [skill with { MeasuredProfile = "unlimited" }] }),
+            ])
+        );
+    }
+
     [Theory]
     [MemberData(nameof(Invalid))]
     public void RefusesMalformedManifests(EmployeeManifest manifest) =>
         Assert.Throws<InvalidOperationException>(() => EmployeeModuleCatalog.Validate([new Module(manifest)]));
+
+    [Fact]
+    public void AnalysisPurposeIsOptionalAndOnlyValidForMeasuredSkills()
+    {
+        var skill = new EmployeeSkill("draft", "Draft", "Fictional draft.", SkillMode.Measured);
+        Assert.DoesNotContain("modelProfile", CompanyJson.Encode(skill));
+        skill = skill with { ModelProfile = CompanyModelRouting.AnalysisProfile };
+        EmployeeModuleCatalog.Validate([new Module(Manifest() with { Skills = [skill] })]);
+        Assert.Throws<InvalidOperationException>(() =>
+            EmployeeModuleCatalog.Validate([
+                new Module(Manifest() with { Skills = [skill with { Mode = SkillMode.Text }] }),
+            ])
+        );
+        Assert.Throws<InvalidOperationException>(() =>
+            EmployeeModuleCatalog.Validate([
+                new Module(Manifest() with { Skills = [skill with { ModelProfile = "invented-tier" }] }),
+            ])
+        );
+        var routing = new CompanyModelRouting();
+        Assert.DoesNotContain("analysisModel", CompanyJson.Encode(routing));
+        Assert.Equal(routing.TextModel, routing.For(false, analysis: true));
+        Assert.Equal(
+            routing.CodingModel,
+            (routing with { AnalysisModel = "openai/fictional-analysis" }).For(true, true)
+        );
+        Assert.Throws<WorkspaceException>(() => (routing with { AnalysisModel = "invalid" }).Validate());
+    }
 
     [Fact]
     public void CompanyProjectionCarriesSkillModesAndInstructions()

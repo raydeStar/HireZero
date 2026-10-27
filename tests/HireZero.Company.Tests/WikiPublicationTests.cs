@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 // Wiki drafts in the company workspace (docs/adr/0015-publishing-an-approved-artifact.md): a wiki-read action gathers
 // evidence, an approved draft artifact is proposed for publication, and publishing makes exactly one contribution and
 // one approval, each authorized by the owner's publication. A fictional, stateful Wiki sits behind the real registry.
-public sealed class WikiPublicationTests : IDisposable
+public sealed partial class WikiPublicationTests : IDisposable
 {
     private const string Owner = "owner@example.invalid";
     private const string Project = "synthetic-quotes";

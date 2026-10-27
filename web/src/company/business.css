@@ -1,0 +1,304 @@
+.co-business {
+  max-width: 58rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.co-business-intro p,
+.co-business section > p {
+  max-width: 46rem;
+  line-height: 1.6;
+}
+.co-workspace .co-business-intro h2 {
+  font-size: 1.5rem;
+  line-height: 1.3;
+  margin: 0.5rem 0;
+}
+.co-business-intro .co-eyebrow {
+  color: var(--fe-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.co-business summary {
+  cursor: pointer;
+}
+.co-business-approved > div {
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--fe-line);
+}
+.co-business dt {
+  font-weight: 600;
+}
+.co-business dd {
+  margin: 0.35rem 0;
+  overflow-wrap: anywhere;
+}
+.co-business dd small {
+  display: block;
+  margin-top: 0.35rem;
+}
+.co-business-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0;
+  list-style: none;
+  margin: 1.3rem 0;
+}
+.co-business-steps li {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--fe-border, #8885);
+  border-radius: 0.6rem;
+}
+.co-business-steps [aria-current] {
+  font-weight: 700;
+  border-color: currentColor;
+}
+.co-business fieldset {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.co-business legend {
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+}
+.co-business label {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.7rem 0;
+}
+.co-business input,
+.co-business textarea,
+.co-business select {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.co-business-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.co-business-identity,
+.co-business-sources,
+.co-business-profile,
+.co-business-next {
+  margin: 1.5rem 0;
+  padding: 1.2rem;
+  border: 1px solid var(--fe-border, #8885);
+  border-radius: 0.8rem;
+}
+.co-business-recovery {
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+.co-business-recovery summary {
+  cursor: pointer;
+}
+.co-business-field {
+  padding: 0.7rem 0 1rem;
+  border-bottom: 1px solid var(--fe-border, #8885);
+}
+.co-business-field:last-child {
+  border-bottom: 0;
+}
+.co-business-citation {
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--fe-border, #8885);
+}
+.co-business-excerpt pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.5;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+.co-business a {
+  overflow-wrap: anywhere;
+}
+.co-business-sources ul {
+  padding-left: 1.2rem;
+}
+.co-business-sources li {
+  margin: 0.6rem 0;
+}
+.co-business-sources small {
+  display: block;
+  margin-top: 0.3rem;
+}
+.co-business .co-actions {
+  margin-top: 0.8rem;
+}
+.co-business-drafting {
+  margin: 1.5rem 0;
+  padding: 1.2rem;
+  border: 1px solid var(--fe-line);
+  border-radius: 0.8rem;
+}
+.co-business .co-business-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+.co-business .co-business-check input {
+  width: auto;
+  flex: 0 0 auto;
+  margin-top: 0.3rem;
+}
+.co-business-check small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.co-business-draft-status {
+  margin: 1rem 0;
+}
+@media (max-width: 640px) {
+  .co-business {
+    padding: 0.5rem;
+  }
+  .co-business-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .co-business-identity,
+  .co-business-sources,
+  .co-business-profile,
+  .co-business-next {
+    padding: 0.8rem;
+  }
+  .co-business-steps {
+    font-size: 0.85rem;
+  }
+}
+.co-first-assignment {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+}
+.co-first-assignment textarea {
+  min-height: 10rem;
+}
+.co-business-lookup {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--fe-line);
+}
+.co-business-lookup > p {
+  line-height: 1.5;
+}
+.co-business-candidates {
+  list-style: none;
+  padding: 0;
+}
+.co-business-candidates li {
+  padding: 1rem;
+  margin: 0.75rem 0;
+  border: 1px solid var(--fe-line);
+  border-radius: 10px;
+}
+.co-business-candidates h4 {
+  margin: 0;
+}
+.co-business-candidates a {
+  display: block;
+  overflow-wrap: anywhere;
+  margin: 0.75rem 0;
+}
+.co-business-lookup-result p {
+  overflow-wrap: anywhere;
+}
+.co-business-history {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--fe-line);
+  border-radius: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.co-business-history ol {
+  list-style: none;
+  padding: 0;
+}
+.co-business-history li {
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--fe-line);
+}
+.co-business-history dt {
+  margin-top: 1rem;
+}
+.co-business-field-evidence blockquote {
+  margin: 0.5rem 0;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--fe-line);
+}
+.co-business-freshness {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.co-business-freshness details {
+  margin: 0.8rem 0;
+}
+.co-business-freshness summary {
+  cursor: pointer;
+  line-height: 1.5;
+}
+.co-business-freshness button {
+  margin: 0.4rem 0.5rem 0.4rem 0;
+}
+.co-business-freshness form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.co-business-freshness form {
+  padding: 0.6rem 0;
+}
+.co-source-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+}
+.co-source-columns section {
+  min-width: 0;
+}
+.co-source-columns pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 24rem;
+  overflow: auto;
+  font: inherit;
+  padding: 0.8rem;
+  border: 1px solid var(--fe-line);
+  border-radius: 8px;
+}
+.co-business-fact-reviews > details {
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--fe-line);
+}
+.co-team-suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.co-team-suggestions article {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--fe-line);
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+.co-team-suggestions h4 {
+  margin: 0 0 0.6rem;
+}
+.co-team-suggestions button {
+  white-space: normal;
+  text-align: left;
+  margin: 0.3rem 0;
+}

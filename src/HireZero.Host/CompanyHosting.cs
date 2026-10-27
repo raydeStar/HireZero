@@ -1,5 +1,7 @@
 using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -83,6 +85,11 @@ public sealed record HostedOptions(
 public static class CompanyHosting
 {
     public const string HostedFlag = "--company-hosted";
+    public const string BrowserScopeHeader = "X-HireZero-Member";
+
+    // An identity label, never a credential. A stale tab must not borrow the next guest's keys.
+    public static string BrowserScope(string subject) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes("hirezero-browser-member-v1:" + subject)));
 
     public static void ListenHosted(this WebApplicationBuilder builder, HostedOptions options, long maxRequestBodySize)
     {
@@ -241,7 +248,12 @@ public static class CompanyHosting
 }
 
 // One company's runtime in this host: its store, tool registry and scheduler.
-public sealed record CompanyRuntime(CompanyStore Store, ToolRegistry Tools, CompanyScheduler Scheduler);
+public sealed record CompanyRuntime(
+    CompanyStore Store,
+    ToolRegistry Tools,
+    CompanyScheduler Scheduler,
+    CompanyModelConnection Model
+);
 
 // Hosted sign-in across the data root's companies, set once their runtimes exist.
 public sealed class CompanyMembership
@@ -249,4 +261,6 @@ public sealed class CompanyMembership
     public Func<string, string?, bool, string?, CompanyActor?>? SignIn { get; set; }
 }
 
-public sealed record CompanyName(string? Name);
+public sealed record CompanyName(string? Name, string? RequestId = null);
+
+public sealed record CompanyChoice(string Id, string Name, string Role);

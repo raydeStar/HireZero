@@ -5,6 +5,7 @@ import type { Snapshot, Work } from "./api";
 import { taskState, workName } from "./labels";
 import { ago, elapsed, useNow } from "./time";
 import { dollars } from "./money";
+import { useMemberAccess } from "./MemberAccess";
 
 export type Need = {
   kind: string;
@@ -12,6 +13,7 @@ export type Need = {
   detail: string;
   employeeId?: string;
   taskId?: string;
+  targetId?: string;
   // The conversation an item lives in (a Connect card).
   threadId?: string | null;
   key: string;
@@ -20,30 +22,58 @@ export type Need = {
 
 // How work is grouped in the cockpit and on the Work board (docs/adr/0040-the-muse-layout.md).
 export const workGroups = {
-  review: ["awaiting_review", "unknown"],
+  review: ["awaiting_review", "awaiting_authorization", "unknown"],
   progress: ["running", "gathering"],
   next: ["queued", "blocked"],
   done: ["completed", "failed", "cancelled", "canceled", "withheld"],
 } as const;
 const cancellable = ["queued", "blocked", "running"];
 
+// A claimed task has not necessarily started: the sealed proposal still waits for the owner's starting bell.
+export function workState(snapshot: Snapshot, task: Work) {
+  if (
+    ["queued", "blocked", "running", "awaiting_review"].includes(task.state) &&
+    snapshot.data.browserRunningTaskIds?.includes(task.id)
+  )
+    return "running";
+  return task.state === "running" &&
+    snapshot.data.measured?.some((a) => a.taskId === task.id && a.job.state === "proposed")
+    ? "awaiting_authorization"
+    : task.state;
+}
+
 export function useNeeds(version: number) {
   const [needs, setNeeds] = useState<Need[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let current = true;
+    setLoading(true);
     api<{ needsYou: Need[] }>("/company/today")
-      .then((today) => current && setNeeds(today.needsYou))
-      .catch(() => current && setNeeds([]));
+      .then((today) => {
+        if (!current) return;
+        setNeeds(today.needsYou);
+        setError("");
+      })
+      .catch(() => current && setError("Couldn’t update items needing attention."))
+      .finally(() => current && setLoading(false));
     return () => {
       current = false;
     };
-  }, [version]);
-  return needs;
+  }, [version, attempt]);
+  return { needs, error, loading, retry: () => setAttempt((value) => value + 1) };
 }
 
 export function workTitle(snapshot: Snapshot, task: Work) {
+  if (task.scheduleRunId && snapshot.data.browserTaskIds?.includes(task.id)) return "Scheduled website review";
+  if (task.scheduleRunId && snapshot.data.sandboxTaskIds?.includes(task.id)) return "Scheduled script report";
   // A context draft runs as one reply, but it is drafting context, not a conversation (owner feedback, 2026-10-20).
   if (task.kind === "context-draft") return task.contextScope === "company" ? "Company facts draft" : "Context draft";
+  if (task.planId && task.kind === "work" && task.skill === "chat") {
+    const title = task.input.trim().split(/\r?\n/)[0];
+    return title && !/^[\[{]/.test(title) ? title.slice(0, 90) + (title.length > 90 ? "…" : "") : "Plan assignment";
+  }
   const d = snapshot.data,
     employee = d.employees.find((e) => e.id === task.employeeId);
   return workName(
@@ -63,6 +93,9 @@ export function Cockpit({
   onOpenWork,
   onOpenNeed,
   onClose,
+  needsError = "",
+  needsLoading = false,
+  onRetryNeeds,
 }: {
   snapshot: Snapshot;
   needs: Need[];
@@ -72,21 +105,31 @@ export function Cockpit({
   onOpenWork: (task: Work) => void;
   onOpenNeed: (need: Need) => void;
   onClose: () => void;
+  needsError?: string;
+  needsLoading?: boolean;
+  onRetryNeeds?: () => void;
 }) {
+  const { canWork } = useMemberAccess();
   const d = snapshot.data;
   const [everyone, setEveryone] = useState(false);
   const now = useNow(15_000);
   const scoped = scope && !everyone ? d.employees.find((e) => e.id === scope) : undefined;
   const mine = (employeeId?: string) => !scoped || employeeId === scoped.id;
   const tasks = d.tasks.filter((t) => mine(t.employeeId));
-  const inGroup = (group: readonly string[]) => tasks.filter((t) => group.includes(t.state));
+  const inGroup = (group: readonly string[]) => tasks.filter((t) => group.includes(workState(snapshot, t)));
   const shownNeeds = needs.filter((n) => mine(n.employeeId));
   const working = inGroup(workGroups.progress);
-  const next = inGroup(workGroups.next).filter((t) => t.reason !== "handoff-awaiting-approval");
-  const done = inGroup(workGroups.done).slice(-5).reverse();
+  const next = inGroup(workGroups.next).filter(
+    (t) => !["handoff-awaiting-approval", "revision-awaiting-approval"].includes(t.reason ?? ""),
+  );
+  const done = inGroup(workGroups.done)
+    .filter((task) => !(task.meetingId && task.state === "completed"))
+    .slice(-5)
+    .reverse();
   const nameOf = (id: string) => d.employees.find((e) => e.id === id)?.name ?? "Former employee";
   const title = (t: Work) => workTitle(snapshot, t);
   const cancel = (t: Work) =>
+    canWork &&
     cancellable.includes(t.state) && (
       <button
         className="fe-icon-button"
@@ -102,7 +145,7 @@ export function Cockpit({
   const when = (t: Work) => {
     const times = d.taskTimes?.[t.id];
     if (!times) return "";
-    return (workGroups.progress as readonly string[]).includes(t.state)
+    return (workGroups.progress as readonly string[]).includes(workState(snapshot, t))
       ? " · " + elapsed(times.started, now)
       : " · " + ago(times.updated, now);
   };
@@ -110,7 +153,11 @@ export function Cockpit({
     <li key={t.id}>
       <button className="fe-up-next-title" onClick={() => onOpenWork(t)} title={title(t)}>
         <span>{title(t)}</span>
-        <small>{(scoped ? taskState(t.state) : nameOf(t.employeeId) + " · " + taskState(t.state)) + when(t)}</small>
+        <small>
+          {(scoped
+            ? taskState(workState(snapshot, t))
+            : nameOf(t.employeeId) + " · " + taskState(workState(snapshot, t))) + when(t)}
+        </small>
       </button>
       {cancel(t)}
     </li>
@@ -135,25 +182,47 @@ export function Cockpit({
             </button>
           </div>
         )}
-        <section className="fe-cockpit-section co-needs" aria-label="Needs you">
+        <section className="fe-cockpit-section co-needs" aria-label={canWork ? "Needs you" : "Needs attention"}>
           <h3>
-            Needs you <span className={"fe-count" + (shownNeeds.length ? " attn" : "")}>{shownNeeds.length}</span>
+            {canWork ? "Needs you" : "Needs attention"}{" "}
+            <span className={"fe-count" + (shownNeeds.length ? " attn" : "")}>
+              {needsError ? "?" : needsLoading ? "…" : shownNeeds.length}
+            </span>
           </h3>
+          {needsError ? (
+            <div className="co-needs-error" role="status">
+              <p>
+                {needsError} {shownNeeds.length > 0 && "Showing the last checked items."}
+              </p>
+              <button disabled={needsLoading} onClick={onRetryNeeds}>
+                {needsLoading ? "Checking needs…" : "Retry needs"}
+              </button>
+            </div>
+          ) : (
+            needsLoading && <p role="status">Checking items needing attention…</p>
+          )}
           {shownNeeds.length ? (
             <ol className="fe-up-next">
               {shownNeeds.map((n) => (
                 <li key={n.key} className={"co-need priority-" + n.priority}>
-                  <button className="fe-up-next-title" onClick={() => onOpenNeed(n)} title={n.detail}>
+                  <button
+                    className="fe-up-next-title"
+                    onClick={() => onOpenNeed(n)}
+                    title={canWork ? n.detail : n.detail.replace(/\byour /g, "")}
+                  >
                     <span>{n.title}</span>
-                    <small>{n.detail}</small>
+                    <small>{canWork ? n.detail : n.detail.replace(/\byour /g, "")}</small>
                   </button>
                 </li>
               ))}
             </ol>
           ) : (
-            <p className="fe-cockpit-clear">
-              <Check size={14} /> Nothing needs you.
-            </p>
+            !needsError &&
+            !needsLoading && (
+              <p className="fe-cockpit-clear">
+                <Check size={14} /> {canWork ? "Nothing needs you." : "Nothing needs attention."}
+              </p>
+            )
           )}
         </section>
         <section
@@ -209,7 +278,7 @@ export function Cockpit({
         )}
         {spend && spend.pricedJobs + spend.unpricedJobs > 0 && (
           <p className="co-cockpit-foot">
-            Spent to date: {dollars(spend.usd)}
+            Model costs &amp; estimates: {spend.pricedJobs === 0 ? "Not priced" : dollars(spend.usd)}
             {spend.unpricedJobs > 0 && ` · ${spend.unpricedJobs} unpriced`}
           </p>
         )}

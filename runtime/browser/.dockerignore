@@ -1,0 +1,8 @@
+**
+!Dockerfile
+!.dockerignore
+!pin.json
+!driver.mjs
+!protocol.mjs
+!runner.mjs
+!verify-image.mjs

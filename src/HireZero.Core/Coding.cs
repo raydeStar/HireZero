@@ -60,5 +60,19 @@ public interface ICodingRunLifecycle
     bool Terminated(string runId);
 }
 
+// Process exit and removal of temporary data are separate facts. Neither may be inferred from a model reply.
+public sealed record CodingReleaseReceipt(
+    bool ProcessStopped,
+    bool TemporaryFilesRemoved,
+    string Status,
+    DateTimeOffset RecordedAt,
+    string? ResourceId = null
+);
+
+public interface ICodingRunCleanup
+{
+    CodingReleaseReceipt? ReleaseReceipt { get; }
+}
+
 // This exception is reserved for validation before a runtime process/request can be started.
 public sealed class CodingStartRefusedException(string message) : WorkspaceException(message);

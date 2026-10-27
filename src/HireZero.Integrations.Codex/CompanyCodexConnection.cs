@@ -68,6 +68,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         if (
             routing.Runtime != "codex"
             || new[] { routing.TextModel, routing.CodingModel }.Any(r => ModelRoutes.Provider(r) != "openai")
+            || routing.AnalysisModel is { } analysis && ModelRoutes.Provider(analysis) != "openai"
         )
             throw new WorkspaceException("Select explicit OpenAI model routes on the Codex runtime.");
         return routing;
@@ -204,9 +205,22 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
     )
     {
         var input = CompanyJson.Encode(call.Context);
-        if (call.ModelRoute is not null && call.ModelRoute != _routing.TextModel)
+        if (
+            call.ModelRoute is not null
+            && call.ModelRoute != _routing.TextModel
+            && call.ModelRoute != _routing.AnalysisModel
+        )
             throw new WorkspaceException("Text dispatch cannot select the coding route.");
         var bytes = Encoding.UTF8.GetByteCount(input) + Encoding.UTF8.GetByteCount(call.Instructions);
+        // Owner-only reports have no employee. Only their explicit measured policies get that place setting.
+        var ownerReport =
+            (
+                (measured?.Policy == CompanyMeasuredPolicy.BusinessProfile && call.Context.Scope == "business-profile")
+                || (measured?.Policy == CompanyMeasuredPolicy.MemoryAnalysis && call.Context.Scope == "memory-analysis")
+            )
+            && call.Context.EmployeeId == ""
+            && call.Context.RoleId == ""
+            && call.Context.ThreadId == "";
         if (
             measured is null
                 && (
@@ -215,7 +229,11 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                     || call.Context.Input.Length > 1000
                 )
             || measured is not null && (bytes != measured.ApplicationBytes || bytes > measured.Policy.ApplicationBytes)
-            || string.IsNullOrWhiteSpace(call.Context.EmployeeId)
+            || string.IsNullOrWhiteSpace(call.Context.EmployeeId) && !ownerReport
+            || (
+                measured?.Policy == CompanyMeasuredPolicy.BusinessProfile
+                || measured?.Policy == CompanyMeasuredPolicy.MemoryAnalysis
+            ) && !ownerReport
             || call.Context.Id.Length == 0
         )
             throw new WorkspaceException("Narrow the fictional qualification context.");
@@ -224,7 +242,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
             turn = null;
         var started = false;
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
-        deadline.CancelAfter(TimeSpan.FromSeconds(60));
+        deadline.CancelAfter(TimeSpan.FromSeconds(measured?.Policy.LocalDeadlineSeconds ?? 60));
         CodexAppServer? rpc = null;
         CompanyCodexReceipt? completedReceipt = null,
             observedReceipt = null;
@@ -250,7 +268,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
             return new(
                 call.Context.EmployeeId,
                 call.Context.Id,
-                CompanyModelRouting.Native(_routing.TextModel),
+                CompanyModelRouting.Native(call.ModelRoute ?? _routing.TextModel),
                 thread!,
                 turn!,
                 "",
@@ -278,7 +296,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 );
             rpc = Start();
             var inspection = await Inspect(rpc, deadline.Token);
-            var model = CompanyModelRouting.Native(_routing.TextModel);
+            var model = CompanyModelRouting.Native(call.ModelRoute ?? _routing.TextModel);
             if (
                 inspection.AccountType != "chatgpt"
                 || !inspection.IncludedUsageAllowed

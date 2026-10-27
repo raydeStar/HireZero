@@ -9,6 +9,7 @@ public sealed partial class CompanyStore
         var source = Need<CompanyTask>(db, artifact.TaskId);
         if (
             artifact.State != "approved"
+            || !SandboxArtifactCurrent(db, artifact)
             || artifact.Digest != command.Digest
             || source.State is "canceled" or "superseded"
             || artifact.ContextId is { } context && !KnowledgeCurrent(db, Need<CompanyContext>(db, context), source)
@@ -90,6 +91,7 @@ public sealed partial class CompanyStore
                 && h.TargetEmployeeId == task.EmployeeId
                 && h.TargetThreadId == task.ThreadId
                 && Find<CompanyArtifact>(db, h.ArtifactId) is { State: "approved" } a
+                && SandboxArtifactCurrent(db, a, depth + 1)
                 && a.Digest == h.Digest
                 && a.Version == h.ArtifactVersion
                 && Need<CompanyTask>(db, a.TaskId).State is not ("canceled" or "superseded")

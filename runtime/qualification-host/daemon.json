@@ -1,0 +1,15 @@
+{
+  "default-runtime": "runc",
+  "bridge": "none",
+  "iptables": false,
+  "ip6tables": false,
+  "ip-forward": false,
+  "ip-masq": false,
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "runtimes": {
+    "runsc": {
+      "path": "/opt/hirezero-qualification/gvisor/runsc",
+      "runtimeArgs": ["--platform=systrap", "--systemd-cgroup"]
+    }
+  }
+}

@@ -1,0 +1,52 @@
+.co-task-costs {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.co-task-costs > summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.co-task-cost-totals,
+.co-task-cost-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.co-task-cost-totals dd {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+.co-task-costs fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.co-task-costs label {
+  display: block;
+  margin: 0.6rem 0;
+}
+.co-task-costs input:not([type="checkbox"]),
+.co-task-costs textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.3rem;
+}
+.co-task-costs textarea {
+  min-height: 6rem;
+}
+.co-task-costs button {
+  margin: 0.4rem 0.5rem 0.4rem 0;
+}
+.co-task-cost-review {
+  margin-top: 1rem;
+}
+@media (max-width: 600px) {
+  .co-task-cost-totals,
+  .co-task-cost-inputs {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,14 +2,24 @@ namespace HireZero.Core;
 
 public sealed partial class CompanyStore
 {
-    private CompanyPlan CreatePlan(StoreConnection db, CompanyCommand c)
+    private bool PlanSourceCurrent(StoreConnection db, CompanyPlan plan) =>
+        plan.Source is not { } source
+        || Find<CompanyArtifact>(db, source.ArtifactId) is { State: "approved" } artifact
+            && artifact.Version == source.Version
+            && artifact.Digest == source.Digest
+            && SandboxArtifactCurrent(db, artifact);
+
+    private CompanyPlan CreatePlan(StoreConnection db, CompanyCommand c, CompanyArtifact? sourceArtifact = null)
     {
         var ceo = Need<CompanyEmployee>(db, c.EmployeeId);
         if (!Role(ceo.RoleId).Skills.Contains(PlatformSkills.CompanyPlan) || ceo.State != "active")
             throw new WorkspaceException("Select an active employee qualified to propose company plans.");
         var specs = c.Tasks ?? [];
-        if (specs.Length is < 1 or > 4 || c.Budget is < 5000 or > 40000)
-            throw new WorkspaceException("A plan needs 1–4 tasks and a bounded allowance of 5,000–40,000 tokens.", 422);
+        if (specs.Length is < 1 or > 4 || c.Budget is < 5000 or > 100000)
+            throw new WorkspaceException(
+                "A plan needs 1–4 tasks and a bounded allowance of 5,000–100,000 tokens.",
+                422
+            );
         if (c.Budget < specs.Length * 5000)
             throw new WorkspaceException("The plan allowance must cover every initial dispatch reservation.");
         var fingerprints = new HashSet<string>(StringComparer.Ordinal);
@@ -46,12 +56,18 @@ public sealed partial class CompanyStore
         }
         var id = Id();
         var objective = Text(c.Body, 2000);
+        var source = sourceArtifact is null
+            ? null
+            : new CompanyPlanSource(sourceArtifact.Id, sourceArtifact.Version, sourceArtifact.Digest);
+        const int executionHours = 7 * 24;
         var digest = CompanyJson.Digest(
             new
             {
                 objective,
                 tasks = specs,
                 budget = c.Budget,
+                executionHours,
+                source,
             }
         );
         var p = new CompanyPlan(
@@ -64,7 +80,9 @@ public sealed partial class CompanyStore
             id,
             c.Budget,
             [],
-            Clock().AddMinutes(30)
+            Clock().AddMinutes(30),
+            ExecutionHours: executionHours,
+            Source: source
         );
         Put(db, p);
         Event(db, "plan.proposed", id, ceo.Id, "A bounded delegation plan is ready for owner approval.");
@@ -93,6 +111,11 @@ public sealed partial class CompanyStore
                 throw new WorkspaceException("Approve the exact current, unexpired proposed plan.");
             if (Need<CompanyEmployee>(db, p.CeoId).State != "active")
                 throw new WorkspaceException("The plan facilitator is not active.");
+            if (!PlanSourceCurrent(db, p))
+                throw new WorkspaceException(
+                    "The approved proposal was revoked or changed. Review a fresh proposal before creating another plan.",
+                    409
+                );
             Save(db, new CompanyBudget(p.RootId, p.Budget), p.RootId);
             var ids = new List<string>();
             foreach (var s in p.Tasks)
@@ -110,7 +133,13 @@ public sealed partial class CompanyStore
                         null
                     ).Id
                 );
-            p = p with { State = "executing", TaskIds = [.. ids], Version = p.Version + 1 };
+            p = p with
+            {
+                State = "executing",
+                TaskIds = [.. ids],
+                Version = p.Version + 1,
+                Deadline = p.ExecutionHours is { } hours ? Clock().AddHours(hours) : p.Deadline,
+            };
             Put(db, p);
         }
         Event(db, "plan." + p.State, p.Id, p.CeoId, "Delegation plan: " + p.State);

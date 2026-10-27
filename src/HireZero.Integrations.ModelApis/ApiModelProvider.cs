@@ -27,10 +27,12 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
     public ApiModelProvider(
         Func<string, string?>? secret = null,
         HttpMessageHandler? handler = null,
-        Func<string, ModelPrice?>? price = null
+        Func<string, ModelPrice?>? price = null,
+        string? runtimeIdentity = null
     )
     {
         _secret = secret ?? SecretSource.Default.Read;
+        RuntimeIdentity = runtimeIdentity ?? Identity;
         _price = price ?? ModelRoutes.Price;
         _http = new HttpClient(
             handler
@@ -46,7 +48,7 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
         };
     }
 
-    public string RuntimeIdentity => Identity;
+    public string RuntimeIdentity { get; }
 
     // Automatic work stays off, as with Codex: every call is one owner-authorized measured job.
     public bool Qualified => false;

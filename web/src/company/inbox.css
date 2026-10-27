@@ -1,0 +1,101 @@
+.co-inbox {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.co-workspace .co-main .co-inbox > header {
+  display: block;
+  padding: 0;
+  min-height: 0;
+  border: 0;
+  margin-bottom: 24px;
+}
+.co-workspace .co-inbox-toggle {
+  position: relative;
+}
+.co-workspace .co-inbox-toggle .fe-count {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+}
+.co-inbox-toolbar,
+.co-inbox-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+.co-workspace .co-inbox label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.co-inbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.co-inbox-items {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+.co-inbox-items > li {
+  border: 1px solid var(--line, #333);
+  border-radius: 12px;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+.co-inbox-items > li.is-unread {
+  border-left: 3px solid var(--accent, #9980ff);
+}
+.co-inbox-items > li > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+.co-inbox-items h3 {
+  margin: 12px 0 8px;
+}
+.co-inbox-preferences {
+  border-top: 1px solid var(--line, #333);
+  padding-top: 20px;
+  margin-top: 28px;
+}
+.co-inbox-preferences summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.co-inbox-preferences fieldset {
+  display: grid;
+  gap: 16px;
+  border: 0;
+  padding: 12px 0;
+}
+.co-inbox-preferences input[type="number"] {
+  max-width: 100px;
+}
+.co-inbox-preferences button,
+.co-inbox button {
+  white-space: normal;
+}
+.co-inbox-deliveries {
+  padding-left: 20px;
+}
+.co-inbox-deliveries li {
+  margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .co-inbox {
+    padding: 16px 12px;
+  }
+  .co-inbox-items > li {
+    padding: 16px;
+  }
+}

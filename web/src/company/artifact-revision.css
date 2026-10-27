@@ -1,0 +1,14 @@
+.co-revision-feedback {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.co-revision-feedback label {
+  display: grid;
+  gap: 0.5rem;
+}
+.co-revision-feedback textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  line-height: 1.5;
+}

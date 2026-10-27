@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
+    <Compile Include="../Shared/WordDocumentFixture.cs" Link="Shared/WordDocumentFixture.cs" />
+    <Compile Include="../Shared/DriveDocumentFixture.cs" Link="Shared/DriveDocumentFixture.cs" />
+    <ProjectReference Include="../../src/HireZero.Integrations.Documents/HireZero.Integrations.Documents.csproj" />
+    <ProjectReference Include="../../src/HireZero.Integrations.Stripe/HireZero.Integrations.Stripe.csproj" />
+    <ProjectReference Include="../../src/HireZero.Integrations.Sandbox/HireZero.Integrations.Sandbox.csproj" />
     <ProjectReference Include="../../src/HireZero.Tools.AzureDevOps/HireZero.Tools.AzureDevOps.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.Microsoft365/HireZero.Integrations.Microsoft365.csproj" />
     <ProjectReference Include="../../src/HireZero.Tools.Microsoft365/HireZero.Tools.Microsoft365.csproj" />

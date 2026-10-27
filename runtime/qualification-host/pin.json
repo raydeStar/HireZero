@@ -1,0 +1,309 @@
+{
+  "schema": 1,
+  "status": "proposed-operator-setup",
+  "recordedAt": "2026-10-26",
+  "platform": "linux/amd64",
+  "distribution": "HireZero-Qualification",
+  "artifacts": [
+    {
+      "name": "ubuntu-24.04.5-wsl-amd64.wsl",
+      "kind": "wsl",
+      "version": "24.04.5",
+      "publisher": "Canonical",
+      "url": "https://releases.ubuntu.com/24.04.5/ubuntu-24.04.5-wsl-amd64.wsl",
+      "bytes": 388975696,
+      "algorithm": "sha256",
+      "hash": "bb415d824822c4b878125729af451a5d18fb13d1cf5cbed9a7393ad64ac6039e"
+    },
+    {
+      "name": "dotnet-sdk-10.0.403-linux-x64.tar.gz",
+      "kind": "sdk",
+      "version": "10.0.403",
+      "publisher": "Microsoft",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-linux-x64.tar.gz",
+      "bytes": 240199984,
+      "algorithm": "sha512",
+      "hash": "b7b3d8461cf98b07d2552ce9199702fa3ad010ac2671a5f8cd5136f7534e50f6855ba7bbb02b11494563f1d04156276a31cda1103b900e5eecd0d9473dc7b9c5"
+    },
+    {
+      "name": "gvisor-x86_64.tar.bz2",
+      "kind": "gvisor",
+      "version": "release-20261019.0",
+      "publisher": "Google gVisor project",
+      "url": "https://github.com/google/gvisor/releases/download/release-20261019.0/gvisor-x86_64.tar.bz2",
+      "bytes": 73621897,
+      "algorithm": "sha256",
+      "hash": "1298e8ed9c3fee900f00d2ea96ec2d79d80ed93f2175812f29b7e7da718041a3"
+    },
+    {
+      "name": "docker-ce_29.9.2-1~ubuntu.24.04~noble_amd64.deb",
+      "kind": "deb",
+      "package": "docker-ce",
+      "version": "5:29.9.2-1~ubuntu.24.04~noble",
+      "publisher": "Docker",
+      "url": "https://download.docker.com/linux/ubuntu/dists/noble/pool/stable/amd64/docker-ce_29.9.2-1~ubuntu.24.04~noble_amd64.deb",
+      "bytes": 24558208,
+      "algorithm": "sha256",
+      "hash": "95ddf7a2d8b8c0eb82d8597d4d604e294dcf741081f2e228524d5ab9bfd7c8ae",
+      "depends": "containerd.io (>= 2.1.5), docker-ce-cli, iptables, nftables, libc6 (>= 2.34), libsystemd0"
+    },
+    {
+      "name": "docker-ce-cli_29.9.2-1~ubuntu.24.04~noble_amd64.deb",
+      "kind": "deb",
+      "package": "docker-ce-cli",
+      "version": "5:29.9.2-1~ubuntu.24.04~noble",
+      "publisher": "Docker",
+      "url": "https://download.docker.com/linux/ubuntu/dists/noble/pool/stable/amd64/docker-ce-cli_29.9.2-1~ubuntu.24.04~noble_amd64.deb",
+      "bytes": 17595236,
+      "algorithm": "sha256",
+      "hash": "74747b5c99000279b9b2c7eb82543b4121d8436a58aa3be7e78ac6681d74794f",
+      "depends": "libc6 (>= 2.34)"
+    },
+    {
+      "name": "containerd.io_2.4.2-3~ubuntu.24.04~noble_amd64.deb",
+      "kind": "deb",
+      "package": "containerd.io",
+      "version": "2.4.2-3~ubuntu.24.04~noble",
+      "publisher": "Docker",
+      "url": "https://download.docker.com/linux/ubuntu/dists/noble/pool/stable/amd64/containerd.io_2.4.2-3~ubuntu.24.04~noble_amd64.deb",
+      "bytes": 23271468,
+      "algorithm": "sha256",
+      "hash": "f811ab57d1f4bb0cce19df7d526da8c711d8ebea0447cc83da1999188e664122",
+      "depends": "libc6 (>= 2.38), libseccomp2 (>= 2.5.0)"
+    },
+    {
+      "name": "docker-buildx-plugin_0.38.1-1~ubuntu.24.04~noble_amd64.deb",
+      "kind": "deb",
+      "package": "docker-buildx-plugin",
+      "version": "0.38.1-1~ubuntu.24.04~noble",
+      "publisher": "Docker",
+      "url": "https://download.docker.com/linux/ubuntu/dists/noble/pool/stable/amd64/docker-buildx-plugin_0.38.1-1~ubuntu.24.04~noble_amd64.deb",
+      "bytes": 17800928,
+      "algorithm": "sha256",
+      "hash": "642e9a8a0d115a8a57ad7045a4c7c2561522331197f0c087a762de1b72591672",
+      "depends": null
+    },
+    {
+      "name": "bzip2_1.0.8-5.1ubuntu0.1_amd64.deb",
+      "kind": "deb",
+      "package": "bzip2",
+      "version": "1.0.8-5.1ubuntu0.1",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/b/bzip2/bzip2_1.0.8-5.1ubuntu0.1_amd64.deb",
+      "bytes": 34560,
+      "algorithm": "sha256",
+      "hash": "60fb79214dd8366fa39d7e69911294e72b9f1a4425a3d22f211359c8626e4b9e",
+      "depends": "libbz2-1.0 (= 1.0.8-5.1ubuntu0.1), libc6 (>= 2.34)"
+    },
+    {
+      "name": "iptables_1.8.10-3ubuntu2_amd64.deb",
+      "kind": "deb",
+      "package": "iptables",
+      "version": "1.8.10-3ubuntu2",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/i/iptables/iptables_1.8.10-3ubuntu2_amd64.deb",
+      "bytes": 381328,
+      "algorithm": "sha256",
+      "hash": "d341e8ffc42ca035f5aa0fd9a798c8d2b2edb019225dc11f4dac16edf9c57840",
+      "depends": "libip4tc2 (= 1.8.10-3ubuntu2), libip6tc2 (= 1.8.10-3ubuntu2), libxtables12 (= 1.8.10-3ubuntu2), netbase (>= 6.0), libc6 (>= 2.38), libmnl0 (>= 1.0.3-4~), libnetfilter-conntrack3 (>= 1.0.6), libnfnetlink0 (>= 1.0.2), libnftnl11 (>= 1.1.6)"
+    },
+    {
+      "name": "nftables_1.0.9-1ubuntu0.1_amd64.deb",
+      "kind": "deb",
+      "package": "nftables",
+      "version": "1.0.9-1ubuntu0.1",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/n/nftables/nftables_1.0.9-1ubuntu0.1_amd64.deb",
+      "bytes": 69842,
+      "algorithm": "sha256",
+      "hash": "d648859fccde3c17b8b9b89993427564f91f394a39306db1f67bd5ea3ac42c6e",
+      "depends": "libnftables1 (= 1.0.9-1ubuntu0.1), libc6 (>= 2.34), libedit2 (>= 3.1-20130611-0)"
+    },
+    {
+      "name": "libip4tc2_1.8.10-3ubuntu2_amd64.deb",
+      "kind": "deb",
+      "package": "libip4tc2",
+      "version": "1.8.10-3ubuntu2",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/i/iptables/libip4tc2_1.8.10-3ubuntu2_amd64.deb",
+      "bytes": 23342,
+      "algorithm": "sha256",
+      "hash": "eb381f8ff0469534df3f1b146c3eb8baa6e36f8cfcdf2e3e039398322930d0a4",
+      "depends": "libc6 (>= 2.4)"
+    },
+    {
+      "name": "libip6tc2_1.8.10-3ubuntu2_amd64.deb",
+      "kind": "deb",
+      "package": "libip6tc2",
+      "version": "1.8.10-3ubuntu2",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/i/iptables/libip6tc2_1.8.10-3ubuntu2_amd64.deb",
+      "bytes": 23732,
+      "algorithm": "sha256",
+      "hash": "b98b88eb6aa14a902ea1aebc3b12ddd140572545ae1fc6428cb0868c31671d05",
+      "depends": "libc6 (>= 2.4)"
+    },
+    {
+      "name": "libnetfilter-conntrack3_1.0.9-6build1_amd64.deb",
+      "kind": "deb",
+      "package": "libnetfilter-conntrack3",
+      "version": "1.0.9-6build1",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/libn/libnetfilter-conntrack/libnetfilter-conntrack3_1.0.9-6build1_amd64.deb",
+      "bytes": 45218,
+      "algorithm": "sha256",
+      "hash": "6d32a4c4618eb7d6c0d989591d28637a9acdfa86dfe22e42e9ac9cc25d882a97",
+      "depends": "libc6 (>= 2.14), libmnl0 (>= 1.0.3-4~), libnfnetlink0 (>= 1.0.2)"
+    },
+    {
+      "name": "libnfnetlink0_1.0.2-2build1_amd64.deb",
+      "kind": "deb",
+      "package": "libnfnetlink0",
+      "version": "1.0.2-2build1",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/libn/libnfnetlink/libnfnetlink0_1.0.2-2build1_amd64.deb",
+      "bytes": 14810,
+      "algorithm": "sha256",
+      "hash": "f557a287af2ca00df5dbf632c6b77d77479139ffb51c83e3de9766eb609b5d63",
+      "depends": "libc6 (>= 2.14)"
+    },
+    {
+      "name": "libnftables1_1.0.9-1ubuntu0.1_amd64.deb",
+      "kind": "deb",
+      "package": "libnftables1",
+      "version": "1.0.9-1ubuntu0.1",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/n/nftables/libnftables1_1.0.9-1ubuntu0.1_amd64.deb",
+      "bytes": 358574,
+      "algorithm": "sha256",
+      "hash": "fcaee001747a6adaa0cd9337fef437b3aa7a7a6d5246b62fbd4784d3d6a5009e",
+      "depends": "libc6 (>= 2.38), libgmp10 (>= 2:6.3.0+dfsg), libjansson4 (>= 2.14), libmnl0 (>= 1.0.3-4~), libnftnl11 (>= 1.2.6), libxtables12 (>= 1.6.0+snapshot20161117)"
+    },
+    {
+      "name": "libnftnl11_1.2.6-2build1_amd64.deb",
+      "kind": "deb",
+      "package": "libnftnl11",
+      "version": "1.2.6-2build1",
+      "publisher": "Ubuntu",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/libn/libnftnl/libnftnl11_1.2.6-2build1_amd64.deb",
+      "bytes": 65986,
+      "algorithm": "sha256",
+      "hash": "e5bde5c9cbb95082700011f0b7ef2c0a41900b0a9fd7434f6e90448e2a7b4e50",
+      "depends": "libc6 (>= 2.34), libmnl0 (>= 1.0.3-4~)"
+    }
+  ],
+  "expectedBasePackages": [
+    {
+      "name": "gzip",
+      "version": "1.12-1ubuntu3.2"
+    },
+    {
+      "name": "libbsd0",
+      "version": "0.12.1-1build1.1"
+    },
+    {
+      "name": "libbz2-1.0",
+      "version": "1.0.8-5.1ubuntu0.1"
+    },
+    {
+      "name": "libc6",
+      "version": "2.39-0ubuntu8.8"
+    },
+    {
+      "name": "libedit2",
+      "version": "3.1-20230828-1build1"
+    },
+    {
+      "name": "libgcc-s1",
+      "version": "14.2.0-4ubuntu2~24.04.1"
+    },
+    {
+      "name": "libgmp10",
+      "version": "2:6.3.0+dfsg-2ubuntu6.1"
+    },
+    {
+      "name": "libgssapi-krb5-2",
+      "version": "1.20.1-6ubuntu2.8"
+    },
+    {
+      "name": "libicu74",
+      "version": "74.2-1ubuntu3.1"
+    },
+    {
+      "name": "libjansson4",
+      "version": "2.14-2build2"
+    },
+    {
+      "name": "libmd0",
+      "version": "1.1.0-2build1.1"
+    },
+    {
+      "name": "libmnl0",
+      "version": "1.0.5-2build1"
+    },
+    {
+      "name": "libseccomp2",
+      "version": "2.5.5-1ubuntu3.1"
+    },
+    {
+      "name": "libssl3t64",
+      "version": "3.0.13-0ubuntu3.15"
+    },
+    {
+      "name": "libstdc++6",
+      "version": "14.2.0-4ubuntu2~24.04.1"
+    },
+    {
+      "name": "libsystemd0",
+      "version": "255.4-1ubuntu8.17"
+    },
+    {
+      "name": "libtinfo6",
+      "version": "6.4+20240113-1ubuntu2.2"
+    },
+    {
+      "name": "libxtables12",
+      "version": "1.8.10-3ubuntu2"
+    },
+    {
+      "name": "netbase",
+      "version": "6.4"
+    },
+    {
+      "name": "python3",
+      "version": "3.12.3-0ubuntu2.1"
+    },
+    {
+      "name": "systemd",
+      "version": "255.4-1ubuntu8.17"
+    },
+    {
+      "name": "tar",
+      "version": "1.35+dfsg-3ubuntu0.4"
+    },
+    {
+      "name": "zlib1g",
+      "version": "1:1.3.dfsg-3.1ubuntu2.2"
+    }
+  ],
+  "browserBaseImage": "mcr.microsoft.com/playwright@sha256:d65108d1a8095d8b0c4a5e32bf1807a40a5ce90ff0c78473e1116b1c243235e8",
+  "browserBaseBytes": 983886837,
+  "artifactBytes": 787040809,
+  "totalWithBrowserBaseBytes": 1770927646,
+  "nugetRestore": "Repository lockfiles; additional download size not included",
+  "minimumFreeBytes": 10737418240,
+  "plannedDiskAllowanceBytes": 21474836480,
+  "signatureEvidence": {
+    "dockerPrimaryFingerprint": "9DC858229FC7DD38854AE2D88D81803C0EBFCD88",
+    "signaturesVerified": true,
+    "dockerPackagesSha256": "5b9f61ac4a5c52885ff032776a285c53eb380a1a9a8800b139eb5ba4828106bb",
+    "ubuntuArchiveFingerprint": "F6ECB3762474EDA9D21B7022871920D1991BC93C",
+    "ubuntuImageFingerprint": "843938DF228D22F7B3742BC0D94AA3F0EFE21092"
+  },
+  "notes": [
+    "Metadata hashes and signatures checked; runtime archives and packages are not downloaded or executed.",
+    "The Ubuntu text package manifest is planning evidence; verify actual installed base packages after importing the checksum-verified rootfs.",
+    "Runtime installation, image build, qualification and activation are separate states. This manifest authorizes none of them.",
+    "No automatic package updates or changes to existing distributions are included."
+  ]
+}

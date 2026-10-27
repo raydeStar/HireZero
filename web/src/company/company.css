@@ -922,8 +922,62 @@
   gap: 1rem;
   justify-items: start;
   max-width: 32rem;
-  margin: 4rem auto;
-  padding: 0 1rem;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+}
+
+.co-company-choice ul {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.co-company-choice {
+  font-family: var(--fe-font);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.co-company-choice h1 {
+  font: 600 26px/1.2 var(--fe-font);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.co-company-choice p {
+  margin: 0;
+}
+
+.co-company-choice li button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  min-height: 48px;
+  text-align: left;
+}
+
+.co-company-choice strong {
+  overflow-wrap: anywhere;
+}
+
+.co-company-choice li span {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.co-choice-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.co-choice-actions button {
+  min-height: 44px;
 }
 
 .co-companies form,
@@ -1162,13 +1216,15 @@
   padding: 0;
   list-style: none;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 .co-workspace .co-cockpit .fe-up-next li {
+  min-width: 0;
   align-items: center;
   gap: 4px;
 }
-.co-workspace .co-cockpit .fe-up-next-title {
+.co-workspace .co-cockpit .fe-up-next li button.fe-up-next-title {
   flex: 1 1 auto;
   min-width: 0;
   flex-direction: column;
@@ -1188,8 +1244,9 @@
   font-size: var(--fe-t-xs);
   color: var(--fe-fg-3);
   white-space: normal;
+  overflow-wrap: anywhere;
 }
-.co-workspace .co-cockpit .done .fe-up-next-title {
+.co-workspace .co-cockpit .done li button.fe-up-next-title {
   flex-direction: row;
   align-items: flex-start;
   gap: 6px;
@@ -1726,7 +1783,22 @@
   color: var(--fe-ok);
 }
 /* Long results: the opening lines and a fade until expanded; the text stays in the page. */
-.co-workspace .co-report.clamped pre {
+.co-workspace .co-report-content {
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.co-workspace .co-report-content :is(p, li) {
+  white-space: pre-wrap;
+}
+.co-workspace .co-report-content :is(h1, h2, h3, h4) {
+  margin: 1.25em 0 0.55em;
+  font-size: 1.05em;
+  line-height: 1.35;
+}
+.co-workspace .co-report-content > :first-child {
+  margin-top: 0;
+}
+.co-workspace .co-report.clamped > .co-report-content {
   max-height: 16.5em;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent);
@@ -1752,6 +1824,25 @@
   cursor: pointer;
   min-height: 0;
   height: auto;
+}
+/* Native modal sheets keep the browser's focus and inert-background behavior. */
+.co-workspace dialog.co-modal {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: hidden;
+}
+.co-workspace dialog.co-modal:not([open]) {
+  display: none;
+}
+.co-workspace dialog.co-modal::backdrop {
+  background: transparent;
 }
 /* UX round 3: the shortcut list. */
 .co-workspace .co-dialog-layer {

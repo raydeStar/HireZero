@@ -6,8 +6,102 @@ public sealed partial class CompanyStore
     {
         switch (c.Action)
         {
+            case "company.work.configure":
+                return ConfigureWorkControl(db, c);
+            case "billing.prepare":
+                return PrepareBillingCheckout(db, c);
+            case "billing.checkout":
+                return ApproveBillingCheckout(db, c);
+            case "billing.portal":
+                return PrepareBillingPortal(db, c);
+            case "cost.save":
+                return SaveTaskCosts(db, c);
+            case "cost.review":
+                return ReviewTaskCosts(db, c);
+            case "compute.configure":
+                return ConfigureCompute(db, c);
+            case "browser.prepare":
+                return PrepareBrowser(db, c);
+            case "browser.run":
+                return StartBrowser(db, c);
+            case "browser.revoke":
+                return RevokeBrowser(db, c);
+            case "browser.output.prepare":
+                return PrepareBrowserArtifact(db, c);
+            case "browser.captures.delete":
+                return DeleteBrowserCaptures(db, c);
+            case "browser.retention":
+                return ConfigureBrowserRetention(db, c);
+            case "sandbox.prepare":
+                return PrepareSandbox(db, c);
+            case "sandbox.run":
+                return StartSandbox(db, c);
+            case "sandbox.revoke":
+                return RevokeSandbox(db, c);
+            case "sandbox.output.prepare":
+                return PrepareSandboxArtifact(db, c);
+            case "usage.configure":
+                return ConfigureUsage(db, c);
+            case "memory.save":
+                return SaveMemory(db, c);
+            case "memory.review":
+                return ReviewMemory(db, c);
+            case "memory.delete":
+                return DeleteUnapprovedMemory(db, c);
+            case "memory.source.delete":
+                return DeleteRetiredMemorySource(db, c);
+            case "notification.mark":
+                return MarkNotice(db, c);
+            case "notification.preferences":
+                return ConfigureNotices(db, c);
+            case "notification.close":
+                return CloseNoticeDelivery(db, c);
+            case "schedule.save":
+                return SaveScheduleDraft(db, c);
+            case "schedule.review":
+                return ReviewSchedule(db, c);
+            case "document.save":
+                return SaveDocument(db, c);
+            case "document.review":
+                return ReviewDocument(db, c);
+            case "document.delete":
+                return DeleteUnapprovedDocument(db, c);
+            case "document.source.delete":
+                return DeleteRevokedDocumentSource(db, c);
+            case "document.retention":
+                return ConfigureDocumentRetention(db, c);
+            case "business.identify":
+                return IdentifyBusiness(db, c);
+            case "business.confirm":
+                return ConfirmBusiness(db, c);
+            case "business.profile.save":
+                return SaveBusinessProfile(db, c);
+            case "business.profile.review":
+                return ReviewBusinessProfile(db, c);
+            case "memory.analysis.prepare":
+                return PrepareMemoryAnalysis(db, c);
+            case "memory.analysis.run":
+                return StartMemoryAnalysis(db, c);
+            case "memory.analysis.reconcile":
+                return ReconcileMemoryAnalysis(db, c);
+            case "memory.analysis.revise":
+                return DraftMemoryRevision(db, c);
+            case "business.draft.prepare":
+                return PrepareBusinessDraft(db, c);
+            case "business.lookup.start":
+                return StartBusinessLookup(db, c);
+            case "business.refresh.start":
+                return StartBusinessRefresh(db, c);
+            case "business.fact.review":
+                return ReviewBusinessFact(db, c);
+            case "business.draft.run":
+                return StartBusinessDraft(db, c);
+            case "business.draft.reconcile":
+                return ReconcileBusinessDraft(db, c);
             case "conversation.prepare":
                 return PrepareConversation(db, c);
+            case "assignment.prepare":
+                return PrepareAssignment(db, c);
             case "context.draft":
                 return PrepareContextDraft(db, c);
             case "connection.resolve":
@@ -325,6 +419,11 @@ public sealed partial class CompanyStore
             {
                 var task = Need<CompanyTask>(db, c.Id);
                 Version(task.Version, c.ExpectedVersion);
+                if (task.Revision is not null && c.Action is "task.retry" or "task.reassign")
+                    throw new WorkspaceException(
+                        "A revision keeps its feedback and source context. Review its separate measured request; do not retry or reassign it as unrelated work.",
+                        409
+                    );
                 if (task.Kind == "conversation" && c.Action != "task.cancel")
                     throw new WorkspaceException(
                         "A conversational turn cannot become autonomous work or be resumed. Prepare a fresh separately authorized reply."
@@ -332,11 +431,17 @@ public sealed partial class CompanyStore
                 // An action is never model work: rerun it from the employee's actions instead of requeuing it.
                 if (task.Kind == ActionKind && c.Action is "task.retry" or "task.reassign")
                     throw new WorkspaceException("Run the action again instead of retrying or reassigning it.");
+                if (task.ScheduleRunId is not null && c.Action is "task.retry" or "task.reassign")
+                    throw new WorkspaceException(
+                        "Review or resume future occurrences in Recurring work. A saved occurrence cannot be retried as independent work.",
+                        409
+                    );
                 if (c.Action == "task.complete")
                 {
                     if (task.State is not ("awaiting_review" or "blocked"))
                         throw new WorkspaceException("Review work before completion.");
-                    var artifact = All<CompanyArtifact>(db).Any(a => a.TaskId == task.Id && a.State == "approved");
+                    var artifact = All<CompanyArtifact>(db)
+                        .Any(a => a.TaskId == task.Id && a.State == "approved" && SandboxArtifactCurrent(db, a));
                     if (!artifact)
                         throw new WorkspaceException("Approve an artifact before completing this task.");
                     task = task with { State = "completed", Reason = null, Version = task.Version + 1 };
@@ -425,30 +530,9 @@ public sealed partial class CompanyStore
                 return a;
             }
             case "artifact.review":
-            {
-                var a = Need<CompanyArtifact>(db, c.Id);
-                Version(a.Version, c.ExpectedVersion);
-                if (a.Digest != c.Digest)
-                    throw new WorkspaceException("Review the exact artifact digest.");
-                if (c.Decision is not ("approve" or "changes" or "revoke"))
-                    throw new WorkspaceException("Choose approve, changes or revoke.", 422);
-                var task = Need<CompanyTask>(db, a.TaskId);
-                if (task.State is "canceled" or "superseded")
-                    throw new WorkspaceException("This work was canceled or superseded.");
-                if (a.ContextId is not null && !KnowledgeCurrent(db, Need<CompanyContext>(db, a.ContextId), task))
-                    throw new WorkspaceException("Knowledge used by this artifact was revoked.");
-                a = a with
-                {
-                    State =
-                        c.Decision == "approve" ? "approved"
-                        : c.Decision == "revoke" ? "revoked"
-                        : "changes_requested",
-                    Version = a.Version + 1,
-                };
-                Save(db, a, a.Id, a.TaskId, a.EmployeeId, a.State, a.Version);
-                Event(db, "artifact.reviewed", a.Id, a.EmployeeId, "Artifact review: " + a.State);
-                return a;
-            }
+                return ReviewArtifact(db, c);
+            case "artifact.revise":
+                return RequestArtifactRevision(db, c);
             case "handoff.assign":
                 return AssignHandoff(db, c);
             case "handoff.revoke":
@@ -457,7 +541,7 @@ public sealed partial class CompanyStore
             {
                 var a = Need<CompanyArtifact>(db, c.Id);
                 Version(a.Version, c.ExpectedVersion);
-                if (a.State != "approved" || a.Digest != c.Digest)
+                if (a.State != "approved" || a.Digest != c.Digest || !SandboxArtifactCurrent(db, a))
                     throw new WorkspaceException("Share the exact approved artifact.");
                 var t = Need<CompanyThread>(db, c.ThreadId);
                 if (t.EmployeeId != c.EmployeeId || t.Scope != "employee")
@@ -483,8 +567,10 @@ public sealed partial class CompanyStore
                 Version(a.Version, c.ExpectedVersion);
                 if (
                     a.State != "approved"
+                    || !SandboxArtifactCurrent(db, a)
                     || a.Digest != c.Digest
                     || !Role(Need<CompanyEmployee>(db, a.EmployeeId).RoleId).CompanyOverview
+                    || Need<CompanyTask>(db, a.TaskId).Skill != PlatformSkills.CompanyPlan
                 )
                     throw new WorkspaceException("Select an exact approved facilitator proposal.");
                 var proposal = CompanyJson.Decode<CompanyPlanProposal>(a.Body);
@@ -496,7 +582,8 @@ public sealed partial class CompanyStore
                         Body = proposal.Objective,
                         Tasks = proposal.Tasks,
                         Budget = proposal.Budget,
-                    }
+                    },
+                    a
                 );
             }
             case "plan.approve":
@@ -530,7 +617,10 @@ public sealed partial class CompanyStore
         if (ids.Length > 12 || ids.Distinct().Count() != ids.Length)
             throw new WorkspaceException("Select at most 12 distinct artifacts.", 422);
         foreach (var id in ids)
-            if (Need<CompanyArtifact>(db, id).State != "approved")
+            if (
+                Need<CompanyArtifact>(db, id) is not { State: "approved" } artifact
+                || !SandboxArtifactCurrent(db, artifact)
+            )
                 throw new WorkspaceException("Selected evidence must be approved.");
     }
 
@@ -609,7 +699,7 @@ public sealed partial class CompanyStore
                 }
                 : task with
                 {
-                    ModelRoute = ModelRouting.For(execution),
+                    ModelRoute = ModelRouteFor(Role(e.RoleId), skill, kind),
                     Runtime = ModelRouting.Runtime,
                     Kind = kind,
                     ContextScope = kind == ContextDraftKind ? contextScope : null,

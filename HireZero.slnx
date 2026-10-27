@@ -1,6 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/HireZero.Core/HireZero.Core.csproj" />
+    <Project Path="src/HireZero.Integrations.Documents/HireZero.Integrations.Documents.csproj" />
+    <Project Path="src/HireZero.Integrations.Stripe/HireZero.Integrations.Stripe.csproj" />
+    <Project Path="src/HireZero.Integrations.Sandbox/HireZero.Integrations.Sandbox.csproj" />
+    <Project Path="src/HireZero.Integrations.Notifications/HireZero.Integrations.Notifications.csproj" />
     <Project Path="src/HireZero.Integrations.OpenClaw/HireZero.Integrations.OpenClaw.csproj" />
     <Project Path="src/HireZero.Integrations.Google/HireZero.Integrations.Google.csproj" />
     <Project Path="src/HireZero.Integrations.Jev/HireZero.Integrations.Jev.csproj" />

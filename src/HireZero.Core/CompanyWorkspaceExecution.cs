@@ -49,7 +49,11 @@ public sealed record CompanyExecutionGrant(
     CompanyRepositoryReview? Review = null,
     CompanyExecutionLimits? Limits = null,
     DateTimeOffset? DispatchedAt = null,
-    bool AllowNetwork = false
+    bool AllowNetwork = false,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CodingReleaseReceipt? Release = null
 )
 {
     // Grants recorded before limits were approved with them ran under the pilot limits.
@@ -310,6 +314,40 @@ public sealed partial class CompanyStore
                     g.EmployeeId,
                     state,
                     g.Version + 1
+                );
+                return true;
+            }
+        );
+    }
+
+    public void RecordExecutionRelease(string id, CodingReleaseReceipt receipt)
+    {
+        if (
+            receipt.TemporaryFilesRemoved && !receipt.ProcessStopped
+            || receipt.Status
+                is not ("released" or "termination-unconfirmed" or "cleanup-scope-refused" or "cleanup-incomplete")
+            || (receipt.Status == "released") != (receipt.ProcessStopped && receipt.TemporaryFilesRemoved)
+            || (receipt.Status == "termination-unconfirmed") == receipt.ProcessStopped
+        )
+            throw new WorkspaceException("Invalid runtime release receipt.", 422);
+        using var db = Open();
+        Transaction(
+            db,
+            () =>
+            {
+                var grant = Need<CompanyExecutionGrant>(db, id);
+                if (grant.State is "proposed" or "approved" || grant.Release is not null)
+                    return false;
+                grant = grant with { Release = receipt, Version = grant.Version + 1 };
+                Save(db, grant, grant.Id, grant.TaskId, grant.EmployeeId, grant.State, grant.Version);
+                Event(
+                    db,
+                    receipt.Status == "released" ? "execution.released" : "execution.release-attention",
+                    grant.Id,
+                    grant.EmployeeId,
+                    receipt.Status == "released" ? "Runtime stopped and temporary files removed."
+                        : receipt.ProcessStopped ? "Runtime stopped; temporary file cleanup needs attention."
+                        : "Runtime termination is unconfirmed. Execution remains held for reconciliation."
                 );
                 return true;
             }

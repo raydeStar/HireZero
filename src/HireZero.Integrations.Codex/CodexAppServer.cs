@@ -337,16 +337,22 @@ internal sealed class CodexAppServer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        var stopped = false;
         try
         {
             if (!_process.HasExited)
                 _process.Kill(entireProcessTree: true);
             await _process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            stopped = true;
         }
         finally
         {
             _process.Dispose();
-            if (Directory.Exists(WorkingDirectory) && !Directory.EnumerateFileSystemEntries(WorkingDirectory).Any())
+            if (
+                stopped
+                && Directory.Exists(WorkingDirectory)
+                && !Directory.EnumerateFileSystemEntries(WorkingDirectory).Any()
+            )
                 Directory.Delete(WorkingDirectory);
         }
     }

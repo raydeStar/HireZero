@@ -1,0 +1,156 @@
+.co-documents {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1rem;
+  overflow-wrap: anywhere;
+}
+.co-documents p {
+  line-height: 1.6;
+}
+.co-documents section,
+.co-document-editor {
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin: 1.5rem 0;
+}
+.co-workspace .co-documents fieldset {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}
+.co-documents label {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.9rem 0;
+}
+.co-documents input,
+.co-documents textarea,
+.co-documents select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.co-documents small {
+  display: block;
+  margin: 0.5rem 0;
+}
+.co-documents .co-document-source {
+  color: var(--fe-fg);
+}
+.co-word-import-notice {
+  margin: 0.9rem 0;
+}
+.co-word-import-notice p {
+  margin: 0.5rem 0;
+}
+.co-word-import-notice summary {
+  cursor: pointer;
+  padding: 0.3rem 0;
+}
+.co-drive-import {
+  margin: 1rem 0;
+}
+.co-drive-import summary {
+  cursor: pointer;
+  padding: 0.4rem 0;
+}
+.co-drive-import button {
+  margin: 0.5rem 0.4rem 0.5rem 0;
+  white-space: normal;
+}
+.co-drive-import a {
+  display: block;
+  margin: 0.5rem 0;
+}
+.co-document-library ul {
+  list-style: none;
+  padding: 0;
+}
+.co-document-library li {
+  margin: 0.7rem 0;
+}
+.co-document-library li button {
+  display: grid;
+  gap: 0.4rem;
+  text-align: left;
+  width: 100%;
+  white-space: normal;
+}
+.co-document-review pre {
+  max-height: 26rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  padding: 0.8rem;
+  background: var(--fe-panel);
+}
+.co-documents .co-document-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+.co-document-check input {
+  width: auto;
+  flex: 0 0 auto;
+  margin-top: 0.3rem;
+}
+.co-document-review button {
+  margin: 0.35rem 0.4rem 0.35rem 0;
+}
+.co-document-delete {
+  margin-top: 1rem;
+}
+.co-deletion-scope {
+  margin-top: 1rem;
+}
+.co-document-retention button {
+  margin: 0.25rem 0.4rem 0.25rem 0;
+}
+.co-document-delete button {
+  max-width: 100%;
+  white-space: normal;
+}
+.co-document-results article {
+  border-top: 1px solid var(--fe-line);
+  margin-top: 1rem;
+}
+.co-document-results blockquote {
+  margin: 0.8rem 0;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--fe-line);
+  white-space: pre-wrap;
+}
+@media (max-width: 640px) {
+  .co-documents {
+    padding: 0.5rem;
+  }
+  .co-documents section,
+  .co-document-editor {
+    padding: 0.8rem;
+  }
+}
+.co-document-origin {
+  border-left: 3px solid var(--fe-line);
+  margin: 16px 0;
+  padding: 8px 16px;
+  overflow-wrap: anywhere;
+}
+.co-document-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+.co-document-origin details {
+  margin: 12px 0;
+}
+.co-document-origin pre {
+  max-height: 280px;
+  overflow: auto;
+  white-space: pre-wrap;
+}

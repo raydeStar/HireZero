@@ -45,13 +45,27 @@ try{
   const authorizeDisabled=()=>evaluate("[...document.querySelectorAll('.co-measured button')].find(b=>b.textContent==='Authorize and run one job').disabled");
   await until(()=>evaluate("[...document.querySelectorAll('.co-measured button')].some(b=>b.textContent==='Authorize and run one job')"),'sealed proposal shown');
   assert.equal(await authorizeDisabled(),true,'Unread work cannot authorize');
-  await click('Review task and context');await until(()=>evaluate("!!document.querySelector('.co-packet .co-packet-fields')"),'readable task and facts');
+  await evaluate(`(()=>{const original=window.fetch;window.fetch=(input,options)=>{
+    if(String(input).includes('/company/measured/')){
+      window.fetch=original;
+      return new Promise(resolve=>{window.__releaseMeasuredReview=()=>resolve(original(input,options));});
+    }
+    return original(input,options);
+  };})()`);
+  await click('Review task and context');
+  await until(()=>evaluate("!!document.querySelector('.co-measured button[aria-busy=\"true\"]')"),'review loading state');
+  assert.equal(await evaluate("document.querySelector('.co-measured button[aria-busy=\"true\"]').disabled"),true,'A pending review cannot be requested again');
+  assert.equal(await starts(),0,'A loading review grants no execution');
+  await evaluate("window.__releaseMeasuredReview();delete window.__releaseMeasuredReview");
+  await until(()=>evaluate("!!document.querySelector('.co-packet .co-packet-fields')"),'readable task and facts');
   assert.equal(await evaluate("document.querySelector('.co-packet').innerText.includes('Adult paper craft hobbyists')"),true);
   assert.equal(await authorizeDisabled(),true,'Reading the packet does not grant authority');
   await evaluate("document.querySelector('.co-measured input[type=checkbox]').click()");await until(async()=>!(await authorizeDisabled()),'explicit acknowledgement');
   await click('Authorize and run one job');await until(async()=>(await dashboard()).data.tasks[0].state==='awaiting_review','fake draft saved for owner review');
   let state=await dashboard();assert.equal(state.data.artifacts[0].state,'needs_review');assert.equal(await starts(),1,'Exactly one fake-native request');
   await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'reload conversation route');
+  await until(()=>evaluate("!!document.querySelector('.co-job-card[data-task-state=\"awaiting_review\"] .co-job-receipt summary')"),'saved result and receipt control survive reload');
+  await evaluate("document.querySelector('.co-job-receipt summary').click()");
   await until(()=>evaluate("document.body.innerText.includes('Draft saved for review')"),'saved receipt survives reload');assert.equal(await starts(),1,'Reload never resumes or replays');
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent==='Authorize and run one job')"),false,'Consumed grant has no run button');
   await click('Approve result');await until(async()=>(await dashboard()).data.artifacts[0].state==='approved','exact content approval');await click('Complete after review');

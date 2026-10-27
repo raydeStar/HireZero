@@ -241,11 +241,21 @@ public sealed class ContextDraftTests : IAsyncDisposable
     }
 
     [Fact]
-    public void ThePoliciesAreNamedAndOnlyThoseThreeAreKnown()
+    public void OnlyNamedBoundedPoliciesAreKnown()
     {
         Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Current));
         Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.ContextDraft));
         Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Conversation));
+        Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Deliverable));
+        Assert.False(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Deliverable with { OutputTarget = 100000 }));
+        Assert.Equal(
+            CompanyMeasuredPolicy.Deliverable,
+            CompanyMeasuredPolicy.For("work", CompanyMeasuredPolicy.DeliverableProfile)
+        );
+        Assert.Equal(
+            CompanyMeasuredPolicy.Conversation,
+            CompanyMeasuredPolicy.For("conversation", CompanyMeasuredPolicy.DeliverableProfile)
+        );
         Assert.False(
             CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.ContextDraft with { ApplicationBytes = 1 << 20 })
         );

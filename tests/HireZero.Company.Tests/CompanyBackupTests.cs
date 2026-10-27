@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 // Local backups (docs/adr/0044-local-company-backups.md): a consistent copy of each database and the key and secret
 // files, a manifest, no locks or side files, and only the newest backups kept. Fictional data.
-public sealed class CompanyBackupTests : IAsyncDisposable
+public sealed partial class CompanyBackupTests : IAsyncDisposable
 {
     private readonly TemporaryRoot _root = new("company-backup-");
 

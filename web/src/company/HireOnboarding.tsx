@@ -1,10 +1,13 @@
+import { memberStorage as sessionStorage } from "../lib/api";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, CircleCheckBig } from "lucide-react";
-import { api } from "../lib/api";
-import { command, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
+import { company } from "../lib/api";
+import { command, reconcileCompanyOperation, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
 import { humanize } from "./labels";
 import { ContextFromSources } from "./ContextFromSources";
 import { valuesOf } from "./contextDraft";
+import { businessSetup } from "../roles/company";
+import { FirstAssignment } from "./FirstAssignment";
 
 type Draft = {
   role: string;
@@ -19,18 +22,20 @@ type Draft = {
   step: "profile" | "context" | "review" | "ready";
   pending?: { action: string; requestId: string };
 };
-const key = "hirezero-hire-draft-v1";
+const key = "hirezero-hire-draft-v2:" + (company() || "local-company");
+const legacyKey = "hirezero-hire-draft-v1";
 const suggestion = (snapshot: Snapshot, role: string) => snapshot.data.roles.find((r) => r.id === role)?.onboarding;
 function fresh(snapshot: Snapshot, role = snapshot.data.roles[0]?.id ?? ""): Draft {
   const defaults = suggestion(snapshot, role);
+  const setup = businessSetup(snapshot, role);
   return {
     role,
     name: defaults?.name || "",
     departmentId: "new",
     departmentName: defaults?.department || "",
-    responsibility: defaults?.responsibility || "",
+    responsibility: setup?.responsibility || defaults?.responsibility || "",
     employeeId: "",
-    values: {},
+    values: setup?.values || {},
     knowledgeId: "",
     step: "profile",
   };
@@ -43,16 +48,90 @@ function suggestedDepartment(snapshot: Snapshot, role: string) {
   );
   return candidates.length === 1 ? candidates[0].id : candidates.length > 1 ? "" : "new";
 }
-function readDraft(snapshot: Snapshot): Draft {
+function storedDraft(snapshot: Snapshot, storageKey: string): Draft | undefined {
   try {
-    const stored = JSON.parse(sessionStorage.getItem(key) || "null");
+    const stored = JSON.parse(sessionStorage.getItem(storageKey) || "null");
     if (stored && typeof stored.role === "string" && typeof stored.values === "object" && stored.values !== null)
       return { ...fresh(snapshot, stored.role), ...stored };
   } catch {
     /* Draft storage is optional. */
   }
-  const draft = fresh(snapshot);
+}
+function initialDraft(snapshot: Snapshot, role?: string): Draft {
+  const draft = fresh(snapshot, role);
   return { ...draft, departmentId: suggestedDepartment(snapshot, draft.role) };
+}
+function untouched(snapshot: Snapshot, draft: Draft) {
+  const defaults = initialDraft(snapshot, draft.role);
+  return (
+    !draft.pending &&
+    !draft.employeeId &&
+    !draft.createdDepartmentId &&
+    !draft.knowledgeId &&
+    draft.step === "profile" &&
+    JSON.stringify(draft.values) === JSON.stringify(defaults.values) &&
+    draft.name === defaults.name &&
+    draft.departmentId === defaults.departmentId &&
+    draft.departmentName === defaults.departmentName &&
+    draft.responsibility === defaults.responsibility
+  );
+}
+function anchoredHere(snapshot: Snapshot, draft: Draft) {
+  const employee = snapshot.data.employees.find((e) => e.id === draft.employeeId);
+  const department = snapshot.data.departments.find((d) => d.id === draft.departmentId);
+  const knowledge = snapshot.data.knowledge.find((k) => k.id === draft.knowledgeId);
+  // An old draft has no company stamp. Let saved records vouch for it; names are poor witnesses.
+  return (
+    !!(draft.employeeId || draft.createdDepartmentId || draft.knowledgeId || department) &&
+    (!draft.employeeId || (!!employee && employee.departmentId === draft.departmentId)) &&
+    (!draft.departmentId || draft.departmentId === "new" || !!department) &&
+    (!draft.createdDepartmentId || draft.createdDepartmentId === department?.id) &&
+    (!draft.knowledgeId || (!!knowledge && knowledge.departmentId === draft.departmentId))
+  );
+}
+function storeDraft(draft: Draft) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(draft));
+    return true;
+  } catch {
+    return false;
+  }
+}
+function removeLegacy() {
+  try {
+    sessionStorage.removeItem(legacyKey);
+  } catch {
+    /* A retained duplicate is safer than a vanished draft. */
+  }
+}
+function readDraft(snapshot: Snapshot) {
+  const scoped = storedDraft(snapshot, key),
+    legacy = storedDraft(snapshot, legacyKey);
+  if (!scoped && legacy && anchoredHere(snapshot, legacy)) {
+    if (storeDraft(legacy)) removeLegacy();
+    return { draft: legacy, legacy: undefined };
+  }
+  return { draft: scoped || initialDraft(snapshot), legacy };
+}
+function acceptedDraft(draft: Draft, action: string, result: unknown): Draft {
+  const item = result as { id: string };
+  if (!item?.id) throw new Error("The saved result could not be identified. Check saved state before continuing.");
+  const next = { ...draft, pending: undefined };
+  if (action === "department.create") {
+    next.departmentId = item.id;
+    next.createdDepartmentId = item.id;
+  }
+  if (action === "employee.hire") {
+    next.employeeId = item.id;
+    next.step = "context";
+  }
+  if (action === "employee.update") next.step = "context";
+  if (action === "knowledge.save") {
+    next.knowledgeId = item.id;
+    next.step = "review";
+  }
+  if (action === "knowledge.review") next.step = "ready";
+  return next;
 }
 export function HireOnboarding({
   snapshot,
@@ -61,6 +140,8 @@ export function HireOnboarding({
   resumeId,
   onResumeHandled,
   onActive,
+  requestedRole,
+  onRoleHandled,
 }: {
   snapshot: Snapshot;
   refresh: () => Promise<void>;
@@ -69,9 +150,14 @@ export function HireOnboarding({
   onResumeHandled: () => void;
   // Whether a hire is under way (past its first step), so the page can put the guide first (UX audit, 2026-10-20).
   onActive?: (active: boolean) => void;
+  requestedRole?: string;
+  onRoleHandled?: () => void;
 }) {
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [draft, setDraft] = useState<Draft>(() => readDraft(snapshot)),
+  const [initial] = useState(() => readDraft(snapshot));
+  const [legacy, setLegacy] = useState(initial.legacy);
+  const [roleNotice, setRoleNotice] = useState("");
+  const [draft, setDraft] = useState<Draft>(initial.draft),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [consent, setConsent] = useState(false),
@@ -84,11 +170,8 @@ export function HireOnboarding({
   function change(next: Draft) {
     current.current = next;
     setDraft(next);
-    try {
-      sessionStorage.setItem(key, JSON.stringify(next));
-    } catch {
-      /* Keep the in-memory draft when storage is restricted. */
-    }
+    storeDraft(next);
+    setRoleNotice("");
     setConsent(false);
   }
   const data = snapshot.data,
@@ -100,7 +183,23 @@ export function HireOnboarding({
     role = data.roles.find((r) => r.id === (guide?.roleId || draft.role));
   const fields = role?.onboardingFields || [],
     defaults = role?.onboarding;
+  const setup = businessSetup(snapshot, person?.roleId || draft.role);
   const thread = data.threads.find((t) => t.employeeId === person?.id && (t.scope ?? "employee") === "employee");
+  useEffect(() => {
+    if (!requestedRole) return;
+    const requested = data.roles.find((r) => r.id === requestedRole);
+    if (requested) {
+      const active = current.current;
+      const finished = !active.pending && active.step !== "profile" && person?.state === "active" && !!approved;
+      if (untouched(snapshot, active) || finished) {
+        change(initialDraft(snapshot, requestedRole));
+        setRoleNotice("");
+      } else {
+        setRoleNotice(`Finish the current hire before starting a ${requested.name}. Your draft is kept.`);
+      }
+    }
+    onRoleHandled?.();
+  }, [requestedRole]);
   useEffect(() => {
     if (!resumeId || current.current.pending) return;
     if (resumeId === current.current.employeeId) {
@@ -126,24 +225,7 @@ export function HireOnboarding({
   }, [resumeId, data.employees, data.knowledge]);
   useEffect(() => setConsent(false), [saved?.id, saved?.digest, saved?.version]);
   function accept(action: string, result: unknown) {
-    const item = result as { id: string };
-    if (!item?.id) throw new Error("The saved result could not be identified. Check saved state before continuing.");
-    const next = { ...current.current, pending: undefined };
-    if (action === "department.create") {
-      next.departmentId = item.id;
-      next.createdDepartmentId = item.id;
-    }
-    if (action === "employee.hire") {
-      next.employeeId = item.id;
-      next.step = "context";
-    }
-    if (action === "employee.update") next.step = "context";
-    if (action === "knowledge.save") {
-      next.knowledgeId = item.id;
-      next.step = "review";
-    }
-    if (action === "knowledge.review") next.step = "ready";
-    change(next);
+    change(acceptedDraft(current.current, action, result));
   }
   async function save(action: string, body: Record<string, unknown>) {
     if (locked.current || current.current.pending) return false;
@@ -188,14 +270,8 @@ export function HireOnboarding({
     setError("");
     try {
       const pending = draft.pending,
-        result = await api<unknown>("/company/operations/" + pending.requestId);
+        result = await reconcileCompanyOperation(pending.requestId);
       accept(pending.action, result);
-      try {
-        if (sessionStorage.getItem("hirezero-company-operation") === pending.requestId)
-          sessionStorage.removeItem("hirezero-company-operation");
-      } catch {
-        /* Receipt is confirmed even when browser storage is restricted. */
-      }
       try {
         await refresh();
       } catch {
@@ -204,6 +280,47 @@ export function HireOnboarding({
     } catch {
       setError(
         "This save is still unconfirmed. Your draft is kept and this action will not be repeated. Check saved state again after the connection recovers.",
+      );
+    } finally {
+      locked.current = false;
+      setBusy(false);
+      setStatus("");
+    }
+  }
+  async function recoverLegacy() {
+    if (locked.current || !legacy) return;
+    if (!legacy.pending) {
+      if (!untouched(snapshot, current.current) && !ready) return;
+      change(legacy);
+      if (storeDraft(legacy)) removeLegacy();
+      setLegacy(undefined);
+      return;
+    }
+    locked.current = true;
+    setBusy(true);
+    setStatus("Checking saved state in this company…");
+    setError("");
+    try {
+      const result = await reconcileCompanyOperation(legacy.pending.requestId);
+      const recovered = acceptedDraft(legacy, legacy.pending.action, result);
+      try {
+        // A late receipt updates only its older draft; the current form keeps its own seat at the table.
+        const stored = storedDraft(snapshot, legacyKey);
+        if (stored?.pending?.requestId === legacy.pending.requestId)
+          sessionStorage.setItem(legacyKey, JSON.stringify(recovered));
+      } catch {
+        /* Keep the confirmed draft in memory when storage is restricted. */
+      }
+      setLegacy(recovered);
+      setRoleNotice("The older save is confirmed. Your current draft is kept.");
+      try {
+        await refresh();
+      } catch {
+        setError("Saved. Refresh the workspace to load the saved record. Your draft is kept.");
+      }
+    } catch {
+      setError(
+        "This save could not be confirmed in this company. Switch to the original company or check again after the connection recovers. Your older draft is kept; nothing was repeated.",
       );
     } finally {
       locked.current = false;
@@ -279,9 +396,37 @@ export function HireOnboarding({
                 ? "Review shared department context"
                 : "Set up " + (department?.name || "department") + " context"}
       </h2>
+      {roleNotice && (
+        <p className="co-hire-status" role="status">
+          {roleNotice}
+        </p>
+      )}
+      {legacy && (
+        <div className="co-hire-status" role="status">
+          <p>An older hiring draft has no company label. It is kept until you recover it in the original company.</p>
+          {legacy.pending ||
+          ((untouched(snapshot, draft) || ready) &&
+            (anchoredHere(snapshot, legacy) ||
+              (!legacy.employeeId &&
+                !legacy.createdDepartmentId &&
+                !legacy.knowledgeId &&
+                (!legacy.departmentId || legacy.departmentId === "new")))) ? (
+            <button disabled={busy} onClick={() => void recoverLegacy()}>
+              {legacy.pending ? "Check saved state in this company" : "Use saved draft in this company"}
+            </button>
+          ) : (
+            <p>
+              {untouched(snapshot, draft)
+                ? "Switch to the original company to resume its saved progress."
+                : "Finish the current hire before recovering the older draft."}
+            </p>
+          )}
+        </div>
+      )}
       {draft.step === "profile" && (
         <p className="co-muted">Hiring creates a private chat. AI work and spending need separate approval.</p>
       )}
+      {setup && draft.step === "profile" && <p className="co-hire-status">{setup.reason}</p>}
       {ready && (
         <p className="co-hire-done-lead">
           Welcome to the team. {person.name} joined <b>{department?.name}</b>, and everything they need to start is in
@@ -382,7 +527,9 @@ export function HireOnboarding({
               <select
                 value={draft.departmentId}
                 disabled={profilePinned}
-                onChange={(e) => change({ ...draft, departmentId: e.target.value, values: {}, knowledgeId: "" })}
+                onChange={(e) =>
+                  change({ ...draft, departmentId: e.target.value, values: setup?.values || {}, knowledgeId: "" })
+                }
               >
                 <option value="">Choose a department</option>
                 <option value="new">Create a department</option>
@@ -612,13 +759,25 @@ export function HireOnboarding({
             <Context knowledge={approved} />
             <small>Approved version {approved.version}</small>
           </details>
-          <p className="co-hire-done-next">
-            <b>Next: say hello.</b> Give {person.name} a first task or notes in their private chat. Each AI reply or
-            piece of work still waits for your approval.
-          </p>
+          {setup && thread ? (
+            <FirstAssignment
+              key={person.id}
+              snapshot={snapshot}
+              employeeId={person.id}
+              threadId={thread.id}
+              setup={setup}
+              refresh={refresh}
+              open={open}
+            />
+          ) : (
+            <p className="co-hire-done-next">
+              <b>Next: say hello.</b> Give {person.name} a first task or notes in their private chat. Each AI reply or
+              piece of work still waits for your approval.
+            </p>
+          )}
           <div className="co-actions">
             <button
-              className="co-primary"
+              className={setup ? undefined : "co-primary"}
               disabled={!thread || disabled}
               onClick={() => thread && open(person.id, thread.id)}
             >

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { Modal } from "./Modal";
 
 export type ShortcutActions = {
   go: (place: "home" | "company" | "employees" | "settings" | "plans" | "meetings") => void;
@@ -33,6 +34,11 @@ export function useShortcuts(actions: ShortcutActions) {
   useEffect(() => {
     let pendingG = 0;
     const handler = (event: KeyboardEvent) => {
+      // Modal controls own their keys, including native Escape. Never navigate the page behind them.
+      if (event.defaultPrevented || document.querySelector("dialog:modal")) {
+        pendingG = 0;
+        return;
+      }
       const a = latest.current;
       if (event.key === "Escape") {
         if (a.escape()) event.preventDefault();
@@ -68,8 +74,7 @@ export function useShortcuts(actions: ShortcutActions) {
 
 export function ShortcutHelp({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fe-sheet co-dialog-layer" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
-      <button className="fe-sheet-scrim" aria-label="Close shortcuts" onClick={onClose} />
+    <Modal label="Keyboard shortcuts" className="co-dialog-layer" onClose={onClose}>
       <section className="co-dialog">
         <header>
           <h2>Keyboard shortcuts</h2>
@@ -93,6 +98,6 @@ export function ShortcutHelp({ onClose }: { onClose: () => void }) {
           ))}
         </dl>
       </section>
-    </div>
+    </Modal>
   );
 }

@@ -11,6 +11,7 @@ namespace HireZero.Roles.Marketing;
 public sealed class MarketingModule : IEmployeeModule
 {
     public const string Draft = "marketing-draft";
+    public const string StarterPlan = "marketing-starter-plan";
 
     public EmployeeManifest Manifest { get; } =
         new(
@@ -21,6 +22,15 @@ public sealed class MarketingModule : IEmployeeModule
             MarketingText.Instructions,
             [
                 new(PlatformSkills.Chat, "Conversation", "Discuss marketing work from approved context."),
+                new(
+                    StarterPlan,
+                    "Marketing starter plan",
+                    "Prepare a practical one-week plan from approved company knowledge for owner review.",
+                    SkillMode.Measured
+                )
+                {
+                    MeasuredProfile = CompanyMeasuredPolicy.DeliverableProfile,
+                },
                 new(
                     Draft,
                     "Campaign draft",
@@ -109,7 +119,7 @@ public sealed class MarketingModule : IEmployeeModule
                 new("drafts-approved", "Drafts approved", "count", "Drafts the owner approved without revision."),
                 new("review-rounds", "Review rounds", "rounds", "Average owner review rounds per approved draft."),
             ],
-            UiSlots = ["skill-input:" + Draft],
+            UiSlots = ["skill-input:" + Draft, "business-setup"],
             DisplayOrder = 10,
         };
 
@@ -120,6 +130,7 @@ public sealed class MarketingModule : IEmployeeModule
         skill switch
         {
             Draft => MarketingText.DraftInstructions,
+            StarterPlan => MarketingText.StarterPlanInstructions,
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
             MarketingExperiments.Skill => MarketingExperiments.Instructions,
             MarketingAds.Review => MarketingAds.ReviewInstructions,

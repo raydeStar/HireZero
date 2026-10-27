@@ -39,7 +39,10 @@ public sealed partial class CompanyStore
             () =>
             {
                 if (Find<CompanyMember>(db, subject) is { } bound)
+                {
+                    RecordVerifiedEmail(db, bound, email, emailVerified);
                     return bound.State == "active" ? new CompanyActor(bound.Id, bound.Role) : null;
+                }
                 if (!emailVerified || Normal(email) is not { } address)
                     return null;
                 // The hosted company's first owner is recorded by email until they first sign in.
@@ -47,6 +50,7 @@ public sealed partial class CompanyStore
                 {
                     var rebound = first with { Id = subject, Email = address, Name = Text(name ?? address, 120) };
                     Save(db, rebound, rebound.Id, state: rebound.State, version: rebound.Version);
+                    RecordVerifiedEmail(db, rebound, email, emailVerified);
                     Sql(db, "DELETE FROM co_members WHERE company_id=$0 AND id=$1", CompanyId, first.Id);
                     return new CompanyActor(rebound.Id, rebound.Role);
                 }
@@ -55,6 +59,7 @@ public sealed partial class CompanyStore
                     return null;
                 var member = new CompanyMember(subject, address, Text(name ?? address, 120), invite.Role, "active");
                 Save(db, member, member.Id, state: member.State, version: member.Version);
+                RecordVerifiedEmail(db, member, email, emailVerified);
                 Sql(db, "DELETE FROM co_members WHERE company_id=$0 AND id=$1", CompanyId, invite.Id);
                 var previous = CurrentActor.Value;
                 CurrentActor.Value = new CompanyActor(member.Id, member.Role);
@@ -66,6 +71,14 @@ public sealed partial class CompanyStore
     }
 
     // member.invite: Body is the email, Decision the role.
+    private void RecordVerifiedEmail(StoreConnection db, CompanyMember member, string? email, bool verified)
+    {
+        if (verified && member.State == "active" && Normal(email) == member.Email)
+            Save(db, new CompanyVerifiedEmail(member.Id, member.Email), member.Id);
+        else
+            Sql(db, "DELETE FROM co_verified_emails WHERE company_id=$0 AND id=$1", CompanyId, member.Id);
+    }
+
     private CompanyMember InviteMember(StoreConnection db, CompanyCommand c)
     {
         var address = Normal(c.Body) ?? throw new WorkspaceException("Invite a valid email address.", 422);

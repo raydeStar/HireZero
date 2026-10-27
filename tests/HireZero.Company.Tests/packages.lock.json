@@ -178,6 +178,11 @@
           "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.20.0, 2.0.0)"
         }
       },
+      "PdfPig": {
+        "type": "Transitive",
+        "resolved": "0.1.16",
+        "contentHash": "qQcbsNMYVY+K5ELptax2S8thNMk0+rSQq3H/KdYj3LLcko8yTCz8y5KIvsKxIyAuTN0ZYNnfsZkM+0EvxTwHVA=="
+      },
       "SQLite": {
         "type": "Transitive",
         "resolved": "3.53.4",
@@ -309,6 +314,7 @@
           "HireZero.Integrations.AgentApps": "[1.0.0, )",
           "HireZero.Integrations.AzureDevOps": "[1.0.0, )",
           "HireZero.Integrations.Codex": "[1.0.0, )",
+          "HireZero.Integrations.Documents": "[1.0.0, )",
           "HireZero.Integrations.Git": "[1.0.0, )",
           "HireZero.Integrations.GitHub": "[1.0.0, )",
           "HireZero.Integrations.Google": "[1.0.0, )",
@@ -316,10 +322,13 @@
           "HireZero.Integrations.Microsoft365": "[1.0.0, )",
           "HireZero.Integrations.ModelApis": "[1.0.0, )",
           "HireZero.Integrations.Node": "[1.0.0, )",
+          "HireZero.Integrations.Notifications": "[1.0.0, )",
           "HireZero.Integrations.OpenClaw": "[1.0.0, )",
           "HireZero.Integrations.OpenRouter": "[1.0.0, )",
           "HireZero.Integrations.Postgres": "[1.0.0, )",
+          "HireZero.Integrations.Sandbox": "[1.0.0, )",
           "HireZero.Integrations.SemaForge": "[1.0.0, )",
+          "HireZero.Integrations.Stripe": "[1.0.0, )",
           "HireZero.Integrations.Synthetic": "[1.0.0, )",
           "HireZero.Integrations.Web": "[1.0.0, )",
           "HireZero.Integrations.Wiki": "[1.0.0, )",
@@ -354,6 +363,12 @@
           "HireZero.Core": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.documents": {
+        "type": "Project",
+        "dependencies": {
+          "PdfPig": "[0.1.16, )"
+        }
+      },
       "hirezero.integrations.git": {
         "type": "Project",
         "dependencies": {
@@ -373,6 +388,7 @@
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
+          "HireZero.Integrations.Documents": "[1.0.0, )",
           "HireZero.Tools.Advertising": "[1.0.0, )",
           "HireZero.Tools.Analytics": "[1.0.0, )"
         }
@@ -404,6 +420,12 @@
           "HireZero.Tools.Node": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.notifications": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.openclaw": {
         "type": "Project",
         "dependencies": {
@@ -424,11 +446,23 @@
           "Npgsql": "[10.0.3, )"
         }
       },
+      "hirezero.integrations.sandbox": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.semaforge": {
         "type": "Project",
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.SemaForge": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.stripe": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.integrations.synthetic": {

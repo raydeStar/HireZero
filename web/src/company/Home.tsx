@@ -1,9 +1,12 @@
-import { Check, UserPlus } from "lucide-react";
+import { Check } from "lucide-react";
 import type { Employee, Snapshot, Work } from "./api";
-import { workGroups, workTitle, type Need } from "./Cockpit";
+import { workGroups, workState, workTitle, type Need } from "./Cockpit";
 import { artifactState, employeeState, roleName } from "./labels";
 import { isToday, useNow } from "./time";
 import { dollars } from "./money";
+import { approvedBusinessProfile, businessSetup } from "../roles/company";
+import { FirstAssignment } from "./FirstAssignment";
+import { useMemberAccess } from "./MemberAccess";
 
 export function initials(name: string) {
   return (
@@ -36,6 +39,14 @@ export function Home({
   onChat,
   onWork,
   onHire,
+  onBusiness,
+  onResumeHire,
+  needsError = "",
+  needsLoading = false,
+  onRetryNeeds,
+  refresh,
+  onOpenConversation,
+  canPrepare = true,
 }: {
   snapshot: Snapshot;
   needs: Need[];
@@ -44,25 +55,39 @@ export function Home({
   onChat: (employee: Employee) => void;
   onWork: (employee: Employee) => void;
   onHire: () => void;
+  onBusiness?: () => void;
+  onResumeHire?: (employee: Employee) => void;
+  needsError?: string;
+  needsLoading?: boolean;
+  onRetryNeeds?: () => void;
+  refresh: () => Promise<void>;
+  onOpenConversation: (employee: string, thread: string) => void;
+  canPrepare?: boolean;
 }) {
+  const { canManage, canWork } = useMemberAccess();
   const d = snapshot.data;
   const work = d.tasks.filter((t) => t.kind !== "conversation");
-  const count = (group: readonly string[]) => work.filter((t) => group.includes(t.state)).length;
+  const count = (group: readonly string[]) => work.filter((t) => group.includes(workState(snapshot, t))).length;
   const tiles = [
-    ["Needs you", needs.length, needs.length > 0],
+    ["Needs you", needsError ? "?" : needsLoading ? "…" : needs.length, needs.length > 0],
     ["In progress", count(workGroups.progress), false],
     ["Up next", count(workGroups.next), false],
     ["Done", count(workGroups.done), false],
   ] as const;
   const status = (e: Employee) => {
     if (e.state !== "active") return employeeState(e.state);
-    const mine = work.filter((t) => t.employeeId === e.id);
+    const mine = d.tasks.filter((t) => t.employeeId === e.id);
     // Results that still need a decision, not work whose results are already approved.
     const review = d.artifacts.filter((a) => a.employeeId === e.id && a.state === "needs_review").length;
-    const running = mine.find((t) => (workGroups.progress as readonly string[]).includes(t.state));
+    const authorizing = mine.some((t) => workState(snapshot, t) === "awaiting_authorization");
+    const running = mine.find((t) => (workGroups.progress as readonly string[]).includes(workState(snapshot, t)));
     const queued = mine.filter((t) => (workGroups.next as readonly string[]).includes(t.state)).length;
     if (running) return "Working on " + workTitle(snapshot, running);
-    if (review) return review + (review === 1 ? " result waits" : " results wait") + " for your review";
+    if (authorizing) return canWork ? "Waiting for your authorization" : "Waiting for authorization";
+    if (review)
+      return (
+        review + (review === 1 ? " result waits" : " results wait") + (canWork ? " for your review" : " for review")
+      );
     if (queued) return queued + " queued";
     return "Idle";
   };
@@ -75,31 +100,73 @@ export function Home({
   const nameOf = (id: string) => d.employees.find((e) => e.id === id)?.name ?? "Former employee";
   // Getting started (UX round 6): the path from an empty company to a first approved result, shown until it is done.
   const active = d.employees.find((e) => e.state === "active");
-  const waiting = d.tasks.find((t) => d.artifacts.some((a) => a.taskId === t.id && a.state === "needs_review"));
+  const onboarding = d.employees.find((e) => e.state === "onboarding");
+  const resume = (employee: Employee) => (onResumeHire ? onResumeHire(employee) : onHire());
+  const profile = approvedBusinessProfile(snapshot);
+  const starter = d.employees
+    .filter((employee) => employee.state === "active")
+    .map((employee) => ({
+      employee,
+      setup: businessSetup(snapshot, employee.roleId),
+      thread: d.threads.find((t) => t.employeeId === employee.id && (t.scope ?? "employee") === "employee"),
+    }))
+    .find((candidate) => candidate.setup && candidate.thread);
+  // Chat and setup drafts are introductions, not delivered assignments. The checklist keeps its promises modest.
+  const assignments = work.filter((t) => (t.kind ?? "work") === "work");
+  const finished = assignments.some(
+    (t) => t.state === "completed" && d.artifacts.some((a) => a.taskId === t.id && a.state === "approved"),
+  );
+  const waiting =
+    assignments.find((t) => d.artifacts.some((a) => a.taskId === t.id && a.state === "needs_review")) ??
+    assignments.find((t) => t.state === "awaiting_review") ??
+    assignments.find((t) => !["completed", "failed", "canceled", "superseded"].includes(t.state)) ??
+    assignments.at(-1);
   const steps = [
+    ...(onBusiness && (d.employees.length === 0 || d.business)
+      ? [
+          {
+            label: "Confirm your business brief",
+            detail: "Review the facts your employees will share.",
+            done: !!profile,
+            action: [d.business || !canManage ? "Open business brief" : "Set up my business", onBusiness] as const,
+          },
+        ]
+      : []),
     {
       label: "Hire an employee",
       detail: "Choose a role and what they are responsible for.",
-      done: d.employees.length > 0,
-      action: ["Hire", onHire] as const,
+      done: d.employees.some((e) => e.state !== "retired"),
+      action: canManage ? (["Hire your first employee", onHire] as const) : null,
     },
     {
       label: "Finish onboarding",
-      detail: "Write and approve the shared facts their department works from.",
+      detail: onboarding
+        ? `${onboarding.name} needs the shared facts their department works from.`
+        : "Write and approve the shared facts their department works from.",
       done: !!active,
-      action: ["Continue", onHire] as const,
+      action: canManage ? (["Continue onboarding", () => (onboarding ? resume(onboarding) : onHire())] as const) : null,
     },
     {
-      label: "Ask for work",
-      detail: "Open a chat and ask a question or start an action.",
-      done: d.tasks.length > 0,
-      action: active ? (["Open chat", () => onChat(active)] as const) : null,
+      label: "Prepare a first assignment",
+      detail: starter
+        ? "Review the suggested request below. Preparation does not run a model."
+        : "Choose a small piece of work for an active employee.",
+      done: assignments.length > 0,
+      action: canWork && active && !starter ? (["Ask for work", () => onChat(active)] as const) : null,
     },
     {
-      label: "Approve a first result",
-      detail: "Results wait for your review before anything uses them.",
-      done: d.artifacts.some((a) => a.state === "approved"),
-      action: waiting ? (["Review", () => onOpenWork(waiting)] as const) : null,
+      label: "Review and finish a result",
+      detail:
+        waiting?.state === "awaiting_review"
+          ? "Approve the result, then mark the assignment complete."
+          : "Open your assignment to authorize it, follow its progress or resolve what is holding it up.",
+      done: finished,
+      action: waiting
+        ? ([
+            waiting.state === "awaiting_review" ? "Review first result" : "Open first assignment",
+            () => onOpenWork(waiting),
+          ] as const)
+        : null,
     },
   ];
   const next = steps.findIndex((step) => !step.done);
@@ -112,37 +179,110 @@ export function Home({
   const todayParts = [
     startedToday && startedToday + " started",
     finishedToday && finishedToday + " finished",
-    needs.length && needs.length + (needs.length === 1 ? " waits for you" : " wait for you"),
+    !needsError &&
+      !needsLoading &&
+      needs.length &&
+      needs.length + (needs.length === 1 ? " waits for you" : " wait for you"),
   ].filter(Boolean);
   return (
     <div className="co-home">
-      <p className="co-home-today" aria-label="Today so far">
-        <b>Today so far:</b> {todayParts.length ? todayParts.join(" · ") : "nothing has happened yet."}
-      </p>
-      <section className="co-home-tiles" aria-label="At a glance">
-        {tiles.map(([label, value, attention]) =>
-          // What needs you is listed in the cockpit; the tile opens the first item.
-          label === "Needs you" && needs.length > 0 ? (
-            <button key={label} className="co-tile attention" onClick={() => onOpenNeed(needs[0]!)}>
-              <strong>{value}</strong>
-              <span>{label}</span>
-            </button>
-          ) : (
-            <div key={label} className={"co-tile" + (attention ? " attention" : "")}>
-              <strong>{value}</strong>
-              <span>{label}</span>
-            </div>
-          ),
-        )}
-        <div className="co-tile">
-          <strong>{spend ? dollars(spend.usd) : "$0.00"}</strong>
-          <span>Spent to date</span>
+      {needsError && (
+        <div className="co-needs-error" role="status">
+          <p>
+            {needsError}{" "}
+            {needs.length
+              ? "Open the cockpit to see the last checked items."
+              : "Retry to check whether anything is waiting for you."}
+          </p>
+          <button disabled={needsLoading} onClick={onRetryNeeds}>
+            {needsLoading ? "Checking needs…" : "Retry needs"}
+          </button>
         </div>
-      </section>
+      )}
+      {d.employees.length === 0 ? (
+        <section className="co-home-welcome" aria-label="Welcome to your company">
+          <p className="co-eyebrow">Your company starts here</p>
+          <h2>
+            {onBusiness
+              ? "Start with your business. Then build your team."
+              : "Build your team, one employee at a time."}
+          </h2>
+          <p>
+            {!canManage ? (
+              "A company owner sets up the business brief and hires the first employee. You can follow the team's progress here."
+            ) : (
+              <>
+                Confirm your business and review the facts your employees will share. Then choose a role and a small
+                first assignment. You review each result and decide what happens next.
+              </>
+            )}
+          </p>
+        </section>
+      ) : (
+        <p className="co-home-today" aria-label="Today so far">
+          <b>Today so far:</b> {todayParts.length ? todayParts.join(" · ") : "nothing has happened yet."}
+        </p>
+      )}
+      {onBusiness && d.employees.length > 0 && (
+        <section className="co-home-welcome" aria-label="Business knowledge">
+          <h2>
+            {profile ? "Your team has an approved business brief." : "Start with what makes your business yours."}
+          </h2>
+          <p>
+            {canManage
+              ? "Confirm your business and review the facts your employees will share. Add sources, correct details, and leave uncertain information unknown."
+              : "Read the shared business brief here. A company owner manages its facts and sources."}
+          </p>
+          <button onClick={onBusiness}>
+            {d.business || !canManage ? "Open business brief" : "Set up my business"}
+          </button>
+        </section>
+      )}
+      {d.employees.length > 0 && (
+        <section className="co-home-tiles" aria-label="At a glance">
+          {tiles.map(([label, value, attention]) =>
+            // What needs you is listed in the cockpit; the tile opens the first item.
+            label === "Needs you" && needs.length > 0 ? (
+              <button key={label} className="co-tile attention" onClick={() => onOpenNeed(needs[0]!)}>
+                <strong>{value}</strong>
+                <span>{label}</span>
+              </button>
+            ) : (
+              <div key={label} className={"co-tile" + (attention ? " attention" : "")}>
+                <strong>{value}</strong>
+                <span>{label}</span>
+              </div>
+            ),
+          )}
+          <div className="co-tile">
+            <strong>
+              {!spend
+                ? "Unavailable"
+                : spend.unpricedJobs > 0 && spend.pricedJobs === 0
+                  ? "Not priced"
+                  : dollars(spend.usd)}
+            </strong>
+            <span>Model costs &amp; estimates</span>
+            {spend && spend.unpricedJobs > 0 && (
+              <small>
+                {spend.unpricedJobs} {spend.unpricedJobs === 1 ? "job has" : "jobs have"} no dollar price
+              </small>
+            )}
+          </div>
+        </section>
+      )}
 
       {next >= 0 && (
         <section className="co-home-section" aria-label="Getting started">
           <h2>Getting started</h2>
+          {!canManage && (
+            <p className="co-muted">
+              An owner manages the business brief, hiring and onboarding.
+              {canWork
+                ? " You can prepare and review work once setup is ready."
+                : " An owner or approver prepares work and reviews results."}
+            </p>
+          )}
           <ol className="co-checklist">
             {steps.map((step, i) => (
               <li key={step.label} className={step.done ? "done" : i === next ? "next" : ""}>
@@ -162,19 +302,28 @@ export function Home({
               </li>
             ))}
           </ol>
+          {steps[next]?.label === "Prepare a first assignment" &&
+            starter?.setup &&
+            starter.thread &&
+            (canPrepare ? (
+              <FirstAssignment
+                key={starter.employee.id}
+                snapshot={snapshot}
+                employeeId={starter.employee.id}
+                threadId={starter.thread.id}
+                setup={starter.setup}
+                refresh={refresh}
+                open={onOpenConversation}
+              />
+            ) : (
+              <p>An owner or approver can prepare the first assignment.</p>
+            ))}
         </section>
       )}
 
-      <section className="co-home-section" aria-label="Team">
-        <h2>Team</h2>
-        {d.employees.length === 0 ? (
-          <div className="co-home-empty">
-            <p>Hire your first employee to start delegating work.</p>
-            <button className="co-primary" onClick={onHire}>
-              <UserPlus size={15} /> Hire your first employee
-            </button>
-          </div>
-        ) : (
+      {d.employees.length > 0 && (
+        <section className="co-home-section" aria-label="Team">
+          <h2>Team</h2>
           <div className="co-team-grid">
             {d.employees.map((e) => (
               <article className="co-team-card" key={e.id}>
@@ -190,9 +339,19 @@ export function Home({
                 </header>
                 <p className="co-home-status">{status(e)}</p>
                 <div className="co-actions">
-                  <button onClick={() => onChat(e)} aria-label={"Chat with " + e.name}>
-                    Chat
-                  </button>
+                  {e.state === "onboarding" && canManage ? (
+                    <button
+                      className="co-primary"
+                      onClick={() => resume(e)}
+                      aria-label={"Continue onboarding " + e.name}
+                    >
+                      Continue onboarding
+                    </button>
+                  ) : (
+                    <button onClick={() => onChat(e)} aria-label={"Chat with " + e.name}>
+                      Chat
+                    </button>
+                  )}
                   <button onClick={() => onWork(e)} aria-label={e.name + "’s work"}>
                     Work
                   </button>
@@ -200,8 +359,8 @@ export function Home({
               </article>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {results.length > 0 && (
         <section className="co-home-section" aria-label="Recent results">

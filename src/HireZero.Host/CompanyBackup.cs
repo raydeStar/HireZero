@@ -7,17 +7,19 @@ using Microsoft.Data.Sqlite;
 // secrets, integration settings, the audit key) copied as they are; a manifest with SHA-256 digests; an integrity
 // check of every copied database; and only the newest backups kept. Nothing leaves the machine. Keys stay
 // DPAPI-protected, so only the same Windows user can restore the secrets.
-public static class CompanyBackup
+public static partial class CompanyBackup
 {
     public const string Flag = "--company-backup";
     public const string Prefix = "hirezero-backup-";
 
-    public sealed record Result(string Folder, int Databases, int Files, string[] Removed);
+    public sealed record Result(string Folder, int Databases, int Files, string[] Removed, string[] NeedsReview);
 
     public static Result Run(string dataRoot, string destination, int keep, DateTimeOffset? now = null)
     {
-        var source = Path.GetFullPath(dataRoot);
-        var target = Path.GetFullPath(destination);
+        var source = Path.TrimEndingDirectorySeparator(Path.GetFullPath(dataRoot));
+        var target = Path.TrimEndingDirectorySeparator(Path.GetFullPath(destination));
+        RequireNoLinks(source);
+        RequireNoLinks(target);
         if (!Directory.Exists(source))
             throw new InvalidOperationException("The data root does not exist: " + source);
         if (IsWithin(target, source) || IsWithin(source, target))
@@ -25,16 +27,36 @@ public static class CompanyBackup
         if (keep is < 1 or > 365)
             throw new InvalidOperationException("Keep between 1 and 365 backups.");
 
-        var folder = Path.Combine(target, Prefix + (now ?? DateTimeOffset.Now).ToString("yyyyMMdd-HHmmss"));
-        if (Directory.Exists(folder))
+        var files = TreeEntries(source).Where(p => !Directory.Exists(p)).Order().ToArray();
+        if (files.Contains(Path.Combine(source, "manifest.json"), PathComparer))
+            throw new InvalidOperationException(
+                "The data root contains the reserved backup manifest filename. Nothing was copied."
+            );
+        Directory.CreateDirectory(target);
+        RequireNoLinks(target);
+        var lockPath = Path.Combine(target, ".hirezero-backup.lock");
+        RequireNoLinks(lockPath);
+        using var ownership = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        var created = now ?? DateTimeOffset.Now;
+        var folder = Path.Combine(
+            target,
+            Prefix + created.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture)
+        );
+        if (Path.Exists(folder))
             throw new InvalidOperationException("A backup with this time already exists: " + folder);
         var partial = folder + ".partial";
+        RequireNoLinks(partial);
+        if (Path.Exists(partial))
+            throw new InvalidOperationException(
+                "A partial backup with this time already exists. It was preserved; choose a new backup time."
+            );
         Directory.CreateDirectory(partial);
         var manifest = new List<object>();
+        var ownedFiles = new List<string>();
         var databases = 0;
         try
         {
-            foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories).Order())
+            foreach (var file in files)
             {
                 var relative = Path.GetRelativePath(source, file);
                 // Locks and SQLite side files are not data: a database is copied whole by the online backup.
@@ -46,14 +68,23 @@ public static class CompanyBackup
                 )
                     continue;
                 var copy = Path.Combine(partial, relative);
+                RequireNoLinks(file);
+                RequireNoLinks(copy);
                 Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
                 if (file.EndsWith(".sqlite", StringComparison.OrdinalIgnoreCase))
                 {
+                    using (new FileStream(copy, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { }
+                    ownedFiles.Add(copy);
                     Backup(file, copy);
                     databases++;
                 }
                 else
-                    File.Copy(file, copy);
+                {
+                    using var output = new FileStream(copy, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                    ownedFiles.Add(copy);
+                    using var input = File.OpenRead(file);
+                    input.CopyTo(output);
+                }
                 manifest.Add(
                     new
                     {
@@ -63,43 +94,53 @@ public static class CompanyBackup
                     }
                 );
             }
-            File.WriteAllText(
-                Path.Combine(partial, "manifest.json"),
+            var manifestPath = Path.Combine(partial, "manifest.json");
+            using (var output = new FileStream(manifestPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                ownedFiles.Add(manifestPath);
                 JsonSerializer.Serialize(
+                    output,
                     new
                     {
-                        created = (now ?? DateTimeOffset.Now).ToString("O"),
+                        schema = 1,
+                        created = created.ToString("O"),
                         source,
                         files = manifest,
                     },
                     new JsonSerializerOptions { WriteIndented = true }
-                )
-            );
+                );
+            }
+            RequireNoLinks(partial);
             Directory.Move(partial, folder);
         }
         catch
         {
-            SqliteConnection.ClearAllPools();
-            Directory.Delete(partial, true);
+            // Only this attempt's files belong to our broom. An interrupted predecessor is not ours to sweep.
+            CleanOwnedPartial(partial, ownedFiles);
             throw;
         }
 
-        // Only complete backups count; the newest are kept.
-        var removed = Directory
-            .EnumerateDirectories(target, Prefix + "*")
-            .Where(d => !d.EndsWith(".partial", StringComparison.Ordinal))
-            .OrderByDescending(d => Path.GetFileName(d), StringComparer.Ordinal)
-            .Skip(keep)
-            .ToArray();
-        foreach (var old in removed)
-            Directory.Delete(old, true);
-        return new(folder, databases, manifest.Count, [.. removed.Select(Path.GetFileName).OfType<string>()]);
+        var (removed, preserved) = PruneVerifiedBackups(target, source, keep);
+        return new(folder, databases, manifest.Count, removed, preserved);
     }
 
     private static void Backup(string from, string to)
     {
-        using (var source = new SqliteConnection($"Data Source={from};Mode=ReadOnly;Pooling=False"))
-        using (var copy = new SqliteConnection($"Data Source={to};Pooling=False"))
+        using (
+            var source = new SqliteConnection(
+                new SqliteConnectionStringBuilder
+                {
+                    DataSource = from,
+                    Mode = SqliteOpenMode.ReadOnly,
+                    Pooling = false,
+                }.ToString()
+            )
+        )
+        using (
+            var copy = new SqliteConnection(
+                new SqliteConnectionStringBuilder { DataSource = to, Pooling = false }.ToString()
+            )
+        )
         {
             source.Open();
             copy.Open();
@@ -122,6 +163,6 @@ public static class CompanyBackup
     private static bool IsWithin(string path, string root) =>
         (path.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar).StartsWith(
             root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal
         );
 }

@@ -1,0 +1,17 @@
+{
+  "id": "P01",
+  "evidence": "unclassified",
+  "progressFile": null,
+  "observation": {
+    "observedAt": null,
+    "correctBusiness": null,
+    "assistance": "unobserved",
+    "firstDeliverable": "unobserved",
+    "firstTaskId": null,
+    "followUpAt": null,
+    "repeatUsefulWork": null,
+    "repeatEvidence": null,
+    "payment": "unobserved",
+    "paymentReceiptReviewed": false
+  }
+}

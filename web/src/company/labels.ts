@@ -24,13 +24,16 @@ const taskStates: Record<string, string> = {
   running: "Working",
   gathering: "Gathering evidence",
   awaiting_review: "Waiting for your review",
+  awaiting_authorization: "Waiting for your authorization",
   completed: "Done",
   failed: "Failed",
   cancelled: "Cancelled",
   canceled: "Cancelled",
   unknown: "Outcome unknown",
+  superseded: "Replaced by a fresh assignment",
 };
-export const taskState = (state: string) => taskStates[state] ?? humanize(state);
+export const taskState = (state: string, canWork = true) =>
+  (taskStates[state] ?? humanize(state)).replace("your ", canWork ? "your " : "");
 
 const artifactStates: Record<string, string> = {
   needs_review: "Needs your review",
@@ -39,7 +42,8 @@ const artifactStates: Record<string, string> = {
   rejected: "Rejected",
   superseded: "Replaced by a newer version",
 };
-export const artifactState = (state: string) => artifactStates[state] ?? humanize(state);
+export const artifactState = (state: string, canWork = true) =>
+  (artifactStates[state] ?? humanize(state)).replace("your ", canWork ? "your " : "");
 
 const employeeStates: Record<string, string> = {
   active: "Active",
@@ -66,5 +70,7 @@ export function provenance(role: Role | undefined, value: string): string {
   if (value.startsWith("action:")) return "From “" + workName(role, value.slice("action:".length)) + "”";
   if (value === "owner") return "Written by you";
   if (value === "model-output") return "Draft by the employee";
+  if (value === "sandbox-output") return "Selected script output";
+  if (value === "browser-capture") return "Selected website capture";
   return humanize(value);
 }

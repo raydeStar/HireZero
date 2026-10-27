@@ -49,7 +49,7 @@ public sealed class GoogleServiceAccount(Func<string?> key, HttpClient http, Fun
         }
     }
 
-    public static string Assertion(Key key, DateTimeOffset now)
+    public static string Assertion(Key key, DateTimeOffset now, string scopes = Scopes)
     {
         static string Encode(byte[] bytes) =>
             Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
@@ -59,7 +59,7 @@ public sealed class GoogleServiceAccount(Func<string?> key, HttpClient http, Fun
         var claims = new Dictionary<string, object>
         {
             ["iss"] = key.ClientEmail,
-            ["scope"] = Scopes,
+            ["scope"] = scopes,
             ["aud"] = TokenEndpoint,
             ["iat"] = now.ToUnixTimeSeconds(),
             ["exp"] = now.AddMinutes(10).ToUnixTimeSeconds(),

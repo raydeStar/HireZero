@@ -12,6 +12,7 @@ public sealed partial class CompanyStore
 
     private CompanyTask StartAction(StoreConnection db, CompanyCommand c)
     {
+        DemandWorkAdmission(db);
         var employee = Need<CompanyEmployee>(db, Text(c.EmployeeId, 64));
         var action =
             Role(employee.RoleId).Manifest?.Actions.SingleOrDefault(a => a.Id == c.Skill)

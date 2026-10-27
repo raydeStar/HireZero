@@ -14,6 +14,156 @@ public sealed class CompanySettings
     public static readonly Setting[] All =
     [
         new(
+            "HIREZERO_BILLING_CATALOG",
+            "Billing",
+            "Absolute JSON file of explicit monthly prices and allowances.",
+            (s, v) => s.BillingCatalog = AbsolutePath(v)
+        ),
+        new(
+            "HIREZERO_STRIPE_ACCOUNT",
+            "Billing",
+            "Expected Stripe merchant account ID.",
+            (s, v) => s.StripeAccount = v
+        ),
+        new(
+            "HIREZERO_STRIPE_PORTAL_CONFIGURATION",
+            "Billing",
+            "Reviewed Stripe customer portal configuration ID.",
+            (s, v) => s.StripePortalConfiguration = v
+        ),
+        new(
+            "HIREZERO_STRIPE_LIVE_MODE",
+            "Billing",
+            "0 uses Stripe test mode; 1 uses live mode.",
+            (s, v) => s.StripeLiveMode = Flag(v)
+        ),
+        new(
+            "HIREZERO_BILLING_ENABLED",
+            "Billing",
+            "1 permits owner-approved new subscriptions; 0 retains recovery and account management.",
+            (s, v) => s.BillingEnabled = Flag(v)
+        ),
+        new(
+            "HIREZERO_SANDBOX_DOCKER",
+            "Sandbox",
+            "Absolute installed Docker CLI path.",
+            (s, v) => s.SandboxDocker = AbsolutePath(v)
+        ),
+        new(
+            "HIREZERO_SANDBOX_ENDPOINT",
+            "Sandbox",
+            "Approved local Linux engine endpoint.",
+            (s, v) =>
+                s.SandboxEndpoint = v is "unix:///var/run/docker.sock" or "npipe:////./pipe/dockerDesktopLinuxEngine"
+                    ? v
+                    : throw new FormatException("must select an approved local Linux engine endpoint")
+        ),
+        new(
+            "HIREZERO_SANDBOX_IMAGE",
+            "Sandbox",
+            "Qualified local immutable sha256 image ID.",
+            (s, v) =>
+                s.SandboxImage =
+                    v.StartsWith("sha256:", StringComparison.Ordinal) && v.Length == 71 && v[7..].All(Uri.IsHexDigit)
+                        ? v.ToLowerInvariant()
+                        : throw new FormatException("must be a local sha256 image ID")
+        ),
+        new(
+            "HIREZERO_SANDBOX_INSTALLATION",
+            "Sandbox",
+            "Durable installation GUID, without hyphens.",
+            (s, v) =>
+                s.SandboxInstallation = Guid.TryParseExact(v, "N", out var id)
+                    ? id.ToString("N")
+                    : throw new FormatException("must be a GUID without hyphens")
+        ),
+        new(
+            "HIREZERO_SANDBOX_QUALIFICATION",
+            "Sandbox",
+            "Absolute private operator qualification receipt path.",
+            (s, v) => s.SandboxQualification = AbsolutePath(v)
+        ),
+        new(
+            "HIREZERO_SANDBOX_ENABLED",
+            "Sandbox",
+            "1 permits qualified new scripts; 0 retains recovery only.",
+            (s, v) => s.SandboxEnabled = Flag(v)
+        ),
+        new(
+            "HIREZERO_BROWSER_DOCKER",
+            "Browser",
+            "Absolute installed Docker CLI path.",
+            (s, v) => s.BrowserDocker = AbsolutePath(v)
+        ),
+        new(
+            "HIREZERO_BROWSER_ENDPOINT",
+            "Browser",
+            "Approved local Linux engine endpoint.",
+            (s, v) =>
+                s.BrowserEndpoint = v is "unix:///var/run/docker.sock" or "npipe:////./pipe/dockerDesktopLinuxEngine"
+                    ? v
+                    : throw new FormatException("must select an approved local Linux engine endpoint")
+        ),
+        new(
+            "HIREZERO_BROWSER_IMAGE",
+            "Browser",
+            "Qualified local immutable sha256 image ID.",
+            (s, v) =>
+                s.BrowserImage =
+                    v.StartsWith("sha256:", StringComparison.Ordinal) && v.Length == 71 && v[7..].All(Uri.IsHexDigit)
+                        ? v.ToLowerInvariant()
+                        : throw new FormatException("must be a local sha256 image ID")
+        ),
+        new(
+            "HIREZERO_BROWSER_INSTALLATION",
+            "Browser",
+            "Durable installation GUID, without hyphens.",
+            (s, v) =>
+                s.BrowserInstallation = Guid.TryParseExact(v, "N", out var id)
+                    ? id.ToString("N")
+                    : throw new FormatException("must be a GUID without hyphens")
+        ),
+        new(
+            "HIREZERO_BROWSER_QUALIFICATION",
+            "Browser",
+            "Absolute private operator qualification receipt path.",
+            (s, v) => s.BrowserQualification = AbsolutePath(v)
+        ),
+        new(
+            "HIREZERO_BROWSER_ENABLED",
+            "Browser",
+            "1 permits qualified new public-page browser jobs; 0 retains recovery only.",
+            (s, v) => s.BrowserEnabled = Flag(v)
+        ),
+        new(
+            "HIREZERO_NOTIFICATION_SMTP_HOST",
+            "Notifications",
+            "SMTP server for owner-authorized notices; STARTTLS required.",
+            (s, v) => s.NotificationSmtpHost = v.Trim()
+        ),
+        new(
+            "HIREZERO_NOTIFICATION_SMTP_PORT",
+            "Notifications",
+            "STARTTLS SMTP port, usually 587.",
+            (s, v) =>
+                s.NotificationSmtpPort =
+                    int.TryParse(v, out var port) && port is > 0 and <= 65535
+                        ? port
+                        : throw new FormatException("must be a valid TCP port")
+        ),
+        new(
+            "HIREZERO_NOTIFICATION_FROM",
+            "Notifications",
+            "Sender email for generic workspace notices.",
+            (s, v) => s.NotificationFrom = v.Trim()
+        ),
+        new(
+            "HIREZERO_NOTIFICATION_SMTP_USERNAME",
+            "Notifications",
+            "SMTP account username; the password is a separate secret.",
+            (s, v) => s.NotificationSmtpUsername = v
+        ),
+        new(
             "HIREZERO_DATA_ROOT",
             "Workspace",
             "Absolute directory for company data, keys and locks.",
@@ -90,6 +240,12 @@ public sealed class CompanySettings
             (s, v) => s.CodingModel = v
         ),
         new(
+            "HIREZERO_COMPANY_ANALYSIS_MODEL",
+            "Models",
+            "Optional vendor/model for measured planning, technical review and memory checks; omitted uses the routine text model. Each request requires exact approval.",
+            (s, v) => s.AnalysisModel = v
+        ),
+        new(
             "HIREZERO_API_MODELS",
             "Models",
             "1 uses an API model (Anthropic, OpenAI or OpenRouter key) when the Codex connection is not selected.",
@@ -154,6 +310,27 @@ public sealed class CompanySettings
     ];
 
     public string? DataRoot { get; private set; }
+    public string? BillingCatalog { get; private set; }
+    public string? StripeAccount { get; private set; }
+    public string? StripePortalConfiguration { get; private set; }
+    public bool StripeLiveMode { get; private set; }
+    public bool BillingEnabled { get; private set; }
+    public string? SandboxDocker { get; private set; }
+    public string? SandboxEndpoint { get; private set; }
+    public string? SandboxImage { get; private set; }
+    public string? SandboxInstallation { get; private set; }
+    public string? SandboxQualification { get; private set; }
+    public bool SandboxEnabled { get; private set; }
+    public string? BrowserDocker { get; private set; }
+    public string? BrowserEndpoint { get; private set; }
+    public string? BrowserImage { get; private set; }
+    public string? BrowserInstallation { get; private set; }
+    public string? BrowserQualification { get; private set; }
+    public bool BrowserEnabled { get; private set; }
+    public string? NotificationSmtpHost { get; private set; }
+    public int NotificationSmtpPort { get; private set; } = 587;
+    public string? NotificationFrom { get; private set; }
+    public string? NotificationSmtpUsername { get; private set; }
     public string? OwnerLogin { get; private set; }
     public bool LocalOwner { get; private set; }
     public bool ExecutionHold { get; private set; }
@@ -165,6 +342,7 @@ public sealed class CompanySettings
     public IPAddress? TrustedProxy { get; private set; }
     public string? TlsCertificate { get; private set; }
     public string? TextModel { get; private set; }
+    public string? AnalysisModel { get; private set; }
     public string? CodingModel { get; private set; }
     public string? CodexExecutable { get; private set; }
     public string? CodexIdentity { get; private set; }
@@ -206,6 +384,58 @@ public sealed class CompanySettings
                 errors.Add(setting.Name + " (" + entry.Source + ") " + error.Message.TrimEnd('.') + ".");
             }
         }
+        if (
+            values.Keys.Any(k =>
+                k.StartsWith("HIREZERO_SANDBOX_", StringComparison.Ordinal) && k != "HIREZERO_SANDBOX_ENABLED"
+            ) || settings.SandboxEnabled
+        )
+            foreach (
+                var name in new[]
+                {
+                    "HIREZERO_SANDBOX_DOCKER",
+                    "HIREZERO_SANDBOX_ENDPOINT",
+                    "HIREZERO_SANDBOX_IMAGE",
+                    "HIREZERO_SANDBOX_INSTALLATION",
+                    "HIREZERO_SANDBOX_QUALIFICATION",
+                }
+            )
+                if (!values.ContainsKey(name))
+                    errors.Add(name + " is required when configuring an isolated script runtime.");
+        if (
+            values.Keys.Any(k =>
+                k.StartsWith("HIREZERO_BROWSER_", StringComparison.Ordinal) && k != "HIREZERO_BROWSER_ENABLED"
+            ) || settings.BrowserEnabled
+        )
+            foreach (
+                var name in new[]
+                {
+                    "HIREZERO_BROWSER_DOCKER",
+                    "HIREZERO_BROWSER_ENDPOINT",
+                    "HIREZERO_BROWSER_IMAGE",
+                    "HIREZERO_BROWSER_INSTALLATION",
+                    "HIREZERO_BROWSER_QUALIFICATION",
+                }
+            )
+                if (!values.ContainsKey(name))
+                    errors.Add(name + " is required when configuring an isolated browser runtime.");
+        if (
+            settings.BillingCatalog is not null
+            || settings.StripeAccount is not null
+            || settings.StripePortalConfiguration is not null
+            || settings.BillingEnabled
+            || settings.StripeLiveMode
+        )
+            foreach (
+                var name in new[]
+                {
+                    "HIREZERO_BILLING_CATALOG",
+                    "HIREZERO_STRIPE_ACCOUNT",
+                    "HIREZERO_STRIPE_PORTAL_CONFIGURATION",
+                    "HIREZERO_STRIPE_LIVE_MODE",
+                }
+            )
+                if (!values.ContainsKey(name))
+                    errors.Add(name + " is required when configuring billing.");
         if (errors.Count > 0)
             throw new InvalidOperationException(
                 "The settings are not valid. Nothing was started:\n- " + string.Join("\n- ", errors)
@@ -258,4 +488,7 @@ public sealed class CompanySettings
 
     private static Uri AbsoluteUri(string value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri : throw new FormatException("is not an absolute URL");
+
+    private static string AbsolutePath(string value) =>
+        Path.IsPathFullyQualified(value) ? value : throw new FormatException("must be an absolute file path");
 }

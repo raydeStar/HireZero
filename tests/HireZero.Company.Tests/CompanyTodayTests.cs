@@ -25,6 +25,92 @@ public sealed class CompanyTodayTests : IDisposable
         CompanyJson.Decode<T>(store.Apply(command));
 
     [Fact]
+    public void PreparedMeasuredWorkWaitsForAuthorizationUntilItIsDispatched()
+    {
+        var store = new CompanyStore(
+            Path.Combine(_root.Path, "company.sqlite"),
+            Owner,
+            CompanyWorkspace.Definitions(),
+            measuredRuntimeIdentity: "fictional-today-runtime"
+        );
+        var task = MeasuredQueueChecks.Seed(store);
+        var attempt = Apply<CompanyAttempt>(
+            store,
+            Cmd("measured.prepare") with
+            {
+                Id = task.Id,
+                ExpectedVersion = task.Version,
+                CreditAllowance = 1,
+            }
+        );
+        var now = DateTimeOffset.UtcNow;
+        var need = Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou);
+        Assert.Equal(
+            ("authorization", task.Id, task.EmployeeId, task.ThreadId),
+            (need.Kind, need.TaskId, need.EmployeeId, need.ThreadId)
+        );
+        Assert.Contains("authorize", need.Title);
+        Assert.Contains("Nothing has run yet", need.Detail);
+        Assert.Equal("proposed", attempt.Measured!.State);
+        Assert.All(
+            MeasuredQueueChecks.Items<CompanyBudget>(store, "budgets"),
+            budget => Assert.Equal(0, budget.Reserved)
+        );
+
+        // Store dispatch consumes authorization without starting any provider in this test.
+        Apply<CompanyAttempt>(
+            store,
+            Cmd("measured.run") with
+            {
+                Id = attempt.Id,
+                ExpectedVersion = attempt.Version,
+                Digest = attempt.Measured.Digest,
+                Decision = "accept-soft-limits",
+            }
+        );
+        Assert.Equal("dispatched", store.Attempt(attempt.Id).Measured!.State);
+        Assert.DoesNotContain(
+            store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou,
+            item => item.Kind == "authorization" && item.TaskId == task.Id
+        );
+    }
+
+    private sealed record PreparedReply(CompanyMessage Message, CompanyTask Task, CompanyAttempt Attempt);
+
+    [Fact]
+    public void PreparedCompanyReplyLinksToItsConversationAndDisappearsWhenCancelled()
+    {
+        var store = new CompanyStore(
+            Path.Combine(_root.Path, "company.sqlite"),
+            Owner,
+            CompanyWorkspace.Definitions(),
+            measuredRuntimeIdentity: "fictional-today-runtime"
+        );
+        var seeded = MeasuredQueueChecks.Seed(store);
+        var reply = Apply<PreparedReply>(
+            store,
+            Cmd("conversation.prepare") with
+            {
+                EmployeeId = seeded.EmployeeId,
+                Scope = "company",
+                Body = "Which fictional shared facts are approved?",
+                CreditAllowance = 1,
+            }
+        );
+        var now = DateTimeOffset.UtcNow;
+        var need = Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou);
+        Assert.Equal(("authorization", reply.Task.Id, reply.Task.ThreadId), (need.Kind, need.TaskId, need.ThreadId));
+        Assert.Contains("authorize a reply", need.Title);
+        Assert.Equal("proposed", store.Attempt(reply.Attempt.Id).Measured!.State);
+
+        store.Apply(Cmd("task.cancel") with { Id = reply.Task.Id, ExpectedVersion = reply.Task.Version });
+        Assert.DoesNotContain(
+            store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou,
+            item => item.TaskId == reply.Task.Id
+        );
+    }
+
+    [Fact]
     public void AnUnfinishedHireWaitsOnTheOwnerUntilItsContextIsDrafted()
     {
         var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());

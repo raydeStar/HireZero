@@ -4,9 +4,13 @@ public static class CompanySecrets
 {
     public static readonly string[] Known =
     [
+        CompanyBillingRuntime.KeySecret,
+        CompanyBillingRuntime.WebhookSecret,
+        CompanyBillingRuntime.PreviousWebhookSecret,
         "HIREZERO_DATABASE",
         "HIREZERO_DATABASE_PASSWORD",
         "HIREZERO_AUDIT_KEY",
+        HireZero.Integrations.Notifications.SmtpNotifications.PasswordSecret,
         CompanyKeyProtection.Variable,
         CompanyKeyProtection.PreviousVariable,
         HostedOptions.ClientSecretVariable,
@@ -18,7 +22,9 @@ public static class CompanySecrets
         "HIREZERO_JEV_API_KEY",
         "TYPESAFE_API_KEY",
         "HIREZERO_SEMAFORGE_API_KEY",
+        HireZero.Integrations.Web.BusinessSearch.KeySecret,
         HireZero.Integrations.Google.GoogleAnalyticsProvider.KeySecret,
+        HireZero.Integrations.Google.GoogleDriveDocuments.KeySecret,
         HireZero.Integrations.Google.GoogleAdsProvider.DeveloperTokenSecret,
         HireZero.Integrations.Google.GoogleAdsProvider.ClientSecretSecret,
         HireZero.Integrations.Google.GoogleAdsProvider.RefreshTokenSecret,

@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { api, applyTheme, preference, savePreference, type ThemeChoice } from "../lib/api";
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { api, ApiError, applyTheme, company, preference, savePreference, type ThemeChoice } from "../lib/api";
 import { ShortcutHelp, useShortcuts } from "./Shortcuts";
+import { Modal } from "./Modal";
 import { BrandMark } from "../components/BrandMark";
 import { panels } from "../roles/company";
+import { MemberAccess, useMemberAccess } from "./MemberAccess";
 import { command, type Snapshot, type Employee, type ThreadDetail, type Event, type TaskSpec, type Work } from "./api";
-import { Cockpit, useNeeds, workGroups, type Need } from "./Cockpit";
+import { Cockpit, useNeeds, workGroups, workState, type Need } from "./Cockpit";
 import { WorkBoard, WorkWindow } from "./Work";
 import { CompanyConversation, type ConversationDraft } from "./CompanyConversation";
 import {
@@ -20,12 +22,21 @@ import {
   Monitor,
   Moon,
   Sun,
+  LogOut,
 } from "lucide-react";
 import { Home, initials } from "./Home";
+import { BusinessBrief } from "./BusinessBrief";
+import { Documents } from "./Documents";
+import { Memory } from "./Memory";
+import { Schedules } from "./Schedules";
+import { Inbox, InboxButton } from "./Inbox";
 import { HireOnboarding } from "./HireOnboarding";
 import { Integrations } from "./Integrations";
 import { Today } from "./Today";
 import { Budgets } from "./Budgets";
+import { Usage } from "./Usage";
+const Billing = lazy(() => import("./Billing").then((module) => ({ default: module.Billing })));
+import { Progress } from "./Progress";
 import { Members } from "./Members";
 import { Companies } from "./Companies";
 import { ContextEditor } from "./ContextEditor";
@@ -33,12 +44,45 @@ import { Audit } from "./Audit";
 import "@fontsource-variable/inter/wght.css";
 import "./company.css";
 import "./refresh.css";
-import { employeeState, roleName } from "./labels";
+import { employeeState, humanize, roleName, taskState } from "./labels";
 // A conversation's mode (Chat or Work) and its open work are part of the address (docs/adr/0040-the-muse-layout.md).
-type ConversationRoute = { tab: string; selected: string; thread: string; mode?: "chat" | "work"; work?: string };
+const hubSections = [
+  ["inbox", "Inbox"],
+  ["business", "Business brief"],
+  ["documents", "Documents"],
+  ["memory", "Memory"],
+  ["schedules", "Recurring work"],
+  ["today", "Today"],
+  ["departments", "Departments"],
+  ["budgets", "Budgets"],
+  ["usage", "Usage"],
+  ["billing", "Billing"],
+  ["progress", "Progress"],
+  ["members", "Members"],
+  ["integrations", "Integrations"],
+  ["audit", "Audit log"],
+  ["companies", "Companies"],
+] as const;
+type HubSection = (typeof hubSections)[number][0];
+type ConversationRoute = {
+  tab: string;
+  selected: string;
+  thread: string;
+  mode?: "chat" | "work";
+  work?: string;
+  section?: HubSection;
+  noticeTarget?: string;
+  memoryId?: string;
+  memoryWorkId?: string;
+  memoryMeetingId?: string;
+  repeatWorkId?: string;
+  planId?: string;
+  meetingId?: string;
+};
 function readRoute(): ConversationRoute {
   const query = new URLSearchParams(location.search),
-    view = query.get("view") || "home";
+    view = query.get("view") || "home",
+    section = query.get("section");
   return {
     tab: ["home", "company", "employee", "departments", "employees", "plans", "meetings"].includes(view)
       ? view
@@ -47,6 +91,14 @@ function readRoute(): ConversationRoute {
     thread: query.get("thread") || "",
     mode: query.get("mode") === "work" ? "work" : "chat",
     work: query.get("work") || "",
+    section: hubSections.find(([key]) => key === section)?.[0] ?? "today",
+    noticeTarget: query.get("schedule") || undefined,
+    memoryId: query.get("memory") || undefined,
+    memoryWorkId: query.get("memoryWork") || undefined,
+    memoryMeetingId: query.get("memoryMeeting") || undefined,
+    repeatWorkId: query.get("repeatWork") || undefined,
+    planId: query.get("plan") || undefined,
+    meetingId: query.get("meeting") || undefined,
   };
 }
 function useWide(query: string) {
@@ -66,7 +118,16 @@ function Submit({ children = "Save", busy = false }: { children?: string; busy?:
     </button>
   );
 }
-export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
+export function CompanyWorkspace({ memberRole, onSignOut }: { memberRole?: string; onSignOut?: () => void } = {}) {
+  return (
+    <MemberAccess role={memberRole}>
+      <CompanyWorkspaceContent memberRole={memberRole} onSignOut={onSignOut} />
+    </MemberAccess>
+  );
+}
+
+function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: string; onSignOut?: () => void }) {
+  const { canManage, canWork } = useMemberAccess();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [events, setEvents] = useState<Event[]>([]),
     [error, setError] = useState(""),
@@ -74,7 +135,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
   const [route, setRoute] = useState<ConversationRoute>(readRoute),
     [detail, setDetail] = useState<ThreadDetail | null>(null),
     [showConversations, setShowConversations] = useState(false);
-  const { tab, selected, thread } = route;
+  const { tab, selected, thread, section = "today" } = route;
   const [drafts, setDrafts] = useState(new Map<string, ConversationDraft>());
   function updateDraft(scope: string, update: (current: ConversationDraft | undefined) => ConversationDraft) {
     setDrafts((previous) => {
@@ -99,6 +160,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     setRoute(next);
     setShowConversations(false);
     const query = new URLSearchParams();
+    if (company()) query.set("company", company());
     query.set("view", next.tab);
     if (next.tab === "employee") {
       query.set("employee", next.selected);
@@ -108,37 +170,67 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       if (next.mode === "work") query.set("mode", "work");
       if (next.work) query.set("work", next.work);
     }
+    if (next.tab === "departments") query.set("section", next.section ?? "today");
+    if (next.tab === "departments" && next.section === "schedules" && next.noticeTarget)
+      query.set("schedule", next.noticeTarget);
+    if (next.tab === "departments" && next.section === "schedules" && next.repeatWorkId)
+      query.set("repeatWork", next.repeatWorkId);
+    if (next.tab === "departments" && next.section === "memory" && next.memoryId) query.set("memory", next.memoryId);
+    if (next.tab === "departments" && next.section === "memory" && next.memoryWorkId)
+      query.set("memoryWork", next.memoryWorkId);
+    if (next.tab === "departments" && next.section === "memory" && next.memoryMeetingId)
+      query.set("memoryMeeting", next.memoryMeetingId);
+    if (next.tab === "plans" && next.planId) query.set("plan", next.planId);
+    if (next.tab === "meetings" && next.meetingId) query.set("meeting", next.meetingId);
     history.pushState(null, "", "?" + query);
   }
   function setTab(tab: string) {
-    navigate({ ...routeRef.current, tab, work: "" });
+    navigate({ ...routeRef.current, tab, work: "", planId: undefined, meetingId: undefined });
   }
-  // The Company hub (owner walkthrough, 2026-10-19): what needs you and the company's settings, one section at a time,
-  // starting with Today. The section is kept in the address so a reload stays on it.
-  const hubSections = [
-    ["today", "Today"],
-    ["departments", "Departments"],
-    ["budgets", "Budgets"],
-    ["members", "Members"],
-    ["integrations", "Integrations"],
-    ["audit", "Audit log"],
-    ["companies", "Companies"],
-  ] as const;
-  const [section, setSection] = useState(() => {
-    const value = new URLSearchParams(location.search).get("section");
-    return hubSections.some(([key]) => key === value) ? (value as string) : "today";
-  });
-  function openHub(key: string) {
-    setSection(key);
-    if (routeRef.current.tab !== "departments") navigate({ ...routeRef.current, tab: "departments" });
-    const query = new URLSearchParams(location.search);
-    query.set("view", "departments");
-    query.set("section", key);
-    history.replaceState(null, "", "?" + query);
+  // One address, one visible section: Back should retrace our steps, not rearrange the furniture.
+  function openHub(section: HubSection) {
+    navigate({
+      ...routeRef.current,
+      tab: "departments",
+      section,
+      work: "",
+      noticeTarget: undefined,
+      memoryId: undefined,
+      memoryWorkId: undefined,
+      memoryMeetingId: undefined,
+      repeatWorkId: undefined,
+      planId: undefined,
+      meetingId: undefined,
+    });
   }
-  function openConversation(employeeId: string, threadId: string) {
-    navigate({ tab: "employee", selected: employeeId, thread: threadId, mode: routeRef.current.mode, work: "" });
+  function openConversation(employeeId: string, threadId: string, mode = routeRef.current.mode) {
+    navigate({ tab: "employee", selected: employeeId, thread: threadId, mode, work: "" });
   }
+  const rememberResult =
+    !memberRole || memberRole === "owner"
+      ? (artifactId: string) =>
+          navigate({
+            ...routeRef.current,
+            tab: "departments",
+            section: "memory",
+            work: "",
+            memoryId: undefined,
+            memoryWorkId: artifactId,
+            memoryMeetingId: undefined,
+          })
+      : undefined;
+  const repeatWork =
+    !memberRole || memberRole === "owner"
+      ? (taskId: string) =>
+          navigate({
+            ...routeRef.current,
+            tab: "departments",
+            section: "schedules",
+            work: "",
+            noticeTarget: undefined,
+            repeatWorkId: taskId,
+          })
+      : undefined;
   function setMode(mode: "chat" | "work") {
     navigate({ ...routeRef.current, mode });
   }
@@ -147,10 +239,22 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
   }
   // The cockpit: docked on wide screens, resizable and hideable, otherwise a sheet (docs/adr/0040-the-muse-layout.md).
   const roomy = useWide("(min-width: 1280px)"),
-    splitWide = useWide("(min-width: 1440px)");
+    splitWide = useWide("(min-width: 1440px)"),
+    compactHub = useWide("(max-width: 640px)");
+  const hubNavigation = useRef<HTMLElement>(null);
+  const loaded = !!snapshot;
+  useEffect(() => {
+    if (compactHub && tab === "departments")
+      hubNavigation.current
+        ?.querySelector('[aria-current="page"]')
+        ?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [tab, section, compactHub, loaded]);
   const [cockpitOpen, setCockpitOpen] = useState(() => preference("cockpit-open", true)),
     [cockpitWidth, setCockpitWidth] = useState(() => Math.max(240, Math.min(480, preference("cockpit-width", 320)))),
     [sheet, setSheet] = useState(false);
+  useEffect(() => {
+    if (roomy) setSheet(false);
+  }, [roomy]);
   const drag = useRef<{ x: number; width: number } | null>(null);
   function resizeCockpit(width: number) {
     const next = Math.max(240, Math.min(480, Math.round(width)));
@@ -162,7 +266,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     savePreference("cockpit-open", open);
   }
   const docked = roomy && cockpitOpen;
-  const needs = useNeeds(snapshot?.data.cursor ?? 0);
+  const { needs, error: needsError, loading: needsLoading, retry: retryNeeds } = useNeeds(snapshot?.data.cursor ?? 0);
   // Theme: System follows the operating system, and changes with it (UX round 3).
   const [theme, setTheme] = useState<ThemeChoice>(() => preference<ThemeChoice>("theme", "system"));
   useEffect(() => {
@@ -186,20 +290,21 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     escape: () => {
       if (help) setHelp(false);
       else if (sheet) setSheet(false);
+      else if (showConversations) setShowConversations(false);
       else if (routeRef.current.work) closeWork();
       else return false;
       return true;
     },
     help: () => setHelp((open) => !open),
   });
-  function openWork(task: Work) {
+  function openWork(task: Work, mode?: "chat" | "work") {
     const where = snapshot?.data.threads.find((t) => t.id === task.threadId);
     const company = !!where && (where.scope ?? "employee") !== "employee";
     navigate({
       tab: company ? "company" : "employee",
       selected: company ? "" : task.employeeId,
       thread: company ? "" : task.threadId,
-      mode: routeRef.current.mode,
+      mode: task.kind === "conversation" ? "chat" : (mode ?? routeRef.current.mode),
       work: task.id,
     });
     setSheet(false);
@@ -213,8 +318,12 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       openConversation(need.employeeId, need.threadId);
     // An assistant's request has no conversation; its card waits on the Integrations page.
     else if (need.kind === "connection") openHub("integrations");
-    else if (need.kind === "plan") setTab("plans");
-    else if (need.kind === "meeting") setTab("meetings");
+    else if (need.kind === "business-freshness") openHub("business");
+    else if (need.kind === "schedule") openHub("schedules");
+    else if (need.kind === "memory")
+      navigate({ ...routeRef.current, tab: "departments", section: "memory", memoryId: need.taskId, work: "" });
+    else if (need.kind === "plan") navigate({ tab: "plans", selected: "", thread: "", planId: need.targetId });
+    else if (need.kind === "meeting") navigate({ tab: "meetings", selected: "", thread: "", meetingId: need.targetId });
     else if ((need.kind === "onboarding" || need.kind === "knowledge") && need.employeeId) {
       // An unfinished hire, or the context draft that finishes it, resumes in the hiring guide (UX round 6).
       setResumeHire(need.employeeId);
@@ -238,6 +347,15 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     return () => window.removeEventListener("popstate", pop);
   }, []);
   const [resumeHire, setResumeHire] = useState("");
+  const hasSnapshot = snapshot !== null;
+  useEffect(() => {
+    const target = route.tab === "plans" ? route.planId : route.tab === "meetings" ? route.meetingId : undefined;
+    if (!target || !hasSnapshot) return;
+    const card = document.getElementById(`co-${route.tab}-${target}`);
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView({ block: "start" });
+  }, [route.tab, route.planId, route.meetingId, hasSnapshot]);
+  const [requestedHireRole, setRequestedHireRole] = useState("");
   const [hireActive, setHireActive] = useState(false);
   const [evidence, setEvidence] = useState<string[]>([]);
   const [newName, setNewName] = useState(""),
@@ -309,6 +427,14 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     if (selected && thread && tab === "employee")
       void refreshThread(selected, thread).catch((e) => setError(e.message));
   }, [selected, thread, tab]);
+  const replyTarget = snapshot?.data.tasks.find((task) => task.id === route.work && task.kind === "conversation");
+  useEffect(() => {
+    if (tab !== "company" || !replyTarget) return;
+    updateDraft("company", (previous) => ({
+      ...(previous ?? { body: "", skill: "chat", brief: {}, evidence: [], recipient: "" }),
+      recipient: replyTarget.employeeId,
+    }));
+  }, [tab, replyTarget?.id, replyTarget?.employeeId]);
   async function run(action: string, fields: Record<string, unknown> = {}) {
     if (locked.current) return;
     locked.current = true;
@@ -323,7 +449,15 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       }
       return result;
     } catch (e) {
-      setError((e as Error).message);
+      const message = (e as Error).message;
+      if (e instanceof ApiError && e.status === 409) {
+        try {
+          await refresh();
+          setError(message + " Latest details loaded. Review them before trying again.");
+        } catch {
+          setError(message + " The latest details could not load; refresh this page before trying again.");
+        }
+      } else setError(message);
     } finally {
       locked.current = false;
       setBusy(false);
@@ -352,14 +486,15 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     ceos = d.employees.filter(
       (e) => e.state === "active" && d.roles.find((r) => r.id === e.roleId)?.skills.includes("company-plan"),
     );
-  function chooseEmployee(e: Employee) {
+  function chooseEmployee(e: Employee, mode = routeRef.current.mode) {
     openConversation(
       e.id,
       d.threads.find((t) => t.employeeId === e.id && (t.scope ?? "employee") === "employee")?.id || "",
+      mode,
     );
   }
   const chooseEvidence = (
-    <fieldset>
+    <fieldset disabled={busy}>
       <legend>Selected approved evidence</legend>
       {approved.length === 0 ? (
         <p className="co-muted">No approved artifacts yet.</p>
@@ -403,12 +538,12 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
               {d.departments.find((x) => x.id === e.departmentId)?.name ?? "No department"}
             </small>
             <div className="co-actions">
-              {e.state === "onboarding" ? (
+              {e.state === "onboarding" && canManage ? (
                 <button className="co-primary" onClick={() => setResumeHire(e.id)}>
                   Continue onboarding {e.name}
                 </button>
               ) : (
-                <button className="co-list" onClick={() => chooseEmployee(e)}>
+                <button className="co-list" onClick={() => chooseEmployee(e, "chat")}>
                   Open chat with {e.name}
                 </button>
               )}
@@ -419,22 +554,40 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
     </section>
   );
   const hiring = hireActive || d.employees.some((e) => e.state === "onboarding");
-  const hireGuide = (
+  const hireGuide = canManage ? (
     <HireOnboarding
       snapshot={snapshot}
       refresh={refresh}
       open={openConversation}
       resumeId={resumeHire}
       onResumeHandled={() => setResumeHire("")}
+      requestedRole={requestedHireRole}
+      onRoleHandled={() => setRequestedHireRole("")}
       onActive={setHireActive}
     />
+  ) : (
+    <p role="status">
+      An owner manages hiring and onboarding. Open an employee below to read their conversations and work.
+    </p>
   );
   const needsCeo = (what: string) => (
     <div className="co-home-empty co-needs-ceo">
       <p>{what}</p>
-      <button className="co-primary" onClick={() => setTab("employees")}>
-        <UserPlus size={15} /> Hire a CEO
-      </button>
+      {canManage ? (
+        <button
+          className="co-primary"
+          onClick={() => {
+            // Hire the chair we asked for; a marketing detour belongs in a different meeting.
+            setRequestedHireRole(d.roles.find((role) => role.skills.includes("company-plan"))?.id ?? "");
+            setResumeHire("");
+            setTab("employees");
+          }}
+        >
+          <UserPlus size={15} /> Hire a CEO
+        </button>
+      ) : (
+        <p className="co-muted">Ask a company owner to hire and onboard a CEO.</p>
+      )}
     </div>
   );
   const chat = tab === "company" || tab === "employee";
@@ -445,7 +598,8 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       t.kind !== "conversation" &&
       ([...workGroups.review, ...workGroups.progress, ...workGroups.next] as string[]).includes(t.state),
   ).length;
-  const workTask = chat && route.work ? d.tasks.find((t) => t.id === route.work) : undefined;
+  const workTask =
+    chat && route.work ? d.tasks.find((t) => t.id === route.work && t.kind !== "conversation") : undefined;
   const workWindow = workTask && (
     <WorkWindow
       key={workTask.id}
@@ -461,12 +615,18 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           : undefined
       }
       onClose={closeWork}
+      onOpenPlans={() => setTab("plans")}
+      onRememberResult={rememberResult}
+      onRepeatWork={repeatWork}
     />
   );
   const cockpit = (
     <Cockpit
       snapshot={snapshot}
       needs={needs}
+      needsError={needsError}
+      needsLoading={needsLoading}
+      onRetryNeeds={retryNeeds}
       scope={tab === "employee" ? selected : undefined}
       busy={busy}
       run={run}
@@ -509,7 +669,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
             </button>
           ))}
         </nav>
-        <small className="co-owner-label">Owner</small>
+        <small className="co-owner-label">{humanize(memberRole || "owner")}</small>
       </aside>
       <aside className={"co-conversations" + (showConversations ? " is-open" : "")} aria-label="Conversations">
         <h2>HireZero</h2>
@@ -561,10 +721,12 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
         {!d.employees.length && <p>Hire and onboard an employee to open a private conversation.</p>}
         {/* Clear actions at the foot of the sidebar (UX audit, 2026-10-20). */}
         <div className="co-sidebar-foot">
-          <button className="co-sidebar-action" onClick={() => setTab("employees")}>
-            <UserPlus size={15} />
-            {d.employees.length ? "Hire an employee" : "Hire your first employee"}
-          </button>
+          {canManage && (
+            <button className="co-sidebar-action" onClick={() => setTab("employees")}>
+              <UserPlus size={15} />
+              {d.employees.length ? "Hire an employee" : "Hire your first employee"}
+            </button>
+          )}
           <button
             className="co-sidebar-action"
             aria-label={"Theme: " + theme}
@@ -629,6 +791,17 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
             </nav>
           )}
           <span className="fe-topbar-spacer" />
+          <InboxButton version={d.cursor ?? 0} open={() => openHub("inbox")} />
+          {onSignOut && (
+            <button
+              className="fe-icon-button co-signout"
+              aria-label="Sign out of HireZero"
+              title="Sign out of HireZero"
+              onClick={onSignOut}
+            >
+              <LogOut size={17} />
+            </button>
+          )}
           {/* A badge only when something is unusual (owner walkthrough, 2026-10-19). */}
           {(snapshot.capabilities.modelExecution || !snapshot.capabilities.measuredOneJob) && (
             <span className="co-status">
@@ -638,12 +811,17 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           {!docked && (
             <button
               className="fe-icon-button co-cockpit-toggle"
-              aria-label={"Open cockpit" + (needs.length ? ", " + needs.length + " need you" : "")}
+              aria-label={
+                "Open cockpit" +
+                (needsError ? ", needs unavailable" : needs.length ? ", " + needs.length + " need you" : "")
+              }
               title="Cockpit"
               onClick={() => (roomy ? showCockpit(true) : setSheet(true))}
             >
               <PanelRightOpen size={17} />
-              {needs.length > 0 && <span className="fe-count attn">{needs.length}</span>}
+              {(needsError || needs.length > 0) && (
+                <span className="fe-count attn">{needsError ? "?" : needs.length}</span>
+              )}
             </button>
           )}
         </header>
@@ -654,13 +832,26 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           </div>
         )}
         <div className={chat ? "co-conversation-body" : "co-management"}>
+          {d.workControl?.paused && (
+            <div className="co-work-paused" role="status">
+              <strong>New work is paused for this company.</strong> Previously admitted work may still finish.
+              {memberRole === "owner" && (
+                <button type="button" onClick={() => openHub("companies")}>
+                  Manage work pause
+                </button>
+              )}
+            </div>
+          )}
           {tab === "home" && (
             <Home
               snapshot={snapshot}
               needs={needs}
-              onOpenWork={openWork}
+              needsError={needsError}
+              needsLoading={needsLoading}
+              onRetryNeeds={retryNeeds}
+              onOpenWork={(task) => openWork(task, "work")}
               onOpenNeed={openNeed}
-              onChat={chooseEmployee}
+              onChat={(employee) => chooseEmployee(employee, "chat")}
               onWork={(e) =>
                 navigate({
                   tab: "employee",
@@ -672,9 +863,17 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                 })
               }
               onHire={() => setTab("employees")}
+              onBusiness={() => openHub("business")}
+              refresh={refresh}
+              onOpenConversation={openConversation}
+              canPrepare={!memberRole || memberRole === "owner" || memberRole === "approver"}
+              onResumeHire={(employee) => {
+                setResumeHire(employee.id);
+                setTab("employees");
+              }}
             />
           )}
-          {tab === "company" && !d.employees.length && (
+          {tab === "company" && !d.employees.length && canManage && (
             <div className="co-first-hire">
               <h2>Start with your first employee</h2>
               <p>
@@ -700,6 +899,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
             <div className={workTask ? "co-chat-and-work" : "co-chat-only"}>
               <CompanyConversation
                 key={tab === "company" ? "company" : selected + ":" + thread}
+                memberRole={memberRole}
                 snapshot={snapshot}
                 company={tab === "company"}
                 events={events}
@@ -713,7 +913,14 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                 refresh={refresh}
                 open={openFromConversation}
                 openWork={workTask && splitWide ? workTask.id : undefined}
-                onShowWork={() => document.querySelector<HTMLElement>(".co-work-window")?.focus()}
+                focusReply={replyTarget?.id}
+                onShowWork={(task) => {
+                  openWork(task);
+                  requestAnimationFrame(() => document.querySelector<HTMLElement>(".co-work-window")?.focus());
+                }}
+                onOpenPlans={() => setTab("plans")}
+                onRememberResult={rememberResult}
+                onRepeatWork={repeatWork}
                 onOpenSetup={() => openHub("integrations")}
                 createThread={async () => {
                   if (!employee) return;
@@ -729,7 +936,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
             </div>
           )}
           {tab === "departments" && (
-            <nav className="co-hub-tabs" aria-label="Company sections">
+            <nav ref={hubNavigation} className="co-hub-tabs" aria-label="Company sections">
               {hubSections.map(([key, label]) => (
                 <button key={key} aria-current={section === key ? "page" : undefined} onClick={() => openHub(key)}>
                   {label}
@@ -737,7 +944,47 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
               ))}
             </nav>
           )}
-          {tab === "departments" && section === "today" && <Today open version={d.cursor ?? 0} busy={busy} run={run} />}
+          {tab === "departments" && section === "today" && (
+            <Today open version={d.cursor ?? 0} busy={busy} run={run} onOpenNeed={openNeed} />
+          )}
+          {tab === "departments" && section === "inbox" && (
+            <Inbox
+              role={memberRole}
+              refresh={refresh}
+              onOpenWork={openWork}
+              onSources={() => openHub("business")}
+              onSchedule={(id) =>
+                navigate({ ...routeRef.current, tab: "departments", section: "schedules", noticeTarget: id, work: "" })
+              }
+              onMemory={(id) =>
+                navigate({ ...routeRef.current, tab: "departments", section: "memory", memoryId: id, work: "" })
+              }
+              onPlan={(id) => navigate({ tab: "plans", selected: "", thread: "", planId: id })}
+              onMeeting={(id) => navigate({ tab: "meetings", selected: "", thread: "", meetingId: id })}
+            />
+          )}
+          {tab === "departments" && section === "business" && (
+            <BusinessBrief
+              snapshot={snapshot}
+              refresh={refresh}
+              role={memberRole}
+              onHire={(role) => {
+                setRequestedHireRole(role ?? "");
+                setTab("employees");
+              }}
+              onEmployee={(employee) => {
+                if (employee.state === "onboarding") {
+                  setResumeHire(employee.id);
+                  setTab("employees");
+                } else {
+                  const thread = d.threads.find(
+                    (t) => t.employeeId === employee.id && (t.scope ?? "employee") === "employee",
+                  );
+                  if (thread) openConversation(employee.id, thread.id);
+                }
+              }}
+            />
+          )}
           {tab === "departments" && section === "budgets" && (
             <Budgets
               open
@@ -750,11 +997,66 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
               run={run}
             />
           )}
+          {tab === "departments" && section === "usage" && (
+            <Usage
+              role={memberRole}
+              onBilling={() => openHub("billing")}
+              employees={d.employees}
+              onOpenWork={async (id) => {
+                const result = await api<{ task: Work }>(`/company/tasks/${id}`);
+                await refresh();
+                openWork(result.task);
+              }}
+            />
+          )}
+          {tab === "departments" && section === "documents" && <Documents snapshot={snapshot} role={memberRole} />}
+          {tab === "departments" && section === "billing" && (
+            <Suspense fallback={<p role="status">Loading billing…</p>}>
+              <Billing role={memberRole} onUsage={() => openHub("usage")} />
+            </Suspense>
+          )}
+          {tab === "departments" && section === "progress" && (
+            <Progress
+              onBusiness={() => openHub("business")}
+              onUsage={() => openHub("usage")}
+              onOpenWork={async (id) => {
+                const result = await api<{ task: Work }>(`/company/tasks/${id}`);
+                await refresh();
+                openWork(result.task, "work");
+              }}
+            />
+          )}
+          {tab === "departments" && section === "memory" && (
+            <Memory
+              snapshot={snapshot}
+              role={memberRole}
+              initialId={route.memoryId}
+              initialWorkId={route.memoryWorkId}
+              initialMeetingId={route.memoryMeetingId}
+              refresh={refresh}
+              onOpenWork={openWork}
+              onOpenMeeting={(id) => navigate({ tab: "meetings", selected: "", thread: "", meetingId: id })}
+            />
+          )}
+          {tab === "departments" && section === "schedules" && (
+            <Schedules
+              key={route.repeatWorkId || "schedules"}
+              initialTaskId={route.repeatWorkId}
+              onDraftSaved={(id) => navigate({ ...routeRef.current, repeatWorkId: undefined, noticeTarget: id })}
+              initialId={route.noticeTarget}
+              snapshot={snapshot}
+              role={memberRole}
+              refresh={refresh}
+              onOpenWork={openWork}
+              onSources={() => openHub("business")}
+            />
+          )}
           {tab === "departments" && section === "members" && (
             <Members open role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
           )}
           {tab === "departments" && section === "integrations" && (
             <Integrations
+              role={memberRole}
               open
               integrations={snapshot.capabilities.integrations ?? []}
               refresh={refresh}
@@ -764,7 +1066,20 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
           )}
           {tab === "departments" && section === "audit" && <Audit open role={memberRole} version={d.cursor ?? 0} />}
           {tab === "departments" && section === "companies" && (
-            <Companies expanded role={memberRole} version={d.cursor ?? 0} />
+            <Companies
+              expanded
+              role={memberRole}
+              version={d.cursor ?? 0}
+              workControl={d.workControl}
+              onWorkControl={(control) => {
+                snapshotRequest.current++;
+                setSnapshot((previous) =>
+                  previous && (!previous.data.workControl || control.version >= previous.data.workControl.version)
+                    ? { ...previous, data: { ...previous.data, workControl: control } }
+                    : previous,
+                );
+              }}
+            />
           )}
           {tab === "departments" && section === "departments" && (
             <>
@@ -788,26 +1103,36 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                       <span>{x.knowledge ? "Approved knowledge" : "Onboarding needed"}</span>
                     </button>
                   ))}
-                  <form
-                    onSubmit={form(async () => {
-                      await run("department.create", { name: departmentName });
-                      setDepartmentName("");
-                    })}
-                  >
-                    <label>
-                      New department
-                      <input required value={departmentName} onChange={(e) => setDepartmentName(e.target.value)} />
-                    </label>
-                    <Submit busy={busy}>Create department</Submit>
-                  </form>
+                  {canManage ? (
+                    <form
+                      onSubmit={form(async () => {
+                        await run("department.create", { name: departmentName });
+                        setDepartmentName("");
+                      })}
+                    >
+                      <label>
+                        New department
+                        <input required value={departmentName} onChange={(e) => setDepartmentName(e.target.value)} />
+                      </label>
+                      <Submit busy={busy}>Create department</Submit>
+                    </form>
+                  ) : (
+                    <p className="co-muted">An owner creates departments and edits shared facts.</p>
+                  )}
                 </section>
                 <section>
                   <h2>{dept?.name || "Select a department"}</h2>
-                  {dept && !guide && <p>Hire its first employee to begin department onboarding.</p>}
+                  {dept && !guide && (
+                    <p>
+                      {canManage ? "Hire its first employee" : "Ask an owner to hire its first employee"} to begin
+                      department onboarding.
+                    </p>
+                  )}
                   {dept && deptRole && (
                     <>
                       <p className="co-muted">
-                        {guide?.name} guides onboarding. You approve the knowledge inherited by later hires.
+                        {guide?.name} guides onboarding. {canWork ? "You can approve" : "An approver or owner approves"}{" "}
+                        the knowledge inherited by later hires.
                       </p>
                       <ContextEditor
                         snapshot={snapshot}
@@ -827,7 +1152,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                 <h2>Company facts</h2>
                 <p className="co-muted">
                   What every employee may rely on, whatever their department. Approved facts go into every employee’s
-                  context; drafts change nothing until you approve them.
+                  context; drafts change nothing until an approver or owner approves them.
                 </p>
                 <ContextEditor
                   snapshot={snapshot}
@@ -848,59 +1173,61 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
               {!hiring && teamCards}
               {hireGuide}
               {hiring && teamCards}
-              <section>
-                <details>
-                  <summary>Advanced: hire without the guide</summary>
-                  <form
-                    onSubmit={form(async () => {
-                      await run("employee.hire", {
-                        name: newName,
-                        roleId: role || d.roles[0]?.id,
-                        departmentId: department,
-                        responsibility,
-                      });
-                      setNewName("");
-                      setResponsibility("");
-                    })}
-                  >
-                    <label>
-                      Name
-                      <input required value={newName} onChange={(e) => setNewName(e.target.value)} />
-                    </label>
-                    <label>
-                      Role
-                      <select value={role || d.roles[0]?.id} onChange={(e) => setRole(e.target.value)}>
-                        {d.roles.map((r) => (
-                          <option value={r.id} key={r.id}>
-                            {r.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Department
-                      <select required value={department} onChange={(e) => setDepartment(e.target.value)}>
-                        <option value="">Choose department</option>
-                        {d.departments.map((x) => (
-                          <option value={x.id} key={x.id}>
-                            {x.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Responsibility
-                      <textarea
-                        required
-                        value={responsibility}
-                        onChange={(e) => setResponsibility(e.target.value)}
-                        placeholder="What should this employee focus on?"
-                      />
-                    </label>
-                    <Submit busy={busy}>Hire employee</Submit>
-                  </form>
-                </details>
-              </section>
+              {canManage && (
+                <section>
+                  <details>
+                    <summary>Advanced: hire without the guide</summary>
+                    <form
+                      onSubmit={form(async () => {
+                        await run("employee.hire", {
+                          name: newName,
+                          roleId: role || d.roles[0]?.id,
+                          departmentId: department,
+                          responsibility,
+                        });
+                        setNewName("");
+                        setResponsibility("");
+                      })}
+                    >
+                      <label>
+                        Name
+                        <input required value={newName} onChange={(e) => setNewName(e.target.value)} />
+                      </label>
+                      <label>
+                        Role
+                        <select value={role || d.roles[0]?.id} onChange={(e) => setRole(e.target.value)}>
+                          {d.roles.map((r) => (
+                            <option value={r.id} key={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Department
+                        <select required value={department} onChange={(e) => setDepartment(e.target.value)}>
+                          <option value="">Choose department</option>
+                          {d.departments.map((x) => (
+                            <option value={x.id} key={x.id}>
+                              {x.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Responsibility
+                        <textarea
+                          required
+                          value={responsibility}
+                          onChange={(e) => setResponsibility(e.target.value)}
+                          placeholder="What should this employee focus on?"
+                        />
+                      </label>
+                      <Submit busy={busy}>Hire employee</Submit>
+                    </form>
+                  </details>
+                </section>
+              )}
             </>
           )}
           {tab === "plans" && (
@@ -910,27 +1237,63 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                 {panels(d.roles, "plan-guidance").map(({ roleId, Panel }) => (
                   <Panel key={roleId} />
                 ))}
-                {ceos.length === 0 ? (
+                {!canWork ? (
+                  <p className="co-muted">
+                    An approver or owner prepares and approves plans. You can read company plans below.
+                  </p>
+                ) : ceos.length === 0 ? (
                   needsCeo("A CEO proposes company work for your approval. Hire and onboard one to start.")
                 ) : (
                   <form
+                    aria-label="Propose company plan"
                     onSubmit={form(async () => {
-                      await run("plan.create", {
+                      const created = (await run("plan.create", {
                         employeeId: ceos[0].id,
                         body: planText,
                         tasks: planTasks,
-                        budget: Math.max(5000, planTasks.length * 5000),
-                      });
+                        budget: Math.max(22000, planTasks.length * 22000),
+                      })) as { id: string } | undefined;
+                      // An unanswered knock is not a receipt. Keep the draft until its save is confirmed.
+                      if (!created?.id) return;
                       setPlanTasks([]);
                       setPlanText("");
                     })}
                   >
                     <label>
                       Objective
-                      <textarea required value={planText} onChange={(e) => setPlanText(e.target.value)} />
+                      <textarea
+                        required
+                        disabled={busy}
+                        value={planText}
+                        onChange={(e) => setPlanText(e.target.value)}
+                      />
                     </label>
+                    {planTasks.length === 0 && (
+                      <button
+                        type="button"
+                        className="co-primary"
+                        disabled={busy || !planText.trim()}
+                        onClick={() =>
+                          void (async () => {
+                            const target = d.threads.find(
+                              (t) => t.employeeId === ceos[0].id && (t.scope ?? "employee") === "employee",
+                            );
+                            if (!target) return;
+                            const work = (await run("task.create", {
+                              employeeId: ceos[0].id,
+                              threadId: target.id,
+                              skill: "company-plan",
+                              body: planText,
+                            })) as Work | undefined;
+                            if (work?.id) openWork(work);
+                          })()
+                        }
+                      >
+                        Ask CEO to draft tasks
+                      </button>
+                    )}
                     {planTasks.map((task, index) => (
-                      <fieldset key={index}>
+                      <fieldset key={index} disabled={busy}>
                         <legend>Task {index + 1}</legend>
                         <label>
                           Assignee
@@ -938,8 +1301,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                             required
                             value={task.employeeId}
                             onChange={(e) => {
-                              const tasks = [...planTasks],
-                                person = d.employees.find((x) => x.id === e.target.value);
+                              const tasks = [...planTasks];
                               tasks[index] = {
                                 ...task,
                                 employeeId: e.target.value,
@@ -988,11 +1350,41 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                             Wait for previous task
                           </label>
                         )}
+                        <button
+                          type="button"
+                          aria-label={"Remove task " + (index + 1)}
+                          onClick={() =>
+                            setPlanTasks((tasks) =>
+                              tasks
+                                .filter((_, taskIndex) => taskIndex !== index)
+                                .map((remaining) => ({
+                                  ...remaining,
+                                  dependsOn: remaining.dependsOn
+                                    .filter((dependency) => dependency !== index)
+                                    .map((dependency) => (dependency > index ? dependency - 1 : dependency)),
+                                })),
+                            )
+                          }
+                        >
+                          Remove task
+                        </button>
                       </fieldset>
                     ))}
+                    {planTasks.length === 0 && (
+                      <p className="co-muted">
+                        Ask the coordinator for a draft, or add tasks yourself. Drafting starts only after you review
+                        and authorize its model job.
+                      </p>
+                    )}
+                    {planTasks.length > 0 && (
+                      <p className="co-muted">
+                        Shared ceiling: {(planTasks.length * 22000).toLocaleString()} planning tokens. Approval allows
+                        seven days for this work. Each measured job needs separate authorization.
+                      </p>
+                    )}
                     <button
                       type="button"
-                      disabled={planTasks.length >= 4}
+                      disabled={busy || planTasks.length >= 4}
                       onClick={() =>
                         setPlanTasks([
                           ...planTasks,
@@ -1002,25 +1394,74 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                     >
                       Add task
                     </button>
-                    <Submit busy={busy}>Propose plan</Submit>
+                    <Submit busy={busy || planTasks.length === 0 || !planText.trim()}>Propose plan</Submit>
                   </form>
                 )}
               </section>
               <section>
-                <h2>Plans for review</h2>
+                <h2>Company plans</h2>
+                {route.planId && !d.plans.some((p) => p.id === route.planId) && (
+                  <p role="alert">This plan is unavailable in this company. Choose a current plan below.</p>
+                )}
                 {d.plans.map((p) => (
-                  <article key={p.id} className="co-card">
+                  <article
+                    key={p.id}
+                    id={`co-plans-${p.id}`}
+                    tabIndex={-1}
+                    className={`co-card${route.planId === p.id ? " co-notice-target" : ""}`}
+                    data-plan-id={p.id}
+                  >
                     <b>{p.objective}</b>
                     <p>
-                      {p.state} · shared ceiling {p.budget.toLocaleString()} tokens
+                      {humanize(p.state)} · shared ceiling {p.budget.toLocaleString()} tokens
                     </p>
-                    {p.tasks.map((t, i) => (
-                      <p key={i}>
-                        {i + 1}. {d.employees.find((e) => e.id === t.employeeId)?.name}: {t.input}
+                    <p className="co-muted">
+                      {p.state === "proposed"
+                        ? "Approval expires"
+                        : p.state === "completed"
+                          ? "Original deadline"
+                          : "Execution deadline"}
+                      : {new Date(p.deadline).toLocaleString()}
+                      {p.state === "proposed" && p.executionHours
+                        ? ` · ${p.executionHours / 24} days to perform the approved work`
+                        : ""}
+                      .
+                    </p>
+                    {p.source && (
+                      <p className="co-muted">
+                        Based on an approved coordinator proposal.
+                        {p.state !== "completed" &&
+                          p.state !== "canceled" &&
+                          " Revoking that proposal stops new or pending execution."}
                       </p>
-                    ))}
-                    {p.state === "proposed" && (
+                    )}
+                    {p.tasks.map((t, i) => {
+                      const work = d.tasks.find((task) => task.id === p.taskIds[i]);
+                      return (
+                        <div key={i} className="co-plan-task">
+                          <p>
+                            <b>
+                              {i + 1}. {d.employees.find((e) => e.id === t.employeeId)?.name}
+                            </b>
+                            : {t.input}
+                          </p>
+                          {t.dependsOn.length > 0 && (
+                            <small>
+                              After approved completion of {t.dependsOn.map((n) => `task ${n + 1}`).join(", ")}. Its
+                              approved results will be included.
+                            </small>
+                          )}
+                          {work && (
+                            <button onClick={() => openWork(work)}>
+                              Open task {i + 1} · {taskState(workState(snapshot, work))}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {canWork && p.state === "proposed" && (
                       <button
+                        disabled={busy || Date.parse(p.deadline) <= Date.now()}
                         onClick={() =>
                           void run("plan.approve", { id: p.id, expectedVersion: p.version, digest: p.digest })
                         }
@@ -1028,7 +1469,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                         Approve exact plan
                       </button>
                     )}
-                    {!["completed", "canceled"].includes(p.state) && (
+                    {canWork && !["completed", "canceled"].includes(p.state) && (
                       <button onClick={() => void run("plan.cancel", { id: p.id, expectedVersion: p.version })}>
                         Cancel plan and pending work
                       </button>
@@ -1045,32 +1486,43 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                 <p className="co-muted">
                   Only selected approved evidence and the shared meeting transcript reach participants.
                 </p>
-                {ceos.length === 0 ? (
+                {!canWork ? (
+                  <p className="co-muted">
+                    An approver or owner manages meetings. You can read saved meeting records below.
+                  </p>
+                ) : ceos.length === 0 ? (
                   needsCeo("A CEO chairs every meeting. Hire and onboard one to hold the first.")
                 ) : (
                   <form
+                    aria-label="Prepare company meeting"
                     onSubmit={form(async () => {
-                      await run("meeting.create", {
+                      const created = (await run("meeting.create", {
                         name: meetingTitle,
                         body: agenda,
                         participants,
                         chairId: chair,
                         evidence,
                         budget: 50000,
-                      });
+                      })) as { id: string } | undefined;
+                      if (!created?.id) return;
                       setMeetingTitle("");
                       setAgenda("");
                     })}
                   >
                     <label>
                       Title
-                      <input required value={meetingTitle} onChange={(e) => setMeetingTitle(e.target.value)} />
+                      <input
+                        required
+                        disabled={busy}
+                        value={meetingTitle}
+                        onChange={(e) => setMeetingTitle(e.target.value)}
+                      />
                     </label>
                     <label>
                       Agenda
-                      <textarea required value={agenda} onChange={(e) => setAgenda(e.target.value)} />
+                      <textarea required disabled={busy} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
                     </label>
-                    <fieldset>
+                    <fieldset disabled={busy}>
                       <legend>Participants</legend>
                       {d.employees
                         .filter((e) => e.state === "active")
@@ -1095,7 +1547,7 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                       Chair
                       <select
                         required
-                        disabled={ceos.length === 0}
+                        disabled={busy || ceos.length === 0}
                         value={chair}
                         onChange={(e) => setChair(e.target.value)}
                       >
@@ -1116,13 +1568,29 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
               </section>
               <section>
                 <h2>Meeting record</h2>
+                {route.meetingId && !d.meetings.some((m) => m.id === route.meetingId) && (
+                  <p role="alert">This meeting is unavailable in this company. Choose a current meeting below.</p>
+                )}
                 {d.meetings.length === 0 && <p className="co-muted">No meetings yet.</p>}
                 {d.meetings.map((m) => (
-                  <article className="co-card" key={m.id}>
+                  <article
+                    className={`co-card${route.meetingId === m.id ? " co-notice-target" : ""}`}
+                    key={m.id}
+                    id={`co-meetings-${m.id}`}
+                    data-meeting-id={m.id}
+                    tabIndex={-1}
+                  >
                     <h3>{m.title}</h3>
                     <p>{m.agenda}</p>
                     <p>
-                      {m.state} · {m.turns.length}/{m.participants.length * 2} turns
+                      {m.state === "outcome_proposed"
+                        ? "Ready for minutes"
+                        : m.state === "awaiting_owner"
+                          ? "Minutes need approval"
+                          : m.state === "closed"
+                            ? "Minutes accepted"
+                            : humanize(m.state)}{" "}
+                      · {m.turns.length}/{m.participants.length * 2} turns
                     </p>
                     {m.turns.map((t) => (
                       <details key={t.taskId}>
@@ -1130,29 +1598,31 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                         <pre>{t.body}</pre>
                       </details>
                     ))}
-                    <div className="co-actions">
-                      {m.state === "draft" && (
-                        <button onClick={() => void run("meeting.start", { id: m.id, expectedVersion: m.version })}>
-                          Approve discussion and start
-                        </button>
-                      )}
-                      {m.state === "in_progress" && (
-                        <button onClick={() => void run("meeting.pause", { id: m.id, expectedVersion: m.version })}>
-                          Pause
-                        </button>
-                      )}
-                      {m.state === "paused" && (
-                        <button onClick={() => void run("meeting.next", { id: m.id, expectedVersion: m.version })}>
-                          Resume
-                        </button>
-                      )}
-                      {!["closed", "canceled"].includes(m.state) && (
-                        <button onClick={() => void run("meeting.cancel", { id: m.id, expectedVersion: m.version })}>
-                          Cancel meeting
-                        </button>
-                      )}
-                    </div>
-                    {m.state === "outcome_proposed" && (
+                    {canWork && (
+                      <div className="co-actions">
+                        {m.state === "draft" && (
+                          <button onClick={() => void run("meeting.start", { id: m.id, expectedVersion: m.version })}>
+                            Approve discussion and start
+                          </button>
+                        )}
+                        {m.state === "in_progress" && (
+                          <button onClick={() => void run("meeting.pause", { id: m.id, expectedVersion: m.version })}>
+                            Pause
+                          </button>
+                        )}
+                        {m.state === "paused" && (
+                          <button onClick={() => void run("meeting.next", { id: m.id, expectedVersion: m.version })}>
+                            Resume
+                          </button>
+                        )}
+                        {!["closed", "canceled"].includes(m.state) && (
+                          <button onClick={() => void run("meeting.cancel", { id: m.id, expectedVersion: m.version })}>
+                            Cancel meeting
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {canWork && m.state === "outcome_proposed" && (
                       <form
                         onSubmit={form(async () => {
                           await run("meeting.outcome", { id: m.id, expectedVersion: m.version, body: outcome[m.id] });
@@ -1170,7 +1640,22 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
                       </form>
                     )}
                     {m.outcome && <pre>{m.outcome}</pre>}
-                    {m.state === "awaiting_owner" && (
+                    {canManage && m.state === "closed" && (
+                      <button
+                        onClick={() =>
+                          navigate({
+                            tab: "departments",
+                            section: "memory",
+                            selected: "",
+                            thread: "",
+                            memoryMeetingId: m.id,
+                          })
+                        }
+                      >
+                        Remember a decision
+                      </button>
+                    )}
+                    {canWork && m.state === "awaiting_owner" && (
                       <button
                         onClick={() =>
                           void run("meeting.close", { id: m.id, expectedVersion: m.version, digest: m.outcomeDigest })
@@ -1234,10 +1719,9 @@ export function CompanyWorkspace({ memberRole }: { memberRole?: string } = {}) {
       )}
       {help && <ShortcutHelp onClose={() => setHelp(false)} />}
       {!docked && sheet && (
-        <div className="fe-sheet" role="dialog" aria-label="Cockpit">
-          <button className="fe-sheet-scrim" aria-label="Close cockpit" onClick={() => setSheet(false)} />
+        <Modal label="Cockpit" onClose={() => setSheet(false)}>
           {cockpit}
-        </div>
+        </Modal>
       )}
     </div>
   );

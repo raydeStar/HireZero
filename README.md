@@ -40,6 +40,10 @@ Open <http://127.0.0.1:5065/>. The company workspace is the only startup profile
 and a data root, and refuses an existing legacy database. While `HIREZERO_EXECUTION_HOLD=1` is set it refuses to
 start, so nothing resumes until you clear the hold. Stop it with Ctrl+C.
 
+To preview another build beside an existing workspace, use a separate data root and set `HIREZERO_LISTEN` to
+another loopback address such as `http://127.0.0.1:5066`. Local mode still refuses non-loopback addresses. Each
+workspace needs its own port and data root; changing the port does not update an existing installation.
+
 To keep running a company while you develop (a running host locks the build output), publish an install outside the
 checkout and run it from there. `-Stop` stops a host already running from that install; the data root is never touched.
 
@@ -152,6 +156,10 @@ different models for one data root, point `HIREZERO_MODEL_ROUTES` at your own JS
 to change ([ADR 0008](docs/adr/0008-model-routes.md)). Changing a route changes spend: review it like code.
 
 ## Checks
+
+The [context-first pilot protocol](docs/product/pilot-protocol.md) combines private session observations with
+Progress exports. `node tools/pilot-report.mjs <private pilot.json>` reports customer and fictional evidence
+separately without contacting services. Templates are empty; local checks do not claim customer validation.
 
 All checks are synthetic: no live model, GitHub or GPU calls.
 

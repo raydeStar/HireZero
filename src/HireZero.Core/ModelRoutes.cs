@@ -39,6 +39,7 @@ public static partial class ModelRoutes
 
     // Every distinct model id the catalog routes to, in purpose order.
     public static string[] Models => [.. Current.Value.Routes.Values.Distinct(StringComparer.Ordinal)];
+    public static string[] PricedModels => [.. Current.Value.Prices.Keys.Order(StringComparer.Ordinal)];
 
     // A model's price in US dollars per million input and output tokens, reviewed like code
     // (docs/adr/0036-api-model-provider.md); null when the catalog names none.

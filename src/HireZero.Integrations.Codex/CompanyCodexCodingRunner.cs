@@ -9,7 +9,7 @@ namespace HireZero.Integrations.Codex;
 // (docs/adr/0023-trusted-postgres-in-live-coding-runs.md), and reach the network only when its grant allows. Everything
 // up to the turn is a preflight: any doubt refuses the run before anything is sent. Once sent, an uncertain outcome is
 // never replayed.
-public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycle, IDisposable
+public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycle, ICodingRunCleanup, IDisposable
 {
     public const string Profile = "hirezero_execution";
     private const int MessageLimit = 8000;
@@ -48,6 +48,8 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
     private CodingRun? _run;
     private Task? _work;
     private volatile bool _terminated;
+    private bool _started;
+    public CodingReleaseReceipt? ReleaseReceipt { get; private set; }
 
     internal CompanyCodexCodingRunner(
         CompanyCodexOptions options,
@@ -73,8 +75,11 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
     public CodingRun Start(CodingRunRequest request)
     {
         lock (_gate)
-            if (_run is not null)
+        {
+            if (_started)
                 throw new CodingStartRefusedException("This grant's run has already started.");
+            _started = true;
+        }
         var model = CompanyModelRouting.Native(_routing.CodingModel);
         var limits = _grant.Bounds;
         if (
@@ -117,56 +122,56 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         // Input files sit beside the scratch, where the run can read but not change them; both go when the run ends.
         var inputFolder = scratch + "-inputs";
         var temp = Path.Combine(scratch, "temp");
-        Directory.CreateDirectory(temp);
-        // Git inside the sandbox must not read the owner's profile configuration, which the sandbox denies and git
-        // treats as fatal (live probe, 2026-10-18): it gets an empty configuration in the run's scratch folder.
-        var gitConfig = Path.Combine(temp, "gitconfig");
-        File.WriteAllText(gitConfig, "");
-        Directory.CreateDirectory(Path.Combine(scratch, "config"));
-        var profile = Path.Combine(scratch, "profile");
-        foreach (var folder in new[] { "", "AppData\\Roaming", "AppData\\Local" })
-            Directory.CreateDirectory(Path.Combine(profile, folder));
-        var filesystem = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [Path.GetFullPath(_grant.Workspace)] = _grant.AllowWrite ? "write" : "read",
-            [scratch] = "write",
-        };
-        foreach (var root in _readRoots.Concat(extraRoots))
-            filesystem[root] = "read";
-        var environment = new Dictionary<string, string>
-        {
-            ["TEMP"] = temp,
-            ["TMP"] = temp,
-            ["GIT_CONFIG_GLOBAL"] = gitConfig,
-            ["GIT_CONFIG_NOSYSTEM"] = "1",
-            ["XDG_CONFIG_HOME"] = Path.Combine(scratch, "config"),
-            // Tool caches (NuGet, npm, dotnet) land in the run's scratch, never the owner's profile.
-            ["USERPROFILE"] = profile,
-            ["HOME"] = profile,
-            ["APPDATA"] = Path.Combine(profile, "AppData", "Roaming"),
-            ["LOCALAPPDATA"] = Path.Combine(profile, "AppData", "Local"),
-            ["DOTNET_CLI_HOME"] = profile,
-            ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
-            ["DOTNET_NOLOGO"] = "1",
-        };
-        foreach (var (key, value) in PackageEnvironment(_packages))
-            environment[key] = value;
-        if (inputs.Count > 0)
-        {
-            Directory.CreateDirectory(inputFolder);
-            filesystem[inputFolder] = "read";
-            foreach (var (name, text) in inputs)
-            {
-                var file = Path.Combine(inputFolder, name.ToLowerInvariant() + ".json");
-                File.WriteAllText(file, text);
-                environment[name] = file;
-            }
-        }
         CodexAppServer? server = null;
         string thread;
         string? beforeBalance;
         try
         {
+            Directory.CreateDirectory(temp);
+            // Git inside the sandbox must not read the owner's profile configuration, which the sandbox denies and git
+            // treats as fatal (live probe, 2026-10-18): it gets an empty configuration in the run's scratch folder.
+            var gitConfig = Path.Combine(temp, "gitconfig");
+            File.WriteAllText(gitConfig, "");
+            Directory.CreateDirectory(Path.Combine(scratch, "config"));
+            var profile = Path.Combine(scratch, "profile");
+            foreach (var folder in new[] { "", "AppData\\Roaming", "AppData\\Local" })
+                Directory.CreateDirectory(Path.Combine(profile, folder));
+            var filesystem = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [Path.GetFullPath(_grant.Workspace)] = _grant.AllowWrite ? "write" : "read",
+                [scratch] = "write",
+            };
+            foreach (var root in _readRoots.Concat(extraRoots))
+                filesystem[root] = "read";
+            var environment = new Dictionary<string, string>
+            {
+                ["TEMP"] = temp,
+                ["TMP"] = temp,
+                ["GIT_CONFIG_GLOBAL"] = gitConfig,
+                ["GIT_CONFIG_NOSYSTEM"] = "1",
+                ["XDG_CONFIG_HOME"] = Path.Combine(scratch, "config"),
+                // Tool caches (NuGet, npm, dotnet) land in the run's scratch, never the owner's profile.
+                ["USERPROFILE"] = profile,
+                ["HOME"] = profile,
+                ["APPDATA"] = Path.Combine(profile, "AppData", "Roaming"),
+                ["LOCALAPPDATA"] = Path.Combine(profile, "AppData", "Local"),
+                ["DOTNET_CLI_HOME"] = profile,
+                ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
+                ["DOTNET_NOLOGO"] = "1",
+            };
+            foreach (var (key, value) in PackageEnvironment(_packages))
+                environment[key] = value;
+            if (inputs.Count > 0)
+            {
+                Directory.CreateDirectory(inputFolder);
+                filesystem[inputFolder] = "read";
+                foreach (var (name, text) in inputs)
+                {
+                    var file = Path.Combine(inputFolder, name.ToLowerInvariant() + ".json");
+                    File.WriteAllText(file, text);
+                    environment[name] = file;
+                }
+            }
             server = new CodexAppServer(
                 _options.Executable,
                 _options.Home,
@@ -187,6 +192,10 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         catch (Exception error) when (error is not OutOfMemoryException)
         {
             Stop(server, scratch);
+            if (ReleaseReceipt is not { ProcessStopped: true })
+                throw new WorkspaceException(
+                    "Coding preflight stopped with unconfirmed runtime termination. Do not replay this execution."
+                );
             throw new CodingStartRefusedException(
                 error is WorkspaceException
                     ? error.Message
@@ -407,7 +416,6 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         finally
         {
             Stop(server, scratch);
-            _terminated = true;
         }
     }
 
@@ -455,21 +463,20 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         catch { }
     }
 
-    private static void Stop(CodexAppServer? server, string scratch)
+    private void Stop(CodexAppServer? server, string scratch)
     {
-        try
-        {
-            server?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-        }
-        catch { }
-        foreach (var folder in new[] { scratch, scratch + "-inputs" })
-            try
-            {
-                if (Directory.Exists(folder))
-                    Directory.Delete(folder, recursive: true);
-            }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+        ReleaseReceipt = CompanyRuntimeRelease.Complete(
+            _options.ScratchRoot,
+            scratch,
+            () => server?.DisposeAsync().AsTask().GetAwaiter().GetResult()
+        );
+        if (ReleaseReceipt.Status != "released")
+            Event(
+                "runtime-release-attention",
+                "Temporary runtime release needs attention.",
+                new { status = ReleaseReceipt.Status }
+            );
+        _terminated = ReleaseReceipt.ProcessStopped;
     }
 
     private static bool InputName(string name) =>

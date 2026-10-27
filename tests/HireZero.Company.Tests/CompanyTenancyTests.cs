@@ -110,9 +110,47 @@ public sealed class CompanyTenancyTests : IAsyncDisposable
                 return JsonDocument.Parse(await response.Content.ReadAsStringAsync(Token)).RootElement.Clone();
             }
 
-            var created = await Json(await Send(HttpMethod.Post, "/api/companies", new { name = "Fictional Second" }));
+            var before = await Json(await Send(HttpMethod.Get, "/api/companies"));
+            Assert.Equal(
+                HttpStatusCode.BadRequest,
+                (await Send(HttpMethod.Post, "/api/companies", new { name = "   " })).StatusCode
+            );
+            Assert.Equal(
+                before.GetArrayLength(),
+                (await Json(await Send(HttpMethod.Get, "/api/companies"))).GetArrayLength()
+            );
+            var requestId = Guid.NewGuid().ToString("D");
+            var created = await Json(
+                await Send(HttpMethod.Post, "/api/companies", new { name = "Fictional Second", requestId })
+            );
             var second = created.GetProperty("id").GetString()!;
             Assert.Equal("owner", created.GetProperty("role").GetString());
+            Assert.Equal(
+                second,
+                (
+                    await Json(
+                        await Send(HttpMethod.Post, "/api/companies", new { name = "Fictional Second", requestId })
+                    )
+                )
+                    .GetProperty("id")
+                    .GetString()
+            );
+            var recovered = await Send(HttpMethod.Get, "/api/companies/creation/" + requestId);
+            Assert.True(recovered.Headers.CacheControl!.NoStore);
+            Assert.Equal(second, (await Json(recovered)).GetProperty("id").GetString());
+            var absent = await Send(HttpMethod.Get, "/api/companies/creation/" + Guid.NewGuid().ToString("D"));
+            Assert.Equal(HttpStatusCode.NotFound, absent.StatusCode);
+            Assert.Equal(
+                "company-creation-not-recorded",
+                JsonDocument
+                    .Parse(await absent.Content.ReadAsStringAsync(Token))
+                    .RootElement.GetProperty("code")
+                    .GetString()
+            );
+            Assert.Equal(
+                HttpStatusCode.Conflict,
+                (await Send(HttpMethod.Post, "/api/companies", new { name = "Different input", requestId })).StatusCode
+            );
             await Json(
                 await Send(
                     HttpMethod.Post,

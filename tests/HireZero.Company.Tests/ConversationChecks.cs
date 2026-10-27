@@ -184,8 +184,13 @@ static class ConversationChecks
                 Path.Combine(f.Root, "data", "workspace.sqlite"),
                 "owner@example.invalid",
                 CompanyWorkspace.Definitions(),
+                routing: f.Store.ModelRouting,
                 measuredRuntimeIdentity: f.Model.RuntimeIdentity
-            );
+            )
+            {
+                // Recovery must see the same connection terms; a butler cannot honor a missing contract.
+                MeasuredTerms = f.Store.MeasuredTerms,
+            };
             reopened.Recover();
             var history = JsonSerializer
                 .SerializeToElement(reopened.Thread(a.Employee.Id, a.Thread.Id), CompanyJson.Options)

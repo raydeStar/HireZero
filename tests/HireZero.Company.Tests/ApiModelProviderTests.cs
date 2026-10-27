@@ -89,6 +89,31 @@ public sealed class ApiModelProviderTests
     // The store builds a measured call with no output limit of its own (0); the policy's output target is the limit, in
     // the request and in the worst case, never zero.
     [Fact]
+    public async Task PreHireProfileUsesTheMeasuredPolicyAndDoesNotRequireAutomaticQualification()
+    {
+        var (provider, fake) = Create(new() { ["HIREZERO_OPENROUTER_API_KEY"] = "fictional-router-key" });
+        var (call, job) = Job("fictional/router");
+        call = call with
+        {
+            Context = call.Context with { EmployeeId = "", RoleId = "", ThreadId = "", Scope = "business-profile" },
+            MaxOutputTokens = 0,
+        };
+        job = job with
+        {
+            Policy = CompanyMeasuredPolicy.BusinessProfile,
+            ContextDigest = CompanyJson.Digest(call.Context),
+            ApplicationBytes =
+                Encoding.UTF8.GetByteCount(CompanyJson.Encode(call.Context))
+                + Encoding.UTF8.GetByteCount(call.Instructions),
+        };
+        Assert.False(provider.Qualified);
+        var reply = await provider.CompleteMeasuredAsync(call, job, Token);
+        Assert.NotNull(reply.Usage);
+        using var json = JsonDocument.Parse(Assert.Single(fake.Requests).Body);
+        Assert.Equal(3000, json.RootElement.GetProperty("max_completion_tokens").GetInt32());
+    }
+
+    [Fact]
     public async Task AMeasuredCallUsesItsPolicyOutputLimit()
     {
         var (provider, fake) = Create(new() { ["HIREZERO_OPENROUTER_API_KEY"] = "fictional-router-key" });
@@ -99,6 +124,21 @@ public sealed class ApiModelProviderTests
             CompanyMeasuredPolicy.Current.OutputTarget,
             json.RootElement.GetProperty("max_completion_tokens").GetInt32()
         );
+    }
+
+    [Fact]
+    public async Task ADeliverableUsesItsReviewedOutputLimitAndRefusesAnUnboundedPolicy()
+    {
+        var (provider, fake) = Create(new() { ["HIREZERO_OPENROUTER_API_KEY"] = "fictional-router-key" });
+        var (call, job) = Job("openai/fictional-luna");
+        job = job with { Policy = CompanyMeasuredPolicy.Deliverable };
+        await provider.CompleteMeasuredAsync(call with { MaxOutputTokens = 0 }, job, Token);
+        using var json = JsonDocument.Parse(Assert.Single(fake.Requests).Body);
+        Assert.Equal(1800, json.RootElement.GetProperty("max_completion_tokens").GetInt32());
+        await Assert.ThrowsAsync<WorkspaceException>(() =>
+            provider.CompleteMeasuredAsync(call, job with { Policy = job.Policy with { OutputTarget = 100000 } }, Token)
+        );
+        Assert.Single(fake.Requests);
     }
 
     // OpenRouter gets low reasoning effort and the reviewed price as a ceiling, so a variably priced router cannot bill

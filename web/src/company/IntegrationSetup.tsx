@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 
 type Field = {
@@ -81,24 +81,40 @@ export function SetupForm({ setup, saved, open }: { setup: Setup; saved: () => P
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const inFlight = useRef(false);
   async function act(work: () => Promise<unknown>, done: string) {
+    if (inFlight.current) return false;
+    inFlight.current = true;
     setBusy(true);
     setError("");
     setMessage("");
     try {
       await work();
       setMessage(done);
-      await saved();
+      try {
+        await saved();
+      } catch (e) {
+        setError("Saved, but the settings view could not refresh: " + (e as Error).message);
+      }
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }
   return (
-    <details className="co-setup" aria-label={setup.name + " setup"} open={open}>
+    <details
+      className="co-setup"
+      aria-label={setup.name + " setup"}
+      data-integration-id={setup.id}
+      tabIndex={-1}
+      open={open}
+    >
       <summary>
-        {setup.name} · {setup.active ? "active" : "not set up"}
+        {setup.id === "openrouter" ? "OpenRouter tool requests" : setup.name} · {setup.active ? "active" : "not set up"}
       </summary>
       <p className="co-muted">{setup.reason}</p>
       {/* How to connect, step by step, with a link to where each step is done; open until the integration works. */}
@@ -164,9 +180,7 @@ export function SetupForm({ setup, saved, open }: { setup: Setup; saved: () => P
           <button disabled={busy} type="submit">
             Save settings
           </button>
-          {open === undefined && (
-            <small className="co-muted">Saved to {setup.file} in the data root; other keys there are kept.</small>
-          )}
+          {open === undefined && <small className="co-muted">Settings are saved for this company.</small>}
         </form>
       )}
       {setup.secrets.map((s) => (
@@ -182,14 +196,18 @@ export function SetupForm({ setup, saved, open }: { setup: Setup; saved: () => P
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                const submitted = secrets[s.name] ?? "";
                 void act(
                   () =>
                     api("/company/integrations/" + setup.id + "/secrets", "PUT", {
                       name: s.name,
-                      value: secrets[s.name] ?? "",
+                      value: submitted,
                     }),
                   s.label + " saved.",
-                ).then(() => setSecrets((all) => ({ ...all, [s.name]: "" })));
+                ).then((success) => {
+                  // A refused save must not vanish like a magician's assistant.
+                  if (success) setSecrets((all) => (all[s.name] === submitted ? { ...all, [s.name]: "" } : all));
+                });
               }}
             >
               {s.multiline ? (

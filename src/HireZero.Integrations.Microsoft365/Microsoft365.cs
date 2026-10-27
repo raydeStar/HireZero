@@ -70,6 +70,23 @@ public sealed class MicrosoftStore(string dataRoot)
 
     public void SaveAccount(MicrosoftAccount account) => Write(_account, account);
 
+    // A token refresh that was already in flight cannot undo an owner's disconnect or a newer sign-in.
+    public bool UpdateAccount(MicrosoftAccount expected, MicrosoftAccount account)
+    {
+        lock (_gate)
+        {
+            var current = Account();
+            if (
+                current is null
+                || current.ConnectedAt != expected.ConnectedAt
+                || current.ProtectedRefreshToken != expected.ProtectedRefreshToken
+            )
+                return false;
+            SaveAccount(account);
+            return true;
+        }
+    }
+
     public void Disconnect()
     {
         lock (_gate)
@@ -163,7 +180,7 @@ public sealed class MicrosoftConnector(
     }
 
     // Step 2: the callback exchanges the code once, reads the signed-in identity and stores encrypted tokens.
-    public async Task CompleteAsync(string code, string state, CancellationToken token)
+    public async Task CompleteAsync(string code, string state, CancellationToken token, Action? validate = null)
     {
         (string Verifier, string[] Scopes, DateTimeOffset Expires) pending;
         lock (_gate)
@@ -191,6 +208,7 @@ public sealed class MicrosoftConnector(
             ?? throw new WorkspaceException("Microsoft didn't return your identity.", 502);
         var address = Text(me.RootElement, "mail") ?? Text(me.RootElement, "userPrincipalName") ?? "account";
         var work = !Regex.IsMatch(address, @"@(outlook|hotmail|live|msn)\.", RegexOptions.IgnoreCase);
+        validate?.Invoke();
         store.SaveAccount(
             new(
                 address,
@@ -255,7 +273,8 @@ public sealed class MicrosoftConnector(
             },
             token
         );
-        store.SaveAccount(
+        var saved = store.UpdateAccount(
+            account,
             account with
             {
                 ProtectedAccessToken = _tokens.Protect(refreshed.Access),
@@ -265,6 +284,11 @@ public sealed class MicrosoftConnector(
                     : account.ProtectedRefreshToken,
             }
         );
+        if (!saved)
+            throw new WorkspaceException(
+                "Microsoft 365 changed while refreshing. Start the read again after reviewing the connection.",
+                409
+            );
         return refreshed.Access;
     }
 
@@ -636,6 +660,13 @@ public sealed class Microsoft365ToolProvider(MicrosoftStore store, MicrosoftConn
 
 public static class Microsoft365Services
 {
+    public static MicrosoftConnector CompanyConnector(
+        MicrosoftStore store,
+        IDataProtectionProvider protection,
+        MicrosoftOptions options,
+        IHttpClientFactory? clients = null
+    ) => new(store, clients ?? new PrivateClients(), protection, options);
+
     // The company workspace: sign-in and owner-started reads, with no background polling. Its Graph clients are private
     // to the connector, so the company profile still offers no general HTTP client factory.
     public static IServiceCollection AddMicrosoft365Company(this IServiceCollection services, string dataRoot)
@@ -655,7 +686,11 @@ public static class Microsoft365Services
 
     private sealed class PrivateClients : IHttpClientFactory
     {
-        private readonly SocketsHttpHandler _handler = new() { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
+        private readonly SocketsHttpHandler _handler = new()
+        {
+            AllowAutoRedirect = false,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        };
 
         public HttpClient CreateClient(string name) =>
             new(_handler, disposeHandler: false)

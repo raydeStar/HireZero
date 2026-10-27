@@ -9,6 +9,11 @@ For current information see the [README](../../README.md), the [roadmap](../ROAD
 
 | Note | What it records |
 | --- | --- |
+| [Revised script task-budget attempt](2026-10-26-script-task-budget-attempt.md) | Approved profile implementation, offline passes, first-case failure and verified cleanup |
+| [One workload-limit diagnostic](2026-10-26-script-task-limit-diagnostic-plan.md) | Approved single job isolated the 33-versus-32 workload-count failure; stopped, cleanup confirmed, no qualification |
+| [Drive file selection](2026-10-26-drive-file-selection.md) | Pasted file links, exact case-sensitive IDs and fictional import regression verification |
+| [Modal workspace overlays](2026-10-26-modal-workspace-overlays.md) | Reproduced cockpit focus defect, native modal keyboard behavior and responsive browser verification |
+| [PostgreSQL context verification](2026-10-26-postgres-context-verification.md) | Real pinned PostgreSQL lifecycle, tenant isolation, approved retrieval and retired-source deletion checks |
 | [PROVENANCE](PROVENANCE.md) | Origin of the source snapshot and its upstream base commit |
 | [COMPANY_LOCAL](COMPANY_LOCAL.md) | Company workspace behaviour, Codex connection and routing as of 2026-10 |
 | [MANUAL_QUEUE_UI](MANUAL_QUEUE_UI.md) | Owner steps for the one-job measured draft flow |

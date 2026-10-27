@@ -126,107 +126,118 @@ public sealed class CompanyDeveloperBridge(CompanyStore store, IToolbox tools, I
                     return false;
                 }
             }
-            using var runner = factory.Create(grant, MayStart) as IDisposable;
-            var coding =
-                runner as ICodingRunner
-                ?? throw new WorkspaceException("A disposable scoped coding runner is required.");
-            if (!store.DispatchExecution(grantId))
-                throw new WorkspaceException("Execution authority or budget changed.");
-            CodingRun? run = null;
+            var runner = factory.Create(grant, MayStart) as IDisposable;
             try
             {
-                var limits = grant.Bounds;
-                run = coding.Start(
-                    new(
-                        grant.Workspace,
-                        prompt,
-                        null,
-                        grant.Route,
-                        limits.Effort,
-                        grant.AllowNetwork,
-                        AllowWrite: grant.AllowWrite,
-                        ReadRoots: postgres is null ? null : [postgres.Directory],
-                        InputFiles: postgres is null
-                            ? null
-                            : new Dictionary<string, string>
-                            {
-                                [TrustedPostgresTools.ProfileVariable] = postgres.ProfileJson,
-                            }
-                    )
-                );
-                store.BindExecution(grantId, run.Id);
-                var deadline = DateTimeOffset.UtcNow.AddSeconds(limits.Seconds);
-                while ((run = coding.Find(run.Id)!)?.State is "queued" or "running")
+                var coding =
+                    runner as ICodingRunner
+                    ?? throw new WorkspaceException("A disposable scoped coding runner is required.");
+                if (!store.DispatchExecution(grantId))
+                    throw new WorkspaceException("Execution authority or budget changed.");
+                CodingRun? run = null;
+                try
                 {
+                    var limits = grant.Bounds;
+                    run = coding.Start(
+                        new(
+                            grant.Workspace,
+                            prompt,
+                            null,
+                            grant.Route,
+                            limits.Effort,
+                            grant.AllowNetwork,
+                            AllowWrite: grant.AllowWrite,
+                            ReadRoots: postgres is null ? null : [postgres.Directory],
+                            InputFiles: postgres is null
+                                ? null
+                                : new Dictionary<string, string>
+                                {
+                                    [TrustedPostgresTools.ProfileVariable] = postgres.ProfileJson,
+                                }
+                        )
+                    );
+                    store.BindExecution(grantId, run.Id);
+                    var deadline = DateTimeOffset.UtcNow.AddSeconds(limits.Seconds);
+                    while ((run = coding.Find(run.Id)!)?.State is "queued" or "running")
+                    {
+                        if (
+                            !store.ExecutionCurrent(grantId)
+                            || token.IsCancellationRequested
+                            || DateTimeOffset.UtcNow >= deadline
+                        )
+                            coding.Cancel(run.Id);
+                        await Task.Delay(25, CancellationToken.None);
+                        if (DateTimeOffset.UtcNow > deadline.AddSeconds(8))
+                            throw new TimeoutException("Scoped runtime termination is unconfirmed.");
+                    }
+                    if (run is null)
+                        throw new WorkspaceException("The runtime receipt disappeared.");
+                    if (coding is not ICodingRunLifecycle lifecycle)
+                        throw new WorkspaceException("Runtime termination cannot be verified.");
+                    var stopDeadline = DateTimeOffset.UtcNow.AddSeconds(8);
+                    while (!lifecycle.Terminated(run.Id))
+                    {
+                        if (DateTimeOffset.UtcNow >= stopDeadline)
+                            throw new TimeoutException("Runtime termination is unconfirmed.");
+                        await Task.Delay(20, CancellationToken.None);
+                    }
+                    var after = await InspectAsync(grant.Workspace, CancellationToken.None);
                     if (
-                        !store.ExecutionCurrent(grantId)
-                        || token.IsCancellationRequested
-                        || DateTimeOffset.UtcNow >= deadline
+                        run.State != "completed"
+                        || run.ResolvedModel != CompanyModelRouting.Native(grant.Route)
+                        || after.Revision != grant.Revision
+                        || !grant.AllowWrite && after.Fingerprint != grant.Fingerprint
                     )
-                        coding.Cancel(run.Id);
-                    await Task.Delay(25, CancellationToken.None);
-                    if (DateTimeOffset.UtcNow > deadline.AddSeconds(8))
-                        throw new TimeoutException("Scoped runtime termination is unconfirmed.");
+                        throw new WorkspaceException(
+                            "Runtime outcome, route or repository changes need reconciliation."
+                        );
+                    var usage = run
+                        .Events.Where(e => e.Type == CodingEvents.Usage)
+                        .Select(e => JsonDocument.Parse(e.DataJson).RootElement.GetProperty("tokens").GetInt64())
+                        .LastOrDefault(-1);
+                    if (usage < 0 || usage > limits.Tokens)
+                        throw new WorkspaceException("Complete bounded coding usage was not confirmed.");
+                    var review = await tools.InvokeAsync(
+                        GitTools.ReviewCheckout,
+                        new(grant.Workspace, grant.Revision),
+                        CancellationToken.None
+                    );
+                    if (review.Fingerprint != after.Fingerprint)
+                        throw new WorkspaceException("Checkout changed while preparing the repository review.");
+                    store.RecordExecutionReview(grantId, review);
+                    store.Finish(
+                        grant.AttemptId,
+                        new(
+                            (run.ResultJson ?? "No result.") + "\n\nRepository review digest: " + review.Digest,
+                            usage,
+                            "codex:" + run.Id
+                        )
+                    );
+                    store.RecordExecutionOutcome(
+                        grantId,
+                        store.Work(grant.TaskId).State == "awaiting_review" ? "completed" : "withheld"
+                    );
                 }
-                if (run is null)
-                    throw new WorkspaceException("The runtime receipt disappeared.");
-                if (coding is not ICodingRunLifecycle lifecycle)
-                    throw new WorkspaceException("Runtime termination cannot be verified.");
-                var stopDeadline = DateTimeOffset.UtcNow.AddSeconds(8);
-                while (!lifecycle.Terminated(run.Id))
+                catch (CodingStartRefusedException)
                 {
-                    if (DateTimeOffset.UtcNow >= stopDeadline)
-                        throw new TimeoutException("Runtime termination is unconfirmed.");
-                    await Task.Delay(20, CancellationToken.None);
+                    store.FailAttempt(grant.AttemptId, "coding-not-sent", false);
+                    store.RecordExecutionOutcome(grantId, "not_sent");
+                    throw;
                 }
-                var after = await InspectAsync(grant.Workspace, CancellationToken.None);
-                if (
-                    run.State != "completed"
-                    || run.ResolvedModel != CompanyModelRouting.Native(grant.Route)
-                    || after.Revision != grant.Revision
-                    || !grant.AllowWrite && after.Fingerprint != grant.Fingerprint
-                )
-                    throw new WorkspaceException("Runtime outcome, route or repository changes need reconciliation.");
-                var usage = run
-                    .Events.Where(e => e.Type == CodingEvents.Usage)
-                    .Select(e => JsonDocument.Parse(e.DataJson).RootElement.GetProperty("tokens").GetInt64())
-                    .LastOrDefault(-1);
-                if (usage < 0 || usage > limits.Tokens)
-                    throw new WorkspaceException("Complete bounded coding usage was not confirmed.");
-                var review = await tools.InvokeAsync(
-                    GitTools.ReviewCheckout,
-                    new(grant.Workspace, grant.Revision),
-                    CancellationToken.None
-                );
-                if (review.Fingerprint != after.Fingerprint)
-                    throw new WorkspaceException("Checkout changed while preparing the repository review.");
-                store.RecordExecutionReview(grantId, review);
-                store.Finish(
-                    grant.AttemptId,
-                    new(
-                        (run.ResultJson ?? "No result.") + "\n\nRepository review digest: " + review.Digest,
-                        usage,
-                        "codex:" + run.Id
-                    )
-                );
-                store.RecordExecutionOutcome(
-                    grantId,
-                    store.Work(grant.TaskId).State == "awaiting_review" ? "completed" : "withheld"
-                );
+                catch
+                {
+                    if (run is not null)
+                        coding.Cancel(run.Id);
+                    store.FailAttempt(grant.AttemptId, "coding-outcome-unknown", true);
+                    store.RecordExecutionOutcome(grantId, "unknown");
+                    throw;
+                }
             }
-            catch (CodingStartRefusedException)
+            finally
             {
-                store.FailAttempt(grant.AttemptId, "coding-not-sent", false);
-                store.RecordExecutionOutcome(grantId, "not_sent");
-                throw;
-            }
-            catch
-            {
-                if (run is not null)
-                    coding.Cancel(run.Id);
-                store.FailAttempt(grant.AttemptId, "coding-outcome-unknown", true);
-                store.RecordExecutionOutcome(grantId, "unknown");
-                throw;
+                runner?.Dispose();
+                if (runner is ICodingRunCleanup { ReleaseReceipt: { } receipt })
+                    store.RecordExecutionRelease(grantId, receipt);
             }
         }
         catch

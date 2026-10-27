@@ -3,6 +3,7 @@ using System.Text.Json;
 var mode = Environment.GetEnvironmentVariable("HIREZERO_FIXTURE_MODE") ?? "success";
 const string thread = "fixture-thread",
     turn = "fixture-turn";
+var companyTextModel = mode == "company-analysis-routing" ? "gpt-6.1-sol" : "gpt-6-luna";
 var companyTurnSent = false;
 var companyConversationTurn = false;
 const string companyProfile = "hirezero_qualification";
@@ -544,7 +545,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                 p.TryGetProperty("developerInstructions", out var instructions)
                 && instructions.GetString()!.Contains("Conversational reply only.", StringComparison.Ordinal);
             if (
-                p.GetProperty("model").GetString() != "gpt-6-luna"
+                p.GetProperty("model").GetString() != companyTextModel
                 || p.GetProperty("allowProviderModelFallback").GetBoolean()
                 || !p.GetProperty("ephemeral").GetBoolean()
                 || p.GetProperty("environments").GetArrayLength() != 0
@@ -561,7 +562,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                     result = new
                     {
                         thread = new { id = thread, ephemeral = true },
-                        model = "gpt-6-luna",
+                        model = companyTextModel,
                         modelProvider = "openai",
                         approvalPolicy = "never",
                         activePermissionProfile = new
@@ -626,7 +627,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                 continue;
             }
             if (
-                p.GetProperty("model").GetString() != "gpt-6-luna"
+                p.GetProperty("model").GetString() != companyTextModel
                 || p.GetProperty("effort").GetString() != "low"
                 || p.GetProperty("summary").GetString() != "none"
                 || p.GetProperty("serviceTierForTurn").GetString() != "default"
@@ -718,6 +719,49 @@ while (await Console.In.ReadLineAsync() is { } line)
             if (mode.StartsWith("company-measured", StringComparison.Ordinal))
                 body =
                     "DRAFT for internal review\nFold a fictional paper crane.\nThis fictional kit contains paper and a printed folding guide.\nClaim sources: approved facts. Missing facts: price. Owner question: approve wording?";
+            if (mode == "company-memory-analysis")
+            {
+                if (
+                    context.RootElement.GetProperty("employeeId").GetString() != ""
+                    || context.RootElement.GetProperty("scope").GetString() != "memory-analysis"
+                )
+                    throw new Exception("The memory check wandered into an employee's study.");
+                body = "{\"findings\":[]}";
+            }
+            if (mode == "company-business-profile")
+            {
+                if (
+                    context.RootElement.GetProperty("employeeId").GetString() != ""
+                    || context.RootElement.GetProperty("scope").GetString() != "business-profile"
+                )
+                    throw new Exception("A company brief borrowed an employee's dinner jacket.");
+                var sourceId = context.RootElement.GetProperty("evidence")[0].GetProperty("id").GetString();
+                body = JsonSerializer.Serialize(
+                    new
+                    {
+                        fields = new[]
+                        {
+                            "business",
+                            "services",
+                            "customers",
+                            "voice",
+                            "market",
+                            "competitors",
+                            "opportunities",
+                            "goals",
+                            "boundaries",
+                        }.Select(key => new
+                        {
+                            key,
+                            value = key == "business" ? "A fictional craft business" : "Unknown",
+                            verification = key == "business" ? "sourced" : "unknown",
+                            citations = key == "business"
+                                ? new[] { new { sourceId, quote = "Fictional paper kits for adult hobbyists." } }
+                                : [],
+                        }),
+                    }
+                );
+            }
             if (companyConversationTurn)
                 body =
                     "Fictional conversational reply. Use only the reviewed facts. The human owner retains final authority; no actions were performed.";

@@ -182,7 +182,9 @@ public sealed partial class CompanyStore
         var (kind, table) = value switch
         {
             CompanyAttempt => ("model-call", "co_attempts"),
+            CompanyMemoryAnalysis => ("memory-analysis", "co_memory_analyses"),
             CompanyExecutionGrant => ("coding-run", "co_execution_grants"),
+            CompanySandboxJob => ("sandbox-run", "co_sandbox_jobs"),
             _ => (null, null),
         };
         if (kind is null)
@@ -212,6 +214,37 @@ public sealed partial class CompanyStore
         }
         object body = value switch
         {
+            CompanyMemoryAnalysis a => new
+            {
+                a.State,
+                a.AuthorizedBy,
+                a.Job.Digest,
+                a.Job.Route,
+                a.Job.RuntimeIdentity,
+                a.ProviderReceipt,
+                a.ReportedUsage,
+                a.Usage,
+                sources = a.Sources.Select(s => new
+                {
+                    s.Id,
+                    s.Version,
+                    s.Digest,
+                }),
+            },
+            CompanySandboxJob j => new
+            {
+                j.TaskId,
+                j.EmployeeId,
+                j.State,
+                j.Digest,
+                j.RuntimeIdentity,
+                j.ApprovedBy,
+                j.DispatchTaken,
+                j.Revoked,
+                j.ResultDigest,
+                j.Release,
+                j.AllocatedSeconds,
+            },
             CompanyAttempt a => new
             {
                 a.TaskId,

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { dollars } from "./money";
+import { useMemberAccess } from "./MemberAccess";
 
 type Budget = { id: string; limit: number; used: number; reserved: number; version?: number };
 export type Spend = {
@@ -32,6 +33,7 @@ export function Budgets({
   busy: boolean;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
 }) {
+  const { canManage } = useMemberAccess();
   const [editing, setEditing] = useState<string | null>(null),
     [value, setValue] = useState("");
   const limits: { id: string; name: string; ceiling: number }[] = [
@@ -45,19 +47,24 @@ export function Budgets({
   const active = allowances.filter((b) => b.reserved > 0);
   const finished = allowances.filter((b) => b.reserved === 0);
   const byId = new Map(budgets.map((b) => [b.id, b]));
-  const nameOf = (id: string) => employees.find((e) => e.id === id)?.name ?? "Former employee";
+  const nameOf = (id: string) =>
+    id === "company-research" ? "Company research" : (employees.find((e) => e.id === id)?.name ?? "Former employee");
   const tokens = (n: number) => n.toLocaleString();
   return (
     <details className="co-budgets" open={open}>
       <summary>Budgets</summary>
-      <h3>Spend</h3>
+      <h3>Provider costs and estimates</h3>
+      <p className="co-muted">
+        Earlier jobs may use estimates at current prices. New jobs retain the prices captured when they start. Usage
+        shows their monthly receipts and separates provider-reported costs from estimates.
+      </p>
       {spend && spend.pricedJobs + spend.unpricedJobs > 0 ? (
         <>
           <table aria-label="Spend">
             <thead>
               <tr>
                 <th>For</th>
-                <th>Spent to date</th>
+                <th>Reported or estimated</th>
                 <th>Jobs</th>
               </tr>
             </thead>
@@ -87,7 +94,10 @@ export function Budgets({
       ) : (
         <p className="co-muted">No model jobs have run yet.</p>
       )}
-      <h3>Limits</h3>
+      <h3>Cumulative safety limits</h3>
+      {!canManage && (
+        <p className="co-muted">An owner changes safety limits. Current usage and allowances are shown below.</p>
+      )}
       <table aria-label="Limits">
         <thead>
           <tr>
@@ -106,7 +116,7 @@ export function Budgets({
                 <td>{tokens(b?.used ?? 0)}</td>
                 <td>{tokens(b?.reserved ?? 0)}</td>
                 <td>
-                  {editing === row.id ? (
+                  {canManage && editing === row.id ? (
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
@@ -114,12 +124,16 @@ export function Budgets({
                           id: row.id,
                           expectedVersion: b?.version ?? 0,
                           budget: Number(value),
-                        }).then(() => setEditing(null));
+                        }).then((result) => {
+                          if (result) setEditing(null);
+                        });
                       }}
                     >
                       <input
                         aria-label={"Limit for " + row.name}
                         type="number"
+                        required
+                        disabled={busy}
                         min={0}
                         max={row.ceiling}
                         value={value}
@@ -128,20 +142,25 @@ export function Budgets({
                       <button disabled={busy} type="submit">
                         Save
                       </button>
+                      <button disabled={busy} type="button" onClick={() => setEditing(null)}>
+                        Cancel
+                      </button>
                     </form>
                   ) : (
                     <>
                       {b ? tokens(b.limit) : "not set"}{" "}
-                      <button
-                        disabled={busy}
-                        type="button"
-                        onClick={() => {
-                          setEditing(row.id);
-                          setValue(String(b?.limit ?? 0));
-                        }}
-                      >
-                        Change
-                      </button>
+                      {canManage && (
+                        <button
+                          disabled={busy}
+                          type="button"
+                          onClick={() => {
+                            setEditing(row.id);
+                            setValue(String(b?.limit ?? 0));
+                          }}
+                        >
+                          Change
+                        </button>
+                      )}
                     </>
                   )}
                 </td>

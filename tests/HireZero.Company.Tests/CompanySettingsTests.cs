@@ -45,6 +45,17 @@ public sealed class CompanySettingsTests : IDisposable
     }
 
     [Fact]
+    public void AnalysisModelIsAnOptionalExplicitSetting()
+    {
+        Assert.Null(CompanySettings.Load(Environment()).AnalysisModel);
+        var settings = CompanySettings.Load(
+            Environment(("HIREZERO_COMPANY_ANALYSIS_MODEL", "openai/fictional-analysis"))
+        );
+        Assert.Equal("openai/fictional-analysis", settings.AnalysisModel);
+        Assert.Null(settings.TextModel);
+    }
+
+    [Fact]
     public void EveryProblemIsReportedAtOnce()
     {
         var error = Assert.Throws<InvalidOperationException>(() =>
@@ -103,5 +114,75 @@ public sealed class CompanySettingsTests : IDisposable
             repository = repository.Parent!;
         var reference = File.ReadAllText(Path.Combine(repository.FullName, "docs", "SETTINGS.md"));
         Assert.All(CompanySettings.All, s => Assert.Contains("`" + s.Name + "`", reference));
+    }
+
+    [Fact]
+    public void SandboxConfigurationNeedsTheCompleteLocalBindingAndDefaultsOff()
+    {
+        Assert.False(CompanySettings.Load(_ => null).SandboxEnabled);
+        var missing = Assert.Throws<InvalidOperationException>(() =>
+            CompanySettings.Load(Environment(("HIREZERO_SANDBOX_ENABLED", "1")))
+        );
+        Assert.Contains("HIREZERO_SANDBOX_QUALIFICATION is required", missing.Message);
+        Assert.Contains("HIREZERO_SANDBOX_INSTALLATION is required", missing.Message);
+        var invalid = Assert.Throws<InvalidOperationException>(() =>
+            CompanySettings.Load(
+                Environment(
+                    ("HIREZERO_SANDBOX_ENDPOINT", "tcp://untrusted.invalid"),
+                    ("HIREZERO_SANDBOX_IMAGE", "latest"),
+                    ("HIREZERO_SANDBOX_DOCKER", "docker")
+                )
+            )
+        );
+        Assert.Contains("must select an approved local Linux engine endpoint", invalid.Message);
+        Assert.Contains("must be a local sha256 image ID", invalid.Message);
+        Assert.Contains("must be an absolute file path", invalid.Message);
+        Assert.DoesNotContain("untrusted.invalid", invalid.Message);
+        var settings = CompanySettings.Load(
+            Environment(
+                ("HIREZERO_SANDBOX_DOCKER", Path.Combine(_root, "docker")),
+                ("HIREZERO_SANDBOX_ENDPOINT", "unix:///var/run/docker.sock"),
+                ("HIREZERO_SANDBOX_IMAGE", "sha256:" + new string('a', 64)),
+                ("HIREZERO_SANDBOX_INSTALLATION", Guid.NewGuid().ToString("N")),
+                ("HIREZERO_SANDBOX_QUALIFICATION", Path.Combine(_root, "qualification.json"))
+            )
+        );
+        Assert.False(settings.SandboxEnabled);
+        Assert.Throws<InvalidOperationException>(() => CompanySandboxRuntime.Create(settings));
+    }
+
+    [Fact]
+    public void BrowserConfigurationNeedsTheCompleteLocalBindingAndDefaultsOff()
+    {
+        Assert.False(CompanySettings.Load(_ => null).BrowserEnabled);
+        var missing = Assert.Throws<InvalidOperationException>(() =>
+            CompanySettings.Load(Environment(("HIREZERO_BROWSER_ENABLED", "1")))
+        );
+        Assert.Contains("HIREZERO_BROWSER_QUALIFICATION is required", missing.Message);
+        Assert.Contains("HIREZERO_BROWSER_INSTALLATION is required", missing.Message);
+        var invalid = Assert.Throws<InvalidOperationException>(() =>
+            CompanySettings.Load(
+                Environment(
+                    ("HIREZERO_BROWSER_ENDPOINT", "tcp://untrusted.invalid"),
+                    ("HIREZERO_BROWSER_IMAGE", "latest"),
+                    ("HIREZERO_BROWSER_DOCKER", "docker")
+                )
+            )
+        );
+        Assert.Contains("must select an approved local Linux engine endpoint", invalid.Message);
+        Assert.Contains("must be a local sha256 image ID", invalid.Message);
+        Assert.Contains("must be an absolute file path", invalid.Message);
+        Assert.DoesNotContain("untrusted.invalid", invalid.Message);
+        var settings = CompanySettings.Load(
+            Environment(
+                ("HIREZERO_BROWSER_DOCKER", Path.Combine(_root, "docker")),
+                ("HIREZERO_BROWSER_ENDPOINT", "unix:///var/run/docker.sock"),
+                ("HIREZERO_BROWSER_IMAGE", "sha256:" + new string('a', 64)),
+                ("HIREZERO_BROWSER_INSTALLATION", Guid.NewGuid().ToString("N")),
+                ("HIREZERO_BROWSER_QUALIFICATION", Path.Combine(_root, "qualification.json"))
+            )
+        );
+        Assert.False(settings.BrowserEnabled);
+        Assert.Throws<InvalidOperationException>(() => CompanyBrowserRuntime.Create(settings));
     }
 }

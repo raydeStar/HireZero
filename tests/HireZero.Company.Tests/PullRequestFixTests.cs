@@ -640,6 +640,57 @@ public sealed class PullRequestFixTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task AnotherCompanyCannotBorrowTheHostsQualifiedCodingRunner()
+    {
+        await using var app = CompanyWorkspace.TryCreate(
+            [CompanyWorkspace.Flag],
+            Owner,
+            true,
+            Path.Combine(_root.Path, "host-isolation"),
+            fixtureUrl: "http://127.0.0.1:0",
+            fixtureTools: Handlers,
+            fixtureCoding: Coding()
+        )!;
+        var local = app.Services.GetRequiredService<CompanyStore>();
+        var other = new CompanyStore(
+            local.Database,
+            Owner,
+            CompanyWorkspace.Definitions(),
+            companyId: "co-other-coding"
+        );
+        var fix = await Assign(other);
+        var grant = await fix.Developer.PrepareAsync(fix.Task.Id, Token);
+        Approve<CompanyExecutionGrant>(other, "execution.review", grant.Id, grant.Version, grant.Digest);
+        await app.StartAsync(Token);
+        var address = app
+            .Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>()!
+            .Addresses.Single();
+        using var client = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(address) };
+        client.DefaultRequestHeaders.Host = "127.0.0.1:5065";
+        client.DefaultRequestHeaders.Add("Origin", "http://127.0.0.1:5065");
+        client.DefaultRequestHeaders.Add("X-Dev-Request", "1");
+        var first = await client.GetFromJsonAsync<JsonElement>("/api/company", Token);
+        Assert.True(first.GetProperty("capabilities").GetProperty("liveCoding").GetBoolean());
+        client.DefaultRequestHeaders.Add("X-HireZero-Company", other.CompanyId);
+        var snapshot = await client.GetFromJsonAsync<JsonElement>("/api/company", Token);
+        var capabilities = snapshot.GetProperty("capabilities");
+        Assert.False(capabilities.GetProperty("liveCoding").GetBoolean());
+        var status = Assert.Single(
+            capabilities.GetProperty("integrations").EnumerateArray(),
+            s => s.GetProperty("id").GetString() == "live-coding"
+        );
+        Assert.False(status.GetProperty("active").GetBoolean());
+        using var refused = await client.PostAsJsonAsync("/api/company/executions/run/" + grant.Id, new { }, Token);
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Contains("runtime qualification is unavailable", await refused.Content.ReadAsStringAsync(Token));
+        Assert.Equal("approved", other.Execution(grant.Id).State);
+        Assert.Null(other.Execution(grant.Id).RunId);
+        Assert.False(File.Exists(Path.Combine(Checkout, "fixture-change.txt")));
+        await app.StopAsync(Token);
+    }
+
     private CompanyStore Store(CompanyExecutionLimits limits, Func<DateTimeOffset>? clock = null) =>
         new(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions())
         {
@@ -709,6 +760,16 @@ public sealed class PullRequestFixTests : IDisposable
         Assert.Equal("awaiting_review", fix.Store.Work(fix.Task.Id).State);
         now = now.AddMinutes(6);
         Assert.False(fix.Store.ExecutionCurrent(grant.Id));
+        fix.Store.RecordExecutionOutcome(grant.Id, "completed");
+        var receipt = new CodingReleaseReceipt(true, false, "cleanup-incomplete", now);
+        fix.Store.RecordExecutionRelease(grant.Id, receipt);
+        fix.Store.RecordExecutionRelease(grant.Id, receipt);
+        var notice = Assert.Single(
+            fix.Store.Inbox(Owner).Items,
+            item => item.Notice.Title == "Temporary runtime release needs attention"
+        );
+        Assert.Equal(fix.Task.Id, notice.Notice.TargetId);
+        Assert.Equal("task", notice.Notice.Destination);
     }
 
     // The live runner drives the same reviewed path: approved limits, the diff review and a publication.
@@ -743,6 +804,18 @@ public sealed class PullRequestFixTests : IDisposable
         var done = fix.Store.Execution(grant.Id);
         Assert.Equal("completed", done.State);
         Assert.Equal("fixture-change.txt", Assert.Single(done.Review!.Files).Path);
+        Assert.True(done.Release is { ProcessStopped: true, TemporaryFilesRemoved: true, Status: "released" });
+        var reopened = new CompanyStore(store.Database, Owner, CompanyWorkspace.Definitions());
+        Assert.Equal(done.Release, reopened.Execution(grant.Id).Release);
+        reopened.RecordExecutionRelease(grant.Id, new(false, false, "termination-unconfirmed", DateTimeOffset.UtcNow));
+        Assert.Equal(done.Release, reopened.Execution(grant.Id).Release);
+        var other = new CompanyStore(
+            store.Database,
+            Owner,
+            CompanyWorkspace.Definitions(),
+            companyId: "co-other-release"
+        );
+        Assert.Throws<WorkspaceException>(() => other.RecordExecutionRelease(grant.Id, done.Release!));
         Assert.Contains("ran the tests", fix.Store.ArtifactsOf(fix.Task.Id).Last().Body);
         var publication = await fix.Developer.ProposePublicationAsync(grant.Id, Token);
         Assert.Equal("proposed", publication.State);

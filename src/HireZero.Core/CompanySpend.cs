@@ -10,11 +10,35 @@ public sealed record CompanySpendLine(string EmployeeId, decimal Usd, int Priced
 
 public sealed partial class CompanyStore
 {
-    public static CompanySpend Spend(IEnumerable<CompanyAttempt> attempts, Func<string, ModelPrice?> price)
+    public static CompanySpend Spend(
+        IEnumerable<CompanyAttempt> attempts,
+        Func<string, ModelPrice?> price,
+        IEnumerable<CompanyBusinessDraft>? drafts = null,
+        IEnumerable<CompanyUsageEntry>? ledger = null
+    )
     {
+        var recorded = (ledger ?? []).ToArray();
+        var recordedIds = recorded.Select(e => e.Id).ToHashSet();
         var jobs = attempts
-            .Where(a => a.Measured is not null && a.Usage is not null)
+            .Where(a => a.Measured is not null && a.Usage is not null && !recordedIds.Contains(a.Id))
             .Select(a => (a.EmployeeId, Usd: a.Usage!.BilledUsd ?? price(a.Measured!.Route)?.Cost(a.Usage!)))
+            .Concat(
+                (drafts ?? [])
+                    .Where(d =>
+                        !recordedIds.Contains(d.Id)
+                        && d.Usage is not null
+                        && d.Usage.Consistent(d.ReportedUsage)
+                        && d.Usage.BilledUsd is not < 0
+                    )
+                    .Select(d =>
+                        (EmployeeId: "company-research", Usd: d.Usage!.BilledUsd ?? price(d.Job.Route)?.Cost(d.Usage!))
+                    )
+            )
+            .Concat(
+                recorded
+                    .Where(e => e.State == "settled")
+                    .Select(e => (EmployeeId: e.EmployeeId ?? "company-research", Usd: e.ReportedUsd ?? e.EstimatedUsd))
+            )
             .ToArray();
         return new(
             jobs.Sum(j => j.Usd ?? 0),
@@ -52,6 +76,12 @@ public sealed partial class CompanyStore
             labels[p.RootId] = "Plan: " + Clip(p.Objective);
         foreach (var m in All<CompanyMeeting>(db))
             labels[m.RootId] = "Meeting: " + Clip(m.Title);
+        foreach (var draft in All<CompanyBusinessDraft>(db))
+            labels[draft.Id] = "Business profile draft";
+        foreach (var analysis in All<CompanyMemoryAnalysis>(db))
+            labels[analysis.Id] = "Memory check";
+        foreach (var schedule in All<CompanySchedule>(db))
+            labels["schedule:" + schedule.Id] = "Recurring: " + schedule.Definition.Name;
         return labels;
     }
 }

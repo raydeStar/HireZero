@@ -1,0 +1,658 @@
+// Fictional pages pass through the real reader, HTTP routes, store and UI. No external requests or model calls.
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { spawn } from "node:child_process";
+import assert from "node:assert/strict";
+import {
+  clicker,
+  delay,
+  fetchTracker,
+  freeLocalUrl,
+  pageDiagnosis,
+  waiter,
+} from "./browser-smoke-wait.mjs";
+
+const repo = path.resolve(import.meta.dirname, "..");
+const temporary = await fs.mkdtemp(
+  path.join(os.tmpdir(), "hirezero-manual-ui-"),
+);
+const chrome =
+  process.env.HIREZERO_TEST_CHROME ||
+  path.join(
+    process.env.ProgramFiles || "C:/Program Files",
+    "Google/Chrome/Application/chrome.exe",
+  );
+const hostDir = path.join(repo, "src/HireZero.Host"),
+  url = await freeLocalUrl();
+const host = spawn(
+  "dotnet",
+  [
+    path.join(
+      repo,
+      "tests/HireZero.Company.Tests/bin/Debug/net10.0/HireZero.Company.Tests.dll",
+    ),
+    "--company-browser-fixture",
+    temporary,
+    url,
+    path.join(hostDir, "wwwroot"),
+  ],
+  {
+    cwd: hostDir,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      HIREZERO_LOCAL_OWNER: "1",
+      HIREZERO_OWNER_LOGIN: "owner@example.invalid",
+      HIREZERO_DATA_ROOT: path.join(temporary, "data"),
+      HIREZERO_EXECUTION_HOLD: "0",
+      HIREZERO_BROWSER_SYNTHETIC_BUSINESS: "1",
+      HIREZERO_BROWSER_SCHEDULE_CLOCK: "1",
+      HIREZERO_BROWSER_SOURCE_FRESHNESS: "1",
+      HIREZERO_BROWSER_SYNTHETIC_BUSINESS_DRAFT: "1",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  },
+);
+let hostLog = "",
+  browser,
+  ws;
+host.stdout.on("data", (b) => (hostLog += b));
+host.stderr.on("data", (b) => (hostLog += b));
+const until = waiter(),
+  errors = [];
+try {
+  await until(
+    () => hostLog.includes("Now listening on: " + url),
+    "fixture host listening",
+  );
+  assert.equal(
+    (await fetch(url + "/health").then((r) => r.json())).modelExecution,
+    false,
+  );
+  browser = spawn(
+    chrome,
+    [
+      "--headless=new",
+      "--disable-gpu",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--disable-default-apps",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--no-proxy-server",
+      "--remote-debugging-port=0",
+      "--remote-debugging-address=127.0.0.1",
+      "--user-data-dir=" + path.join(temporary, "browser"),
+      "about:blank",
+    ],
+    { windowsHide: true, stdio: "ignore" },
+  );
+  const port = await until(
+    async () =>
+      Number(
+        (
+          await fs.readFile(
+            path.join(temporary, "browser", "DevToolsActivePort"),
+            "utf8",
+          )
+        ).split("\n")[0],
+      ),
+    "isolated debugger",
+  );
+  const target = (
+    await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json())
+  ).find((t) => t.type === "page");
+  ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    ws.addEventListener("open", resolve, { once: true });
+    ws.addEventListener("error", reject, { once: true });
+  });
+  let sequence = 0;
+  const pending = new Map();
+  ws.addEventListener("message", (e) => {
+    const m = JSON.parse(e.data);
+    if (m.id) {
+      const p = pending.get(m.id);
+      if (!p) return;
+      clearTimeout(p.timer);
+      pending.delete(m.id);
+      if (m.error) p.reject(new Error(m.error.message));
+      else p.resolve(m.result);
+    }
+    if (m.method === "Runtime.exceptionThrown")
+      errors.push(m.params.exceptionDetails.text);
+  });
+  const send = (method, params = {}) =>
+    new Promise((resolve, reject) => {
+      const id = ++sequence;
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error("Debugger timed out: " + method));
+      }, 10000);
+      pending.set(id, { resolve, reject, timer });
+      ws.send(JSON.stringify({ id, method, params }));
+    });
+  const evaluate = async (expression) => {
+    const r = await send("Runtime.evaluate", {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (r.exceptionDetails)
+      throw new Error(
+        r.exceptionDetails.exception?.description || r.exceptionDetails.text,
+      );
+    return r.result.value;
+  };
+  await send("Runtime.enable");
+  await send("Page.enable");
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  until.diagnose = async () =>
+    (await pageDiagnosis(evaluate)()) +
+    "\n" +
+    JSON.stringify(
+      await evaluate(
+        "({schedule:document.querySelector('.co-schedule-review')?.innerText,check:document.querySelector('.co-schedule-controls input')?.checked,disabled:document.querySelector('.co-schedule-controls input')?.disabled})",
+      ),
+    );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await send("Page.navigate", {
+    url: url + "/?view=departments&section=schedules",
+  });
+  await until(
+    () => evaluate("!!document.querySelector('.co-schedules')"),
+    "Recurring work page",
+  );
+  const click = clicker(evaluate, until);
+  const post = (action, fields = {}) =>
+    evaluate(
+      `fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action:${JSON.stringify(action)},...${JSON.stringify(fields)}})}).then(async r=>{if(!r.ok)throw Error(await r.text());return r.json();})`,
+    );
+  const snapshot = () => fetch(url + "/api/company").then((r) => r.json());
+  const schedules = () =>
+    fetch(url + "/api/company/schedules").then((r) => r.json());
+  const detail = (id) =>
+    fetch(url + "/api/company/schedules/" + id).then((r) => r.json());
+  const waitText = (text) =>
+    until(
+      () =>
+        evaluate(
+          `document.querySelector('.co-schedules')?.innerText.includes(${JSON.stringify(text)})`,
+        ),
+      text,
+    );
+  const consent = async () => {
+    await until(
+      () =>
+        evaluate(
+          "(() => {const input=document.querySelector('.co-schedule-controls input[type=checkbox]');return input && !input.disabled && window.__smokeIdle();})()",
+        ),
+      "schedule review is ready for consent",
+    );
+    await evaluate(
+      "document.querySelector('.co-schedule-controls input[type=checkbox]').click()",
+    );
+  };
+  const screenshot = async (name) => {
+    await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+    await fs.writeFile(
+      path.join(repo, "test-results", name),
+      Buffer.from(
+        (await send("Page.captureScreenshot", { format: "png" })).data,
+        "base64",
+      ),
+    );
+  };
+  const field = async (label, value) => {
+    await evaluate(
+      `(()=>{const label=[...document.querySelectorAll('.co-schedule-editor label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===${JSON.stringify(label)});if(!label)throw Error('Missing schedule field '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`,
+    );
+    await delay(50);
+  };
+  let identity = await post("business.identify", {
+    body: JSON.stringify({
+      name: "Fictional Paper Studio",
+      website: "https://paper.example.invalid/",
+      goal: "Plan recurring useful work",
+    }),
+  });
+  identity = await post("business.confirm", {
+    expectedVersion: identity.version,
+    digest: identity.digest,
+  });
+  const source = await evaluate(
+    `fetch('/api/company/business/research',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({businessVersion:${identity.version},digest:${JSON.stringify(identity.digest)},url:'https://paper.example.invalid/about'})}).then(async r=>{if(!r.ok)throw Error(await r.text());return r.json();})`,
+  );
+  const fields = [
+    "business",
+    "services",
+    "customers",
+    "voice",
+    "market",
+    "competitors",
+    "opportunities",
+    "goals",
+    "boundaries",
+  ].map((key) =>
+    key === "services"
+      ? {
+          key,
+          value: "Paper craft kits for adult hobbyists",
+          verification: "sourced",
+          citations: [
+            {
+              sourceId: source.id,
+              quote: "Paper craft kits for adult hobbyists",
+            },
+          ],
+        }
+      : { key, value: "Unknown", verification: "unknown", citations: [] },
+  );
+  let profile = await post("business.profile.save", {
+    body: JSON.stringify({ businessVersion: identity.version, fields }),
+  });
+  profile = await post("business.profile.review", {
+    id: profile.id,
+    expectedVersion: profile.version,
+    digest: profile.digest,
+    decision: "approve",
+  });
+  const dept = await post("department.create", {
+    name: "Fictional marketing team",
+  });
+  const employee = await post("employee.hire", {
+    departmentId: dept.id,
+    roleId: "marketing",
+    name: "Recurring fixture",
+    responsibility: "Prepare private content outlines from approved facts",
+  });
+  const knowledge = await post("knowledge.save", {
+    departmentId: dept.id,
+    body: JSON.stringify({
+      purpose: "Fictional paper kits",
+      audience: "Adult hobbyists",
+      positioning: "Paper craft studio",
+      voice: "Clear",
+      claims: "Paper and printed guide",
+      constraints: "Private drafts only; no publishing or unsupported claims",
+    }),
+  });
+  await post("knowledge.review", {
+    id: knowledge.id,
+    expectedVersion: knowledge.version,
+    digest: knowledge.digest,
+    decision: "approve",
+  });
+  const firstState = (await snapshot()).data;
+  const privateThread = firstState.threads.find(
+    (t) => t.employeeId === employee.id,
+  );
+  const originalTask = await post("task.create", {
+    employeeId: employee.id,
+    threadId: privateThread.id,
+    skill: "marketing-starter-plan",
+    body: "Prepare three content themes from the approved company facts.",
+  });
+  await post("measured.prepare", {
+    id: originalTask.id,
+    expectedVersion: originalTask.version,
+    creditAllowance: 1,
+  });
+  await send("Page.navigate", {
+    url:
+      url +
+      `/?view=employee&employee=${employee.id}&thread=${privateThread.id}&work=${originalTask.id}&mode=work`,
+  });
+  await click("Review task and context");
+  await until(
+    () => evaluate("!!document.querySelector('.co-work-window .co-packet')"),
+    "first deliverable context review",
+  );
+  await evaluate(
+    "document.querySelector('.co-work-window .co-measured input[type=checkbox]').click()",
+  );
+  await click("Authorize and run one job");
+  await click("Approve result");
+  await click("Complete after review");
+  await until(
+    async () =>
+      (await snapshot()).data.tasks.find((t) => t.id === originalTask.id)
+        ?.state === "completed",
+    "first useful work accepted",
+  );
+  await evaluate(
+    "sessionStorage.setItem('hirezero-schedule-draft-v1:local-company', JSON.stringify({name:'Unfinished original draft',kind:'employee-task',prompt:'Preserve these unrelated instructions'}))",
+  );
+  await click("Repeat this work");
+  await until(
+    () => evaluate("!!document.querySelector('.co-schedule-editor')"),
+    "completed work becomes a separate schedule draft",
+  );
+  assert.ok(await evaluate("location.search.includes('repeatWork=')"));
+  assert.equal(
+    await evaluate(
+      "JSON.parse(sessionStorage.getItem('hirezero-schedule-draft-v1:local-company')).name",
+    ),
+    "Unfinished original draft",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-schedule-editor textarea').value",
+    ),
+    originalTask.input,
+  );
+  await evaluate(
+    "sessionStorage.removeItem('hirezero-schedule-draft-v1:local-company')",
+  );
+  await field("Schedule name", "Fictional content rhythm");
+  await field(
+    "Instructions for each run",
+    "Prepare three content themes from the approved company facts.",
+  );
+  await field("Repeat", "daily");
+  await field("Number of occurrences", "2");
+  await field("Time zone", "UTC");
+  await send("Page.reload");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-editor textarea')?.value.includes('three content themes')",
+      ),
+    "Unsaved schedule survives reload",
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await evaluate(
+    "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+  );
+  await evaluate(
+    "document.querySelector('.co-schedule-editor').scrollIntoView({behavior:'instant',block:'start'})",
+  );
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth <= innerWidth + 1"),
+    true,
+  );
+  await screenshot("recurring-deliverable-draft-mobile.png");
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await evaluate(
+    "window.originalScheduleFetch=window.fetch;window.loseScheduleSave=true;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(window.loseScheduleSave&&body.action==='schedule.save'){window.loseScheduleSave=false;await window.originalScheduleFetch(input,init);throw new TypeError('Fictional lost save reply');}return window.originalScheduleFetch(input,init);};",
+  );
+  await click("Save schedule draft");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review')?.textContent.includes('draft')",
+      ),
+    "saved copied schedule review",
+  );
+  let records = await schedules();
+  assert.equal(records.length, 1);
+  assert.equal(records[0].definition.skill, "marketing-starter-plan");
+  assert.equal(records[0].authority.policy.planningTokens, 22000);
+  const id = records[0].id;
+  assert.equal(
+    await evaluate("new URLSearchParams(location.search).get('schedule')"),
+    id,
+  );
+  assert.equal(
+    await evaluate("new URLSearchParams(location.search).has('repeatWork')"),
+    false,
+  );
+  await send("Page.reload");
+  await until(
+    () => evaluate("!!document.querySelector('.co-schedule-review')"),
+    "saved schedule reloads directly",
+  );
+  assert.equal(
+    await evaluate("!!document.querySelector('.co-schedule-editor')"),
+    false,
+  );
+  await click("Edit schedule draft");
+  await field("Schedule name", "Fictional weekly outline");
+  await click("Save schedule draft");
+  await waitText("Schedule draft saved.");
+  assert.equal((await schedules()).length, 1);
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-schedule-review button')].find(b=>b.textContent.trim()==='Authorize schedule').disabled",
+    ),
+    true,
+  );
+  await evaluate(
+    "document.querySelector('.co-schedule-review').scrollIntoView({behavior:'instant',block:'start'})",
+  );
+  await screenshot("recurring-deliverable-review.png");
+  await consent();
+  await click("Authorize schedule");
+  await waitText("Schedule active.");
+  let approved = (await detail(id)).schedule;
+  assert.equal(approved.consumed, 0);
+  const advance = async (scheduleId) =>
+    evaluate(
+      `fetch('/__fixture/schedules/${scheduleId}/due',{method:'POST',headers:{'X-Dev-Request':'1','Content-Type':'application/json'},body:'{}'}).then(async r=>{if(!r.ok)throw Error(await r.text());return r.json();})`,
+    );
+  await advance(id);
+  await until(
+    async () => (await detail(id)).runs[0]?.state === "completed",
+    "First real background occurrence",
+  );
+  await click("Refresh schedule status");
+  await waitText("1 of 2 occurrences consumed.");
+  let first = await detail(id);
+  assert.equal(first.runs.length, 1);
+  assert.equal(
+    (await snapshot()).data.budgets.find((b) => b.id === "schedule:" + id).used,
+    30,
+  );
+  await click("Open saved result");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Fictional weekly outline: demonstrate paper folding')",
+      ),
+    "Saved private scheduled result opens directly",
+  );
+  await click("Approve result");
+  await click("Complete after review");
+  await until(
+    async () =>
+      (await snapshot()).data.tasks.find((t) => t.id === first.runs[0].taskId)
+        ?.state === "completed",
+    "recurring deliverable accepted separately",
+  );
+  await send("Page.navigate", {
+    url: url + "/?view=departments&section=schedules",
+  });
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-list button')?.textContent.includes('Fictional weekly outline')",
+      ),
+    "Saved schedule list",
+  );
+  await evaluate("document.querySelector('.co-schedule-list button').click()");
+  await waitText("1 of 2 occurrences consumed.");
+  await click("Pause schedule");
+  await waitText("Schedule paused.");
+  await advance(id);
+  await delay(1500);
+  assert.equal((await detail(id)).runs.length, 1);
+  await consent();
+  await click("Resume remaining occurrences");
+  await until(
+    async () => (await detail(id)).schedule.state === "completed",
+    "Final authorized occurrence",
+  );
+  await click("Refresh schedule status");
+  await waitText("No further slots remain.");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-schedules').innerText.includes('Schedule active.')",
+    ),
+    false,
+  );
+  assert.equal((await detail(id)).runs.length, 2);
+  assert.equal(
+    (await snapshot()).data.budgets.find((b) => b.id === "schedule:" + id).used,
+    60,
+  );
+  await click("New schedule");
+  await field("Schedule name", "Fictional source watch");
+  await field("Work to repeat", "source-refresh");
+  await field("Number of occurrences", "1");
+  await field("Time zone", "UTC");
+  const after = new Date(first.schedule.nextRunAt);
+  after.setUTCDate(after.getUTCDate() + 1);
+  await field("First date", after.toISOString().slice(0, 10));
+  await click("Save schedule draft");
+  await waitText("Schedule draft saved.");
+  records = await schedules();
+  const sourceSchedule = records.find(
+    (s) => s.definition.kind === "source-refresh",
+  );
+  assert.ok(sourceSchedule);
+  await consent();
+  await click("Authorize schedule");
+  await waitText("Schedule active.");
+  await advance(sourceSchedule.id);
+  await until(
+    async () =>
+      (await detail(sourceSchedule.id)).schedule.state === "completed",
+    "Scheduled source refresh through guarded reader",
+  );
+  await click("Refresh schedule status");
+  await waitText("No further slots remain.");
+  const freshness = await fetch(
+    url + "/api/company/business/freshness/" + profile.id,
+  ).then((r) => r.json());
+  assert.equal(
+    freshness.fields.find((f) => f.field === "services").status,
+    "possible",
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await evaluate(
+    "document.querySelector('.co-schedule-review').scrollIntoView()",
+  );
+  await delay(200);
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
+    true,
+  );
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, "test-results/schedules-mobile.png"),
+    Buffer.from(
+      (await send("Page.captureScreenshot", { format: "png" })).data,
+      "base64",
+    ),
+  );
+  await evaluate("document.querySelector('.co-inbox-toggle').click()");
+  await until(
+    () => evaluate("!!document.querySelector('.co-inbox-items button')"),
+    "Recurring result in inbox",
+  );
+  await evaluate(
+    "[...document.querySelectorAll('.co-inbox-items li')].find(li=>li.textContent.includes('Fictional source watch')).querySelector('button').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review')?.innerText.includes('Fictional source watch')",
+      ),
+    "Inbox opens the exact recurring source schedule",
+  );
+  await click("Review checked sources");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-business-freshness')?.innerText.includes('Source text changed')",
+      ),
+    "Scheduled source result opens evidence review",
+  );
+  assert.deepEqual(errors, []);
+  await fs.writeFile(
+    path.join(repo, "test-results/schedules-browser.json"),
+    JSON.stringify(
+      {
+        firstDeliverableAccepted: true,
+        completedWorkStartsSeparateDraft: true,
+        unrelatedDraftPreserved: true,
+        selectedSkillRetained: true,
+        recurringResultApproved: true,
+        draftSurvivesReload: true,
+        lostSaveReconciled: true,
+        draftEditedInPlace: true,
+        exactRecurringConsent: true,
+        backgroundEmployeeRuns: 2,
+        savedResultOpened: true,
+        pauseRespected: true,
+        finiteAllowanceSettled: true,
+        backgroundSourceRefresh: true,
+        inboxScheduleLink: true,
+        sourceFactsUnchanged: true,
+        mobileOverflow: false,
+        liveModelCalls: 0,
+        externalRequests: 0,
+      },
+      null,
+      2,
+    ),
+  );
+  console.log(
+    "PASS schedules: approved, repeated, paused and finished; the butler kept time and every receipt.",
+  );
+  await send("Browser.close").catch(() => {});
+} catch (error) {
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, "test-results/schedules-browser-host.log"),
+    hostLog,
+  );
+  throw error;
+} finally {
+  ws?.close();
+  const stop = async (child) => {
+    if (!child || child.exitCode !== null) return;
+    child.kill();
+    await Promise.race([
+      new Promise((resolve) => child.once("exit", resolve)),
+      delay(6000),
+    ]);
+    if (child.exitCode === null && child.signalCode === null)
+      throw new Error(
+        "Owned fixture process is still running; its temporary files were preserved.",
+      );
+  };
+  await stop(browser);
+  await stop(host);
+  if (
+    path.dirname(temporary) === path.resolve(os.tmpdir()) &&
+    path.basename(temporary).startsWith("hirezero-manual-ui-")
+  )
+    await fs.rm(temporary, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 200,
+    });
+}

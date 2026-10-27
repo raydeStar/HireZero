@@ -56,7 +56,11 @@ public sealed partial class CompanyStore
                 var role = Role(Need<CompanyEmployee>(db, a.EmployeeId).RoleId);
                 if (!role.PublishingSkills.Contains(task.Skill))
                     throw new WorkspaceException("This skill's results are not published.");
-                if (a.State is not ("needs_review" or "approved") || task.State is "canceled" or "superseded")
+                if (
+                    a.State is not ("needs_review" or "approved")
+                    || task.State is "canceled" or "superseded"
+                    || !SandboxArtifactCurrent(db, a)
+                )
                     throw new WorkspaceException("Only reviewable work can be proposed for publication.");
                 string reviewDigest;
                 if (proposal.GrantId is null)
@@ -183,6 +187,7 @@ public sealed partial class CompanyStore
             db,
             () =>
             {
+                DemandWorkAdmission(db);
                 var p = Need<CompanyPublication>(db, id);
                 if (p.State != "approved" || Clock() >= p.ExpiresAt || !Unchanged(db, p))
                     throw new WorkspaceException("This publication is not approved, current and unstarted.");
@@ -299,6 +304,7 @@ public sealed partial class CompanyStore
         var task = Need<CompanyTask>(db, p.TaskId);
         var reviewed = p.GrantId is null ? a.Digest : Need<CompanyExecutionGrant>(db, p.GrantId).Review?.Digest;
         return reviewed == p.ReviewDigest
+            && SandboxArtifactCurrent(db, a)
             && a.State is "needs_review" or "approved"
             && task.State is not ("canceled" or "superseded");
     }

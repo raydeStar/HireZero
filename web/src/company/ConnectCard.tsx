@@ -17,23 +17,27 @@ export function ConnectCard({
   run,
   refresh,
   onOpenSetup,
+  memberRole,
 }: {
   request: ConnectionRequest;
   snapshot: Snapshot;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
   refresh: () => Promise<void>;
   onOpenSetup: () => void;
+  memberRole?: string;
 }) {
   const [github, setGithub] = useState<GitHub | null>(null);
   const [setup, setSetup] = useState<Setup | null | undefined>(undefined);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const open = request.state === "open";
+  const canConnect = !memberRole || memberRole === "owner";
+  const canRun = canConnect || memberRole === "approver";
   // The action that was refused for want of this connection, offered again once it is connected.
   const refused = snapshot.data.tasks.find((t) => t.id === request.taskId && t.state === "failed");
   const [rerun, setRerun] = useState<"idle" | "running" | "started">("idle");
   async function runAgain() {
-    if (!refused) return;
+    if (!canRun || !refused) return;
     setRerun("running");
     setError("");
     try {
@@ -55,6 +59,7 @@ export function ConnectCard({
   const isMicrosoft = request.integrationId === "microsoft365";
 
   async function resolve(account?: string | null) {
+    if (!canConnect) return;
     setBusy(true);
     setError("");
     try {
@@ -68,7 +73,7 @@ export function ConnectCard({
 
   // GitHub: read the sign-in state, and while a sign-in waits for approval, check again every few seconds.
   useEffect(() => {
-    if (!open || !isGitHub) return;
+    if (!canConnect || !open || !isGitHub) return;
     let current = true;
     const load = () =>
       api<GitHub>("/company/github/sign-in")
@@ -82,22 +87,26 @@ export function ConnectCard({
       current = false;
       window.clearInterval(timer);
     };
-  }, [open, isGitHub, github?.state]);
+  }, [canConnect, open, isGitHub, github?.state]);
 
   // A sign-in started from this card finishes by itself: once GitHub reports it approved, the connection is recorded
   // without a further click (real-use check, 2026-10-21).
   const signingIn = useRef(false);
   useEffect(() => {
+    if (!canConnect) {
+      signingIn.current = false;
+      return;
+    }
     if (github?.state === "waiting" || github?.state === "starting") signingIn.current = true;
     else if (github?.state === "connected" && signingIn.current && open) {
       signingIn.current = false;
       void resolve(github.account);
     }
-  }, [github?.state, github?.account, open]);
+  }, [canConnect, github?.state, github?.account, open]);
 
   // Other integrations: their setup form, when they have one.
   useEffect(() => {
-    if (!open || isGitHub || isMicrosoft) return;
+    if (!canConnect || !open || isGitHub || isMicrosoft) return;
     let current = true;
     api<Setup[]>("/company/integrations/setup")
       .then((all) => current && setSetup(all.find((s) => s.id === request.integrationId) ?? null))
@@ -105,7 +114,7 @@ export function ConnectCard({
     return () => {
       current = false;
     };
-  }, [open, isGitHub, isMicrosoft, request.integrationId]);
+  }, [canConnect, open, isGitHub, isMicrosoft, request.integrationId]);
 
   if (!open)
     return request.state === "connected" ? (
@@ -118,7 +127,7 @@ export function ConnectCard({
           </>
         ) : null}
         .
-        {refused && rerun !== "started" && (
+        {canRun && refused && rerun !== "started" && (
           <button className="co-primary" disabled={rerun === "running"} onClick={() => void runAgain()}>
             {rerun === "running" ? "Running…" : "Run again"}
           </button>
@@ -127,6 +136,18 @@ export function ConnectCard({
         {error && <span role="alert"> {error}</span>}
       </aside>
     ) : null;
+
+  if (!canConnect)
+    return (
+      <aside className="co-connect" aria-label={"Connection needed: " + request.name}>
+        <header>
+          <Link2 size={16} aria-hidden="true" />
+          <strong>{request.name} connection needed</strong>
+        </header>
+        <p className="co-muted">{request.reason}</p>
+        <p>Ask a company owner to review this connection request.</p>
+      </aside>
+    );
 
   return (
     <aside className="co-connect" aria-label={"Connect " + request.name}>

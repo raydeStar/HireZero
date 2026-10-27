@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "status": "qualification-candidate",
+  "platform": "linux/amd64",
+  "baseImage": "node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402",
+  "platformManifestDigest": "sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8",
+  "configDigest": "sha256:7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+  "compressedBaseBytes": 60697390,
+  "recordedAt": "2026-10-26",
+  "node": { "version": "22.23.3", "executable": "/usr/local/bin/node" },
+  "worker": { "protocol": 2, "v8PoolSize": 1, "uvThreadPoolSize": 1 },
+  "sources": [
+    "https://registry-1.docker.io/v2/library/node/manifests/sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402",
+    "https://registry-1.docker.io/v2/library/node/manifests/sha256:2c752226d477b4a886378baa95b9af252be59301b725fdb0b7e15208131505a8",
+    "https://github.com/nodejs/docker-node"
+  ]
+}

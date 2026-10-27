@@ -1,11 +1,21 @@
-import { useState, type FormEvent } from "react";
-import { api } from "../lib/api";
+import { canRepeatWork } from "./recurringWork";
+import { useMemberAccess } from "./MemberAccess";
+import { lazy, Suspense, useState, type FormEvent } from "react";
+import Markdown from "react-markdown";
+import { api, company } from "../lib/api";
 import type { Snapshot, Work } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
+import { providerName } from "./ModelChoice";
 import { ArtifactHandoff } from "./ArtifactHandoff";
+import { ArtifactRevision } from "./ArtifactRevision";
 import { ArtifactPublication, ExecutionSteps } from "./ExecutionSteps";
-import { artifactState, provenance, taskState, workName } from "./labels";
+import { artifactState, provenance, taskState } from "./labels";
 import { humanize } from "./labels";
+import { SandboxTools } from "./Sandbox";
+import { PlanProposal, planProposal } from "./PlanProposal";
+import { workState, workTitle } from "./Cockpit";
+const BrowserTools = lazy(() => import("./Browser").then((module) => ({ default: module.BrowserTools })));
+const TaskCosts = lazy(() => import("./TaskCosts").then((module) => ({ default: module.TaskCosts })));
 const reasonLabels: Record<string, string> = {
   "handoff-awaiting-approval": "Assigned from an approved handoff. Separate execution approval is required.",
   "execution-unavailable": "Reviewed execution needs a granted checkout and your approval of its exact proposal.",
@@ -14,6 +24,10 @@ const reasonLabels: Record<string, string> = {
   "provider-unavailable": "Live model execution is unavailable. Your task is saved.",
   dependencies: "Waiting for an owner-reviewed dependency.",
   "usage-unknown": "Provider usage is uncertain; the reservation remains held.",
+  "revision-awaiting-approval":
+    "Your feedback is saved. Review the revision's model, context and allowance before authorizing a new run.",
+  "revision-requested":
+    "Replaced by a separate revision request. The original result and receipt remain in your history.",
 };
 
 function Submit({ children = "Save", busy = false }: { children?: string; busy?: boolean }) {
@@ -91,6 +105,10 @@ export function ConversationJob({
   run,
   refresh,
   open,
+  onOpenResult,
+  onOpenPlans,
+  onRememberResult,
+  onRepeatWork,
 }: {
   task: Work;
   snapshot: Snapshot;
@@ -98,11 +116,38 @@ export function ConversationJob({
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
   refresh: () => Promise<void>;
   open: (employeeId: string, threadId: string) => void;
+  onOpenResult?: (task: Work) => void;
+  onOpenPlans?: () => void;
+  onRememberResult?: (artifactId: string) => void;
+  onRepeatWork?: (taskId: string) => void;
 }) {
+  const { canWork } = useMemberAccess();
   const d = snapshot.data,
     employee = d.employees.find((e) => e.id === t.employeeId)!,
     employeeRole = d.roles.find((r) => r.id === employee.roleId);
   const [outcome, setOutcome] = useState("");
+  const artifacts = d.artifacts.filter((a) => a.taskId === t.id);
+  const measured = d.measured?.filter((m) => m.taskId === t.id).slice(-1)[0];
+  const scheduledOccurrence = !!t.scheduleRunId;
+  const scheduledIsolatedWork = t.kind === "work" && scheduledOccurrence && !t.modelRoute;
+  const savedResult = measured?.job.state === "completed" && artifacts.length > 0;
+  const measuredJob =
+    !scheduledIsolatedWork &&
+    (employeeRole?.measuredSkills?.includes(t.skill) || (t.planId && t.skill === "chat")) &&
+    !["canceled", "superseded"].includes(t.state) &&
+    !(!measured && ["completed", "awaiting_review"].includes(t.state)) ? (
+      <MeasuredJob
+        key={`measured:${measured?.job.digest ?? t.id}`}
+        task={t}
+        entry={measured}
+        available={!!snapshot.capabilities.measuredOneJob}
+        cents={snapshot.capabilities.allowanceUnit === "usd-cents"}
+        modelChoices={snapshot.capabilities.modelChoices}
+        busy={busy}
+        prepare={run}
+        refresh={refresh}
+      />
+    ) : null;
   function form(fn: () => void | Promise<void>) {
     return (e: FormEvent) => {
       e.preventDefault();
@@ -114,12 +159,42 @@ export function ConversationJob({
       className="co-card co-job-card"
       data-task-id={t.id}
       data-task-state={t.state}
-      aria-label={workName(employeeRole, t.skill) + " job"}
+      aria-label={workTitle(snapshot, t) + " job"}
     >
       <b>
-        {workName(employeeRole, t.skill)} · {taskState(t.state)}
+        {t.revision ? "Revision · " : ""}
+        {workTitle(snapshot, t)} · {taskState(workState(snapshot, t), canWork)}
       </b>
-      <TaskInput input={t.input} />
+      {t.revision && (
+        <section aria-label="Revision request">
+          <strong>Requested changes</strong>
+          <p style={{ whiteSpace: "pre-wrap" }}>{t.revision.feedback}</p>
+          <p className="co-muted">
+            {artifacts.length
+              ? "Revised using your feedback. The previous draft remains available for comparison."
+              : "The previous draft is reference material. Review and authorize this revision before it runs."}
+          </p>
+          {d.artifacts.find((artifact) => artifact.id === t.revision?.artifactId) && (
+            <details>
+              <summary>Previous unapproved draft</summary>
+              <Report body={d.artifacts.find((artifact) => artifact.id === t.revision?.artifactId)!.body} />
+            </details>
+          )}
+        </section>
+      )}
+      {artifacts.length > 0 && onOpenResult && (
+        <button className="co-primary" onClick={() => onOpenResult(t)}>
+          Read result
+        </button>
+      )}
+      {artifacts.length ? (
+        <details className="co-job-request">
+          <summary>Original request</summary>
+          <TaskInput input={t.input} />
+        </details>
+      ) : (
+        <TaskInput input={t.input} />
+      )}
       {d.handoffs
         ?.filter((h) => h.targetTaskId === t.id)
         .map((h) => (
@@ -130,7 +205,7 @@ export function ConversationJob({
               qualification and approval.
             </p>
             <pre>{h.body}</pre>
-            {h.state === "shared" && (
+            {canWork && h.state === "shared" && (
               <button
                 disabled={busy}
                 onClick={() => void run("handoff.revoke", { id: h.id, expectedVersion: h.version })}
@@ -140,78 +215,138 @@ export function ConversationJob({
             )}
           </div>
         ))}
-      {employeeRole?.measuredSkills?.includes(t.skill) && (
-        <MeasuredJob
-          key={d.measured?.find((m) => m.taskId === t.id)?.job.digest ?? t.id}
-          task={t}
-          entry={d.measured?.find((m) => m.taskId === t.id)}
-          available={!!snapshot.capabilities.measuredOneJob}
-          cents={snapshot.capabilities.allowanceUnit === "usd-cents"}
-          busy={busy}
-          prepare={run}
-          refresh={refresh}
-        />
+      {onRepeatWork && canRepeatWork(snapshot, t) && (
+        <p>
+          <button disabled={busy} onClick={() => onRepeatWork(t.id)}>
+            Repeat this work
+          </button>
+        </p>
       )}
-      {d.artifacts
-        .filter((a) => a.taskId === t.id)
-        .map((a) => (
-          <div className="co-artifact" key={a.id}>
-            <small>
-              {provenance(employeeRole, a.provenance)} · {artifactState(a.state)}
-            </small>
-            {employeeRole?.skills.includes("company-plan") && a.state === "approved" && (
+      {scheduledOccurrence && (
+        <p>
+          This result belongs to an approved recurring schedule. Review its saved output below.{" "}
+          <a
+            href={`/?view=departments&section=schedules${company() ? `&company=${encodeURIComponent(company())}` : ""}`}
+          >
+            Manage recurring work
+          </a>
+        </p>
+      )}
+      {!savedResult && measuredJob}
+      {artifacts.map((a) => (
+        <div className="co-artifact" key={a.id} data-artifact-id={a.id} tabIndex={-1}>
+          <small>
+            {provenance(employeeRole, a.provenance)} · {artifactState(a.state, canWork)}
+          </small>
+          {a.sandboxOrigin && (
+            <p className="co-muted">
+              From {a.sandboxOrigin.outputName} · {a.sandboxOrigin.length.toLocaleString()} selected characters. Source
+              documents and script authority remain revocable. Approval does not publish or share this result.
+            </p>
+          )}
+          {a.browserOrigin && (
+            <p className="co-muted">
+              From {a.browserOrigin.url} · {new Date(a.browserOrigin.capturedAt).toLocaleString()}
+              {a.browserOrigin.partial ? " · Partial page evidence" : ""}. Source authority remains revocable. Approval
+              does not publish or share this result.
+            </p>
+          )}
+          {canWork &&
+            t.skill === "company-plan" &&
+            employeeRole?.skills.includes("company-plan") &&
+            a.state === "approved" && (
               <button
+                disabled={busy || !planProposal(a.body)}
                 onClick={() =>
-                  void run("plan.from-artifact", { id: a.id, expectedVersion: a.version, digest: a.digest })
+                  void (async () => {
+                    const result = (await run("plan.from-artifact", {
+                      id: a.id,
+                      expectedVersion: a.version,
+                      digest: a.digest,
+                    })) as { id: string } | undefined;
+                    if (result?.id) onOpenPlans?.();
+                  })()
                 }
               >
                 Prepare delegation plan from proposal
               </button>
             )}
-            <Report body={a.body} />
-            {a.state === "needs_review" && (
-              <div className="co-actions">
-                <button
-                  onClick={() =>
-                    void run("artifact.review", {
-                      id: a.id,
-                      expectedVersion: a.version,
-                      digest: a.digest,
-                      decision: "approve",
-                    })
-                  }
-                >
-                  Approve result
-                </button>
-                <button
-                  onClick={() =>
-                    void run("artifact.review", {
-                      id: a.id,
-                      expectedVersion: a.version,
-                      digest: a.digest,
-                      decision: "changes",
-                    })
-                  }
-                >
-                  Ask for changes
-                </button>
-              </div>
-            )}
-            {(a.state === "approved" || d.handoffs?.some((h) => h.artifactId === a.id && h.targetTaskId)) && (
-              <ArtifactHandoff
+          {t.skill === "company-plan" ? <PlanProposal body={a.body} snapshot={snapshot} /> : <Report body={a.body} />}
+          {a.reviewFeedback && (
+            <section aria-label="Saved review feedback">
+              <strong>Requested changes</strong>
+              <p style={{ whiteSpace: "pre-wrap" }}>{a.reviewFeedback}</p>
+            </section>
+          )}
+          {d.tasks.find((task) => task.revision?.artifactId === a.id) && (
+            <button
+              onClick={() => {
+                const revision = d.tasks.find((task) => task.revision?.artifactId === a.id)!;
+                if (onOpenResult) onOpenResult(revision);
+                else open(revision.employeeId, revision.threadId);
+              }}
+            >
+              Review revision request
+            </button>
+          )}
+          {a.state === "approved" && !["canceled", "superseded"].includes(t.state) && onRememberResult && (
+            <button disabled={busy} onClick={() => onRememberResult(a.id)}>
+              Remember feedback for future work
+            </button>
+          )}
+          {canWork && a.state === "needs_review" && (
+            <div className="co-actions">
+              <button
+                onClick={() =>
+                  void run("artifact.review", {
+                    id: a.id,
+                    expectedVersion: a.version,
+                    digest: a.digest,
+                    decision: "approve",
+                  })
+                }
+              >
+                Approve result
+              </button>
+              <ArtifactRevision
+                key={`${a.id}:${a.version}`}
                 artifact={a}
-                employees={d.employees}
-                departments={d.departments}
-                threads={d.threads}
-                roles={d.roles}
-                receipts={d.handoffs ?? []}
                 busy={busy}
                 run={run}
-                open={open}
+                canRevise={
+                  t.kind === "work" &&
+                  t.state === "awaiting_review" &&
+                  !t.planId &&
+                  !t.meetingId &&
+                  !t.scheduleRunId &&
+                  !t.resource &&
+                  !t.dependencies?.length &&
+                  !!employeeRole?.measuredSkills?.includes(t.skill)
+                }
               />
-            )}
-          </div>
-        ))}
+            </div>
+          )}
+          {(a.state === "approved" || d.handoffs?.some((h) => h.artifactId === a.id && h.targetTaskId)) && (
+            <ArtifactHandoff
+              artifact={a}
+              employees={d.employees}
+              departments={d.departments}
+              threads={d.threads}
+              roles={d.roles}
+              receipts={d.handoffs ?? []}
+              busy={busy}
+              run={run}
+              open={open}
+            />
+          )}
+        </div>
+      ))}
+      {savedResult && (
+        <details className="co-job-receipt">
+          <summary>Execution receipt</summary>
+          {measuredJob}
+        </details>
+      )}
       {employeeRole?.publishingSkills?.includes(t.skill) && !employeeRole.executionSkills?.includes(t.skill) && (
         <ArtifactPublication
           task={t}
@@ -226,6 +361,7 @@ export function ConversationJob({
           <ExecutionSteps
             task={t}
             publishes={!!employeeRole.publishingSkills?.includes(t.skill)}
+            runtimeAvailable={snapshot.capabilities.liveCoding === true}
             busy={busy}
             run={run}
             refresh={refresh}
@@ -233,9 +369,22 @@ export function ConversationJob({
           <CodeReview taskId={t.id} />
         </>
       )}
-      {t.modelRoute && t.kind !== "action" && (
+      {(snapshot.capabilities.sandboxExecution || d.sandboxTaskIds?.includes(t.id)) && (
+        <SandboxTools key={`sandbox:${t.id}`} task={t} snapshot={snapshot} busy={busy} refresh={refresh} />
+      )}
+      {((!scheduledOccurrence && snapshot.capabilities.browserExecution) || d.browserTaskIds?.includes(t.id)) && (
+        <Suspense fallback={<p role="status">Loading website reviews…</p>}>
+          <BrowserTools key={`browser:${t.id}`} task={t} snapshot={snapshot} busy={busy} refresh={refresh} />
+        </Suspense>
+      )}
+      {snapshot.capabilities.costOwner && t.kind === "work" && (
+        <Suspense fallback={<p role="status">Loading task costs…</p>}>
+          <TaskCosts key={`costs:${t.id}`} task={t} />
+        </Suspense>
+      )}
+      {t.modelRoute && t.kind !== "action" && artifacts.length === 0 && (
         <p className="co-muted">
-          {t.runtime}: {t.modelRoute.replace("openai/", "")}
+          {measured?.job.terms ? providerName(measured.job.terms.provider) : t.runtime}: {t.modelRoute}
         </p>
       )}
       {t.reason && (
@@ -244,58 +393,67 @@ export function ConversationJob({
           snapshot.capabilities.measuredOneJob &&
           employeeRole?.measuredSkills?.includes(t.skill) &&
           !d.measured?.some((m) => m.taskId === t.id)
-            ? "Waiting for your one-job authorization."
+            ? canWork
+              ? "Waiting for your one-job authorization."
+              : "Waiting for one-job authorization."
             : reasonLabels[t.reason] || t.reason}
         </p>
       )}
-      <div className="co-actions">
-        {["queued", "blocked", "running", "awaiting_review", "unknown", "failed"].includes(t.state) &&
-          // Work whose results you have all approved is finished, not cancellable: complete it instead.
-          !(
-            t.state === "awaiting_review" &&
-            d.artifacts.some((a) => a.taskId === t.id) &&
-            d.artifacts.filter((a) => a.taskId === t.id).every((a) => a.state === "approved")
-          ) && (
-            <button onClick={() => void run("task.cancel", { id: t.id, expectedVersion: t.version })}>Cancel</button>
-          )}
-        {["blocked", "failed"].includes(t.state) &&
-          t.kind !== "action" &&
-          !d.handoffs?.some((h) => h.targetTaskId === t.id) && (
-            <button onClick={() => void run("task.retry", { id: t.id, expectedVersion: t.version })}>
-              Request fresh attempt
-            </button>
-          )}
-        {t.state === "awaiting_review" &&
-          // Completing needs an approved result (the store refuses otherwise), so the button waits for one instead of
-          // offering a click that only errors (owner feedback, 2026-10-20).
-          (() => {
-            const approved = d.artifacts.some((a) => a.taskId === t.id && a.state === "approved");
-            return (
-              <button
-                disabled={!approved}
-                title={approved ? undefined : "Approve the result first"}
-                onClick={() => void run("task.complete", { id: t.id, expectedVersion: t.version })}
-              >
-                Complete after review
+      {canWork && (
+        <div className="co-actions">
+          {["queued", "blocked", "running", "awaiting_review", "unknown", "failed"].includes(t.state) &&
+            // Work whose results you have all approved is finished, not cancellable: complete it instead.
+            !(
+              t.state === "awaiting_review" &&
+              d.artifacts.some((a) => a.taskId === t.id) &&
+              d.artifacts.filter((a) => a.taskId === t.id).every((a) => a.state === "approved")
+            ) && (
+              <button onClick={() => void run("task.cancel", { id: t.id, expectedVersion: t.version })}>Cancel</button>
+            )}
+          {["blocked", "failed"].includes(t.state) &&
+            !t.revision &&
+            t.kind !== "action" &&
+            !scheduledOccurrence &&
+            !d.handoffs?.some((h) => h.targetTaskId === t.id) && (
+              <button onClick={() => void run("task.retry", { id: t.id, expectedVersion: t.version })}>
+                Request fresh attempt
               </button>
-            );
-          })()}
-      </div>
-      {["blocked", "awaiting_review", "queued"].includes(t.state) && t.kind !== "action" && (
-        <form
-          onSubmit={form(async () => {
-            const body = outcome;
-            const saved = await run("artifact.create", { id: t.id, expectedVersion: t.version, body });
-            if (saved) setOutcome("");
-          })}
-        >
-          <label>
-            Owner-authored artifact
-            <textarea required value={outcome || ""} onChange={(e) => setOutcome(e.target.value)} />
-          </label>
-          <Submit busy={busy}>Save for review</Submit>
-        </form>
+            )}
+          {t.state === "awaiting_review" &&
+            // Completing needs an approved result (the store refuses otherwise), so the button waits for one instead of
+            // offering a click that only errors (owner feedback, 2026-10-20).
+            (() => {
+              const approved = d.artifacts.some((a) => a.taskId === t.id && a.state === "approved");
+              return (
+                <button
+                  disabled={!approved}
+                  title={approved ? undefined : "Approve the result first"}
+                  onClick={() => void run("task.complete", { id: t.id, expectedVersion: t.version })}
+                >
+                  Complete after review
+                </button>
+              );
+            })()}
+        </div>
       )}
+      {canWork &&
+        ["blocked", "awaiting_review", "queued"].includes(t.state) &&
+        t.kind !== "action" &&
+        !scheduledOccurrence && (
+          <form
+            onSubmit={form(async () => {
+              const body = outcome;
+              const saved = await run("artifact.create", { id: t.id, expectedVersion: t.version, body });
+              if (saved) setOutcome("");
+            })}
+          >
+            <label>
+              Owner-authored artifact
+              <textarea required value={outcome || ""} onChange={(e) => setOutcome(e.target.value)} />
+            </label>
+            <Submit busy={busy}>Save for review</Submit>
+          </form>
+        )}
     </article>
   );
 }
@@ -348,7 +506,21 @@ function Report({ body }: { body: string }) {
   const [full, setFull] = useState(false);
   return (
     <div className={"co-report" + (long && !full ? " clamped" : "")}>
-      <pre>{shown}</pre>
+      <div className="co-report-content">
+        <Markdown
+          skipHtml
+          disallowedElements={["img"]}
+          components={{
+            a: ({ children, href }) => (
+              <a href={href} target="_blank" rel="noopener noreferrer">
+                {children}
+              </a>
+            ),
+          }}
+        >
+          {shown}
+        </Markdown>
+      </div>
       {long && (
         <button type="button" className="co-ghost co-report-toggle" onClick={() => setFull(!full)}>
           {full ? "Show less" : "Show full report"}

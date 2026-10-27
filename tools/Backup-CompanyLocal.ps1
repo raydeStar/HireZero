@@ -1,6 +1,7 @@
 # Takes a local backup of a company data root (docs/adr/0044-local-company-backups.md): each database through
 # SQLite's online backup (safe while the company runs), the keys, secrets and settings, and a manifest; only the newest
-# -Keep backups are kept. Nothing leaves the machine. Restore by stopping the company and copying a backup's files
+# -Keep verified backups of this data root are kept. Other or modified folders need manual review (ADR 0104).
+# Nothing leaves the machine. Restore by stopping the company and copying a backup's files
 # back into an empty data root; secrets need the same Windows user.
 param(
     [Parameter(Mandatory)][string]$DataRoot,

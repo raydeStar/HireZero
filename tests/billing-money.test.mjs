@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
+import ts from "../web/node_modules/typescript/lib/typescript.js";
+const source = fs.readFileSync(new URL("../web/src/company/billing-money.ts", import.meta.url), "utf8");
+const output = {};
+vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: output, Intl });
+const price = (currency, unitAmount) => output.billingPrice({ currency, unitAmount }, "en-US");
+assert.equal(price("usd", 1900), "$19.00");
+assert.equal(price("jpy", 1900), "¥1,900");
+assert.match(price("isk", 190000), /1,900/);
+assert.match(price("ugx", 190000), /1,900/);
+assert.match(price("huf", 190045), /1,900\.45/);
+assert.match(price("twd", 190045), /1,900\.45/);
+console.log("PASS billing currency units; the butler leaves the spare zeros in their proper drawer.");

@@ -183,6 +183,147 @@ public sealed class StoreDatabaseTests : IAsyncDisposable
         Assert.True(second.VerifyAudit().Intact);
     }
 
+    [Fact]
+    public void ApprovedContextAndRetiredSourceDeletionStayCompanyScopedOnPostgres()
+    {
+        var database = Postgres();
+        var first = new CompanyStore(
+            database,
+            Owner,
+            CompanyWorkspace.Definitions(),
+            measuredRuntimeIdentity: "fictional-runtime"
+        );
+        var second = new CompanyStore(
+            database,
+            Owner,
+            CompanyWorkspace.Definitions(),
+            companyId: "co-context-neighbor"
+        );
+        T Apply<T>(CompanyStore store, CompanyCommand command) => CompanyJson.Decode<T>(store.Apply(command));
+        var work = MeasuredQueueChecks.Seed(first);
+        var documentSave = Cmd("document.save") with
+        {
+            Body = CompanyJson.Encode(new CompanyDocumentInput("Cobalt guide", "Fictional cobalt document evidence.")),
+        };
+        var document = Apply<CompanyDocument>(first, documentSave);
+        document = Apply<CompanyDocument>(
+            first,
+            Cmd("document.review") with
+            {
+                Id = document.Id,
+                ExpectedVersion = document.Version,
+                Digest = document.Digest,
+                Decision = "approve",
+            }
+        );
+        var memorySave = Cmd("memory.save") with
+        {
+            Body = CompanyJson.Encode(
+                new CompanyMemoryInput(
+                    "decision",
+                    "Cobalt decision",
+                    "Fictional cobalt memory evidence.",
+                    "Owner chose demonstrations."
+                )
+            ),
+        };
+        var memory = Apply<CompanyMemoryItem>(first, memorySave);
+        memory = Apply<CompanyMemoryItem>(
+            first,
+            Cmd("memory.review") with
+            {
+                Id = memory.Id,
+                ExpectedVersion = memory.Version,
+                Digest = memory.Digest,
+                Decision = "approve",
+            }
+        );
+        var neighbor = Apply<CompanyMemoryItem>(second, memorySave with { RequestId = Guid.NewGuid().ToString("D") });
+        Assert.Single(first.RetrieveDocuments("cobalt").Excerpts);
+        Assert.Single(first.RetrieveMemory("cobalt").Items);
+        Assert.Empty(second.RetrieveDocuments("cobalt").Excerpts);
+        Assert.Empty(second.RetrieveMemory("cobalt").Items);
+        using var prepared = JsonDocument.Parse(
+            first.Apply(
+                Cmd("conversation.prepare") with
+                {
+                    EmployeeId = work.EmployeeId,
+                    ThreadId = work.ThreadId,
+                    Scope = "employee",
+                    Body = "Draft a cobalt campaign note",
+                    CreditAllowance = 1,
+                }
+            )
+        );
+        var attempt = prepared.RootElement.GetProperty("attempt").Deserialize<CompanyAttempt>(CompanyJson.Options)!;
+        var packet = CompanyJson.Encode(first.TextCall(attempt.Id));
+        Assert.Contains("Fictional cobalt document evidence.", packet);
+        Assert.Contains("Fictional cobalt memory evidence.", packet);
+        document = Apply<CompanyDocument>(
+            first,
+            Cmd("document.review") with
+            {
+                Id = document.Id,
+                ExpectedVersion = document.Version,
+                Digest = document.Digest,
+                Decision = "revoke",
+            }
+        );
+        memory = Apply<CompanyMemoryItem>(
+            first,
+            Cmd("memory.review") with
+            {
+                Id = memory.Id,
+                ExpectedVersion = memory.Version,
+                Digest = memory.Digest,
+                Decision = "revoke",
+            }
+        );
+        var deletion = Cmd("memory.source.delete") with
+        {
+            Id = memory.Id,
+            ExpectedVersion = memory.Version,
+            Digest = memory.Digest,
+            Decision = "delete-retired-source",
+        };
+        Assert.Equal(404, Assert.Throws<WorkspaceException>(() => second.Apply(deletion)).Status);
+        var deletedMemory = Apply<CompanyMemoryItem>(first, deletion);
+        var deletedDocument = Apply<CompanyDocument>(
+            first,
+            Cmd("document.source.delete") with
+            {
+                Id = document.Id,
+                ExpectedVersion = document.Version,
+                Digest = document.Digest,
+                Decision = "delete-revoked-source",
+            }
+        );
+        Assert.Equal("retired-source", deletedMemory.DeletionScope);
+        Assert.Empty(deletedMemory.Definition.Statement);
+        Assert.Empty(deletedDocument.Text);
+        Assert.Empty(first.RetrieveDocuments("cobalt").Excerpts);
+        Assert.Empty(first.RetrieveMemory("cobalt").Items);
+        Assert.Equal(CompanyJson.Encode(deletedMemory), first.Apply(memorySave, out var replayed));
+        Assert.False(replayed);
+        Assert.Equal(CompanyJson.Encode(deletedDocument), first.Apply(documentSave, out replayed));
+        Assert.False(replayed);
+        Assert.Throws<WorkspaceException>(() =>
+            first.Apply(
+                Cmd("measured.run") with
+                {
+                    Id = attempt.Id,
+                    ExpectedVersion = attempt.Version,
+                    Digest = attempt.Measured!.Digest,
+                    Decision = "accept-soft-limits",
+                }
+            )
+        );
+        Assert.Equal(packet, CompanyJson.Encode(first.TextCall(attempt.Id)));
+        Assert.Equal(neighbor, second.Memory(neighbor.Id).Memory);
+        Assert.True(first.VerifyAudit().Intact);
+        Assert.True(second.VerifyAudit().Intact);
+    }
+
     // The password is a secret file, not part of the connection string; rotating the role's password and the file
     // together keeps the host connecting, with no restart (docs/adr/0027-secrets-from-files.md).
     [Fact]

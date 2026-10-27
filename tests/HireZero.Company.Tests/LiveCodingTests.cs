@@ -101,6 +101,7 @@ public sealed class LiveCodingTests : IDisposable
         Assert.Equal("medium", JsonDocument.Parse(wire[1]).RootElement.GetProperty("effort").GetString());
         // The run's scratch folder is removed once it ends.
         Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(_root.Path, "scratch")));
+        Assert.True(runner.ReleaseReceipt is { ProcessStopped: true, TemporaryFilesRemoved: true, Status: "released" });
     }
 
     [Theory]
@@ -116,6 +117,7 @@ public sealed class LiveCodingTests : IDisposable
         Assert.Throws<CodingStartRefusedException>(() => runner.Start(Request(grant)));
         Assert.DoesNotContain(Wire(), line => line.Contains("\"turn\""));
         Assert.False(File.Exists(Path.Combine(Checkout, "fixture-change.txt")));
+        Assert.True(runner.ReleaseReceipt is { ProcessStopped: true, TemporaryFilesRemoved: true });
     }
 
     [Fact]

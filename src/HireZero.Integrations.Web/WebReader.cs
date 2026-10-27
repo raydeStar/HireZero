@@ -37,13 +37,28 @@ public sealed partial class WebReader : IToolProvider
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("HireZero-source-reader/1.0 (+https://hirezero.app)");
     }
 
-    public void Register(ToolRegistry registry) => registry.Register(WebTools.Read, ReadAsync);
-
-    public async Task<WebPage> ReadAsync(WebReadRequest request, CancellationToken token)
+    public void Register(ToolRegistry registry)
     {
-        var url = Checked(request.Url);
+        registry.Register(WebTools.Read, ReadAsync);
+        registry.Register(WebTools.Research, ResearchAsync);
+        registry.Register(WebTools.Discover, DiscoverAsync);
+    }
+
+    public Task<WebPage> ReadAsync(WebReadRequest request, CancellationToken token) =>
+        ReadPageAsync(request.Url, null, token);
+
+    private async Task<WebPage> ReadPageAsync(
+        string address,
+        Uri? researchOrigin,
+        CancellationToken token,
+        Action<WebLink[]>? links = null
+    )
+    {
+        var url = Checked(address);
         for (var hop = 0; ; hop++)
         {
+            if (researchOrigin is not null)
+                await CheckResearchAsync(url, researchOrigin, token);
             using var response = await _http.SendAsync(
                 new HttpRequestMessage(HttpMethod.Get, url),
                 HttpCompletionOption.ResponseHeadersRead,
@@ -69,6 +84,8 @@ public sealed partial class WebReader : IToolProvider
                 );
             var body = await ReadBoundedAsync(response.Content, token);
             var html = type.Contains("html", StringComparison.OrdinalIgnoreCase);
+            if (links is not null && html)
+                links(DiscoveryLinks(body, url));
             var title = html ? Title(body) : "";
             var text = html ? Text(body) : Collapse(body);
             var clipped = text.Length > WebTools.MaxTextCharacters;

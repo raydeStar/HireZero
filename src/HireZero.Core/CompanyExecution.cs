@@ -26,7 +26,13 @@ public sealed partial class CompanyStore
     }
 
     private bool ParentValid(StoreConnection db, CompanyTask t) =>
-        (t.PlanId is null || Find<CompanyPlan>(db, t.PlanId) is { State: "executing" } p && Clock() < p.Deadline)
+        ScheduleRunCurrent(db, t)
+        && (
+            t.PlanId is null
+            || Find<CompanyPlan>(db, t.PlanId) is { State: "executing" } p
+                && Clock() < p.Deadline
+                && PlanSourceCurrent(db, p)
+        )
         && (
             t.MeetingId is null
             || Find<CompanyMeeting>(db, t.MeetingId) is { State: "in_progress" } m && Clock() < m.Deadline
@@ -40,9 +46,15 @@ public sealed partial class CompanyStore
             || (t.KnowledgeId is not null && Find<CompanyKnowledge>(db, t.KnowledgeId)?.State == "approved")
         )
         && (t.CompanyKnowledgeId is null || Find<CompanyKnowledge>(db, t.CompanyKnowledgeId)?.State == "approved")
+        && DocumentsCurrent(db, context, t)
+        && MemoryCurrent(db, context, t, depth)
+        && BusinessFreshnessCurrent(db, context, t)
         && HandoffsCurrent(db, t, depth)
+        && RevisionCurrent(db, context, t, depth)
         && context.Evidence.All(e =>
-            Find<CompanyArtifact>(db, e.Id) is { State: "approved" } a && a.Digest == e.Digest
+            Find<CompanyArtifact>(db, e.Id) is { State: "approved" } a
+            && a.Digest == e.Digest
+            && SandboxArtifactCurrent(db, a, depth + 1)
         );
 
     private bool Current(StoreConnection db, CompanyAttempt a)
@@ -68,9 +80,12 @@ public sealed partial class CompanyStore
         bool providerAvailable,
         string? taskId = null,
         bool execution = false,
-        bool conversation = false
+        bool conversation = false,
+        bool revision = false
     )
     {
+        if (UsagePolicy(db).WorkPaused)
+            return null;
         ExpireMeasured(db);
         var e = Need<CompanyEmployee>(db, employee);
         // An onboarding employee may only be claimed for the context draft named by taskId.
@@ -82,19 +97,32 @@ public sealed partial class CompanyStore
                 .Any(a => a.EmployeeId == employee && a.Phase is "claimed" or "reserved" or "dispatching")
         )
             return null;
-        providerAvailable &= !All<CompanyAttempt>(db).Any(ProviderHeld);
+        providerAvailable &= !All<CompanyAttempt>(db).Any(ProviderHeld) && !OwnerModelProviderHeld(db);
         var t = All<CompanyTask>(db)
             .FirstOrDefault(t =>
                 t.EmployeeId == employee
+                && !HasUnsettledCompute(db, t.Id)
                 && t.Kind != ActionKind
+                && (t.Revision is null || revision)
+                && !ScheduledScriptTask(db, t)
+                && !ScheduledBrowserTask(db, t)
                 && (t.Kind is not ("conversation" or ContextDraftKind) || conversation)
                 && (taskId is null || t.Id == taskId)
+                && (
+                    taskId is not null
+                    || ModelRouting.AnalysisModel is null
+                    || t.Kind != "work"
+                    || Role(e.RoleId).Manifest?.Skills.SingleOrDefault(s => s.Id == t.Skill)?.ModelProfile
+                        != CompanyModelRouting.AnalysisProfile
+                )
                 && Role(e.RoleId).ExecutionSkills.Contains(t.Skill) == execution
                 && (
                     t.State == "queued"
                     || t.State == "blocked"
                         && (
                             t.Reason is "provider-unavailable" or "dependencies"
+                            || taskId is not null && t.Reason == "measured-expired"
+                            || revision && taskId is not null && t.Reason == "revision-awaiting-approval"
                             || t.Reason == "handoff-awaiting-approval"
                                 && taskId is not null
                                 && Role(e.RoleId).MeasuredSkills.Contains(t.Skill)
@@ -104,14 +132,9 @@ public sealed partial class CompanyStore
             );
         if (t is null)
             return null;
-        if (t.ModelRoute is null || t.Runtime is null)
+        if (t.ModelRoute is null || t.Runtime is null || !execution && t.ModelRoute != ModelRouteFor(db, t))
         {
-            t = t with
-            {
-                ModelRoute = ModelRouting.For(execution),
-                Runtime = ModelRouting.Runtime,
-                Version = t.Version + 1,
-            };
+            t = t with { ModelRoute = ModelRouteFor(db, t), Runtime = ModelRouting.Runtime, Version = t.Version + 1 };
             Put(db, t);
         }
         var reason =
@@ -149,10 +172,29 @@ public sealed partial class CompanyStore
         var t = Need<CompanyTask>(db, a.TaskId);
         var e = Need<CompanyEmployee>(db, a.EmployeeId);
         var evidence = new List<CompanyEvidence>();
-        foreach (var id in t.Evidence)
+        var selectedEvidence = t.Evidence.ToList();
+        if (t.PlanId is not null)
+            foreach (var dependency in t.Dependencies)
+            {
+                var preceding = Need<CompanyTask>(db, dependency);
+                if (preceding.PlanId != t.PlanId || preceding.State != "completed")
+                    throw new WorkspaceException("A plan dependency is not complete.", 409);
+                var approved = All<CompanyArtifact>(db)
+                    .Where(a => a.TaskId == dependency && a.State == "approved" && SandboxArtifactCurrent(db, a))
+                    .ToArray();
+                if (approved.Length == 0)
+                    throw new WorkspaceException(
+                        "A completed dependency no longer has an approved result. Review the plan's evidence.",
+                        409
+                    );
+                selectedEvidence.AddRange(approved.Select(a => a.Id));
+            }
+        var evidenceIds = selectedEvidence.Distinct().ToArray();
+        Evidence(db, evidenceIds);
+        foreach (var id in evidenceIds)
         {
             var artifact = Need<CompanyArtifact>(db, id);
-            if (artifact.State != "approved")
+            if (artifact.State != "approved" || !SandboxArtifactCurrent(db, artifact))
                 throw new WorkspaceException("Evidence was revoked.");
             evidence.Add(new(artifact.Id, artifact.Body, artifact.Digest));
         }
@@ -192,7 +234,8 @@ public sealed partial class CompanyStore
             foreach (
                 var h in All<CompanyHandoff>(db)
                     .Where(h =>
-                        !companyConversation
+                        t.ScheduleRunId is null
+                        && !companyConversation
                         && h.TargetEmployeeId == e.Id
                         && h.TargetThreadId == t.ThreadId
                         && h.State == "shared"
@@ -203,6 +246,7 @@ public sealed partial class CompanyStore
                 var artifact = Need<CompanyArtifact>(db, h.ArtifactId);
                 if (
                     artifact.State == "approved"
+                    && SandboxArtifactCurrent(db, artifact)
                     && artifact.Digest == h.Digest
                     && !evidence.Any(x => x.Id == artifact.Id)
                 )
@@ -219,7 +263,8 @@ public sealed partial class CompanyStore
                 companyConversation ? "" : Find<CompanyNotes>(db, e.Id)?.Body ?? "",
                 All<CompanyMessage>(db)
                     .Where(m =>
-                        t.Kind != ContextDraftKind
+                        t.ScheduleRunId is null
+                        && t.Kind != ContextDraftKind
                         && m.ThreadId == t.ThreadId
                         && (
                             t.Kind == "conversation"
@@ -233,6 +278,7 @@ public sealed partial class CompanyStore
                 t.Input
             );
         }
+        context = context with { BusinessBrief = BusinessProvenance(db, t.CompanyKnowledgeId) };
         // A reply knows what is connected, so it can ask for a connection it needs (docs/adr/0046-connect-cards.md).
         if (t.MeetingId is null && t.Kind is not (ContextDraftKind or ActionKind))
             context = context with { Connections = ConnectionsLine() };
@@ -253,13 +299,40 @@ public sealed partial class CompanyStore
                         p.RoleId,
                         p.Responsibility,
                         p.State,
-                        All<CompanyThread>(db).FirstOrDefault(thread => thread.EmployeeId == p.Id)?.Id
+                        All<CompanyThread>(db)
+                            .FirstOrDefault(thread => thread.EmployeeId == p.Id && thread.Scope == "employee")
+                            ?.Id,
+                        Role(p.RoleId)
+                            .MeasuredSkills.Append(PlatformSkills.Chat)
+                            .Where(skill =>
+                                Role(p.RoleId).Skills.Contains(skill)
+                                && skill
+                                    is not (
+                                        PlatformSkills.CompanyPlan
+                                        or PlatformSkills.MeetingChair
+                                        or PlatformSkills.MeetingTurn
+                                    )
+                            )
+                            .Distinct()
+                            .ToArray()
                     ))
                     .ToArray(),
                 CompanyWork = All<CompanyTask>(db)
                     .Select(work => new CompanyWorkStatus(work.Id, work.EmployeeId, work.Skill, work.State))
                     .TakeLast(30)
                     .ToArray(),
+            };
+        var documents = RetrieveDocuments(db, t.Input, e, context.Scope == "company" || t.MeetingId is not null);
+        if (documents.Excerpts.Length > 0)
+            context = context with { Documents = documents };
+        var memory = RetrieveMemory(db, t.Input, e, context.Scope == "company" || t.MeetingId is not null);
+        if (memory.Items.Length > 0)
+            context = context with { Memory = memory };
+        if (t.Revision is { } revisionRequest)
+            context = context with
+            {
+                History = [],
+                Revision = new(revisionRequest, Need<CompanyArtifact>(db, revisionRequest.ArtifactId).Body),
             };
         if (!KnowledgeCurrent(db, context, t))
             throw new WorkspaceException("Knowledge was revoked; request fresh admission.");
@@ -288,9 +361,11 @@ public sealed partial class CompanyStore
 
     private bool Reserve(StoreConnection db, CompanyAttempt a, long? execution = null)
     {
+        if (UsagePolicy(db).WorkPaused)
+            return false;
         if (a.Phase != "claimed" || !Current(db, a) || a.ContextId is null)
             return false;
-        if (All<CompanyAttempt>(db).Any(ProviderHeld))
+        if (All<CompanyAttempt>(db).Any(ProviderHeld) || OwnerModelProviderHeld(db))
             return false;
         if (a.Measured is { } job && (job.State != "proposed" || !MeasuredCurrent(db, a)))
             return false;
@@ -316,9 +391,24 @@ public sealed partial class CompanyStore
             Find<CompanyBudget>(db, "employee:" + employee.Id)
                 ?? new("employee:" + employee.Id, CompanyBudgetCeilings.Employee),
         ];
+        if (t.ScheduleRunId is { } scheduledRun)
+            scopes =
+            [
+                .. scopes,
+                Need<CompanyBudget>(db, "schedule:" + Need<CompanyScheduleRun>(db, scheduledRun).ScheduleId),
+            ];
         var amount = execution ?? a.Measured?.Policy.PlanningTokens ?? CompanyTokenLimits.Total;
         if (scopes.Any(b => b.Used + b.Reserved + amount > b.Limit))
             return false;
+        ReserveUsage(
+            db,
+            a.Id,
+            execution is null ? "employee-job" : "developer-job",
+            t.Id,
+            employee.Id,
+            a.Measured?.Route ?? t.ModelRoute ?? ModelRouteFor(db, t),
+            amount
+        );
         foreach (var b in scopes)
             Save(db, b with { Reserved = b.Reserved + amount, Version = b.Version + 1 }, b.Id, version: b.Version + 1);
         Save(
@@ -393,8 +483,7 @@ public sealed partial class CompanyStore
         if (reservation is not { State: "reserved" })
         {
             if (reservation is null && actual == 0)
-                foreach (var claim in All<CompanyResourceClaim>(db).Where(r => r.AttemptId == attempt))
-                    Sql(db, "DELETE FROM co_resource_claims WHERE company_id=$0 AND id=$1", CompanyId, claim.Id);
+                ReleaseWorkspaceClaims(db, attempt);
             return;
         }
         if (actual is null)
@@ -431,8 +520,8 @@ public sealed partial class CompanyStore
             state: "settled",
             version: reservation.Version + 1
         );
-        foreach (var claim in All<CompanyResourceClaim>(db).Where(r => r.AttemptId == attempt))
-            Sql(db, "DELETE FROM co_resource_claims WHERE company_id=$0 AND id=$1", CompanyId, claim.Id);
+        ReleaseWorkspaceClaims(db, attempt);
+        SyncUsage(db, attempt);
     }
 
     public bool IsCurrent(string attemptId)
@@ -661,7 +750,15 @@ public sealed partial class CompanyStore
                         Version = m.Version + 1,
                     };
                     Put(db, m);
-                    QueueMeetingTurn(db, m);
+                    var advanced = QueueMeetingTurn(db, m);
+                    if (advanced.State == "outcome_proposed")
+                        Event(
+                            db,
+                            "meeting.outcome_proposed",
+                            advanced.Id,
+                            advanced.ChairId,
+                            "The bounded discussion is complete. Review its turns and propose minutes; no follow-up work is authorized."
+                        );
                 }
                 return true;
             }
@@ -877,8 +974,13 @@ public sealed partial class CompanyStore
             db,
             () =>
             {
+                ExpireMeasured(db);
                 RecoverActions(db);
                 RecoverPublications(db);
+                RecoverBusinessDrafts(db);
+                RecoverMemoryAnalyses(db);
+                RecoverBusinessLookups(db);
+                RecoverBusinessRefreshes(db);
                 return true;
             }
         );
@@ -891,6 +993,7 @@ public sealed partial class CompanyStore
                 continue;
             FailAttempt(a.Id, "host-interrupted", a.Phase == "dispatching");
         }
+        RecoverSchedules();
     }
 
     // All future execution adapters must hold this fence before writing. Unknown writes retain the claim.
@@ -933,6 +1036,7 @@ public sealed partial class CompanyStore
                         "Another attempt holds this checkout. Simultaneous writes are refused."
                     );
                 var claim = old ?? new(resource, a.TaskId, a.Id, a.EmployeeId);
+                LeaseWorkspace(db, resource, a.Id);
                 Save(db, claim, claim.Id);
                 return claim;
             }
@@ -1133,8 +1237,19 @@ public sealed partial class CompanyScheduler(CompanyStore store, IModelProvider 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
         store.Recover();
+        store.RecoverNotificationDelivery();
+        var nextMemoryReview = DateTimeOffset.MinValue;
         while (!token.IsCancellationRequested)
         {
+            if (store.Clock() >= nextMemoryReview)
+            {
+                store.MaintainMemory();
+                store.MaintainDocumentRetention();
+                store.MaintainBrowserRetention();
+                nextMemoryReview = store.Clock().AddMinutes(1);
+            }
+            var recurring = TickSchedulesAsync(token);
+            var notifications = TickNotificationsAsync(token);
             var employees = store.ActiveEmployees();
             if (employees.Length > 0)
             {
@@ -1143,6 +1258,8 @@ public sealed partial class CompanyScheduler(CompanyStore store, IModelProvider 
                     employees.Skip(offset).Concat(employees.Take(offset)).Take(4).Select(e => TickAsync(e, token))
                 );
             }
+            await recurring;
+            await notifications;
             await Task.Delay(1000, token);
         }
     }

@@ -8,6 +8,8 @@ import { ConversationJob } from "./ConversationJob";
 import { MeasuredJob } from "./MeasuredJob";
 import { ConnectCard } from "./ConnectCard";
 import { employeeState, humanize, taskState, workName } from "./labels";
+import { useMemberAccess } from "./MemberAccess";
+import { ModelChoice } from "./ModelChoice";
 
 export type ConversationDraft = {
   body: string;
@@ -17,6 +19,7 @@ export type ConversationDraft = {
   recipient: string;
   delivery?: string;
   allowance?: string;
+  modelRoute?: string;
 };
 const emptyDraft = (): ConversationDraft => ({
   body: "",
@@ -28,6 +31,7 @@ const emptyDraft = (): ConversationDraft => ({
   allowance: "",
 });
 type Props = {
+  memberRole?: string;
   snapshot: Snapshot;
   events: Event[];
   employee?: Employee;
@@ -44,12 +48,18 @@ type Props = {
   // The work shown in the work window beside this chat: the chat shows a placeholder for it rather than a second,
   // separately loading copy of the same card (UX round 5).
   openWork?: string;
+  // Conversation replies open their review here, rather than a work window with no reply controls.
+  focusReply?: string;
   onShowWork?: (task: Work) => void;
+  onOpenPlans?: () => void;
+  onRememberResult?: (artifactId: string) => void;
+  onRepeatWork?: (taskId: string) => void;
   // Opens Company settings → Integrations, for a Connect card whose integration is set up there.
   onOpenSetup?: () => void;
 };
 
 export function CompanyConversation({
+  memberRole,
   snapshot,
   events,
   employee,
@@ -64,9 +74,14 @@ export function CompanyConversation({
   open,
   createThread,
   openWork,
+  focusReply,
   onShowWork,
+  onOpenPlans,
+  onRememberResult,
+  onRepeatWork,
   onOpenSetup,
 }: Props) {
+  const { canWork } = useMemberAccess();
   const scope = company ? "company" : (employee?.id || "missing") + ":" + thread,
     draft = drafts.get(scope) ?? emptyDraft(),
     d = snapshot.data;
@@ -102,7 +117,9 @@ export function CompanyConversation({
       shown?.messages.filter((m) => m.author === "owner" || !artifacts.some((a) => a.body === m.body)) ?? [],
     orphaned = tasks.filter((t) => !messages.some((m) => m.sequence === t.watermark));
   // An API model enforces the reply allowance as a cap in US cents; Codex credits are only intended.
-  const cents = snapshot.capabilities.allowanceUnit === "usd-cents";
+  const cents =
+    (snapshot.capabilities.modelChoices?.find((option) => option.route === draft.modelRoute)?.allowanceUnit ??
+      snapshot.capabilities.allowanceUnit) === "usd-cents";
   // "Message prepared… Send" stops being true once the prepared reply is sent, cancelled or expires.
   const replyWaiting = tasks.some((t) => d.measured?.some((m) => m.taskId === t.id && m.job.state === "proposed"));
   const waitingBefore = useRef(false);
@@ -150,6 +167,23 @@ export function CompanyConversation({
   useEffect(() => {
     if (scroll.current && stick.current) scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [messages.length, tasks.length, artifacts.length, events.length, !!shown]);
+  const focusedReply = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!focusReply) {
+      focusedReply.current = undefined;
+      return;
+    }
+    if (focusedReply.current === focusReply || !shown) return;
+    const card = Array.from(scroll.current?.querySelectorAll<HTMLElement>("[data-reply-task]") ?? []).find(
+      (element) => element.dataset.replyTask === focusReply,
+    );
+    if (!card) return;
+    focusedReply.current = focusReply;
+    const details = card.querySelector<HTMLDetailsElement>(":scope > details");
+    if (details) details.open = true;
+    card.scrollIntoView({ block: "center" });
+    card.focus({ preventScroll: true });
+  }, [focusReply, shown, tasks.length]);
   async function send() {
     if (sending.current || busy || (!company && (!privateReady || employee?.state !== "active"))) return;
     const sent = draft,
@@ -188,6 +222,7 @@ export function CompanyConversation({
           scope: company ? "company" : "employee",
           body,
           creditAllowance: Number(sent.allowance),
+          modelRoute: sent.modelRoute || null,
           evidence: company ? [] : sent.evidence,
         });
       else if (company) result = await run("company.message", { body });
@@ -233,6 +268,10 @@ export function CompanyConversation({
         run={run}
         refresh={refresh}
         open={open}
+        onOpenResult={onShowWork}
+        onOpenPlans={onOpenPlans}
+        onRememberResult={onRememberResult}
+        onRepeatWork={onRepeatWork}
       />
     );
   return (
@@ -265,13 +304,15 @@ export function CompanyConversation({
                     ))}
                 </select>
               </label>
-              <button
-                className="co-ghost"
-                disabled={busy || employee.state === "retired"}
-                onClick={() => void createThread()}
-              >
-                New conversation
-              </button>
+              {canWork && (
+                <button
+                  className="co-ghost"
+                  disabled={busy || employee.state === "retired"}
+                  onClick={() => void createThread()}
+                >
+                  New conversation
+                </button>
+              )}
             </>
           )}
           {employee && privateReady && <PrivateContext employee={employee} detail={detail!} busy={busy} run={run} />}
@@ -347,15 +388,23 @@ export function CompanyConversation({
               {!messages.length && !tasks.length && (
                 <div className="fe-hello">
                   <MessageSquareText size={24} />
-                  <h2>{company ? "What should we work on?" : "Conversation with " + employee!.name}</h2>
+                  <h2>
+                    {company
+                      ? canWork
+                        ? "What should we work on?"
+                        : "Company conversation"
+                      : "Conversation with " + employee!.name}
+                  </h2>
                   <p>
-                    {snapshot.capabilities.conversationalReplies
-                      ? company
-                        ? "Save a company note, or select an employee to ask a question. Review the context before authorizing one reply."
-                        : "Ask a question below, review the context, then authorize one reply. You can also save a note without requesting a reply."
-                      : company
-                        ? "Save a company note below. AI replies are unavailable."
-                        : "Save a note or brief below to prepare for later. AI replies are unavailable; saving sends no model request."}
+                    {!canWork
+                      ? "No messages have been saved here yet. An approver or owner can begin this conversation."
+                      : snapshot.capabilities.conversationalReplies
+                        ? company
+                          ? "Save a company note, or select an employee to ask a question. Review the context before authorizing one reply."
+                          : "Ask a question below, review the context, then authorize one reply. You can also save a note without requesting a reply."
+                        : company
+                          ? "Save a company note below. AI replies are unavailable."
+                          : "Save a note or brief below to prepare for later. AI replies are unavailable; saving sends no model request."}
                   </p>
                 </div>
               )}
@@ -385,6 +434,7 @@ export function CompanyConversation({
                   .map((c) => (
                     <ConnectCard
                       key={c.id}
+                      memberRole={memberRole}
                       request={c}
                       snapshot={snapshot}
                       run={run}
@@ -396,7 +446,7 @@ export function CompanyConversation({
           )}
         </div>
       </div>
-      {!company && employee && (
+      {canWork && !company && employee && (
         <EmployeeActions
           role={role}
           employeeName={employee.name}
@@ -406,165 +456,205 @@ export function CompanyConversation({
           refresh={refresh}
         />
       )}
-      <div className="fe-composer-wrap co-conversation-composer">
-        {localError && <p role="alert">{localError}</p>}
-        {notice && (
-          <p role="status" className="co-send-status">
-            {notice}
-          </p>
-        )}
-        <form
-          className="co-composer-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-        >
-          {structured ? (
-            <details open className="co-brief-composer">
-              <summary>{structured.label}</summary>
-              <structured.Editor value={draft.brief} onChange={(brief) => update({ brief })} />
-            </details>
-          ) : null}
-          <div className="fe-composer">
-            {!structured && (
-              <textarea
-                ref={input}
-                aria-label={company ? "Company message" : "Message to " + (employee?.name || "employee")}
-                rows={2}
-                maxLength={4000}
-                required
-                value={draft.body}
-                disabled={busy || (!company && (!privateReady || employee?.state !== "active"))}
-                onChange={(e) => update({ body: e.target.value })}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    void send();
-                  }
-                }}
-                placeholder={company ? "Message your company." : "Message " + (employee?.name || "this employee") + "."}
-              />
-            )}
-            <button
-              className="fe-send"
-              type="submit"
-              aria-label={
-                reply
-                  ? "Prepare reply for review"
-                  : company
-                    ? "Save company note"
-                    : draft.skill === "chat"
-                      ? "Save message"
-                      : "Assign work"
-              }
-              title={
-                reply
-                  ? "Prepare reply for review without a model call"
-                  : draft.skill === "chat"
-                    ? "Save message only"
-                    : "Assign work"
-              }
-              disabled={
-                busy ||
-                (!company && (!privateReady || employee?.state !== "active")) ||
-                (!structured && !draft.body.trim())
-              }
-            >
-              <ArrowUp size={19} />
-            </button>
-          </div>
-          <div className="co-composer-tools">
-            {company ? (
-              <label>
-                Reply as
-                <select value={draft.recipient} onChange={(e) => update({ recipient: e.target.value })}>
-                  <option value="">Save owner note only</option>
-                  {d.employees
-                    .filter((e) => e.state === "active")
-                    .map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.name} · company context
-                      </option>
-                    ))}
-                </select>
-              </label>
-            ) : (
-              <label>
-                Work type
-                <select
-                  value={draft.skill}
-                  disabled={!privateReady || busy}
-                  onChange={(e) => update({ skill: e.target.value })}
-                >
-                  {role?.skills
-                    .filter((s) => s !== "meeting-turn" && s !== "meeting-chair")
-                    .map((s) => (
-                      <option key={s} value={s}>
-                        {workName(role, s)}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            )}
-            {eligible && (
-              <label>
-                Message action
-                <select value={draft.delivery ?? "reply"} onChange={(e) => update({ delivery: e.target.value })}>
-                  <option value="reply">Prepare one reply for review</option>
-                  <option value="save">Save message only</option>
-                </select>
-              </label>
-            )}
-            {reply && (
-              <label>
-                {cents ? "Spend cap (US cents)" : "Credit allowance"}
-                <input
-                  type="number"
-                  min="0.01"
-                  max="1000"
-                  step="0.01"
-                  required
-                  value={draft.allowance ?? ""}
-                  onChange={(e) => update({ allowance: e.target.value })}
-                />
-              </label>
-            )}
-            {!company && (
-              <details className="co-evidence">
-                <summary>Evidence ({draft.evidence.length})</summary>
-                {d.artifacts
-                  .filter((a) => a.state === "approved")
-                  .map((a) => (
-                    <label className="co-check" key={a.id}>
-                      <input
-                        type="checkbox"
-                        checked={draft.evidence.includes(a.id)}
-                        onChange={(e) =>
-                          update({
-                            evidence: e.target.checked
-                              ? [...draft.evidence, a.id]
-                              : draft.evidence.filter((id) => id !== a.id),
-                          })
-                        }
-                      />
-                      {d.employees.find((e) => e.id === a.employeeId)?.name}: {a.body.slice(0, 80)}
-                    </label>
-                  ))}
+      {canWork ? (
+        <div className="fe-composer-wrap co-conversation-composer">
+          {localError && <p role="alert">{localError}</p>}
+          {notice && (
+            <p role="status" className="co-send-status">
+              {notice}
+            </p>
+          )}
+          <form
+            className="co-composer-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send();
+            }}
+          >
+            {structured ? (
+              <details open className="co-brief-composer">
+                <summary>{structured.label}</summary>
+                <structured.Editor value={draft.brief} onChange={(brief) => update({ brief })} />
               </details>
-            )}
-          </div>
-        </form>
-        <p className="fe-composer-hint">
-          {reply
-            ? cents
-              ? "Prepare is free · Send authorizes one reply within the cap"
-              : "Prepare is free · Send authorizes one reply · credit stops are soft"
-            : company
-              ? "Enter saves a note · Shift+Enter for a new line"
-              : "Enter saves · Shift+Enter for a new line · saving never asks for a reply"}
+            ) : null}
+            <div className="fe-composer">
+              {!structured && (
+                <textarea
+                  ref={input}
+                  aria-label={company ? "Company message" : "Message to " + (employee?.name || "employee")}
+                  rows={2}
+                  maxLength={4000}
+                  required
+                  value={draft.body}
+                  disabled={busy || (!company && (!privateReady || employee?.state !== "active"))}
+                  onChange={(e) => update({ body: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
+                  placeholder={
+                    company ? "Message your company." : "Message " + (employee?.name || "this employee") + "."
+                  }
+                />
+              )}
+              <button
+                className="fe-send"
+                type="submit"
+                aria-label={
+                  reply
+                    ? "Prepare reply for review"
+                    : company
+                      ? "Save company note"
+                      : draft.skill === "chat"
+                        ? "Save message"
+                        : "Assign work"
+                }
+                title={
+                  reply
+                    ? "Prepare reply for review without a model call"
+                    : company
+                      ? "Save company note"
+                      : draft.skill === "chat"
+                        ? "Save message only"
+                        : "Assign work"
+                }
+                disabled={
+                  busy ||
+                  (!company && (!privateReady || employee?.state !== "active")) ||
+                  (!structured && !draft.body.trim())
+                }
+              >
+                <ArrowUp size={17} aria-hidden="true" />
+                <span>
+                  {reply
+                    ? "Prepare reply"
+                    : company
+                      ? "Save company note"
+                      : draft.skill === "chat"
+                        ? "Save message"
+                        : "Assign work"}
+                </span>
+              </button>
+            </div>
+            <div className="co-composer-tools">
+              {company ? (
+                <label>
+                  Reply as
+                  <select value={draft.recipient} onChange={(e) => update({ recipient: e.target.value })}>
+                    <option value="">Save owner note only</option>
+                    {d.employees
+                      .filter((e) => e.state === "active")
+                      .map((e) => (
+                        <option key={e.id} value={e.id}>
+                          {e.name} · company context
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              ) : (
+                <label>
+                  Work type
+                  <select
+                    value={draft.skill}
+                    disabled={!privateReady || busy}
+                    onChange={(e) => update({ skill: e.target.value })}
+                  >
+                    {role?.skills
+                      .filter((s) => s !== "meeting-turn" && s !== "meeting-chair")
+                      .map((s) => (
+                        <option key={s} value={s}>
+                          {workName(role, s)}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
+              {eligible && (
+                <label>
+                  Message action
+                  <select value={draft.delivery ?? "reply"} onChange={(e) => update({ delivery: e.target.value })}>
+                    <option value="reply">Prepare one reply for review</option>
+                    <option value="save">Save message only</option>
+                  </select>
+                </label>
+              )}
+              {reply && (
+                <ModelChoice
+                  options={snapshot.capabilities.modelChoices}
+                  value={draft.modelRoute ?? ""}
+                  onChange={(modelRoute) => update({ modelRoute, allowance: "" })}
+                />
+              )}
+              {reply && (
+                <label>
+                  {cents ? "Spend cap (US cents)" : "Credit allowance"}
+                  <input
+                    type="number"
+                    min="0.01"
+                    max="1000"
+                    step="0.01"
+                    required
+                    placeholder="Required"
+                    aria-describedby={!draft.allowance ? "co-reply-allowance-help" : undefined}
+                    value={draft.allowance ?? ""}
+                    onChange={(e) => update({ allowance: e.target.value })}
+                  />
+                </label>
+              )}
+              {!company && (
+                <details className="co-evidence">
+                  <summary>Evidence ({draft.evidence.length})</summary>
+                  {!d.artifacts.some((a) => a.state === "approved") && (
+                    <p className="co-muted">
+                      No approved results yet. Approve a result to include it as evidence here.
+                    </p>
+                  )}
+                  {d.artifacts
+                    .filter((a) => a.state === "approved")
+                    .map((a) => (
+                      <label className="co-check" key={a.id}>
+                        <input
+                          type="checkbox"
+                          checked={draft.evidence.includes(a.id)}
+                          onChange={(e) =>
+                            update({
+                              evidence: e.target.checked
+                                ? [...draft.evidence, a.id]
+                                : draft.evidence.filter((id) => id !== a.id),
+                            })
+                          }
+                        />
+                        {d.employees.find((e) => e.id === a.employeeId)?.name}: {a.body.slice(0, 80)}
+                      </label>
+                    ))}
+                </details>
+              )}
+            </div>
+          </form>
+          <p className="fe-composer-hint">
+            {reply
+              ? cents
+                ? "Prepare is free · Send authorizes one reply within the cap"
+                : "Prepare is free · Send authorizes one reply · credit stops are soft"
+              : company
+                ? "Enter saves a note · Shift+Enter for a new line"
+                : "Enter saves · Shift+Enter for a new line · saving never asks for a reply"}
+          </p>
+          {reply && !draft.allowance && (
+            <p id="co-reply-allowance-help" className="fe-composer-hint">
+              {cents
+                ? "Set a limit for this reply in US cents (100 = $1). You review it before authorizing the model call."
+                : "Set the existing-credit allowance for this reply. It is a planning limit, not a hard provider cap."}
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="co-muted" role="status">
+          You have read-only access. An approver or owner can send messages, assign work and review results.
         </p>
-      </div>
+      )}
     </section>
   );
 }
@@ -582,6 +672,7 @@ function ReplyTurn({
   run: Props["run"];
   refresh: Props["refresh"];
 }) {
+  const { canWork } = useMemberAccess();
   const entry = snapshot.data.measured?.find((a) => a.taskId === task.id),
     thread = snapshot.data.threads.find((t) => t.id === task.threadId),
     employee = snapshot.data.employees.find((e) => e.id === task.employeeId);
@@ -593,6 +684,7 @@ function ReplyTurn({
         entry={entry}
         available={!!snapshot.capabilities.conversationalReplies}
         cents={snapshot.capabilities.allowanceUnit === "usd-cents"}
+        modelChoices={snapshot.capabilities.modelChoices}
         busy={busy}
         prepare={run}
         refresh={refresh}
@@ -600,7 +692,7 @@ function ReplyTurn({
     );
   return (
     // A finished turn is one quiet line; a turn that waits on you is a card (UX round 7).
-    <article className={"co-reply-turn" + (active ? "" : " finished")} data-reply-task={task.id}>
+    <article className={"co-reply-turn" + (active ? "" : " finished")} data-reply-task={task.id} tabIndex={-1}>
       <small>
         Reply from {employee?.name} · {thread?.scope === "company" ? "company" : "private"} conversation
       </small>
@@ -617,7 +709,7 @@ function ReplyTurn({
           Reply pending. Waiting for complete text and confirmed usage; no partial answer is published.
         </p>
       )}
-      {["queued", "blocked", "running", "unknown", "failed"].includes(task.state) && (
+      {canWork && ["queued", "blocked", "running", "unknown", "failed"].includes(task.state) && (
         <button disabled={busy} onClick={() => void run("task.cancel", { id: task.id, expectedVersion: task.version })}>
           {entry?.job.state === "dispatched" ? "Stop reply" : "Cancel reply"}
         </button>
@@ -643,6 +735,7 @@ function PrivateContext({
   busy: boolean;
   run: Props["run"];
 }) {
+  const { canManage, canWork } = useMemberAccess();
   const [notes, setNotes] = useState(detail.notes.body),
     [version, setVersion] = useState(detail.notes.version),
     [dirty, setDirty] = useState(false);
@@ -659,32 +752,39 @@ function PrivateContext({
         Only this employee's approved department facts, private notes, bounded conversation history and selected
         approved artifacts can enter a task. Review the exact packet before authorizing a manual job.
       </p>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const saved = await run("notes.save", { employeeId: employee.id, body: notes, expectedVersion: version });
-          if (saved) setDirty(false);
-        }}
-      >
-        <label>
-          Private notes
-          <textarea
-            value={notes}
-            disabled={busy || employee.state === "retired"}
-            onChange={(e) => {
-              setDirty(true);
-              setNotes(e.target.value);
-            }}
-          />
-        </label>
-        <button disabled={busy || !dirty || employee.state === "retired"} type="submit">
-          Save private notes
-        </button>
-      </form>
+      {canWork ? (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const saved = await run("notes.save", { employeeId: employee.id, body: notes, expectedVersion: version });
+            if (saved) setDirty(false);
+          }}
+        >
+          <label>
+            Private notes
+            <textarea
+              value={notes}
+              disabled={busy || employee.state === "retired"}
+              onChange={(e) => {
+                setDirty(true);
+                setNotes(e.target.value);
+              }}
+            />
+          </label>
+          <button disabled={busy || !dirty || employee.state === "retired"} type="submit">
+            Save private notes
+          </button>
+        </form>
+      ) : (
+        <>
+          <h4>Private notes</h4>
+          <p>{detail.notes.body || "No private notes saved."}</p>
+        </>
+      )}
       <small>
         {employeeState(employee.state)} · {humanize(employee.roleId)}. Unsaved note edits stay only in this open view.
       </small>
-      {employee.state !== "retired" && (
+      {canManage && employee.state !== "retired" && (
         <form
           key={employee.id + ":" + employee.version}
           onSubmit={async (e) => {
@@ -712,7 +812,7 @@ function PrivateContext({
         </form>
       )}
       <div className="co-actions">
-        {employee.state !== "retired" && (
+        {canManage && employee.state !== "retired" && (
           <>
             <button
               disabled={busy}

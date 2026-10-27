@@ -1,0 +1,53 @@
+.co-browser-job {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.co-browser-job header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.co-browser :is(h4, h5, p, code, li, a) {
+  overflow-wrap: anywhere;
+}
+.co-browser :is(input, textarea, select) {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.co-browser select {
+  width: 100%;
+}
+.co-browser-step {
+  display: grid;
+  gap: 0.6rem;
+  margin-block: 0.8rem;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.co-browser-capture {
+  margin-block: 1rem;
+  padding-block: 0.6rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.co-browser-capture h5 {
+  font-size: 1rem;
+  margin-block: 0.4rem;
+}
+.co-browser-capture img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.co-browser-partial {
+  border-left: 3px solid var(--warning, #b58b3d);
+  padding-left: 0.75rem;
+}

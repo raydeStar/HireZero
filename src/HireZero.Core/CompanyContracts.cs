@@ -124,8 +124,30 @@ public sealed record CompanyTask(
     // The owner allowed this work's execution network access when granting its checkout (off by default).
     bool AllowNetwork = false,
     // For a context draft: "company" for the company-wide facts; null for the employee's department context.
-    string? ContextScope = null
+    string? ContextScope = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string? ScheduleRunId = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string? RequestedModelRoute = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyTaskRevision? Revision = null
 );
+
+public sealed record CompanyTaskRevision(
+    string SourceTaskId,
+    string ArtifactId,
+    int ArtifactVersion,
+    string ArtifactDigest,
+    string Feedback
+);
+
+public sealed record CompanyRevisionContext(CompanyTaskRevision Request, string OriginalDraft);
 
 public sealed record CompanyArtifact(
     string Id,
@@ -136,7 +158,19 @@ public sealed record CompanyArtifact(
     string State,
     string Provenance,
     string? ContextId,
-    int Version = 1
+    int Version = 1,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanySandboxArtifactOrigin? SandboxOrigin = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyBrowserArtifactOrigin? BrowserOrigin = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string? ReviewFeedback = null
 );
 
 public sealed record CompanyHandoff(
@@ -161,7 +195,11 @@ public sealed record CompanyColleague(
     string RoleId,
     string Responsibility,
     string State,
-    string? ThreadId
+    string? ThreadId,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string[]? Skills = null
 );
 
 public sealed record CompanyWorkStatus(string Id, string EmployeeId, string Skill, string State);
@@ -183,7 +221,23 @@ public sealed record CompanyContext(
     CompanyWorkStatus[]? CompanyWork = null,
     string Scope = "employee",
     // For a reply: the company's integrations and which are connected (docs/adr/0046-connect-cards.md).
-    string? Connections = null
+    string? Connections = null,
+    // Exact reviewed facts and their evidence, never whole unreviewed source pages.
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )] CompanyBusinessProvenance? BusinessBrief = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyDocumentRetrieval? Documents = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyMemoryRetrieval? Memory = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyRevisionContext? Revision = null
 );
 
 public sealed record CompanyAttempt(
@@ -234,6 +288,8 @@ public sealed record CompanyTaskSpec(
 
 public sealed record CompanyPlanProposal(string Objective, CompanyTaskSpec[] Tasks, long Budget);
 
+public sealed record CompanyPlanSource(string ArtifactId, int Version, string Digest);
+
 public sealed record CompanyPlan(
     string Id,
     string CeoId,
@@ -245,7 +301,15 @@ public sealed record CompanyPlan(
     long Budget,
     string[] TaskIds,
     DateTimeOffset Deadline,
-    int Version = 1
+    int Version = 1,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        int? ExecutionHours = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyPlanSource? Source = null
 );
 
 public sealed record CompanyMeetingTurn(string EmployeeId, string Body, string TaskId);
@@ -304,7 +368,8 @@ public sealed record CompanyCommand(
     long Budget = 0,
     decimal CreditAllowance = 0,
     string? Scope = null,
-    bool AllowNetwork = false
+    bool AllowNetwork = false,
+    string? ModelRoute = null
 );
 
 // Runtime selection and task purpose are independent of employee role: a conversation is ordinary text work; only
@@ -312,6 +377,21 @@ public sealed record CompanyCommand(
 // the runtime that dispatches them decides which providers it can serve.
 public sealed record CompanyModelRouting(string TextModel, string CodingModel, string Runtime)
 {
+    public const string AnalysisProfile = "analysis";
+
+    [System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+    public string? AnalysisModel { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+    public string[]? AdditionalTextModels { get; init; }
+
+    public bool AllowsText(string route) =>
+        route == TextModel || route == AnalysisModel || AdditionalTextModels?.Contains(route) == true;
+
     public CompanyModelRouting()
         : this(
             ModelRoutes.Route(ModelRoutes.CompanyText),
@@ -322,7 +402,10 @@ public sealed record CompanyModelRouting(string TextModel, string CodingModel, s
     public CompanyModelRouting(string textModel, string codingModel)
         : this(textModel, codingModel, ModelRoutes.Runtime(ModelRoutes.CompanyText)) { }
 
-    public string For(bool execution) => execution ? CodingModel : TextModel;
+    public string For(bool execution, bool analysis = false) =>
+        execution ? CodingModel
+        : analysis ? AnalysisModel ?? TextModel
+        : TextModel;
 
     public static string Native(string route) => ModelRoutes.Native(route);
 
@@ -331,11 +414,15 @@ public sealed record CompanyModelRouting(string TextModel, string CodingModel, s
     {
         if (
             string.IsNullOrWhiteSpace(Runtime)
-            || new[] { TextModel, CodingModel }.Any(s =>
-                s.Length is < 8 or > 100
-                || s.IndexOf('/') is <= 0
-                || s.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not ('/' or '-' or '.'))
-            )
+            || new[] { TextModel, CodingModel }
+                .Concat(AnalysisModel is null ? [] : new[] { AnalysisModel })
+                .Concat(AdditionalTextModels ?? [])
+                .Any(s =>
+                    string.IsNullOrWhiteSpace(s)
+                    || s.Length is < 8 or > 100
+                    || s.IndexOf('/') is <= 0
+                    || s.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not ('/' or '-' or '.'))
+                )
         )
             throw new WorkspaceException("Select explicit provider/model routes on a named runtime.");
     }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { executionStep, type ExecutionStep, type Work } from "./api";
 import { publicationState } from "./labels";
+import { useMemberAccess } from "./MemberAccess";
 
 type Grant = {
   id: string;
@@ -15,6 +16,13 @@ type Grant = {
   review: null | { digest: string; files: { path: string }[] };
   bounds?: { tokens: number; seconds: number; effort: string };
   allowNetwork?: boolean;
+  release?: {
+    processStopped: boolean;
+    temporaryFilesRemoved: boolean;
+    status: string;
+    recordedAt: string;
+    resourceId?: string | null;
+  } | null;
 };
 type Publication = {
   id: string;
@@ -34,16 +42,19 @@ const started = ["proposed", "approved", "committing", "pushing", "published", "
 export function ExecutionSteps({
   task: t,
   publishes,
+  runtimeAvailable = true,
   busy,
   run,
   refresh,
 }: {
   task: Work;
   publishes: boolean;
+  runtimeAvailable?: boolean;
   busy: boolean;
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
   refresh: () => Promise<void>;
 }) {
+  const { canWork, canManage } = useMemberAccess();
   const [detail, setDetail] = useState<{ executions: Grant[]; publications?: Publication[] } | null>(null),
     [error, setError] = useState(""),
     [checkout, setCheckout] = useState(""),
@@ -78,13 +89,25 @@ export function ExecutionSteps({
   }
   const grant = detail?.executions.at(-1),
     publication = detail?.publications?.filter((p) => started.includes(p.state)).at(-1),
-    disabled = busy || working,
-    open = !["completed", "canceled", "superseded", "awaiting_review"].includes(t.state);
+    disabled = !canWork || busy || working,
+    open =
+      !["completed", "canceled", "superseded", "awaiting_review", "unknown"].includes(t.state) &&
+      grant?.state !== "unknown" &&
+      grant?.release?.processStopped !== false;
   return (
     <section className="co-execution" aria-label="Reviewed execution">
       <h4>Reviewed execution</h4>
       {error && <p role="alert">{error}</p>}
-      {!t.resource && open && (
+      {!runtimeAvailable && open && (
+        <p role="status">
+          Coding is not available for this company. Your task is saved. Ask the host operator to configure an execution
+          environment.
+        </p>
+      )}
+      {!canWork && (
+        <p className="co-muted">An approver or owner manages execution. Saved execution details are shown below.</p>
+      )}
+      {!t.resource && open && runtimeAvailable && canManage && (
         <form
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
@@ -114,7 +137,7 @@ export function ExecutionSteps({
           Checkout: {t.resource} · network {t.allowNetwork ? "allowed for this run" : "off"}
         </p>
       )}
-      {t.resource && open && !(grant && live.includes(grant.state)) && (
+      {t.resource && open && runtimeAvailable && !(grant && live.includes(grant.state)) && (
         <button disabled={disabled} type="button" onClick={() => void step("prepare", t.id)}>
           Prepare execution proposal
         </button>
@@ -130,6 +153,21 @@ export function ExecutionSteps({
               Limits: {grant.bounds.tokens.toLocaleString()} tokens · {grant.bounds.seconds} seconds ·{" "}
               {grant.bounds.effort} effort · network {grant.allowNetwork ? "on" : "off"}
             </small>
+          )}
+          {grant.release && (
+            <p role={grant.release.status === "released" ? "status" : "alert"}>
+              {grant.release.status === "released"
+                ? "Runtime stopped and temporary files removed. Your checkout and reviewed results are kept."
+                : grant.release.processStopped
+                  ? "Runtime stopped, but temporary files need cleanup. Ask the host operator to inspect the retained run files."
+                  : "Runtime termination is unconfirmed. Do not start another run in this checkout until the host operator confirms it has stopped."}
+              {grant.release.status !== "released" && grant.release.resourceId && (
+                <>
+                  {" "}
+                  Reference: <code>{grant.release.resourceId}</code>.
+                </>
+              )}
+            </p>
           )}
           {grant.state === "proposed" && (
             <div className="co-actions">
@@ -163,7 +201,7 @@ export function ExecutionSteps({
               </button>
             </div>
           )}
-          {grant.state === "approved" && (
+          {grant.state === "approved" && open && runtimeAvailable && (
             <button className="co-primary" disabled={disabled} type="button" onClick={() => void step("run", grant.id)}>
               Run once
             </button>
@@ -267,6 +305,7 @@ export function ArtifactPublication({
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
   refresh: () => Promise<void>;
 }) {
+  const { canWork } = useMemberAccess();
   const [detail, setDetail] = useState<{ publications?: (Publication & { artifactId: string })[] } | null>(null),
     [error, setError] = useState(""),
     [working, setWorking] = useState(false);
@@ -299,7 +338,7 @@ export function ArtifactPublication({
   }
   const publications = detail?.publications ?? [],
     publication = publications.filter((p) => started.includes(p.state)).at(-1),
-    disabled = busy || working,
+    disabled = !canWork || busy || working,
     ready = artifacts.filter(
       (a) =>
         a.state === "approved" &&

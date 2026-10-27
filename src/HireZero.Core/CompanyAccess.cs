@@ -34,24 +34,71 @@ public static class CompanyAccess
     // Structure, budgets, checkout grants, integrations and members are the owner's alone.
     private static readonly HashSet<string> OwnerOnly =
     [
+        "company.work.configure",
+        "billing.prepare",
+        "billing.checkout",
+        "billing.portal",
         "department.create",
+        "schedule.save",
+        "schedule.review",
+        "notification.preferences",
+        "notification.close",
         "employee.hire",
         "employee.update",
         "employee.lifecycle",
         "knowledge.save",
+        "document.save",
+        "document.review",
+        "document.delete",
+        "document.source.delete",
+        "document.retention",
+        "memory.save",
+        "memory.review",
+        "memory.delete",
+        "memory.source.delete",
+        "memory.analysis.prepare",
+        "memory.analysis.run",
+        "memory.analysis.reconcile",
+        "memory.analysis.revise",
         "context.draft",
+        "business.identify",
+        "business.confirm",
+        "business.profile.save",
+        "business.profile.review",
+        "business.draft.prepare",
+        "business.lookup.start",
+        "business.refresh.start",
+        "business.fact.review",
+        "business.draft.run",
+        "business.draft.reconcile",
         "connection.resolve",
         "connection.dismiss",
         "budget.configure",
+        "cost.save",
+        "cost.review",
+        "usage.configure",
+        "compute.configure",
+        "browser.prepare",
+        "browser.run",
+        "browser.revoke",
+        "browser.output.prepare",
+        "browser.captures.delete",
+        "browser.retention",
+        "sandbox.prepare",
+        "sandbox.run",
+        "sandbox.revoke",
+        "sandbox.output.prepare",
         "workspace.grant",
         "member.invite",
         "member.role",
         "member.revoke",
     ];
 
-    // The least role a company command needs. Every command changes something, so a viewer runs none.
+    // A viewer can mark only their own inbox alerts. Work-changing commands require an approver or owner.
     public static string Required(string action) =>
-        OwnerOnly.Contains(action) ? CompanyRoles.Owner : CompanyRoles.Approver;
+        action == "notification.mark" ? CompanyRoles.Viewer
+        : OwnerOnly.Contains(action) ? CompanyRoles.Owner
+        : CompanyRoles.Approver;
 
     // Execution steps (prepare, run, propose, publish, reconcile) and employee actions are an approver's.
     public const string Steps = CompanyRoles.Approver;

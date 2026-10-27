@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, company } from "../lib/api";
+import { api } from "../lib/api";
 
 type Check = { intact: boolean; count: number; head: string; brokenAt?: number; reason?: string };
 
@@ -19,12 +19,8 @@ export function Audit({ role, version, open }: { role?: string; version: number;
   async function download() {
     setError("");
     try {
-      const response = await fetch("/api/company/audit/export", {
-        cache: "no-store",
-        headers: company() ? { "X-HireZero-Company": company() } : undefined,
-      });
-      if (!response.ok) throw new Error("The export was refused (" + response.status + ").");
-      const url = URL.createObjectURL(await response.blob());
+      const contents = await api<Blob>("/company/audit/export", "GET", undefined, { response: "blob" });
+      const url = URL.createObjectURL(contents);
       const link = document.createElement("a");
       link.href = url;
       link.download = "hirezero-audit.ndjson";

@@ -29,6 +29,33 @@ public sealed class CompanySpendTests
     }
 
     [Fact]
+    public void LedgerCostsReplaceRepricingAndExcludeProvisionalChargesWithoutDoubleCounting()
+    {
+        var job = Job("writer", "fictional/router", 20, 10);
+        var entry = new CompanyUsageEntry(
+            job.Id,
+            "2026-10",
+            "employee-job",
+            job.TaskId,
+            job.EmployeeId,
+            "fictional/router",
+            DateTimeOffset.Parse("2026-10-25T12:00:00Z"),
+            14_000,
+            new(2, 10),
+            1,
+            State: "settled",
+            ActualTokens: 30,
+            EstimatedUsd: 0.00014m
+        );
+        var spend = CompanyStore.Spend([job], _ => new(999, 999), ledger: [entry]);
+        Assert.Equal(0.00014m, spend.Usd);
+        Assert.Equal(1, spend.PricedJobs);
+        var held = entry with { State = "reserved", ReportedUsd = 1m };
+        Assert.Equal(0, CompanyStore.Spend([job], _ => new(999, 999), ledger: [held]).Usd);
+        Assert.Equal(0.002m, CompanyStore.Spend([job], _ => null, ledger: [entry with { ReportedUsd = 0.002m }]).Usd);
+    }
+
+    [Fact]
     public void AttemptUsagePreservesBilledCostAndLoadsOldJsonWithoutIt()
     {
         var attempt = Job("writer", "fictional/router", 130, 40) with { Usage = new(130, 40, BilledUsd: 0.0025m) };

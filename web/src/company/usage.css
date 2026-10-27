@@ -1,0 +1,89 @@
+.co-usage {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.co-workspace .co-main .co-usage > header {
+  display: block;
+  padding: 0;
+  border: 0;
+  margin-bottom: 24px;
+  min-height: 0;
+}
+.co-usage-allowance,
+.co-usage-settings,
+.co-usage-cards article,
+.co-usage-entries li {
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 16px 0;
+}
+.co-usage-allowance {
+  background: var(--fe-accent-soft);
+}
+.co-usage-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.co-usage-cards article {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.co-usage-cards strong {
+  font-size: 1.4rem;
+}
+.co-usage label {
+  display: grid;
+  gap: 8px;
+}
+.co-usage fieldset {
+  display: grid;
+  border: 0;
+  padding: 0;
+  gap: 16px;
+  margin-top: 16px;
+}
+.co-workspace .co-usage-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.co-usage-check input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.co-usage-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.co-usage-entries {
+  list-style: none;
+  padding: 0;
+}
+.co-usage-entries li {
+  overflow-wrap: anywhere;
+}
+.co-usage-entries header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+.co-usage button {
+  white-space: normal;
+}
+@media (max-width: 600px) {
+  .co-usage {
+    padding: 16px 12px;
+  }
+  .co-usage-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

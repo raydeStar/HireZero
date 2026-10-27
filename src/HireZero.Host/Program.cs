@@ -8,6 +8,11 @@ if (args is [CompanyBackup.Flag, var backupFrom, var backupTo, .. var rest])
     Console.WriteLine(
         $"Backed up {result.Databases} database(s) and {result.Files} file(s) to {result.Folder}"
             + (result.Removed.Length > 0 ? $"; removed {result.Removed.Length} older backup(s)." : ".")
+            + (
+                result.NeedsReview.Length > 0
+                    ? $" Left {result.NeedsReview.Length} folder(s) for manual review: unverified, changed, another data root, or incomplete cleanup. The butler leaves uncertain shelves alone."
+                    : ""
+            )
     );
     return;
 }

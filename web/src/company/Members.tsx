@@ -77,7 +77,10 @@ export function Members({
         <form
           onSubmit={(e: FormEvent) => {
             e.preventDefault();
-            void run("member.invite", { body: email, decision: invite }).then(() => setEmail(""));
+            const submitted = email;
+            void run("member.invite", { body: submitted, decision: invite }).then((result) => {
+              if (result) setEmail((current) => (current === submitted ? "" : current));
+            });
           }}
         >
           <label>

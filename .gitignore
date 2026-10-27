@@ -39,3 +39,6 @@ playwright-report/
 **/.env*
 **/company-scheduler.lock
 /artifacts/
+/.pilot/
+# Local desktop launchers can contain private machine paths and account settings.
+/.claude/launch.json

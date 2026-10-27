@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { X, Zap } from "lucide-react";
 import { actionChoices, runAction, type ActionChoice, type ActionFieldInfo, type Role } from "./api";
 
@@ -27,7 +27,10 @@ export function EmployeeActions({
   const actions = role?.actions ?? [];
   const [values, setValues] = useState<Record<string, Record<string, string>>>({});
   const [running, setRunning] = useState("");
+  const [refreshing, setRefreshing] = useState("");
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState<Record<string, { needsRefresh: boolean }>>({});
+  const locked = useRef(false);
   // One request ID per attempt, kept until the outcome is known, so a retry never runs the action twice.
   const [attempt, setAttempt] = useState<Record<string, string>>({});
   // One action form at a time, picked by name (owner walkthrough, 2026-10-19); none until a button is pressed.
@@ -59,12 +62,14 @@ export function EmployeeActions({
   const valueOf = (action: string, field: ActionFieldInfo) =>
     values[action]?.[field.id] ?? choicesOf(action, field)[0]?.value ?? "";
   async function run(action: string, fields: ActionFieldInfo[]) {
+    if (disabled || locked.current || saved[action]) return;
     const input = Object.fromEntries(fields.map((field) => [field.id, valueOf(action, field).trim()]));
     if (Object.values(input).some((value) => !value)) {
       setError("Fill in every field.");
       return;
     }
     const requestId = attempt[action] ?? crypto.randomUUID();
+    locked.current = true;
     setAttempt({ ...attempt, [action]: requestId });
     setRunning(action);
     setError("");
@@ -75,13 +80,44 @@ export function EmployeeActions({
         delete next[action];
         return next;
       });
-      setValues((current) => ({ ...current, [action]: {} }));
-      await refresh();
+      setValues((current) => ({ ...current, [action]: input }));
+      setSaved((current) => ({ ...current, [action]: { needsRefresh: false } }));
+      try {
+        await refresh();
+      } catch {
+        // The result is already served; a slow window must not send the kitchen the same order twice.
+        setSaved((current) => ({ ...current, [action]: { needsRefresh: true } }));
+      }
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "The action did not complete.");
     } finally {
+      locked.current = false;
       setRunning("");
     }
+  }
+  async function refreshSaved(action: string) {
+    if (disabled || locked.current || !saved[action]) return;
+    locked.current = true;
+    setRefreshing(action);
+    try {
+      await refresh();
+      setSaved((current) => ({ ...current, [action]: { needsRefresh: false } }));
+    } catch {
+      setSaved((current) => ({ ...current, [action]: { needsRefresh: true } }));
+    } finally {
+      locked.current = false;
+      setRefreshing("");
+    }
+  }
+  function startAnother(action: string) {
+    if (disabled || locked.current) return;
+    setSaved((current) => {
+      const next = { ...current };
+      delete next[action];
+      return next;
+    });
+    setValues((current) => ({ ...current, [action]: {} }));
+    setError("");
   }
   const pick = (id: string) => {
     setPicked(picked === id ? "" : id);
@@ -125,73 +161,115 @@ export function EmployeeActions({
       {shown &&
         [shown].map((action) => {
           const start = () => void run(action.id, action.fields);
+          const confirmed = saved[action.id];
+          const blocked = disabled || running !== "" || refreshing !== "";
+          const Inputs = confirmed ? "details" : Fragment;
+          const controls = (
+            <div className="co-action-run">
+              {confirmed ? (
+                <>
+                  {confirmed.needsRefresh && (
+                    <button
+                      type="button"
+                      className="co-primary"
+                      disabled={blocked}
+                      onClick={() => void refreshSaved(action.id)}
+                    >
+                      {refreshing === action.id ? "Refreshing…" : "Retry refresh"}
+                    </button>
+                  )}
+                  <button type="button" disabled={blocked} onClick={() => startAnother(action.id)}>
+                    Start another run
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="co-primary" disabled={blocked} onClick={start}>
+                  {running === action.id ? "Gathering…" : "Run"}
+                </button>
+              )}
+              <button
+                type="button"
+                className="fe-icon-button"
+                aria-label={"Close " + action.name}
+                title="Close"
+                onClick={() => pick(action.id)}
+              >
+                <X size={15} />
+              </button>
+            </div>
+          );
           return (
             <div key={action.id} className="co-action" role="group" aria-label={action.name}>
               <p>
                 <b>{action.name}</b> {action.description} The result is saved for your review before it can be used.
               </p>
-              {action.fields.map((field) => {
-                const value = valueOf(action.id, field);
-                const change = (text: string) =>
-                  setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: text } });
-                // Long fields take several lines (pasted messages, notes): Enter adds a line, Ctrl+Enter runs. Short
-                // fields run on Enter.
-                const multiline = field.maxLength > 200;
-                const choices = choicesOf(action.id, field);
-                return (
-                  <label key={field.id}>
-                    {field.label}
-                    {choices.length ? (
-                      <select aria-label={field.label} value={value} onChange={(event) => change(event.target.value)}>
-                        {choices.map((choice) => (
-                          <option key={choice.value} value={choice.value}>
-                            {choice.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : multiline ? (
-                      <textarea
-                        aria-label={field.label}
-                        maxLength={field.maxLength}
-                        rows={6}
-                        value={value}
-                        onChange={(event) => change(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) return;
-                          event.preventDefault();
-                          if (!disabled && running === "") start();
-                        }}
-                      />
-                    ) : (
-                      <input
-                        aria-label={field.label}
-                        maxLength={field.maxLength}
-                        value={value}
-                        onChange={(event) => change(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter") return;
-                          event.preventDefault();
-                          if (!disabled && running === "") start();
-                        }}
-                      />
-                    )}
-                  </label>
-                );
-              })}
-              <div className="co-action-run">
-                <button type="button" className="co-primary" disabled={disabled || running !== ""} onClick={start}>
-                  {running === action.id ? "Gathering…" : "Run"}
-                </button>
-                <button
-                  type="button"
-                  className="fe-icon-button"
-                  aria-label={"Close " + action.name}
-                  title="Close"
-                  onClick={() => pick(action.id)}
-                >
-                  <X size={15} />
-                </button>
-              </div>
+              {confirmed && (
+                <p role="status">
+                  {confirmed.needsRefresh
+                    ? "Action saved. The workspace could not refresh. Your result and inputs are kept."
+                    : "Action saved. Review its result in this conversation."}
+                </p>
+              )}
+              {confirmed && controls}
+              <Inputs>
+                {confirmed && <summary>Submitted inputs</summary>}
+                {action.fields.map((field) => {
+                  const value = valueOf(action.id, field);
+                  const change = (text: string) =>
+                    setValues({ ...values, [action.id]: { ...values[action.id], [field.id]: text } });
+                  // Long fields take several lines (pasted messages, notes): Enter adds a line, Ctrl+Enter runs. Short
+                  // fields run on Enter.
+                  const multiline = field.maxLength > 200;
+                  const choices = choicesOf(action.id, field);
+                  return (
+                    <label key={field.id}>
+                      {field.label}
+                      {choices.length ? (
+                        <select
+                          aria-label={field.label}
+                          value={value}
+                          disabled={blocked || !!confirmed}
+                          onChange={(event) => change(event.target.value)}
+                        >
+                          {choices.map((choice) => (
+                            <option key={choice.value} value={choice.value}>
+                              {choice.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : multiline ? (
+                        <textarea
+                          aria-label={field.label}
+                          maxLength={field.maxLength}
+                          rows={6}
+                          value={value}
+                          disabled={blocked || !!confirmed}
+                          onChange={(event) => change(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) return;
+                            event.preventDefault();
+                            if (!blocked && !confirmed) start();
+                          }}
+                        />
+                      ) : (
+                        <input
+                          aria-label={field.label}
+                          maxLength={field.maxLength}
+                          value={value}
+                          disabled={blocked || !!confirmed}
+                          onChange={(event) => change(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key !== "Enter") return;
+                            event.preventDefault();
+                            if (!blocked && !confirmed) start();
+                          }}
+                        />
+                      )}
+                    </label>
+                  );
+                })}
+              </Inputs>
+              {!confirmed && controls}
             </div>
           );
         })}

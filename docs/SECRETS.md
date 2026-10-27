@@ -13,6 +13,24 @@ A **secret** is any value that grants access if someone else learns it:
 
 Secrets must not be in source code or ordinary settings files, which get copied, committed and shared.
 
+**Company private connections:** the general precedence below applies to operator services and the original
+local company's legacy connections. New local companies and every hosted company use their own connection
+directory, as specified in [ADR 0062](adr/0062-company-owned-private-connections.md):
+`<data root>/companies/<lowercase SHA-256 of the UTF-8 company ID>/integrations/`.
+For hosted Google Analytics, Ads, Drive and OpenRouter, mount each named credential directly under that company's
+`credentials/` directory. These readers ignore process-wide environment variables and `/run/secrets`.
+Use owner-only filesystem permissions and the existing protected Data Protection key ring for stored
+Microsoft tokens. Configure the intended company through its owner UI, then reconnect Microsoft 365 there.
+An upgrade does not import old root-level hosted credentials into any company.
+
+**Google Drive document imports** use the separate `HIREZERO_GOOGLE_DRIVE_SERVICE_ACCOUNT` JSON key. In local
+mode, an owner can save it through the Drive setup form; it uses the same encrypted, company-scoped secret store.
+In hosted mode, deliver it in that company's credential directory. Use a dedicated service account, share only
+the selected files with it as Viewer, and do not grant domain-wide delegation. The connector requests only the
+Drive read-only scope and separately enforces the configured file IDs. It never reuses Analytics sign-in tokens.
+Removing a key or file ID stops new reads. Already approved text copies remain in Documents until revoked or
+deleted there; disconnecting Drive does not erase stored copies. See [ADR 0090](adr/0090-selected-drive-document-copies.md).
+
 A **vault** (secret manager) is a service built to keep secrets:
 - it stores them encrypted;
 - it controls who may read each one;
@@ -36,6 +54,11 @@ running program. There are two ways:
 HireZero uses the second way, so it works with any vault, or none, without depending on one.
 
 ## 2. The one rule: secrets are read by name
+
+Optional hosted notification email reads `HIREZERO_NOTIFICATION_SMTP_PASSWORD` through this same mechanism
+at send time. Rotation needs no saved notification-record change. Its SMTP host, port, username and sender are
+ordinary operator settings; the password is never accepted in the settings JSON or browser. Email remains off
+until a verified owner explicitly authorizes notices in the workspace inbox.
 
 Every secret has a name, such as `HIREZERO_OIDC_CLIENT_SECRET`. When HireZero needs it, it looks in this order and
 takes the first it finds:
@@ -74,6 +97,9 @@ flowchart LR
 | Name | What it is for | When missing | Rotation |
 | --- | --- | --- | --- |
 | `HIREZERO_OIDC_CLIENT_SECRET` | Hosted sign-in: proves HireZero to your identity provider | Sign-in uses PKCE only (public client) | Change the file; the next sign-in uses it |
+| `HIREZERO_STRIPE_SECRET_KEY` | Billing API access to the configured merchant and mode | Configured billing refuses startup | Change the file; the next provider request uses it |
+| `HIREZERO_STRIPE_WEBHOOK_SECRET` | Authenticates raw Stripe notification bodies | Configured billing refuses startup | Move the previous value to the previous-secret file, then replace this file |
+| `HIREZERO_STRIPE_PREVIOUS_WEBHOOK_SECRET` | Previous webhook signing key during rotation | Only the current key is accepted | Remove after the provider rotation overlap ends |
 | `HIREZERO_TLS_CERTIFICATE_PASSWORD` | Opens the HTTPS certificate when HireZero terminates TLS itself | The certificate must not have a password | Restart (the certificate loads at startup) |
 | `HIREZERO_DATABASE` | PostgreSQL connection string for hosted installs | Company data stays in SQLite in the data root | Restart |
 | `HIREZERO_DATABASE_PASSWORD` | The PostgreSQL password, kept out of the connection string | The password is in the connection string, if anywhere | Change the file; new connections use it within 5 minutes |
@@ -85,6 +111,7 @@ flowchart LR
 | `HIREZERO_OPENROUTER_API_KEY` or `OPENROUTER_API_KEY` | OpenRouter: structured choices, and employees' model for any route with `HIREZERO_API_MODELS=1` | The provider is unavailable | Change the file; the next call uses it |
 | `HIREZERO_JEV_API_KEY` or `TYPESAFE_API_KEY` | The Jev choice service | Jev is unavailable | Change the file |
 | `HIREZERO_SEMAFORGE_API_KEY` | SemaForge | SemaForge is unavailable | Change the file |
+| `HIREZERO_BRAVE_SEARCH_API_KEY` | One owner-authorized business website search through Brave | Website search is unavailable; the owner can enter the URL | Change the file; the next explicitly authorized search uses it |
 | `HIREZERO_GOOGLE_ADS_DEVELOPER_TOKEN` | Your Google Ads API developer token | Google Ads is unavailable | Reset it in the API Center, update the file |
 | `HIREZERO_GOOGLE_ADS_CLIENT_SECRET` | The OAuth client secret used to sign in to Google Ads | Google Ads is unavailable | Add a secret to the OAuth client, update the file, delete the old one |
 | `HIREZERO_GOOGLE_ADS_REFRESH_TOKEN` | The read-only user's refresh token for Google Ads | Google Ads is unavailable | Authorize again, update the file, revoke the old grant |
@@ -126,13 +153,16 @@ For anything beyond one person's machine, supply a key-encryption key. The code 
 mode, the Integrations section accepts the secrets that integrations declare: the Google key, the Google Ads tokens
 and the OpenRouter key.
 - Host secrets are never accepted there: the database, audit, key-encryption and sign-in secrets.
-- Each value is encrypted with Data Protection into `data root/secrets/NAME.secret`. That directory is owner-only on
+- Each value is encrypted with Data Protection into the company's connection directory at `secrets/NAME.secret`.
+  Only the original local company retains `data root/secrets/NAME.secret`; other companies also have distinct
+  encryption purposes. That directory is owner-only on
   macOS and Linux.
 - A pasted value is never sent back to a page. The page shows only where each secret comes from.
-- It is read last, so a file, credential directory or environment variable of the same name always wins. The page says
+- It is read last. The original local company retains file, credential-directory and environment precedence;
+  other companies use only their own credential directory before pasted values. The page says
   when a pasted value is being ignored.
 - Setting or removing one is recorded in the audit log by name, never by value.
-- Hosted mode refuses pasted secrets: deliver them from your vault as above.
+- Hosted mode refuses pasted secrets: deliver them from your vault to the company's credential directory above.
 
 The **audit key** signs the tamper-evident audit log ([ADR 0022](adr/0022-tamper-evident-audit-log.md)). By default
 it is `audit.key` in the data root. When several hosts share one PostgreSQL database, give them the same
@@ -293,3 +323,17 @@ vault, so changing vaults changes only the agent's configuration.
   an optional `HireZero.Integrations.OpenBao` project, with no change to Core or roles.
 - Should the owner see the startup secret report in the UI, as well as in the log?
 - Non-secret settings are typed and validated, and can come from a settings file. See [SETTINGS.md](SETTINGS.md).
+
+## Company-owned model API keys
+
+The owner-only model connection endpoint stores an encrypted `model-connection.secret` under the hashed company
+data directory. Its Data Protection purpose includes the company ID, so copying ciphertext into another company
+does not make the key usable there. Keep the existing host encryption/key-ring protections and backups intact.
+Provider status and usage records contain no key. The browser clears its password field after each save attempt
+and does not write the key to local or session storage.
+
+A changed key creates new model authority and invalidates unsent reviews. If the response is lost, read saved
+status before making another change; there is no automatic resubmission. Corrupted or undecryptable state fails
+closed, without substituting host credentials. Removing the current saved key selects the host connection for
+new reviews; revoke the key separately at its provider when required. Backup copies and encryption-key retirement
+need their own retention process. See [ADR 0085](adr/0085-company-owned-model-connections.md).

@@ -34,7 +34,11 @@ try{
   const dashboard=()=>fetch(url+'/api/company').then(r=>r.json());
   const starts=async()=>{const files=await fs.readdir(temporary,{recursive:true});let count=0;for(const file of files.filter(p=>p.endsWith('fixture-native-starts')))count+=(await fs.readFile(path.join(temporary,file),'utf8')).trim().split('\n').filter(Boolean).length;return count;};
   await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Browser draft fixture')).click()");await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'manual jobs employee');
+  await until(()=>evaluate("document.querySelector('.fe-send')?.textContent.trim()==='Prepare reply'"),'composer visibly names reply preparation');
+  await field('Message action','save');assert.equal(await evaluate("document.querySelector('.fe-send').textContent.trim()"),'Save message','Saving a message is visible without hovering');
+  await field('Message action','reply');
   await field('Work type','marketing-draft');
+  assert.equal(await evaluate("document.querySelector('.fe-send').textContent.trim()"),'Assign work','Assigning work is visibly distinct from asking for a reply');
   const brief=JSON.parse(await fs.readFile(path.join(repo,'tests/fixtures/one-job-marketing-brief.json'),'utf8'));
   for(const [key,value] of Object.entries(brief))await field(key,value);
   await evaluate("document.querySelector('button[aria-label=\"Assign work\"]').click()");await until(async()=>(await dashboard()).data.tasks.length===1,'brief saved');
@@ -52,6 +56,8 @@ try{
   await click('Authorize and run one job');await until(async()=>(await dashboard()).data.tasks[0].state==='awaiting_review','fake draft saved for owner review');
   let state=await dashboard();assert.equal(state.data.artifacts[0].state,'needs_review');assert.equal(await starts(),1,'Exactly one fake-native request');
   await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'reload conversation route');
+  await until(()=>evaluate("!!document.querySelector('.co-job-receipt summary')"),'saved execution receipt available');
+  await evaluate("document.querySelector('.co-job-receipt summary').click()");
   await until(()=>evaluate("document.body.innerText.includes('Draft saved for review')"),'saved receipt survives reload');assert.equal(await starts(),1,'Reload never resumes or replays');
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent==='Authorize and run one job')"),false,'Consumed grant has no run button');
   await click('Approve result');await until(async()=>(await dashboard()).data.artifacts[0].state==='approved','exact content approval');await click('Complete after review');
@@ -69,6 +75,9 @@ try{
   state=await dashboard();const handoff=state.data.handoffs[0],assigned=state.data.tasks.find(t=>t.id===handoff.targetTaskId);
   assert.equal(assigned.employeeId,recipient.id);assert.equal(assigned.skill,'developer-work');assert.equal(assigned.state,'blocked');assert.equal(assigned.resource,null);assert.equal(state.data.executions.length,0);
   await until(()=>evaluate("document.body.innerText.includes('Owner-approved handoff')"),'recipient task and shared artifact visible');
+  await until(()=>evaluate("document.querySelector('.co-execution')?.innerText.includes('Coding is not available for this company')"),'unavailable coding explains how the saved task can proceed');
+  assert.equal(await evaluate("!!document.querySelector('.co-execution form')"),false,'No unusable local-checkout form is offered without a coding runtime');
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-execution button')].some(b=>/Prepare execution|Run once/.test(b.textContent))"),false,'Unavailable coding has no dead-end execution action');
   assert.equal(await starts(),1,'Sharing creates no additional fake model or coding request');
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent==='Request fresh attempt')"),false,'A task-scoped handoff cannot escape its sharing approval via retry');
   await click('Revoke this handoff');await until(async()=>(await dashboard()).data.handoffs[0].state==='revoked','revoked sharing');
@@ -78,12 +87,44 @@ try{
   const desktop=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/task-handoff-desktop.png'),Buffer.from(desktop.data,'base64'));
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(250);assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Mobile layout does not overflow');
   assert.equal(await evaluate("document.querySelector('.fe-topbar').getBoundingClientRect().bottom<=document.querySelector('.co-conversation-context').getBoundingClientRect().top"),true,'Mobile header and conversation context do not overlap');
+  const mobileControls=await evaluate("(()=>{const bounds=s=>{const r=document.querySelector(s).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};};return {mode:bounds('.co-mode'),cockpit:bounds('.co-cockpit-toggle'),send:bounds('.fe-send'),navigation:bounds('.co-navigation'),width:innerWidth,height:innerHeight};})()");
+  assert.ok(mobileControls.mode.top>=mobileControls.cockpit.bottom,'Mobile Chat/Work controls sit below the cockpit toggle: '+JSON.stringify(mobileControls));
+  assert.ok(mobileControls.send.left>=0&&mobileControls.send.right<=mobileControls.width&&mobileControls.send.top>=0&&mobileControls.send.bottom<=mobileControls.height,'Mobile composer action fits inside the viewport: '+JSON.stringify(mobileControls));
+  assert.ok(mobileControls.send.bottom<=mobileControls.navigation.top,'Mobile composer action is above the bottom navigation: '+JSON.stringify(mobileControls));
   const mobile=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/task-handoff-mobile.png'),Buffer.from(mobile.data,'base64'));
-  console.log('PASS real Chrome: approved Marketing artifact to explicit cross-department Developer task, no execution authority or extra dispatch, scoped revocation and desktop/mobile rendering');
+  // A full history must remain reachable: twelve neat rows are no excuse for losing the thirteenth.
+  const history=await evaluate(`(async()=>{const command=async(action,fields)=>{const r=await fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action,...fields})});if(!r.ok)throw Error(action+' '+r.status+' '+await r.text());return r.json();};const ids=[];
+    for(let i=1;i<=13;i++){const saved=await command('message.send',{employeeId:${JSON.stringify(recipient.id)},threadId:${JSON.stringify(recipientThread.id)},skill:'developer-work',body:'Fictional history item '+i});const state=await(await fetch('/api/company')).json();const task=state.data.tasks.find(t=>t.id===saved.task.id);await command('task.cancel',{id:task.id,expectedVersion:task.version});ids.push(task.id);}return ids;})()`);
+  assert.equal(await starts(),1,'Saving and canceling history fixtures never dispatches a provider');
+  await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'history conversation reloaded');
+  await evaluate("[...document.querySelectorAll('.co-mode button')].find(b=>b.textContent.startsWith('Work')).click()");
+  await until(()=>evaluate("document.querySelectorAll('.co-work-board [aria-label=\"Done\"] .co-work-item').length===12"),'Done initially shows the most recent twelve items');
+  assert.equal(await evaluate("document.querySelector('.co-work-board [aria-label=\"Done\"] .fe-count').textContent"),'14','Done count includes the revoked handoff and all saved history');
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-work-item q')].some(q=>q.textContent==='Fictional history item 1')"),false,'The oldest seeded item starts outside the recent page');
+  await click('Show earlier work (2 more)');
+  await until(()=>evaluate("document.querySelectorAll('.co-work-board [aria-label=\"Done\"] .co-work-item').length===14"),'earlier work revealed');
+  assert.equal(await evaluate("!!document.querySelector('.co-work-older')"),false,'The history button disappears when all items are shown');
+  await evaluate("[...document.querySelectorAll('.co-work-item')].find(b=>b.querySelector('q')?.textContent==='Fictional history item 1').click()");
+  await until(()=>evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(history[0])}&&!!document.querySelector('.co-work-window')`),'oldest seeded task opens its exact work window');
+  assert.equal(await starts(),1,'Opening earlier work never replays it');
+  // Reassignment keeps an old record; the board must not lose the trail while polishing the silver.
+  const replaced=await evaluate(`(async()=>{const command=async(action,fields)=>{const r=await fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action,...fields})});if(!r.ok)throw Error(action+' '+r.status+' '+await r.text());return r.json();};const saved=await command('task.create',{employeeId:${JSON.stringify(recipient.id)},threadId:${JSON.stringify(recipientThread.id)},skill:'developer-work',body:'Fictional replaced website review'});const state=await(await fetch('/api/company')).json();const original=state.data.tasks.find(t=>t.id===saved.id);const fresh=await command('task.reassign',{id:original.id,expectedVersion:original.version,employeeId:${JSON.stringify(recipient.id)},threadId:${JSON.stringify(recipientThread.id)}});return {original:original.id,fresh:fresh.id};})()`);
+  await send('Page.reload');await until(()=>evaluate("!!document.querySelector('.co-work-window')"),'history detail survives reload');
+  await evaluate("document.querySelector('button[aria-label=\"Close work\"]').click()");
+  await until(()=>evaluate("!!document.querySelector('.co-work-board [aria-label=\"Replaced\"] .co-work-item')"),'replaced assignment remains visible in durable history');
+  assert.match(await evaluate("document.querySelector('.co-work-board [aria-label=\"Replaced\"]').textContent"),/Fictional replaced website review.*Replaced by a fresh assignment/s,'History explains the actual terminal state');
+  await evaluate("document.querySelector('.co-work-board [aria-label=\"Replaced\"] .co-work-item').click()");
+  await until(()=>evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(replaced.original)}`),'replaced row opens the original record, not its replacement');
+  assert.equal((await dashboard()).data.tasks.find(t=>t.id===replaced.fresh).state,'blocked','Browsing the original does not alter the new assignment');
+  assert.equal(await starts(),1,'Browsing replaced work never dispatches or retries it');
+  assert.equal(errors.length,0,'No uncaught UI exceptions after browsing earlier work');
+  console.log('PASS real Chrome: visible composer actions, approved Marketing artifact to explicit cross-department Developer task, no execution authority or extra dispatch, scoped revocation, earlier Work history and desktop/mobile rendering');
   await send('Browser.close').catch(()=>{});
 }catch(e){await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/task-handoff-browser-host.log'),hostLog);throw e;}
 finally{
-  ws?.close();browser?.kill();host.kill();await delay(400);
+  ws?.close();
+  const exit=async p=>{if(!p||p.exitCode!==null||p.signalCode!==null)return;const done=new Promise(r=>p.once('exit',r));p.kill();await Promise.race([done,delay(5000)]);if(p.exitCode===null&&p.signalCode===null)throw Error('Owned browser fixture process has not exited; temporary files retained.');};
+  await exit(browser);await exit(host);
   // Delete only this script's verified mkdtemp root after its own processes have exited.
   if(path.dirname(temporary)===path.resolve(os.tmpdir())&&path.basename(temporary).startsWith('hirezero-manual-ui-'))await fs.rm(temporary,{recursive:true,force:true,maxRetries:5,retryDelay:200});
 }

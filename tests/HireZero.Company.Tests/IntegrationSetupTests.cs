@@ -32,6 +32,7 @@ public sealed class IntegrationSetupTests : IAsyncDisposable
         IConfigurableIntegration[] integrations =
         [
             new GoogleAnalyticsProvider(_root.Path),
+            new GoogleDriveDocuments(_root.Path, () => null),
             new GoogleAdsProvider(_root.Path),
             new AzureDevOpsToolProvider(_root.Path),
             AgentAppsToolProvider.Company(_root.Path),
@@ -152,7 +153,13 @@ public sealed class IntegrationSetupTests : IAsyncDisposable
         if (Environment.GetEnvironmentVariable(GoogleAnalyticsProvider.KeySecret) is null)
         {
             Assert.Contains("\"origin\":\"app\"", setup);
-            Assert.Equal(FictionalKey, SecretSource.Default.Read(GoogleAnalyticsProvider.KeySecret));
+            var secrets = new LocalSecretStore(
+                data,
+                app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
+                LocalSecretStore.Names
+            );
+            Assert.Equal(FictionalKey, secrets.Read(GoogleAnalyticsProvider.KeySecret));
+            Assert.NotEqual(FictionalKey, SecretSource.Default.Read(GoogleAnalyticsProvider.KeySecret));
         }
         var events = store.Feed(0, 500).Where(e => e.Type.StartsWith("integration.", StringComparison.Ordinal));
         Assert.Contains(events, e => e.Text == "Secret set: " + GoogleAnalyticsProvider.KeySecret + ".");
