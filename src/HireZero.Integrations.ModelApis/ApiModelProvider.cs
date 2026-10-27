@@ -120,9 +120,11 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
             ?? throw NotSent(
                 $"The route {route} has no reviewed price, so its spending cannot be capped. Add it to the model prices."
             );
-        // A measured call carries no output limit of its own (the store builds it with 0); its policy's output target is
-        // the limit, both for the worst case and for the request, so nothing is sent with a zero or unbounded limit.
-        var maxOutput = call.MaxOutputTokens > 0 ? call.MaxOutputTokens : job.Policy.OutputTarget;
+        // A measured call carries no output limit of its own (the store builds it with 0); its policy's low-effort output
+        // target is the limit, both for the worst case and for the request, so nothing is sent with a zero or unbounded
+        // limit (docs/adr/0134-high-effort-deliverables.md).
+        var maxOutput =
+            call.MaxOutputTokens > 0 ? call.MaxOutputTokens : CompanyMeasuredPolicy.LowEffortOutputTarget(job.Policy);
         var worst = WorstCaseUsd(price, bytes, maxOutput);
         var allowance = job.CreditAllowance / 100m;
         if (worst > allowance)

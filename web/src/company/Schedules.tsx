@@ -44,6 +44,7 @@ type Schedule = {
       localDeadlineSeconds: number;
       applicationBytes: number;
       visibleCharacterStop: number;
+      effort?: string;
     } | null;
     context: {
       companyFacts: string;
@@ -867,8 +868,12 @@ export function Schedules({
                   Account: {providerName(schedule.authority.terms.provider)} · {schedule.authority.route}.{" "}
                 </>
               )}
-              One model request per run, up to {schedule.authority.policy.localDeadlineSeconds} seconds locally.
-              Planning allowance: {schedule.authority.policy.planningTokens.toLocaleString()} tokens per run;{" "}
+              One model request per run at{" "}
+              {schedule.authority.terms?.allowanceUnit === "usd-cents"
+                ? "low"
+                : (schedule.authority.policy.effort ?? "low")}{" "}
+              reasoning effort, up to {schedule.authority.policy.localDeadlineSeconds} seconds locally. Planning
+              allowance: {schedule.authority.policy.planningTokens.toLocaleString()} tokens per run;{" "}
               {(schedule.authority.policy.planningTokens * schedule.definition.occurrences).toLocaleString()} across
               this schedule.{" "}
               {(schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)

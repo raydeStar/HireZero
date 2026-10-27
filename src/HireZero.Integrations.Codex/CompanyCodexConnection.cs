@@ -366,7 +366,8 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 {
                     threadId = thread,
                     model,
-                    effort = "low",
+                    // The reviewed policy sets the effort; qualification turns stay low.
+                    effort = measured?.Policy.Effort ?? "low",
                     summary = "none",
                     approvalPolicy = "never",
                     environments = Array.Empty<object>(),

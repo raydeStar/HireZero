@@ -25,3 +25,6 @@ distribution note; ADR 0128's revision context is unchanged.
 Evidence is a private replay of the pilot revision through the same runtime, model and effort, graded per
 criterion; see [the evaluation note](../history/2026-10-27-revision-requirements-eval.md). Live owner acceptance
 of a new native revision remains separate.
+
+Recurring schedule approvals include the role's instructions, so Marketing schedules approved before this change
+are no longer current and must be reviewed again, as for any instruction change.

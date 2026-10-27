@@ -368,6 +368,10 @@ export function MeasuredJob({
                   that amount.
                 </p>
                 <p>
+                  Reasoning effort: {cents ? "low" : (entry.job.policy.effort ?? "low")}. Reasoning tokens count as
+                  output tokens.
+                </p>
+                <p>
                   Soft stops: {entry.job.policy.localDeadlineSeconds} seconds,{" "}
                   {entry.job.policy.visibleCharacterStop.toLocaleString()} visible characters,{" "}
                   {entry.job.policy.outputTarget.toLocaleString()} observed output tokens and{" "}

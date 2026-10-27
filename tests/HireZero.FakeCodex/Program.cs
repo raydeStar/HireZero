@@ -597,6 +597,10 @@ while (await Console.In.ReadLineAsync() is { } line)
                 p.GetProperty("input")[0].GetProperty("text").GetString()
             );
             File.AppendAllText(Path.Combine(Directory.GetCurrentDirectory(), "fixture-native-starts"), "start\n");
+            File.AppendAllText(
+                Path.Combine(Directory.GetCurrentDirectory(), "fixture-native-efforts"),
+                p.GetProperty("effort").GetString() + "\n"
+            );
             if (mode == "company-start-refusal")
             {
                 Write(
@@ -628,7 +632,7 @@ while (await Console.In.ReadLineAsync() is { } line)
             }
             if (
                 p.GetProperty("model").GetString() != companyTextModel
-                || p.GetProperty("effort").GetString() != "low"
+                || p.GetProperty("effort").GetString() is not ("low" or "high")
                 || p.GetProperty("summary").GetString() != "none"
                 || p.GetProperty("serviceTierForTurn").GetString() != "default"
                 || p.TryGetProperty("sandboxPolicy", out _)

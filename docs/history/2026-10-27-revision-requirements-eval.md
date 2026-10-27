@@ -25,6 +25,21 @@ request's length kept it in 7 of 8 final samples (previous: 3 of 6, counted in c
 receive revision instructions, kept the channel and learning goal in 4 of 4. Identical first-run instructions
 scored 4 of 4 and 2 of 4 on one criterion in separate batches, so differences of that size are noise.
 
+## Reasoning effort
+
+The final prompts were replayed at each effort the runtime offers for the model (ADR 0134):
+
+| Effort | Runs | All must-haves | Reasoning tokens | Output tokens | Seconds |
+| --- | --- | --- | --- | --- | --- |
+| Low | 10 | 5 | 0 | 577-639 | 7-10 |
+| Medium | 10 | 7 | 0 | 549-1,226 | 7-12 |
+| High | 10 | 10 | 287-1,445 | 896-2,096 | 12-20 |
+| Extra-high | 3 | 2 | 8,677-9,511 | 9,387-10,265 | 68-98 |
+
+Across 22 high runs including first-run, removal and single-post cases, three exceeded 1,800 output tokens. High
+kept the channel and learning goal on first runs (4 of 4), honoured the explicit removal (4 of 4) and kept the
+single post in range (4 of 4). Calls to action were not improved.
+
 Not fixed: posts often carry more than one call to action, the five-line brief is often written inline, and the
 channel is usually both labeled unconfirmed and listed as an owner decision, which the request's own wording
 invites. These also occur with the previous prompts and in the owner's editorial correction. No owner acceptance

@@ -272,6 +272,7 @@ export type MeasuredEntry = {
       planningTokens: number;
       localDeadlineSeconds: number;
       visibleCharacterStop: number;
+      effort?: string;
     };
   };
 };

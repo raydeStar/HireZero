@@ -593,7 +593,7 @@ try {
   assert.equal(data.tasks.filter((t) => t.kind === "work").length, 1);
   assert.equal(firstTask().kind, "work");
   const firstMeasured = data.measured.find(
-    (m) => m.job.policy.version === "measured-deliverable-v1",
+    (m) => m.job.policy.version === "measured-deliverable-v2",
   );
   assert.ok(firstMeasured);
   assert.equal(firstMeasured.job.state, "proposed");

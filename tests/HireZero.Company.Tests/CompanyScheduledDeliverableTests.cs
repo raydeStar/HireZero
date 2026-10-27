@@ -1,4 +1,5 @@
 using HireZero.Core;
+using Microsoft.Data.Sqlite;
 
 public sealed partial class CompanyScheduleTests
 {
@@ -59,6 +60,45 @@ public sealed partial class CompanyScheduleTests
         Assert.Equal("completed", s.ScheduleDetail(schedule.Id).Schedule.State);
         using var restarted = new CompanyScheduler(Store(), model);
         Assert.False(await restarted.TickSchedulesAsync(TestContext.Current.CancellationToken));
+    }
+
+    // A schedule prepared before high-effort deliverables runs under the low-effort policy it was approved with
+    // (docs/adr/0134-high-effort-deliverables.md); a new draft gets the current one.
+    [Fact]
+    public async Task ARecurringDeliverableKeepsTheLowEffortPolicyItWasApprovedWith()
+    {
+        var s = Store();
+        var input = Definition(Employee(s)) with { Skill = "marketing-starter-plan" };
+        var current = Draft(s, input);
+        Assert.Equal(CompanyMeasuredPolicy.Deliverable, current.Authority.Policy);
+        var schedule = Approve(
+            s,
+            Stored(current with { Authority = current.Authority with { Policy = CompanyMeasuredPolicy.DeliverableV1 } })
+        );
+        Assert.Equal(CompanyMeasuredPolicy.DeliverableV1, schedule.Authority.Policy);
+        var model = new Model(policy: CompanyMeasuredPolicy.DeliverableV1);
+        using var scheduler = new CompanyScheduler(s, model);
+        _now = s.ScheduleDetail(schedule.Id).Schedule.NextRunAt!.Value;
+        Assert.True(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, model.Calls);
+        Assert.Contains("500 words", model.Last!.Instructions);
+    }
+
+    // Saves a draft as an earlier release stored it.
+    private CompanySchedule Stored(CompanySchedule draft)
+    {
+        draft = draft with
+        {
+            Digest = CompanyJson.Digest(new { input = draft.Definition, authority = draft.Authority }),
+        };
+        using var db = new SqliteConnection("Data Source=" + Path.Combine(_root.Path, "company.sqlite"));
+        db.Open();
+        using var update = db.CreateCommand();
+        update.CommandText = "UPDATE co_schedules SET payload=$payload WHERE id=$id";
+        update.Parameters.AddWithValue("$payload", CompanyJson.Encode(draft));
+        update.Parameters.AddWithValue("$id", draft.Id);
+        Assert.Equal(1, update.ExecuteNonQuery());
+        return draft;
     }
 
     private static CompanyArtifact ApprovedReference(CompanyStore s)

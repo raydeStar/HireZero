@@ -233,7 +233,8 @@ public sealed partial class CompanyStore
     private CompanyScheduleAuthority ScheduleAuthority(
         StoreConnection db,
         CompanyScheduleInput input,
-        bool existing = false
+        bool existing = false,
+        CompanyMeasuredPolicy? approved = null
     )
     {
         if (input.Kind == "source-refresh")
@@ -301,9 +302,9 @@ public sealed partial class CompanyStore
         var evidence = input.Evidence ?? [];
         Evidence(db, evidence);
         var selectedResults = evidence.Select(id => Need<CompanyArtifact>(db, id)).ToArray();
-        var policy = CompanyMeasuredPolicy.For(
-            kind,
-            role.Manifest?.Skills.SingleOrDefault(s => s.Id == skill)?.MeasuredProfile
+        var policy = CompanyMeasuredPolicy.Kept(
+            CompanyMeasuredPolicy.For(kind, role.Manifest?.Skills.SingleOrDefault(s => s.Id == skill)?.MeasuredProfile),
+            approved
         );
         var evidenceText =
             selectedResults.Length == 0
@@ -381,8 +382,9 @@ public sealed partial class CompanyStore
             return false;
         try
         {
-            return CompanyJson.Digest(ScheduleAuthority(db, schedule.Definition, existing: true))
-                == CompanyJson.Digest(schedule.Authority);
+            return CompanyJson.Digest(
+                    ScheduleAuthority(db, schedule.Definition, existing: true, schedule.Authority.Policy)
+                ) == CompanyJson.Digest(schedule.Authority);
         }
         catch (WorkspaceException)
         {
@@ -514,8 +516,9 @@ public sealed partial class CompanyStore
                     409
                 );
             if (
-                CompanyJson.Digest(ScheduleAuthority(db, schedule.Definition, existing: true))
-                != CompanyJson.Digest(schedule.Authority)
+                CompanyJson.Digest(
+                    ScheduleAuthority(db, schedule.Definition, existing: true, schedule.Authority.Policy)
+                ) != CompanyJson.Digest(schedule.Authority)
             )
                 throw new WorkspaceException(
                     "The employee, approved context or runtime changed. Create and review a new schedule.",
