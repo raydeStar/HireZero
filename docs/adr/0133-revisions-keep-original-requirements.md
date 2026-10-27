@@ -7,17 +7,21 @@ and the previous draft already contained: a channel recommendation labeled as a 
 learning goal. It also cited an audience from the feedback as an approved brief field. The original request was
 in the revision context; the instructions gave no precedence between it and the feedback. The feedback listed
 most deliverables and was read as the complete scope. The Marketing role's "flag channel selection once" rule,
-repeated in the feedback, conflicted with a request that asked for a channel hypothesis.
+repeated in the feedback, was read as permission to leave the channel to the owner.
 
-Revision instructions now state that the original request still defines the deliverable. Feedback changes or
-adds to it; requirements stay unless the feedback explicitly removes or replaces them, including parts the
-previous draft already satisfied. Feedback is owner direction for that draft, not an approved company fact, and
-is not cited as a brief field. This text is role-neutral and lives in core.
+Text turns run at low effort with no reasoning tokens, so instructions to check work before returning had little
+effect. Structure did: revision instructions now ask the model to cover every deliverable and constraint the
+original request names (parts, lengths, exclusions) in its order, apply feedback to each, then add new requests.
+An item is dropped only when the feedback explicitly says so; when feedback and an item seem to conflict, both
+are satisfied. Feedback is owner direction for that draft, never attributed to a business brief field. This text
+is role-neutral and lives in core.
 
-Marketing starter plans recommend one channel as a labeled hypothesis when the owner asks for one, noting
-unconfirmed reach beside it instead of repeating it among owner decisions. Otherwise channel selection is still
-flagged once. On revision, the role keeps whatever already met the request. This refines ADR 0129's distribution
-note; ADR 0128's revision context is unchanged.
+Marketing starter plans write "Channel hypothesis: <one named channel>; fit unconfirmed" when the owner asks for a
+channel; portable copy and flagging the decision accompany the recommendation rather than replacing it. The
+learning goal is one sentence separate from the tally, observations restate only their cited brief field, assets
+are written once, and missing facts and owner decisions share one list of at most three. This refines ADR 0129's
+distribution note; ADR 0128's revision context is unchanged.
 
-These are instruction changes only. No live model request was made; whether native output improves needs a
-separately approved run.
+Evidence is a private replay of the pilot revision through the same runtime, model and effort, graded per
+criterion; see [the evaluation note](../history/2026-10-27-revision-requirements-eval.md). Live owner acceptance
+of a new native revision remains separate.

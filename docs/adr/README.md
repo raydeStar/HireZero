@@ -135,4 +135,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0128](0128-artifact-feedback-and-revision-requests.md) | Save requested changes with a separate, explicitly authorized revision | Implemented; backend and browser verified |
 | [0129](0129-usable-weekly-deliverables.md) | Include complete useful assets and open revisions directly for review | Installed locally; native output reviewed and editorial correction saved; owner acceptance pending |
 | [0130](0130-editable-draft-copies.md) | Edit a separate draft with tab recovery and unchanged model authority | Installed locally; fictional editing, recovery and navigation journey passed |
-| [0133](0133-revisions-keep-original-requirements.md) | Keep original requirements in revisions unless feedback removes them | Accepted; instruction change only, no live model run |
+| [0133](0133-revisions-keep-original-requirements.md) | Keep original requirements in revisions unless feedback removes them | Accepted; private native replay evaluated, owner acceptance pending |
