@@ -238,14 +238,30 @@ try {
   assert.equal((await snapshot()).data.businessProfiles.length, 0);
   await click("Save brief draft");
   await waitText("Brief draft saved.");
+  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), true, "Saving opens a readable review instead of leaving the form expanded");
+  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').getClientRects().length"), 0, "Shared grid styles must not reveal the hidden editor");
+  assert.equal(await evaluate("document.querySelector('.co-business-readonly').innerText.includes('Paper craft kits for adult hobbyists')"), true);
+  assert.equal(await evaluate("document.querySelector('.co-business-readonly details').open"), false, "Evidence is available without dominating the brief");
+  await evaluate("document.querySelector('.co-business-readonly summary').click()");
+  assert.equal(await evaluate("document.querySelector('.co-business-readonly details').innerText.includes('Retrieved')"), true);
+  assert.equal(await evaluate("document.querySelector('.co-business-readonly blockquote').textContent"), '“Paper craft kits for adult hobbyists”');
+  await send("Page.reload");
+  await waitText("This saved draft is not available to employees yet.");
+  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), true, "Saved draft stays in review mode after reload");
   assert.equal(
     (await snapshot()).data.knowledge.length,
     0,
     "Saving never approves facts",
   );
+  await click("Edit brief");
   await field("Exact supporting quote", "Invented claim");
+  await send("Page.reload");
+  await waitText("Use your own facts");
+  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), false, "Unfinished changes reopen the editor");
+  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').getClientRects().length>0"), true, "Unfinished edits are visibly editable");
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-business-profile button')].find(b=>b.textContent==='Approve brief for my team').disabled"), true, "Unsaved edits cannot be approved");
   await click("Save brief draft");
-  await waitText("A citation must quote a source");
+  await waitText("services citation must exactly quote a source");
   await field("Exact supporting quote", "Paper craft kits for adult hobbyists");
   await click("Save brief draft");
   await waitText("Brief draft saved.");
@@ -402,6 +418,9 @@ try {
         robotsRefusal: true,
         sourceQuotes: true,
         draftRecovery: true,
+        savedDraftUsesReadableReview: true,
+        sourceEvidenceExpandsWithQuoteAndDate: true,
+        unsavedEditorSurvivesReload: true,
         exactApproval: true,
         explicitRevocation: true,
         correctionHistory: true,

@@ -316,6 +316,7 @@ try {
   assert.equal(data.businessProfiles.length, 1);
   assert.equal(data.knowledge.length, 0);
   assert.equal(data.employees.length, 0);
+  await evaluate("document.querySelector('.co-business-research').open=true");
   await click("Review generated brief");
   await waitText("Generated brief loaded.");
   assert.equal(
@@ -334,6 +335,12 @@ try {
   );
   await click("Save brief draft");
   await waitText("Brief draft saved.");
+  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), true);
+  assert.equal(await evaluate("document.querySelector('.co-business-readonly').innerText.includes('Warm and patient, from my unsaved edit')"), true);
+  await evaluate("document.querySelector('.co-business-research').open=true");
+  await click("Review generated brief");
+  await waitText("Generated brief loaded.");
+  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), true, "Loading without unfinished edits opens the readable review");
   await click("Approve brief for my team");
   await waitText("Business brief approved.");
   data = (await snapshot()).data;
@@ -371,7 +378,7 @@ try {
   );
   await evaluate("document.querySelector('.co-business-history').open=false");
   await evaluate(
-    "document.querySelector('.co-business-drafting > details').open=true",
+    "document.querySelector('.co-business-research').open=true;document.querySelector('.co-business-drafting > details').open=true",
   );
   await click("Prepare brief draft");
   await waitText("Prepared for authorization");
@@ -419,7 +426,7 @@ try {
     1,
     "Unknown output was never imported",
   );
-  await evaluate("document.querySelector('.co-business-drafting > details').open=true");
+  await evaluate("document.querySelector('.co-business-research').open=true;document.querySelector('.co-business-drafting > details').open=true");
   await click("Prepare brief draft");
   await waitText("Prepared for authorization");
   await click("Review draft request");
@@ -445,6 +452,8 @@ try {
   await click("Record local refusal");
   await waitText("Local refusal recorded");
   await send("Page.reload");
+  await waitText("Website sources and draft requests");
+  await evaluate("document.querySelector('.co-business-research').open=true");
   await waitText("Local refusal recorded");
   data = (await snapshot()).data;
   assert.equal(data.businessDrafts.length, 3);
@@ -1243,8 +1252,8 @@ try {
   assert.deepEqual((await snapshot()).data.measured, measuredBeforeLabels, "Labelling and opening saved work makes no model request");
   assert.deepEqual(errors, []);
   await send("Page.navigate", { url: `${url}/?view=departments&section=business` });
-  await bodyText("Let HireZero draft the brief");
-  await evaluate("document.querySelector('.co-business-drafting > details').open=true");
+  await bodyText("Website sources and draft requests");
+  await evaluate("document.querySelector('.co-business-research').open=true;document.querySelector('.co-business-drafting > details').open=true");
   await click("Prepare brief draft");
   await waitText("Prepared for authorization");
   await click("Review draft request");
@@ -1260,6 +1269,8 @@ try {
   assert.equal(data.businessProfiles.length, 1, "Rejected text never became a profile");
   assert.equal(data.businessDrafts.find(d=>d.state==='invalid').rejectedResponse, "not JSON <script>fictional()</script>");
   await send("Page.reload");
+  await waitText("Website sources and draft requests");
+  await evaluate("document.querySelector('.co-business-research').open=true");
   await waitText("Inspect rejected model response");
   await fs.writeFile(
     path.join(repo, "test-results/business-drafting-browser.json"),
@@ -1271,6 +1282,7 @@ try {
         employeeSourceProvenance: true,
         sourceCitations: true,
         unsavedOwnerEditsPreserved: true,
+        generatedBriefUsesReadableReviewWithoutHidingUnsavedEdits: true,
         lostReplyReconciledWithoutReplay: true,
         unknownUsageHeld: true,
         explicitReceiptReconciliation: true,

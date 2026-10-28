@@ -106,8 +106,13 @@ export function BusinessBrief({
   const [sources, setSources] = useState(snapshot.data.businessSources || []);
   const [editingIdentity, setEditingIdentity] = useState(!identity);
   const [editingProfile, setEditingProfile] = useState(
-    profile?.state !== "approved" || JSON.stringify(draft.fields) !== JSON.stringify(profile.fields),
+    !profile ||
+      draft.businessVersion !== identity?.version ||
+      JSON.stringify(draft.fields) !== JSON.stringify(profile.fields),
   );
+  const latestDraft = snapshot.data.businessDrafts?.filter((d) => d.businessVersion === identity?.version).at(-1);
+  const hasActiveDraft = !!latestDraft && ["proposed", "running", "unknown"].includes(latestDraft.state);
+  const [researchOpen, setResearchOpen] = useState(!profile || hasActiveDraft);
   const [sourceUrl, setSourceUrl] = useState(identity?.website || "");
   const [source, setSource] = useState<BusinessSource | null>(null);
   const [busy, setBusy] = useState(false),
@@ -169,7 +174,14 @@ export function BusinessBrief({
       setSources(saved.data.businessSources || []);
       change(fresh(saved));
       setEditingIdentity(!saved.data.business);
-      setEditingProfile(currentProfile(saved)?.state !== "approved");
+      setEditingProfile(!currentProfile(saved));
+      setResearchOpen(
+        !currentProfile(saved) ||
+          ["proposed", "running", "unknown"].includes(
+            saved.data.businessDrafts?.filter((d) => d.businessVersion === saved.data.business?.version).at(-1)
+              ?.state || "",
+          ),
+      );
       setSource(null);
       setSourceUrl(saved.data.business?.website || "");
     }, "Saved state loaded. The form now matches your company records.");
@@ -463,117 +475,127 @@ export function BusinessBrief({
       )}
       {confirmed && !editingIdentity && (
         <>
-          <details className="co-business-sources" open={editingProfile}>
-            <summary>Evidence from your website</summary>
-            <p>
-              Discover a small set of useful pages, or add a particular page yourself. Every saved source keeps its
-              address and retrieval date.
-            </p>
-            {identity?.website && owner && (
-              <BusinessLookup
-                key={"discovery:" + identity.version}
+          <details
+            className="co-business-research"
+            open={researchOpen}
+            onToggle={(event) => setResearchOpen(event.currentTarget.open)}
+          >
+            <summary>Website sources and draft requests</summary>
+            <details className="co-business-sources" open={editingProfile}>
+              <summary>Evidence from your website</summary>
+              <p>
+                Discover a small set of useful pages, or add a particular page yourself. Every saved source keeps its
+                address and retrieval date.
+              </p>
+              {identity?.website && owner && (
+                <BusinessLookup
+                  key={"discovery:" + identity.version}
+                  snapshot={snapshot}
+                  identity={identity}
+                  kind="discovery"
+                  refresh={refreshEvidence}
+                />
+              )}
+              {identity?.website && owner && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void perform(async () => {
+                      const saved = await api<BusinessSource>("/company/business/research", "POST", {
+                        businessVersion: identity.version,
+                        digest: identity.digest,
+                        url: sourceUrl,
+                      });
+                      setSource(saved);
+                      setSources((old) => [...old.filter((s) => s.id !== saved.id), saved]);
+                    }, "Source saved. Review the excerpt before using it in the brief.");
+                  }}
+                >
+                  <label>
+                    Page address
+                    <input
+                      required
+                      type="url"
+                      maxLength={800}
+                      value={sourceUrl}
+                      disabled={busy}
+                      onChange={(e) => setSourceUrl(e.target.value)}
+                    />
+                  </label>
+                  <button disabled={busy} type="submit">
+                    {busy ? "Working…" : "Read public page"}
+                  </button>
+                </form>
+              )}
+              {currentSources.length === 0 && (
+                <p className="co-muted">No sources saved yet. You can still enter owner-provided facts below.</p>
+              )}
+              <ul>
+                {currentSources.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      disabled={busy}
+                      onClick={() =>
+                        perform(
+                          async () =>
+                            setSource(
+                              await api<BusinessSource>("/company/business/sources/" + encodeURIComponent(s.id)),
+                            ),
+                          "Source opened.",
+                          false,
+                        )
+                      }
+                    >
+                      {s.title || s.url}
+                    </button>
+                    <small>
+                      Retrieved {new Date(s.retrievedAt).toLocaleString()}
+                      {s.clipped ? " · excerpt only" : ""}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+              {source && (
+                <details open className="co-business-excerpt">
+                  <summary>{source.title || "Source excerpt"}</summary>
+                  <a href={source.url} target="_blank" rel="noreferrer">
+                    Open original page
+                  </a>
+                  <pre>{source.text}</pre>
+                </details>
+              )}
+            </details>
+            {owner && identity && currentSources.length > 0 && (
+              <BusinessDrafting
                 snapshot={snapshot}
                 identity={identity}
-                kind="discovery"
-                refresh={refreshEvidence}
+                sources={currentSources}
+                refresh={refresh}
+                load={(generated) => {
+                  const baseline = profile?.fields || fieldsFor(identity);
+                  const fields = generated.fields.map((field) => {
+                    const local = draft.fields.find((f) => f.key === field.key);
+                    return local && JSON.stringify(local) !== JSON.stringify(baseline.find((f) => f.key === field.key))
+                      ? local
+                      : field;
+                  });
+                  setProfile(generated);
+                  setEditingProfile(JSON.stringify(fields) !== JSON.stringify(generated.fields));
+                  setResearchOpen(false);
+                  change({
+                    ...draft,
+                    fields,
+                    profileId: generated.id,
+                    profileVersion: generated.version,
+                    businessVersion: generated.businessVersion,
+                  });
+                  setNotice(
+                    "Generated brief loaded. Your unsaved field edits are kept. Review and save any edits before approval.",
+                  );
+                }}
               />
             )}
-            {identity?.website && owner && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void perform(async () => {
-                    const saved = await api<BusinessSource>("/company/business/research", "POST", {
-                      businessVersion: identity.version,
-                      digest: identity.digest,
-                      url: sourceUrl,
-                    });
-                    setSource(saved);
-                    setSources((old) => [...old.filter((s) => s.id !== saved.id), saved]);
-                  }, "Source saved. Review the excerpt before using it in the brief.");
-                }}
-              >
-                <label>
-                  Page address
-                  <input
-                    required
-                    type="url"
-                    maxLength={800}
-                    value={sourceUrl}
-                    disabled={busy}
-                    onChange={(e) => setSourceUrl(e.target.value)}
-                  />
-                </label>
-                <button disabled={busy} type="submit">
-                  {busy ? "Working…" : "Read public page"}
-                </button>
-              </form>
-            )}
-            {currentSources.length === 0 && (
-              <p className="co-muted">No sources saved yet. You can still enter owner-provided facts below.</p>
-            )}
-            <ul>
-              {currentSources.map((s) => (
-                <li key={s.id}>
-                  <button
-                    disabled={busy}
-                    onClick={() =>
-                      perform(
-                        async () =>
-                          setSource(await api<BusinessSource>("/company/business/sources/" + encodeURIComponent(s.id))),
-                        "Source opened.",
-                        false,
-                      )
-                    }
-                  >
-                    {s.title || s.url}
-                  </button>
-                  <small>
-                    Retrieved {new Date(s.retrievedAt).toLocaleString()}
-                    {s.clipped ? " · excerpt only" : ""}
-                  </small>
-                </li>
-              ))}
-            </ul>
-            {source && (
-              <details open className="co-business-excerpt">
-                <summary>{source.title || "Source excerpt"}</summary>
-                <a href={source.url} target="_blank" rel="noreferrer">
-                  Open original page
-                </a>
-                <pre>{source.text}</pre>
-              </details>
-            )}
           </details>
-          {owner && identity && currentSources.length > 0 && (
-            <BusinessDrafting
-              snapshot={snapshot}
-              identity={identity}
-              sources={currentSources}
-              refresh={refresh}
-              load={(generated) => {
-                const baseline = profile?.fields || fieldsFor(identity);
-                const fields = generated.fields.map((field) => {
-                  const local = draft.fields.find((f) => f.key === field.key);
-                  return local && JSON.stringify(local) !== JSON.stringify(baseline.find((f) => f.key === field.key))
-                    ? local
-                    : field;
-                });
-                setProfile(generated);
-                setEditingProfile(true);
-                change({
-                  ...draft,
-                  fields,
-                  profileId: generated.id,
-                  profileVersion: generated.version,
-                  businessVersion: generated.businessVersion,
-                });
-                setNotice(
-                  "Generated brief loaded. Your unsaved field edits are kept. Review and save any edits before approval.",
-                );
-              }}
-            />
-          )}
           <section className="co-business-profile">
             <h3>
               {profile?.state === "approved" && !editingProfile
@@ -581,17 +603,35 @@ export function BusinessBrief({
                 : "Review your business brief"}
             </h3>
             <p>
-              Use your own facts, or attach an exact quote for a sourced claim. Ideas remain hypotheses. Saving a draft
-              does not make it available to employees.
+              {editingProfile
+                ? "Use your own facts, or attach an exact quote for a sourced claim. Ideas remain hypotheses. Saving a draft does not make it available to employees."
+                : profile?.state === "approved"
+                  ? "Your employees can use this approved version. Open the evidence to check a source or quotation."
+                  : "Read the facts and hypotheses below, then approve or edit them. This saved draft is not available to employees yet."}
             </p>
+            {!editingProfile && owner && (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  setEditingProfile(true);
+                  change({
+                    ...draft,
+                    profileId: profile?.state === "draft" ? profile.id : undefined,
+                    profileVersion: profile?.state === "draft" ? profile.version : 0,
+                  });
+                }}
+              >
+                {profile?.state === "draft" ? "Edit brief" : "Edit a new brief version"}
+              </button>
+            )}
             {(!editingProfile || !owner) && (
-              <dl className="co-business-approved">
+              <dl className="co-business-approved co-business-readonly" aria-label="Saved business brief">
                 {(profile?.fields || draft.fields).map((field) => (
                   <div key={field.key}>
                     <dt>{labels[field.key]}</dt>
                     <dd>
                       {field.value}
-                      <BusinessFieldEvidence field={field} sources={sources} />
+                      <BusinessFieldEvidence field={field} sources={sources} collapsible />
                     </dd>
                   </div>
                 ))}
@@ -685,6 +725,8 @@ export function BusinessBrief({
                             () => {},
                           )) as BusinessProfile;
                           setProfile(saved);
+                          setEditingProfile(false);
+                          setResearchOpen(hasActiveDraft);
                           change({
                             ...draft,
                             fields: saved.fields,
@@ -696,40 +738,32 @@ export function BusinessBrief({
                     >
                       Save brief draft
                     </button>
-                    <button
-                      className="co-primary"
-                      disabled={busy || !ready}
-                      onClick={() =>
-                        perform(async () => {
-                          const saved = (await command(
-                            "business.profile.review",
-                            {
-                              id: profile!.id,
-                              expectedVersion: profile!.version,
-                              digest: profile!.digest,
-                              decision: "approve",
-                            },
-                            () => {},
-                          )) as BusinessProfile;
-                          setProfile(saved);
-                          setApproved(saved);
-                          setEditingProfile(false);
-                          change({ ...draft, profileId: undefined, profileVersion: 0 });
-                        }, "Business brief approved. Your employees can now use these shared facts.")
-                      }
-                    >
-                      Approve brief for my team
-                    </button>
                   </>
-                ) : (
+                ) : null}
+                {profile?.state === "draft" && (
                   <button
-                    disabled={busy}
-                    onClick={() => {
-                      setEditingProfile(true);
-                      change({ ...draft, profileId: undefined, profileVersion: 0 });
-                    }}
+                    className="co-primary"
+                    disabled={busy || !ready}
+                    onClick={() =>
+                      perform(async () => {
+                        const saved = (await command(
+                          "business.profile.review",
+                          {
+                            id: profile!.id,
+                            expectedVersion: profile!.version,
+                            digest: profile!.digest,
+                            decision: "approve",
+                          },
+                          () => {},
+                        )) as BusinessProfile;
+                        setProfile(saved);
+                        setApproved(saved);
+                        setEditingProfile(false);
+                        change({ ...draft, profileId: undefined, profileVersion: 0 });
+                      }, "Business brief approved. Your employees can now use these shared facts.")
+                    }
                   >
-                    Edit a new brief version
+                    Approve brief for my team
                   </button>
                 )}
               </div>

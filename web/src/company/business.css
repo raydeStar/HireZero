@@ -21,9 +21,29 @@
 .co-business summary {
   cursor: pointer;
 }
+.co-business-research {
+  margin: 1rem 0;
+}
+.co-business-research > summary {
+  color: var(--fe-fg-2);
+}
 .co-business-approved > div {
   padding: 0.8rem 0;
   border-bottom: 1px solid var(--fe-line);
+}
+.co-business-readonly {
+  line-height: 1.6;
+}
+.co-business-readonly .co-business-field-evidence > small {
+  color: var(--fe-fg-3);
+  font-size: 0.8rem;
+}
+.co-business-readonly .co-business-field-evidence details {
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+}
+.co-business-readonly .co-business-field-evidence blockquote {
+  margin: 0.6rem 0;
 }
 .co-business dt {
   font-weight: 600;
@@ -58,6 +78,9 @@
   border: 0;
   padding: 0;
   margin: 0;
+}
+.co-business fieldset[hidden] {
+  display: none;
 }
 .co-business legend {
   font-weight: 600;

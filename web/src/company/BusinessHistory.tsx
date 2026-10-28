@@ -2,31 +2,47 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import type { BusinessProfileHistory, BusinessSource, ProfileField } from "./api";
 
-export function BusinessFieldEvidence({ field, sources }: { field: ProfileField; sources: BusinessSource[] }) {
+export function BusinessFieldEvidence({
+  field,
+  sources,
+  collapsible = false,
+}: {
+  field: ProfileField;
+  sources: BusinessSource[];
+  collapsible?: boolean;
+}) {
   const status = { owner: "Owner-provided", sourced: "Source-supported", hypothesis: "Hypothesis", unknown: "Unknown" };
+  const citations = field.citations.map((citation) => {
+    const source = sources.find((s) => s.id === citation.sourceId);
+    return (
+      <div key={citation.sourceId}>
+        <blockquote>“{citation.quote}”</blockquote>
+        {source ? (
+          <small>
+            <a href={source.url} target="_blank" rel="noreferrer">
+              {source.title || source.url}
+            </a>
+            {" · Retrieved "}
+            {new Date(source.retrievedAt).toLocaleString()}
+            {source.clipped && " · Limited excerpt"}
+          </small>
+        ) : (
+          <small>Saved source details are unavailable in this view.</small>
+        )}
+      </div>
+    );
+  });
   return (
     <div className="co-business-field-evidence">
       {(field.verification !== "unknown" || field.value !== "Unknown") && <small>{status[field.verification]}</small>}
-      {field.citations.map((citation) => {
-        const source = sources.find((s) => s.id === citation.sourceId);
-        return (
-          <div key={citation.sourceId}>
-            <blockquote>“{citation.quote}”</blockquote>
-            {source ? (
-              <small>
-                <a href={source.url} target="_blank" rel="noreferrer">
-                  {source.title || source.url}
-                </a>
-                {" · Retrieved "}
-                {new Date(source.retrievedAt).toLocaleString()}
-                {source.clipped && " · Limited excerpt"}
-              </small>
-            ) : (
-              <small>Saved source details are unavailable in this view.</small>
-            )}
-          </div>
-        );
-      })}
+      {collapsible && citations.length > 0 ? (
+        <details>
+          <summary>Source and quote{citations.length > 1 ? ` (${citations.length})` : ""}</summary>
+          {citations}
+        </details>
+      ) : (
+        citations
+      )}
     </div>
   );
 }

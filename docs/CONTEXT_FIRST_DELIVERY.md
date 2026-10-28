@@ -9,14 +9,26 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
+The owner has approved the separate website-based editorial brief, and its exact saved version is now available
+to the pilot team. [ADR 0159](adr/0159-readable-saved-business-briefs.md) gives saved briefs a readable review view,
+explicit editing and expandable evidence while preserving unfinished changes. Three fictional browser journeys
+pass, and both local installations preserve every server binary, account, existing record and the exact active
+schedule. Marketing setup carries the approved brief into its first assignment. Two native calls total 17,772
+reported tokens; a separate assistant editorial copy supplies the concrete example and passes all format checks.
+The original outputs and receipts remain intact, and usefulness acceptance of this website-based result is pending.
+See [review and walkthrough evidence](history/2026-10-28-readable-business-brief-review.md). This advances P1.5/P1.7/P1.8;
+automatic brief quality, minimally assisted customer onboarding, recurring usefulness and all wider validation
+gates remain open. All three product phases remain in scope.
+
 The public-source onboarding recovery now distinguishes a proven local refusal from a provider receipt
 ([ADR 0156](adr/0156-explicit-local-refusal-reconciliation.md)). The historical refusal is settled at zero usage,
 without replay. Two new Luna requests completed but failed brief validation, totaling 18,335 reported tokens.
 Inspectable rejected text ([ADR 0157](adr/0157-inspect-rejected-business-drafts.md)) revealed a quotation line-break
 mismatch and a false citation of the owner's goal. [ADR 0158](adr/0158-source-layout-and-owner-field-precedence.md)
 corrects source whitespace handling and applies captured owner values before model evidence validation. Forty
-focused facts and the expanded fictional browser journey pass. The editorial website brief remains an unapproved
-draft; successful fresh native generation and owner acceptance are still open. The exact two-run schedule has been
+focused facts and the expanded fictional browser journey pass. At that checkpoint, the editorial website brief was
+still awaiting owner review; the later checkpoint above records its approval. Successful fresh native brief
+generation remains open. The exact two-run schedule has been
 re-reviewed for the repaired runtime, with its obsolete version canceled and no extra occurrences authorized.
 See [evaluation and recovery evidence](history/2026-10-28-local-refusal-reconciliation.md). All three phases remain
 in scope; no new model call or publishing is implied by this checkpoint.
