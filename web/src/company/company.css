@@ -1365,6 +1365,8 @@
 }
 .co-workspace .co-composer-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 6px;
 }
 .co-workspace .co-composer-tools {
@@ -1431,7 +1433,20 @@
   max-height: 30vh;
 }
 .co-workspace .co-composer-tools > label {
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  white-space: normal;
+}
+.co-workspace .co-composer-tools > .co-model-choice {
+  flex: 1 1 100%;
+}
+.co-workspace .co-composer-tools > .co-model-choice small {
+  flex-basis: 100%;
+}
+.co-workspace .co-composer-tools select {
+  min-width: 0;
+  max-width: min(230px, 100%);
 }
 .co-workspace .co-composer-tools > details.co-evidence {
   max-height: none;

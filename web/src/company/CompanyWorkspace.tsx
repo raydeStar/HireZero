@@ -308,7 +308,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       tab: company ? "company" : "employee",
       selected: company ? "" : task.employeeId,
       thread: company ? "" : task.threadId,
-      mode: task.kind === "conversation" ? "chat" : (mode ?? routeRef.current.mode),
+      mode: task.kind === "conversation" ? "chat" : (mode ?? "work"),
       work: task.id,
     });
     setSheet(false);
@@ -616,6 +616,14 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       onChat={
         mode === "work" || !splitWide
           ? () => navigate({ ...routeRef.current, mode: "chat", work: splitWide ? workTask.id : "" })
+          : undefined
+      }
+      onExpand={
+        mode === "chat" && splitWide
+          ? () => {
+              setMode("work");
+              requestAnimationFrame(() => document.querySelector<HTMLElement>(".co-work-window")?.focus());
+            }
           : undefined
       }
       onClose={closeWork}

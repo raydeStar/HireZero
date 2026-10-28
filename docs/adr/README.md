@@ -149,3 +149,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0142](0142-explicit-marketing-review-labels.md) | Align Marketing's default format with its draft checks | Accepted; explicit labels, listed decisions or a none declaration, with owner format precedence |
 | [0143](0143-independent-local-startup-tasks.md) | Keep separate local workspaces' startup and backup tasks independent | Accepted; explicit task prefixes preserve existing names and separate installations |
 | [0144](0144-edit-completed-recurring-text-results.md) | Edit completed recurring text results without another model request | Accepted; separate owner-authored copies preserve receipts, occurrence accounting and future authority |
+| [0145](0145-focused-deliverable-review.md) | Open deliverables in focused Work review | Accepted; explicit split chat, expandable work and wrapping composer controls preserve drafts |

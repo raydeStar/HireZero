@@ -29,7 +29,7 @@ export function ModelChoice({
   if (!options.length) return null;
   const unavailable = !!value && !options.some((option) => option.route === value);
   return (
-    <label>
+    <label className="co-model-choice">
       Model and account
       <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
         {unavailable && (

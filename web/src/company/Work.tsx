@@ -1,4 +1,4 @@
-import { MessageSquareText, X } from "lucide-react";
+import { Maximize2, MessageSquareText, X } from "lucide-react";
 import { useState } from "react";
 import type { Snapshot, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
@@ -102,6 +102,7 @@ export function WorkWindow({
   refresh,
   open,
   onChat,
+  onExpand,
   onClose,
   onOpenResult,
   onOpenPlans,
@@ -115,6 +116,7 @@ export function WorkWindow({
   refresh: () => Promise<void>;
   open: (employeeId: string, threadId: string) => void;
   onChat?: () => void;
+  onExpand?: () => void;
   onClose: () => void;
   onOpenResult?: (task: Work) => void;
   onOpenPlans?: () => void;
@@ -131,6 +133,11 @@ export function WorkWindow({
           <WorkContext snapshot={snapshot} taskId={task.id} />
           <small>{(employee?.name ?? "Former employee") + " · " + taskState(workState(snapshot, task), canWork)}</small>
         </div>
+        {onExpand && (
+          <button className="fe-icon-button" aria-label="Expand work" title="Expand work" onClick={onExpand}>
+            <Maximize2 size={16} />
+          </button>
+        )}
         {onChat && (
           <button className="fe-icon-button" aria-label="Show in chat" title="Show in chat" onClick={onChat}>
             <MessageSquareText size={16} />

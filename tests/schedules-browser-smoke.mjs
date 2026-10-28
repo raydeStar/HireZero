@@ -505,12 +505,29 @@ try {
     "Saved private scheduled result opens directly",
   );
   const beforeEdit = (await snapshot()).data;
+  assert.equal(await evaluate("!!document.querySelector('.fe-composer')"), false,
+    "Opening a saved deliverable prioritizes the full Work view");
+  assert.ok(await evaluate("document.querySelector('.co-work-window').getBoundingClientRect().width > 700"),
+    "The desktop result has room for readable copy");
   const originalOccurrenceArtifact = beforeEdit.artifacts.find(a => a.taskId === first.runs[0].taskId);
   const scheduleBeforeEdit = await detail(id);
   await click("Edit a copy");
   assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), originalOccurrenceArtifact.body);
   const correctedOccurrence = originalOccurrenceArtifact.body + "\n\nOwner correction: show the completed paper-folding example before asking readers to try it.";
   await evaluate(`(()=>{const el=document.querySelector('.co-artifact-editor textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(correctedOccurrence)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await evaluate("document.querySelector('[aria-label=\"Show in chat\"]').click()");
+  await until(() => evaluate("!!document.querySelector('.co-chat-and-work') && !!document.querySelector('[aria-label=\"Expand work\"]')"), "Split chat remains an explicit choice");
+  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), correctedOccurrence,
+    "Switching to split chat preserves the unsaved edit");
+  assert.equal(await evaluate("(()=>{const form=document.querySelector('.co-composer-form');return form.scrollWidth<=form.clientWidth+1 && [...form.querySelectorAll('input,select,small')].every(el=>el.getBoundingClientRect().right<=form.getBoundingClientRect().right+1);})()"), true,
+    "Model selection and help text fit the narrow composer");
+  await screenshot("recurring-result-split-chat.png");
+  await evaluate("document.querySelector('[aria-label=\"Expand work\"]').click()");
+  await until(() => evaluate("!!document.querySelector('.co-work-window') && !document.querySelector('.fe-composer')"), "Expand work returns to focused review");
+  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), correctedOccurrence,
+    "Expanding work preserves the unsaved edit");
+  assert.equal(await evaluate("document.activeElement.classList.contains('co-work-window')"), true,
+    "Keyboard focus follows the expanded result");
   await send("Page.reload");
   await until(() => evaluate(`document.querySelector('.co-artifact-editor textarea')?.value===${JSON.stringify(correctedOccurrence)}`), "Unfinished recurring-result edit survives reload");
   assert.ok(await evaluate("document.body.innerText.includes('Later scheduled runs keep their approved instructions and references.')"));
@@ -672,6 +689,9 @@ try {
         exactRecurringConsent: true,
         backgroundEmployeeRuns: 2,
         savedResultOpened: true,
+        fullWorkReviewByDefault: true,
+        splitComposerFits: true,
+        expandPreservesOwnerEdit: true,
         pauseRespected: true,
         finiteAllowanceSettled: true,
         backgroundSourceRefresh: true,

@@ -30,6 +30,11 @@ Completed recurring text results now offer the same owner-editing flow that made
 [ADR 0144](adr/0144-edit-completed-recurring-text-results.md), an edited copy needs separate approval and does
 not change the original model receipt, allowance or future schedule. Focused backend checks and the fictional
 recurring browser journey pass; see [verification](history/2026-10-27-recurring-result-owner-edits.md).
+Opening a saved deliverable now uses the full Work panel under [ADR 0145](adr/0145-focused-deliverable-review.md).
+Explicit split chat remains available, with an Expand work control and wrapping model/account help. Unfinished
+edits survive both view changes and refresh. Both fictional drafting and recurring browser journeys pass; the
+update is installed in both workspaces with verified backups, preserved model records and the exact active
+schedule unchanged. No live model calls were needed; see [review-layout evidence](history/2026-10-27-focused-result-review.md).
 The clipboard integration discrepancy and broader customer/commercial/runtime gates remain open.
 
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
