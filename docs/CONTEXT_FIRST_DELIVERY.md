@@ -9,6 +9,14 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
+The real public-site onboarding walkthrough now confirms identity and imports three sourced pages in a separate
+company. The first native brief request exposed a missing pinned executable after a desktop package update;
+no generated brief or provider receipt resulted, and the uncertain saved request was not replayed.
+[ADR 0154](adr/0154-clear-business-draft-preflight-and-review.md) improves provider/limit disclosure, lookup progress
+and confirmed pre-process refusal accounting. The accepted pilot and its exact schedule remain intact, but native
+execution needs a separately reviewed runtime replacement before real onboarding or scheduled usefulness can be
+claimed. See [onboarding evidence](history/2026-10-28-real-website-onboarding.md). All three phases remain in scope.
+
 New recurring employee schedules can include a separately reviewed calendar anchor under
 [ADR 0153](adr/0153-reviewed-scheduled-time-context.md). Each immutable request gets its planned local date,
 time zone, cadence and slot number; legacy schedules keep their exact approved packets without this addition.

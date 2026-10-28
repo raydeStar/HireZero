@@ -158,3 +158,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0151](0151-reviewed-jev-workflow-in-the-application.md) | Review Jev decisions through the saved company API account | Installed with backups; application and fictional browser journey verified, live acceptance pending |
 | [0152](0152-collapse-earlier-draft-bodies.md) | Collapse earlier draft bodies during review | Accepted; first result expanded, earlier copies remain available through native disclosures |
 | [0153](0153-reviewed-scheduled-time-context.md) | Include an approved calendar anchor in recurring employee work | Accepted; explicit definition option preserves older approvals and supplies immutable local occurrence times |
+| [0154](0154-clear-business-draft-preflight-and-review.md) | Explain business-draft model terms and local runtime refusals | Accepted; missing pins are confirmed pre-process refusals, never replayed |

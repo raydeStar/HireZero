@@ -294,7 +294,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 throw new WorkspaceException(
                     "The explicit qualification allowance cannot cover another historical planning buffer; this is not a proven charge bound."
                 );
-            rpc = Start();
+            rpc = Start(measuredRequest: measured is not null);
             var inspection = await Inspect(rpc, deadline.Token);
             var model = CompanyModelRouting.Native(call.ModelRoute ?? _routing.TextModel);
             if (
@@ -584,13 +584,21 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
 
     private static Dictionary<string, string> ReadOnly(string work) => new() { [work] = "read" };
 
-    private CodexAppServer Start()
+    private CodexAppServer Start(bool measuredRequest = false)
     {
         if (
             !Path.IsPathFullyQualified(options.Executable)
+            || !File.Exists(options.Executable)
             || CompanyCodingFactory.Identity(options.Executable) != options.Identity
         )
-            throw new WorkspaceException("Pinned Codex executable identity changed.");
+        {
+            const string reason =
+                "The pinned Codex runtime is missing or changed. Restore the configured runtime or review a new pin. No model request was sent.";
+            // No process exists yet. The missing butler cannot have run up a bill.
+            if (measuredRequest)
+                throw new ModelTransportException(reason, 0, usage: new(0, 0));
+            throw new WorkspaceException(reason);
+        }
         var root = Path.GetFullPath(options.ScratchRoot);
         for (var p = new DirectoryInfo(root); p is not null; p = p.Parent)
             if (p.Exists && (p.Attributes & FileAttributes.ReparsePoint) != 0)

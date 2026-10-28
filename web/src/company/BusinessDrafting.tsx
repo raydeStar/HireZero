@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { api } from "../lib/api";
+import { providerName } from "./ModelChoice";
 import {
   command,
   type BusinessIdentity,
@@ -205,6 +206,22 @@ export function BusinessDrafting({
               </button>
               {packet?.id === job.id && packet.job.digest === job.job.digest && (
                 <>
+                  <div className="co-business-draft-terms" aria-label="Brief request model and limits">
+                    <p>
+                      <b>Model:</b> {packet.job.route} · {providerName(packet.job.terms?.provider ?? "host")}
+                    </p>
+                    <p>
+                      Reasoning effort:{" "}
+                      {packet.job.terms?.allowanceUnit === "usd-cents" ? "low" : (packet.job.policy.effort ?? "low")}.{" "}
+                      Output target: {packet.job.policy.outputTarget.toLocaleString()} tokens. Reasoning tokens count as
+                      output.
+                    </p>
+                    <p>
+                      One model request. No automatic retry. The local deadline and output target are soft limits.
+                      {packet.job.terms?.allowanceUnit !== "usd-cents" &&
+                        " The credit allowance is also a soft limit; no credit purchase is authorized."}
+                    </p>
+                  </div>
                   <details className="co-business-excerpt">
                     <summary>Exact business context and sources</summary>
                     <pre>{packet.call.context.input}</pre>

@@ -96,7 +96,9 @@ export function BusinessLookup({
       )}
       {pending ? (
         <>
-          <p role="status">This request needs confirmation. It will not be repeated.</p>
+          <p role="status">
+            {busy ? "Looking up website evidence…" : "This request needs confirmation. It will not be repeated."}
+          </p>
           <button disabled={busy} onClick={() => void run()}>
             Check lookup receipt
           </button>

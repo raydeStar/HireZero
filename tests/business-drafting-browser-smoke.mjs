@@ -258,7 +258,13 @@ try {
   await waitText("Check the name, website and location before confirming.");
   await click("Confirm this is my business");
   await waitText("Business identity confirmed");
+  await evaluate(
+    "window.discoveryFetch=window.fetch;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(body.action==='business.lookup.start'&&body.body==='discovery'){await new Promise(resolve=>{window.releaseDiscovery=resolve;});}return window.discoveryFetch(input,init);};",
+  );
   await click("Discover website pages");
+  await waitText("Looking up website evidence…");
+  assert.equal(await evaluate("document.body.innerText.includes('This request needs confirmation.')"), false);
+  await evaluate("window.releaseDiscovery();window.fetch=window.discoveryFetch");
   await waitText("3 saved sources available below.");
   discoveryData = (await snapshot()).data;
   assert.equal(discoveryData.businessLookups.length, 2);
@@ -289,6 +295,12 @@ try {
       ),
     "exact request review",
   );
+  const reviewTerms = await evaluate("document.querySelector('[aria-label=\"Brief request model and limits\"]').innerText");
+  assert.ok(reviewTerms.includes(data.businessDrafts[0].job.route));
+  assert.ok(reviewTerms.includes("Reasoning effort: low"));
+  assert.ok(reviewTerms.includes("Output target: 3,000 tokens"));
+  assert.ok(reviewTerms.includes("One model request. No automatic retry."));
+  assert.ok(reviewTerms.includes("soft limit"));
   await evaluate(
     "[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('I authorize one draft')).querySelector('input').click()",
   );
