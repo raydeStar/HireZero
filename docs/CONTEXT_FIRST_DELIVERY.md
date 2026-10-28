@@ -21,7 +21,11 @@ its own verified install, sign-in startup and nightly backup tasks under [ADR 01
 An idle stop/restart and a real backup preserve the accepted copy, exact schedule, model history and audit chain;
 the primary workspace and its tasks stayed unchanged. The computer must be awake and signed in; an actual OS
 reboot was not performed. See [startup verification](history/2026-10-27-independent-pilot-startup.md).
-The two-occurrence schedule is ready for an explicit activation decision and remains inactive.
+The owner subsequently explicitly approved the two-occurrence proposal. It is now active for November 2 and 9
+at 09:00 America/Denver, with the exact reviewed definition and authority preserved and zero runs consumed.
+Each private draft uses Luna through Codex OAuth at high effort, a 3,000-output-token target, a 90-second local
+deadline and an intended allowance of one existing credit; these are soft limits. Nothing was generated on
+activation. Actual recurring execution and owner usefulness of those future results remain unverified.
 The clipboard integration discrepancy and broader customer/commercial/runtime gates remain open.
 
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
