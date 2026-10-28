@@ -61,14 +61,13 @@ function weeklyAssignment(objective: string): BusinessSetup["firstAssignment"] {
     title: "Your first marketing plan",
     description: "One focused week of finished posts shaped around your business and goal.",
     skill: "marketing-starter-plan",
-    prompt: `Prepare a practical one-week marketing starter plan for this goal: ${objective}. Use the supplied approved company brief and department context. Return a draft for internal review; do not perform actions.
+    prompt: `Prepare the finished one-week marketing plan requested here:
+${objective}
 
-Preserve any explicit post count, days, channel, format and length in the owner's goal. Otherwise lead with three distinct, finished posts spread across the week. Let each post's purpose, length and reader action fit the actual business, audience and goal. Deliver the copy, not suggestions for assets the owner still has to create. If a post promises a template, checklist or example, include it in full.
+Use the approved business brief and department context. Preserve the owner's explicit quantity, channel, days, format and length. Otherwise supply three complete posts, each with a proposed posting day and a different useful takeaway for the intended reader. Choose the content mix for this business and goal; do not impose a fixed teaching sequence. Include promised examples, templates or checklists in the posts themselves, once.
 
-Choose the audience problem and content mix from the company facts and goal. Connect the posts naturally to the supported offering without repeating a company description. Do not force a tutorial, fictional client, before/after or three-stage workflow onto a business that does not need one. When an example helps, make it complete, internally consistent and clearly illustrative; each post must stand on its own. Keep real company claims and availability within approved facts. Do not invent booking/contact channels, results, offers or capabilities. Write each asset once.
+After the copy, include one short batch-preparation checklist with honest effort estimates, totaling no more than 90 minutes. Do not turn a ready-written plan into a week of approval chores. Propose one observable learning target, how to record it through the known customer route, and next-week choices for promising, weak or inconclusive evidence.
 
-After the posts, give a preparation schedule covering every post, review actions and effort estimates totaling at most 90 minutes. The assets must already be written. Propose one modest, observable learning target suited to this business and goal, how to record it, and what to change next week for promising, weak or inconclusive evidence. Match the reader actions to that signal. Do not impose completed-workflow reports on a campaign whose goal is inquiries, visits or another outcome. Distinguish attention from demand, avoid invented baselines, and treat small samples and unknown reach cautiously.
-
-Keep production notes outside the post copy. In short review notes, cite the relevant approved facts and explain the proposed audience and approach. Label assumptions and hypotheses. Use the requested channel; otherwise recommend one and flag uncertain fit once. End with at most three consequential open decisions, without repeating flagged uncertainties; state none if none remain. Stay concise, with room for about 750–900 words overall when full assets and review notes need it. This is a ceiling guide, not a quota; honor a shorter requested length.`,
+Keep sources, assumptions and at most three consequential open decisions in short internal review notes. Facts supplied anywhere in the brief are facts, not assumptions. Aim for a focused plan; allow about 750–900 words when full assets and notes need the space, or honor a shorter requested length. Return a private draft only; proposed posting days do not authorize publishing.`,
   };
 }

@@ -11,10 +11,10 @@ export function splitDraftReview(body: string): { draft: string; notes?: string 
     }
     if (fence) continue;
     if (
-      /^(?:#{1,6}[ \t]+|\*\*)Review notes(?:[ \t]*(?:[—–-][ \t]*internal|\(internal\)))?[ \t]*(?:\*\*)?:?[ \t]*$/i.test(
+      /^(?:#{1,6}[ \t]+(?:\*\*)?|\*\*)(?:Internal[ \t]+)?Review notes(?:[ \t]*(?:[—–-][ \t]*internal|\(internal\)))?[ \t]*(?:\*\*)?:?[ \t]*$/i.test(
         line,
       ) ||
-      /^\*\*Review notes(?::\*\*|\*\*:)[ \t]+\S/i.test(line)
+      /^\*\*(?:Internal[ \t]+)?Review notes(?::\*\*|\*\*:)[ \t]+\S/i.test(line)
     ) {
       const draft = body.slice(0, match.index).trimEnd();
       // A response consisting entirely of notes is still the deliverable, not an empty plate.

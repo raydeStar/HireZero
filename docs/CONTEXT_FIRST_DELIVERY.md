@@ -10,7 +10,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   Settings group the navigation; multi-employee tools stay secondary for a small workspace.
 - Weekly plans adapt to the business instead of prescribing an AI-workflow demonstration. The latest
   [length and table follow-up](history/2026-10-28-deliverable-length-and-tables.md) removes a conflicting Core
-  word ceiling, renders readable tables and preserves exact exports.
+  word ceiling and renders readable tables. [Weekly-use follow-up](history/2026-10-28-weekly-use-and-review-notes.md)
+  adds proposed posting days, batch preparation and recognition of internal-review headings for exact exports.
 - Raw agency, email and local-business samples provide some useful choice guidance, but repetition and
   unsupported operational assumptions persist. [Compact task packets](history/2026-10-28-compact-business-packets.md)
   remove duplicate facts and misleading empty fields; two comparisons used about 5% fewer input tokens,
@@ -19,7 +20,7 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 - Local updates have verified backups and focused checks. The old weekly schedule remains saved and now
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
-- The evaluation allowance is 31 native runs: eleven consumed, 20 remain, with 72,771 reported input/output
+- The evaluation allowance is 31 native runs: thirteen consumed, 18 remain, with 86,459 reported input/output
   tokens. Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
 
 ## Next acceptance gate
