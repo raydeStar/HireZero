@@ -1042,6 +1042,12 @@ try {
     "The newest saved copy is the first result after refresh");
   assert.match(await evaluate(`document.querySelector('[data-artifact-id="${savedCopy.id}"] small').innerText`), /Draft 2/);
   assert.match(await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"] small').innerText`), /Draft 1/);
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('.co-work-window .co-artifact')].map(draft => draft.open)"), [true, false],
+    "Review opens the newest copy and collapses older bodies, leaving their labels visible");
+  await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"] > summary').click()`);
+  assert.equal(await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"]').open`), true,
+    "The earlier draft remains available for comparison");
+  await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"] > summary').click()`);
   assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), "",
     "Confirmed save clears this tab's recovery draft");
   await click("Ask for changes");
@@ -1110,6 +1116,8 @@ try {
   assert.equal(completedState.artifacts.find(a => a.id === corrected.id).state, "approved");
   assert.equal(await evaluate("document.querySelector('.co-work-window [data-artifact-id]')?.dataset.artifactId"), corrected.id,
     "Completed work opens with the approved copy first");
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('.co-work-window .co-artifact')].map(draft => draft.open)"), [true, false],
+    "Completed work keeps the approved copy expanded and earlier alternatives collapsed");
   assert.deepEqual(completedState.measured, completionState.measured, "Review and completion make no model request");
   assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
   await fs.writeFile(path.join(repo, "test-results/content-completed-mobile.png"),
@@ -1228,6 +1236,7 @@ try {
         chatLeavesNarrowWorkWindow: true,
         editableCopyPreservesOriginal: true,
         latestSavedCopyAppearsFirstWithStableDraftNumbers: true,
+        earlierDraftsCollapsedAndExpandable: true,
         editorDraftSurvivesRefresh: true,
         editorNeverOverwritesUnsavedText: true,
         manualEditNeedsReviewWithoutModelCall: true,

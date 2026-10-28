@@ -156,3 +156,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0149](0149-company-bound-jev-decision-transport.md) | Separate company-bound Jev decisions from text routing | Transport and protected-secret factory verified with fictional HTTP; durable admission and UI pending |
 | [0150](0150-durable-reviewed-advisory-decisions.md) | Reserve and reconcile reviewed advisory decisions durably | Core lifecycle and fictional checks; live provider binding, application review and acceptance pending |
 | [0151](0151-reviewed-jev-workflow-in-the-application.md) | Review Jev decisions through the saved company API account | Installed with backups; application and fictional browser journey verified, live acceptance pending |
+| [0152](0152-collapse-earlier-draft-bodies.md) | Collapse earlier draft bodies during review | Accepted; first result expanded, earlier copies remain available through native disclosures |

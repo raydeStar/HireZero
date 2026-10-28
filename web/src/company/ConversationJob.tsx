@@ -272,15 +272,17 @@ export function ConversationJob({
         </p>
       )}
       {!savedResult && measuredJob}
-      {artifacts.map((a) => (
-        <div className="co-artifact" key={a.id} data-artifact-id={a.id} tabIndex={-1}>
-          <small>
-            {savedArtifacts.length > 1 && `Draft ${savedArtifacts.findIndex((saved) => saved.id === a.id) + 1} · `}
-            {provenance(employeeRole, a.provenance)} ·{" "}
-            {["completed", "canceled", "superseded"].includes(t.state) && a.state === "needs_review"
-              ? "Earlier draft · not approved"
-              : artifactState(a.state, canWork)}
-          </small>
+      {artifacts.map((a, index) => (
+        <details className="co-artifact" key={a.id} data-artifact-id={a.id} tabIndex={-1} open={index === 0}>
+          <summary>
+            <small>
+              {savedArtifacts.length > 1 && `Draft ${savedArtifacts.findIndex((saved) => saved.id === a.id) + 1} · `}
+              {provenance(employeeRole, a.provenance)} ·{" "}
+              {["completed", "canceled", "superseded"].includes(t.state) && a.state === "needs_review"
+                ? "Earlier draft · not approved"
+                : artifactState(a.state, canWork)}
+            </small>
+          </summary>
           {a.sandboxOrigin && (
             <p className="co-muted">
               From {a.sandboxOrigin.outputName} · {a.sandboxOrigin.length.toLocaleString()} selected characters. Source
@@ -389,7 +391,7 @@ export function ConversationJob({
               open={open}
             />
           )}
-        </div>
+        </details>
       ))}
       {savedResult && (
         <details className="co-job-receipt">

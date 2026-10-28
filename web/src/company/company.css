@@ -566,6 +566,13 @@
 .co-job-card .co-artifact {
   border-color: var(--fe-line);
 }
+.co-artifact > summary {
+  padding: 6px 0;
+  line-height: 1.5;
+}
+.co-artifact > summary small {
+  font-size: var(--fe-t-s);
+}
 .co-workspace input,
 .co-workspace textarea,
 .co-workspace select {

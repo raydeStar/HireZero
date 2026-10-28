@@ -35,7 +35,7 @@ Explicit split chat remains available, with an Expand work control and wrapping 
 edits survive both view changes and refresh. Both fictional drafting and recurring browser journeys pass; the
 update is installed in both workspaces with verified backups, preserved model records and the exact active
 schedule unchanged. No live model calls were needed; see [review-layout evidence](history/2026-10-27-focused-result-review.md).
-The clipboard integration discrepancy and broader customer/commercial/runtime gates remain open.
+The clipboard discrepancy is resolved for the native path documented below; broader customer/commercial/runtime gates remain open.
 The accepted-result-to-recurring-feedback handoff now has complete fictional browser proof: owner guidance is
 saved and separately approved for the originating employee, then appears with its exact artifact citation in
 the next scheduled model packet without changing schedule authority. A focused fact covers draft exclusion and
@@ -125,8 +125,13 @@ and all broader phase gates remain open.
 At that checkpoint the next required evidence was the owner's usefulness assessment of the latest editorial copy.
 That gate had remained open across the first-draft, review-label, recurring-feedback and concrete-workflow
 checkpoints. The subsequent owner acceptance above closes it for this pilot; it grants no publishing or recurring authority.
-The clipboard mismatch also reproduces in a fresh tab, but native verification requires available Computer Use
-app access. Do not substitute further model calls or infrastructure expansion for these missing observations.
+The earlier clipboard mismatch reproduced in a fresh tab. A subsequent native check on 2026-10-28 confirms that
+the approved draft reaches Windows Notepad exactly, while the browser automation clipboard reader returns an
+empty string. This closes the installed app's native-copy check without changing its clipboard implementation.
+The review also now collapses earlier draft bodies under [ADR 0152](adr/0152-collapse-earlier-draft-bodies.md).
+The fictional end-to-end journey passes; both local installations have backups, verified release files and
+unchanged accounts, work and schedules. The installed accepted plan and expandable history are visually verified.
+See [native-copy and draft-history evidence](history/2026-10-28-native-copy-and-draft-history.md).
 
 Earlier recurring checkpoint (2026-10-27): new recurring drafts preserve the original request and complete ordered revision
 feedback under [ADR 0140](adr/0140-revision-feedback-in-recurring-drafts.md). Oversized combined text remains
