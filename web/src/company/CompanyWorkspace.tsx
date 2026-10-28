@@ -7,6 +7,7 @@ import { panels } from "../roles/company";
 import { MemberAccess, useMemberAccess } from "./MemberAccess";
 import { command, type Snapshot, type Employee, type ThreadDetail, type Event, type TaskSpec, type Work } from "./api";
 import { Cockpit, useNeeds, workGroups, workState, type Need } from "./Cockpit";
+import { optionalDraftReview } from "./readyDrafts";
 import { WorkBoard, WorkWindow } from "./Work";
 import { CompanyConversation, type ConversationDraft } from "./CompanyConversation";
 import {
@@ -514,6 +515,8 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
     dept = d.departments.find((x) => x.id === department),
     guide = d.employees.find((e) => e.id === dept?.guide),
     deptRole = d.roles.find((r) => r.id === guide?.roleId);
+  const attentionCount = needs.filter((need) => !optionalDraftReview(snapshot, need)).length;
+  const readyCount = needs.length - attentionCount;
   const approved = d.artifacts.filter((a) => a.state === "approved"),
     ceos = d.employees.filter(
       (e) => e.state === "active" && d.roles.find((r) => r.id === e.roleId)?.skills.includes("company-plan"),
@@ -868,14 +871,15 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
               className="fe-icon-button co-cockpit-toggle"
               aria-label={
                 "Open cockpit" +
-                (needsError ? ", needs unavailable" : needs.length ? ", " + needs.length + " need you" : "")
+                (needsError ? ", needs unavailable" : attentionCount ? ", " + attentionCount + " need you" : "") +
+                (readyCount ? ", " + readyCount + " drafts ready" : "")
               }
               title="Cockpit"
               onClick={() => (roomy ? showCockpit(true) : setSheet(true))}
             >
               <PanelRightOpen size={17} />
-              {(needsError || needs.length > 0) && (
-                <span className="fe-count attn">{needsError ? "?" : needs.length}</span>
+              {(needsError || attentionCount > 0) && (
+                <span className="fe-count attn">{needsError ? "?" : attentionCount}</span>
               )}
             </button>
           )}

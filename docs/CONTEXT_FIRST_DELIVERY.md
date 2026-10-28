@@ -16,7 +16,10 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   verified backups. The old weekly schedule remains saved but needs re-review after the role instruction change.
 - [Direct-asset comparisons and a fresh tutor check](history/2026-10-28-direct-asset-quality-comparison.md)
   show better reader choices. Repetition and avoidable service/contact assumptions still need work.
-- The owner extended the evaluation allowance to 31 native runs: five consumed, 26 remain. Exact receipts
+- [Grounding and ready-draft follow-up](history/2026-10-28-grounded-actions-ready-drafts.md) separates useful
+  private results from urgent work on Home and in the cockpit. Two more raw runs show that operational
+  assumptions persist despite clearer instructions; further prompt-only gains remain unproven.
+- The owner extended the evaluation allowance to 31 native runs: seven consumed, 24 remain. Exact receipts
   and raw outputs stay private; reported usage is recorded in the history notes.
 
 ## Next acceptance gate

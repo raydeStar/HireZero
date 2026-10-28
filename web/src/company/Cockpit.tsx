@@ -7,6 +7,7 @@ import { ago, elapsed, useNow } from "./time";
 import { dollars } from "./money";
 import { useMemberAccess } from "./MemberAccess";
 import { WorkContext } from "./WorkContext";
+import { optionalDraftReview } from "./readyDrafts";
 
 export type Need = {
   kind: string;
@@ -118,7 +119,8 @@ export function Cockpit({
   const mine = (employeeId?: string) => !scoped || employeeId === scoped.id;
   const tasks = d.tasks.filter((t) => mine(t.employeeId));
   const inGroup = (group: readonly string[]) => tasks.filter((t) => group.includes(workState(snapshot, t)));
-  const shownNeeds = needs.filter((n) => mine(n.employeeId));
+  const ready = needs.filter((n) => mine(n.employeeId) && optionalDraftReview(snapshot, n));
+  const shownNeeds = needs.filter((n) => mine(n.employeeId) && !optionalDraftReview(snapshot, n));
   const working = inGroup(workGroups.progress);
   const next = inGroup(workGroups.next).filter(
     (t) => !["handoff-awaiting-approval", "revision-awaiting-approval"].includes(t.reason ?? ""),
@@ -228,6 +230,27 @@ export function Cockpit({
             )
           )}
         </section>
+        {ready.length > 0 && (
+          <section className="fe-cockpit-section" aria-label="Drafts ready">
+            <h3>
+              Drafts ready <span className="fe-count">{ready.length}</span>
+            </h3>
+            <p className="fe-muted">
+              Open, copy or refine. Sharing with the team, handoffs and schedules still need approval.
+            </p>
+            <ol className="fe-up-next">
+              {ready.map((need) => (
+                <li key={need.key}>
+                  <button className="fe-up-next-title" onClick={() => onOpenNeed(need)}>
+                    <span>{need.title}</span>
+                    <WorkContext snapshot={snapshot} taskId={need.taskId} />
+                    <small>Ready to use</small>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
         <section
           className={"fe-cockpit-section fe-working-on" + (working.length ? " active" : "")}
           aria-label="Working on"

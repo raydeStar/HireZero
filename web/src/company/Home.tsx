@@ -9,6 +9,7 @@ import { FirstAssignment } from "./FirstAssignment";
 import { useMemberAccess } from "./MemberAccess";
 import { WorkContext } from "./WorkContext";
 import { GoalStart } from "./GoalStart";
+import { optionalDraftReview, readyDraft } from "./readyDrafts";
 
 export function initials(name: string) {
   return (
@@ -72,10 +73,13 @@ export function Home({
   const { canManage, canWork } = useMemberAccess();
   const goalStart = canManage && !!onBusiness;
   const d = snapshot.data;
+  const attentionNeeds = needs.filter((need) => !optionalDraftReview(snapshot, need));
+  const ready = d.tasks.filter((task) => readyDraft(snapshot, task));
   const work = d.tasks.filter((t) => t.kind !== "conversation");
   const count = (group: readonly string[]) => work.filter((t) => group.includes(workState(snapshot, t))).length;
   const tiles = [
-    ["Needs you", needsError ? "?" : needsLoading ? "…" : needs.length, needs.length > 0],
+    ["Needs you", needsError ? "?" : needsLoading ? "…" : attentionNeeds.length, attentionNeeds.length > 0],
+    ["Drafts ready", ready.length, false],
     ["In progress", count(workGroups.progress), false],
     ["Up next", count(workGroups.next), false],
     ["Done", count(workGroups.done), false],
@@ -83,7 +87,8 @@ export function Home({
   const status = (e: Employee) => {
     if (e.state !== "active") return employeeState(e.state);
     const mine = d.tasks.filter((t) => t.employeeId === e.id);
-    const review = needs.filter((n) => n.employeeId === e.id && n.kind === "review").length;
+    const review = attentionNeeds.filter((n) => n.employeeId === e.id && n.kind === "review").length;
+    const drafts = ready.filter((task) => task.employeeId === e.id).length;
     const completion = needs.filter((n) => n.employeeId === e.id && n.kind === "completion").length;
     const authorizing = mine.some((t) => workState(snapshot, t) === "awaiting_authorization");
     const running = mine.find((t) => (workGroups.progress as readonly string[]).includes(workState(snapshot, t)));
@@ -94,6 +99,7 @@ export function Home({
       return review + (review === 1 ? " task waits" : " tasks wait") + (canWork ? " for your review" : " for review");
     if (completion) return completion + (completion === 1 ? " task is" : " tasks are") + " ready to complete";
     if (queued) return queued + " queued";
+    if (drafts) return drafts + (drafts === 1 ? " draft ready to use" : " drafts ready to use");
     return "Idle";
   };
   const results = [...d.artifacts]
@@ -194,8 +200,8 @@ export function Home({
     finishedToday && finishedToday + " finished",
     !needsError &&
       !needsLoading &&
-      needs.length &&
-      needs.length + (needs.length === 1 ? " waits for you" : " wait for you"),
+      attentionNeeds.length &&
+      attentionNeeds.length + (attentionNeeds.length === 1 ? " waits for you" : " wait for you"),
   ].filter(Boolean);
   return (
     <div className="co-home">
@@ -216,7 +222,9 @@ export function Home({
                   <em className={"co-chip state-" + artifact.state}>
                     {["completed", "canceled", "superseded"].includes(task.state) && artifact.state === "needs_review"
                       ? "Earlier draft"
-                      : artifactState(artifact.state)}
+                      : readyDraft(snapshot, task)
+                        ? "Ready to use"
+                        : artifactState(artifact.state)}
                   </em>
                 </button>
               </li>
@@ -287,37 +295,45 @@ export function Home({
         </section>
       )}
       {d.employees.length > 0 && (
-        <section className="co-home-tiles" aria-label="At a glance">
-          {tiles.map(([label, value, attention]) =>
-            // What needs you is listed in the cockpit; the tile opens the first item.
-            label === "Needs you" && needs.length > 0 ? (
-              <button key={label} className="co-tile attention" onClick={() => onOpenNeed(needs[0]!)}>
-                <strong>{value}</strong>
-                <span>{label}</span>
-              </button>
-            ) : (
-              <div key={label} className={"co-tile" + (attention ? " attention" : "")}>
-                <strong>{value}</strong>
-                <span>{label}</span>
-              </div>
-            ),
-          )}
-          <div className="co-tile">
-            <strong>
-              {!spend
-                ? "Unavailable"
-                : spend.unpricedJobs > 0 && spend.pricedJobs === 0
-                  ? "Not priced"
-                  : dollars(spend.usd)}
-            </strong>
-            <span>Model costs &amp; estimates</span>
-            {spend && spend.unpricedJobs > 0 && (
-              <small>
-                {spend.unpricedJobs} {spend.unpricedJobs === 1 ? "job has" : "jobs have"} no dollar price
-              </small>
+        <details className="co-home-section">
+          <summary>Workspace activity and costs</summary>
+          <section className="co-home-tiles" aria-label="At a glance">
+            {tiles.map(([label, value, attention]) =>
+              // What needs you is listed in the cockpit; the tile opens the first item.
+              label === "Needs you" && attentionNeeds.length > 0 ? (
+                <button key={label} className="co-tile attention" onClick={() => onOpenNeed(attentionNeeds[0]!)}>
+                  <strong>{value}</strong>
+                  <span>{label}</span>
+                </button>
+              ) : label === "Drafts ready" && ready.length > 0 ? (
+                <button key={label} className="co-tile" onClick={() => onOpenWork(ready.at(-1)!)}>
+                  <strong>{value}</strong>
+                  <span>{label}</span>
+                </button>
+              ) : (
+                <div key={label} className={"co-tile" + (attention ? " attention" : "")}>
+                  <strong>{value}</strong>
+                  <span>{label}</span>
+                </div>
+              ),
             )}
-          </div>
-        </section>
+            <div className="co-tile">
+              <strong>
+                {!spend
+                  ? "Unavailable"
+                  : spend.unpricedJobs > 0 && spend.pricedJobs === 0
+                    ? "Not priced"
+                    : dollars(spend.usd)}
+              </strong>
+              <span>Model costs &amp; estimates</span>
+              {spend && spend.unpricedJobs > 0 && (
+                <small>
+                  {spend.unpricedJobs} {spend.unpricedJobs === 1 ? "job has" : "jobs have"} no dollar price
+                </small>
+              )}
+            </div>
+          </section>
+        </details>
       )}
 
       {next >= 0 && !goalStart && (
