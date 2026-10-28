@@ -30,3 +30,11 @@ crossed the 1,800-token output target and been discarded.
 - A typical deliverable uses about 11% more total tokens, roughly twice the output tokens and 7 more seconds.
 - Only Marketing deliverables were evaluated; other roles get the same policy untested.
 - This narrows ADR 0042's low-effort preference to API routes and qualification. Extra-high stays excluded.
+
+## Subsequent evidence
+
+[ADR 0147](0147-usable-specialist-first-assignments.md) records one baseline and one revised starter request
+for each of CEO and Developer, all at high effort. Both revised outputs include usable small artifacts, while
+the CEO sample still misses explicit brief-field citations. This closes the absence of any installed specialist
+sample; repeatable quality, other specialist tasks and owner usefulness acceptance remain unverified. It is
+not an effort comparison and does not change this policy.

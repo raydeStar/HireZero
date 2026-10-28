@@ -56,6 +56,20 @@ disabled. Eight of ten authorized jobs are consumed; two remain unused. See
 [qualification and delivery evidence](history/2026-10-27-script-task-accounting-correction.md). This advances
 P3.2/P3.6/X9; wider reliability, hostile-workload/production acceptance, actual costs and customer gates remain open.
 
+The next installed specialist walkthrough now supplies native high-effort evidence for CEO and Developer.
+Two baseline results deferred their useful first artifact; [ADR 0147](adr/0147-usable-specialist-first-assignments.md)
+requires concrete first-task briefs/templates, completed fictional examples and observable checks in each
+role's own contract. One fresh follow-up per role supplies those artifacts. The CEO result still omits requested
+brief-field citations; a clearly identified assistant editorial copy adds them without changing the original
+or spending another model request. Four calls total 28,360 reported input/output tokens; actual credits remain
+unknown. These individual samples do not establish consistent quality or owner usefulness acceptance.
+The same change fixes misleading pending-save recovery text, directs first assignments to their exact Work
+review, and separates recoverable read notices from persistent command errors. Focused checks and complete
+fictional first-result and guided-hiring journeys pass. Both local installs have verified backups, preserved
+records/accounts and intact audits; the accepted Marketing copy and exact active schedule remain unchanged.
+See [specialist evaluation and delivery evidence](history/2026-10-27-specialist-first-work.md). This advances
+P1.7/P1.8/P2.2 and review reliability; no other runtime job or application execution activation occurred.
+
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
 example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
 it is 460 words with three complete posts and eleven passing format checks. The native result remains intact.

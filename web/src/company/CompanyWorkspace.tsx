@@ -131,6 +131,8 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [events, setEvents] = useState<Event[]>([]),
     [error, setError] = useState(""),
+    [loadError, setLoadError] = useState(""),
+    [threadError, setThreadError] = useState(""),
     [busy, setBusy] = useState(false);
   const [route, setRoute] = useState<ConversationRoute>(readRoute),
     [detail, setDetail] = useState<ThreadDetail | null>(null),
@@ -381,24 +383,29 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
     feedCursor = useRef(0);
   async function refresh() {
     const request = ++snapshotRequest.current;
-    const next = await api<Snapshot>("/company");
-    if (!alive.current || request !== snapshotRequest.current) return;
-    setSnapshot(next);
-    let cursor = feedCursor.current;
-    const found: Event[] = [];
-    while (cursor < next.data.cursor) {
-      const page = await api<Event[]>("/company/feed?after=" + cursor + "&limit=100");
-      if (!page.length) break;
-      found.push(...page);
-      cursor = page[page.length - 1].sequence;
-    }
-    if (alive.current) {
+    try {
+      const next = await api<Snapshot>("/company");
+      if (!alive.current || request !== snapshotRequest.current) return;
+      setSnapshot(next);
+      let cursor = feedCursor.current;
+      const found: Event[] = [];
+      while (cursor < next.data.cursor) {
+        const page = await api<Event[]>("/company/feed?after=" + cursor + "&limit=100");
+        if (!alive.current || request !== snapshotRequest.current) return;
+        if (!page.length) break;
+        found.push(...page);
+        cursor = page[page.length - 1].sequence;
+      }
       feedCursor.current = Math.max(feedCursor.current, cursor);
       setEvents((previous) =>
         Array.from(new Map([...previous, ...found].map((event) => [event.sequence, event])).values())
           .sort((a, b) => a.sequence - b.sequence)
           .slice(-300),
       );
+      setLoadError("");
+    } catch (e) {
+      if (alive.current && request === snapshotRequest.current) setLoadError((e as Error).message);
+      throw e;
     }
     const target = current.current;
     if (routeRef.current.tab === "employee" && target.selected && target.thread)
@@ -406,20 +413,27 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
   }
   async function refreshThread(employee: string, id: string) {
     const request = ++threadRequest.current;
-    const next = await api<ThreadDetail>("/company/employees/" + employee + "/threads/" + id);
-    if (
+    const stillCurrent = () =>
       alive.current &&
       request === threadRequest.current &&
       current.current.selected === employee &&
-      current.current.thread === id
-    )
-      setDetail(next);
+      current.current.thread === id;
+    try {
+      const next = await api<ThreadDetail>("/company/employees/" + employee + "/threads/" + id);
+      if (stillCurrent()) {
+        setDetail(next);
+        setThreadError("");
+      }
+    } catch (e) {
+      if (stillCurrent()) setThreadError((e as Error).message);
+      throw e;
+    }
   }
   useEffect(() => {
     alive.current = true;
-    void refresh().catch((e) => setError(e.message));
+    void refresh().catch(() => {}); // The read owns its recoverable notice; commands keep their own receipts.
     const timer = setInterval(() => {
-      if (document.visibilityState === "visible") void refresh().catch((e) => setError(e.message));
+      if (document.visibilityState === "visible") void refresh().catch(() => {});
     }, 3000);
     return () => {
       alive.current = false;
@@ -428,8 +442,8 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
   }, []);
   useEffect(() => {
     setDetail(null);
-    if (selected && thread && tab === "employee")
-      void refreshThread(selected, thread).catch((e) => setError(e.message));
+    setThreadError("");
+    if (selected && thread && tab === "employee") void refreshThread(selected, thread).catch(() => {});
   }, [selected, thread, tab]);
   const replyTarget = snapshot?.data.tasks.find((task) => task.id === route.work && task.kind === "conversation");
   useEffect(() => {
@@ -477,8 +491,8 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
     return (
       <main className="co-loading">
         <BrandMark className="co-brand" />
-        <p>{error || "Opening company workspace…"}</p>
-        <button onClick={() => void refresh().catch((e) => setError(e.message))}>Retry</button>
+        <p>{loadError || error || "Opening company workspace…"}</p>
+        <button onClick={() => void refresh().catch(() => {})}>Retry</button>
       </main>
     );
   const d = snapshot.data,
@@ -563,6 +577,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       snapshot={snapshot}
       refresh={refresh}
       open={openConversation}
+      openWork={openWork}
       resumeId={resumeHire}
       onResumeHandled={() => setResumeHire("")}
       requestedRole={requestedHireRole}
@@ -838,6 +853,13 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             </button>
           )}
         </header>
+        {(loadError || threadError) && (
+          <div className="co-error co-refresh-error" role="status">
+            {loadError ? "Workspace updates are unavailable. " : "This conversation could not refresh. "}
+            {loadError || threadError} Your saved work is kept.
+            <button onClick={() => void refresh().catch(() => {})}>Refresh workspace</button>
+          </div>
+        )}
         {error && (
           <div className="co-error" role="alert">
             {error}

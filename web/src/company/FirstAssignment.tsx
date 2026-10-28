@@ -1,7 +1,7 @@
 import { memberStorage as sessionStorage } from "../lib/api";
 import { useRef, useState } from "react";
 import { company } from "../lib/api";
-import { command, reconcileCompanyOperation, UnconfirmedCompanyOperation, type Snapshot } from "./api";
+import { command, reconcileCompanyOperation, UnconfirmedCompanyOperation, type Snapshot, type Work } from "./api";
 import type { BusinessSetup } from "../roles/company";
 import { ModelChoice } from "./ModelChoice";
 
@@ -13,6 +13,7 @@ export function FirstAssignment({
   setup,
   refresh,
   open,
+  openWork,
 }: {
   snapshot: Snapshot;
   employeeId: string;
@@ -20,6 +21,7 @@ export function FirstAssignment({
   setup: BusinessSetup;
   refresh: () => Promise<void>;
   open: (employee: string, thread: string) => void;
+  openWork: (task: Work) => void;
 }) {
   const key = `hirezero-first-assignment-v1:${company() || "local-company"}:${employeeId}`;
   const [draft, setDraft] = useState<Draft>(() => {
@@ -32,6 +34,7 @@ export function FirstAssignment({
     return { prompt: setup.firstAssignment.prompt, allowance: "1" };
   });
   const [busy, setBusy] = useState(false),
+    [checking, setChecking] = useState(false),
     [error, setError] = useState("");
   const locked = useRef(false),
     current = useRef(draft);
@@ -54,15 +57,17 @@ export function FirstAssignment({
   async function prepare() {
     if (locked.current) return;
     locked.current = true;
+    setChecking(!!current.current.pending);
     setBusy(true);
     setError("");
     try {
-      if (current.current.pending) await reconcileCompanyOperation(current.current.pending);
+      let saved: unknown;
+      if (current.current.pending) saved = await reconcileCompanyOperation(current.current.pending);
       else {
         const allowance = Number(current.current.allowance);
         if (!current.current.prompt.trim() || !(allowance > 0 && allowance <= 1000))
           throw new Error("Enter the request and a positive allowance up to 1,000.");
-        await command(
+        saved = await command(
           "assignment.prepare",
           {
             employeeId,
@@ -81,7 +86,15 @@ export function FirstAssignment({
       change({ ...current.current, pending: undefined, prepared: true });
       try {
         await refresh();
-        open(employeeId, threadId);
+        const task = (saved as { task?: Work })?.task;
+        if (
+          task?.id &&
+          task.employeeId === employeeId &&
+          task.threadId === threadId &&
+          task.skill === setup.firstAssignment.skill
+        )
+          openWork(task);
+        else open(employeeId, threadId);
       } catch {
         setError("Your request was saved. Open the private chat to review it when the connection recovers.");
       }
@@ -108,9 +121,15 @@ export function FirstAssignment({
       )}
       {draft.pending ? (
         <>
-          <p role="status">The save needs confirmation. Your request is kept; it will not be repeated.</p>
+          <p role="status">
+            {busy
+              ? checking
+                ? "Checking your saved request…"
+                : "Preparing your request for review…"
+              : "The save needs confirmation. Your request is kept; it will not be repeated."}
+          </p>
           <button disabled={busy} onClick={() => void prepare()}>
-            Check first request status
+            {busy ? (checking ? "Checking status…" : "Preparing request…") : "Check first request status"}
           </button>
         </>
       ) : draft.prepared || assignment ? (
@@ -122,7 +141,11 @@ export function FirstAssignment({
                 ? "Your first plan is ready for review. Approve the result before marking the assignment complete."
                 : "Your saved assignment is in the private chat. Review its current status there."}
           </p>
-          <button className="co-primary" disabled={busy} onClick={() => open(employeeId, threadId)}>
+          <button
+            className="co-primary"
+            disabled={busy}
+            onClick={() => (assignment ? openWork(assignment) : open(employeeId, threadId))}
+          >
             Open first assignment
           </button>
         </>

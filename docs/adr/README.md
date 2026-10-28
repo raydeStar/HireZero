@@ -151,3 +151,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0144](0144-edit-completed-recurring-text-results.md) | Edit completed recurring text results without another model request | Accepted; separate owner-authored copies preserve receipts, occurrence accounting and future authority |
 | [0145](0145-focused-deliverable-review.md) | Open deliverables in focused Work review | Accepted; explicit split chat, expandable work and wrapping composer controls preserve drafts |
 | [0146](0146-script-initial-task-accounting.md) | Account for the initial workload task outside the runtime UID counter | Locally qualified standard/extended; internal 31 enforces actual 32, restart bindings pass, application disabled |
+| [0147](0147-usable-specialist-first-assignments.md) | Make specialist starters useful and open their exact saved work | Implemented; native follow-up pending, fictional first-result and hiring journeys pass |

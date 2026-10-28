@@ -581,17 +581,62 @@ try {
     deviceScaleFactor: 1,
     mobile: true,
   });
-  // A lost save response is reconciled by receipt, never by preparing a duplicate assignment.
+  // A transient read failure clears after recovery without losing the unfinished request.
+  const unsavedFirstRequest = await evaluate(
+    "document.querySelector('.co-first-assignment textarea').value",
+  );
   await evaluate(
-    "window.firstPlanFetch=window.fetch;window.loseFirstPlan=true;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(window.loseFirstPlan&&body.action==='assignment.prepare'){window.loseFirstPlan=false;await window.firstPlanFetch(input,init);throw new TypeError('Synthetic lost first-plan reply');}return window.firstPlanFetch(input,init);};",
+    "window.refreshOriginalFetch=window.fetch;window.failWorkspaceRefresh=true;window.fetch=(input,init)=>window.failWorkspaceRefresh&&String(input)==='/api/company'?Promise.reject(new TypeError('Synthetic workspace refresh failure')):window.refreshOriginalFetch(input,init)",
+  );
+  await bodyText("Workspace updates are unavailable.");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-first-assignment textarea').value",
+    ),
+    unsavedFirstRequest,
+  );
+  await evaluate("window.failWorkspaceRefresh=false");
+  await click("Refresh workspace");
+  await until(
+    () => evaluate("!document.querySelector('.co-refresh-error')"),
+    "Recovered reads clear their own notice",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-first-assignment textarea').value",
+    ),
+    unsavedFirstRequest,
+  );
+  // While a save is still pending, show progress. A lost reply is reconciled without a duplicate assignment.
+  await evaluate(
+    "window.firstPlanFetch=window.fetch;window.loseFirstPlan=true;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(window.loseFirstPlan&&body.action==='assignment.prepare'){window.loseFirstPlan=false;await new Promise(resolve=>window.releaseFirstPlan=resolve);await window.firstPlanFetch(input,init);throw new TypeError('Synthetic lost first-plan reply');}return window.firstPlanFetch(input,init);};",
   );
   await click("Prepare my first plan");
+  await bodyText("Preparing your request for review…");
+  assert.equal(
+    await evaluate(
+      "document.body.innerText.includes('The save needs confirmation')",
+    ),
+    false,
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-first-assignment button').disabled",
+    ),
+    true,
+  );
+  await evaluate("window.releaseFirstPlan()");
   await bodyText("Review task and context");
   data = (await snapshot()).data;
   const firstTask = () =>
     data.tasks.find((t) => t.skill === "marketing-starter-plan");
   assert.equal(data.tasks.filter((t) => t.kind === "work").length, 1);
   assert.equal(firstTask().kind, "work");
+  assert.equal(
+    await evaluate("new URL(location.href).searchParams.get('work')"),
+    firstTask().id,
+    "Preparation opens the exact saved job review",
+  );
   const firstMeasured = data.measured.find(
     (m) => m.job.policy.version === "measured-deliverable-v2",
   );
@@ -693,6 +738,27 @@ try {
       ),
     "Home opens the exact result in focused work mode",
   );
+  await evaluate(
+    "window.completionFetch=window.fetch;window.refuseCompletion=true;window.readsAfterRefusal=0;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(window.refuseCompletion&&body.action==='task.complete'){window.refuseCompletion=false;return new Response(JSON.stringify({error:'Synthetic completion refusal'}),{status:422,headers:{'Content-Type':'application/json'}});}const response=await window.completionFetch(input,init);if(!window.refuseCompletion&&String(input)==='/api/company'&&response.ok)window.readsAfterRefusal++;return response;}",
+  );
+  await click("Complete after review");
+  await bodyText("Synthetic completion refusal");
+  await until(
+    () => evaluate("window.readsAfterRefusal>0"),
+    "Successful poll after a refused command",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('[role=alert]')?.textContent.includes('Synthetic completion refusal')",
+    ),
+    true,
+    "A recovered read must not erase a command failure",
+  );
+  assert.equal(
+    (await snapshot()).data.tasks.find((t) => t.id === firstTask().id).state,
+    "awaiting_review",
+  );
+  await click("Dismiss");
   await click("Complete after review");
   await until(
     () =>
@@ -1142,6 +1208,11 @@ try {
         homeRequiresReviewedCompletedWork: true,
         homeResultUsesFocusedWorkView: true,
         firstPlanLostSaveReconciled: true,
+        firstPlanPreparingIsNotUncertain: true,
+        firstPlanOpensExactWork: true,
+        recoveredReadClearsOnlyItsOwnNotice: true,
+        recoveredReadPreservesUnfinishedRequest: true,
+        successfulPollPreservesCommandFailure: true,
         approvedBriefInFirstPlan: true,
         firstPlanSurvivesReload: true,
         firstPlanIsTrackedWork: true,

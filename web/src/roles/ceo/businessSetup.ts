@@ -33,7 +33,7 @@ export function ceoBusinessSetup(profile: BusinessProfile): BusinessSetup {
       description:
         "A short list of priorities, the next useful task and decisions that need you. You can start before hiring a full team.",
       skill: "company-priorities",
-      prompt: `Prepare a concise one-week priority plan for this goal: ${objective}. Ground observations in the approved brief, citing field names. Suggest up to three priorities with a reason and success measure, one small first task and at most three owner decisions or missing facts. Distinguish verified facts from hypotheses. Mention existing colleagues only when supplied, and do not assign work or invent a team. Return readable internal advice, not a delegation JSON proposal. Nothing is approved or executed by this response.`,
+      prompt: `Prepare a one-week priority plan in at most 450 words for this goal:\n${objective}\nStart with at most two observations citing approved brief fields. Rank up to three priorities: explain why each comes now, its concrete deliverable, a proposed success check and estimated timebox. Sequence them using relative days, and name one thing to defer with a reason. Include a ready-to-use first-task brief now: approved inputs, steps, exact output and a check for completion. If it calls for a question, checklist or small template, write that item with a short completed example instead of assigning another planning exercise. End with at most three owner decisions or missing facts, recommending a default where supported. Distinguish facts, hypotheses and estimates. Mention colleagues only when supplied; do not assign work or invent a team. Return readable internal advice, not delegation JSON. Nothing is approved or executed by this response.`,
     },
   };
 }

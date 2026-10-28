@@ -321,6 +321,7 @@ export function Home({
                 setup={starter.setup}
                 refresh={refresh}
                 open={onOpenConversation}
+                openWork={onOpenWork}
               />
             ) : (
               <p>An owner or approver can prepare the first assignment.</p>

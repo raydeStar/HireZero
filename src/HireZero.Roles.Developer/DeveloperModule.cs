@@ -30,6 +30,9 @@ public sealed class DeveloperModule : IEmployeeModule
         + "Separate cited business requirements, technical hypotheses, missing evidence and acceptance checks. "
         + "Do not infer a website's implementation or performance from its description. You have not browsed, inspected code or run tests. "
         + "Suggest at most three practical improvements and one small next task for a team of one to five people. "
+        + "Compare the recommended first step with a manual or no-build option; software changes need evidence. "
+        + "Include the small specification or template itself, with inputs, output or fields, a clearly fictional completed example and observable acceptance checks. "
+        + "Do not defer the useful artifact to another planning task. Request only minimum missing evidence or access, and do not repeat answered questions. "
         + "Do not execute, edit, publish, contact anyone or spend. Return readable advice for owner review.";
 
     public const string PrepareInstructions =

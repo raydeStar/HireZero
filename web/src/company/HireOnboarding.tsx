@@ -2,7 +2,14 @@ import { memberStorage as sessionStorage } from "../lib/api";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, CircleCheckBig } from "lucide-react";
 import { company } from "../lib/api";
-import { command, reconcileCompanyOperation, UnconfirmedCompanyOperation, type Knowledge, type Snapshot } from "./api";
+import {
+  command,
+  reconcileCompanyOperation,
+  UnconfirmedCompanyOperation,
+  type Knowledge,
+  type Snapshot,
+  type Work,
+} from "./api";
 import { humanize } from "./labels";
 import { ContextFromSources } from "./ContextFromSources";
 import { valuesOf } from "./contextDraft";
@@ -137,6 +144,7 @@ export function HireOnboarding({
   snapshot,
   refresh,
   open,
+  openWork,
   resumeId,
   onResumeHandled,
   onActive,
@@ -146,6 +154,7 @@ export function HireOnboarding({
   snapshot: Snapshot;
   refresh: () => Promise<void>;
   open: (employee: string, thread: string) => void;
+  openWork: (task: Work) => void;
   resumeId?: string;
   onResumeHandled: () => void;
   // Whether a hire is under way (past its first step), so the page can put the guide first (UX audit, 2026-10-20).
@@ -768,6 +777,7 @@ export function HireOnboarding({
               setup={setup}
               refresh={refresh}
               open={open}
+              openWork={openWork}
             />
           ) : (
             <p className="co-hire-done-next">
