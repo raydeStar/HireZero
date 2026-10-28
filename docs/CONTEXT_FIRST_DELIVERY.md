@@ -9,7 +9,18 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
-Current checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
+Current checkpoint (2026-10-27): the owner accepted draft 3 unchanged as useful and authorized its approval. The
+exact editorial copy is approved in the installed app and its task is completed; all earlier copies remain
+intact. This closes first-result usefulness for this owner pilot, including human editing, not general customer
+validation or unedited model quality. [ADR 0142](adr/0142-explicit-marketing-review-labels.md) aligns new Marketing
+instructions with the checker's labels and decision-list format. No additional model request, publishing or
+recurring activation was needed. See [owner acceptance](history/2026-10-27-owner-acceptance-and-review-format.md).
+The format update is installed with backups and preserved records. A concrete two-occurrence weekly draft now
+retains the accepted copy and consolidated feedback, with zero runs. Reliable startup for the separate acceptance
+workspace must be settled before activation is presented for approval.
+The clipboard integration discrepancy and broader customer/commercial/runtime gates remain open.
+
+Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
 example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
 it is 460 words with three complete posts and eleven passing format checks. The native result remains intact.
 The review now starts with the newest saved copy and stable draft numbers under
@@ -21,9 +32,9 @@ browser clipboard discrepancy remains unresolved; the saved copy itself is verif
 [concrete-workflow evidence](history/2026-10-27-concrete-workflow-plan-review.md). Owner usefulness acceptance
 and all broader phase gates remain open.
 
-Next required acceptance evidence is the owner's usefulness assessment of the latest saved editorial copy.
-That gate has remained open across the first-draft, review-label, recurring-feedback and concrete-workflow
-checkpoints. A new assessment request links to the exact task; it grants no publishing or recurring authority.
+At that checkpoint the next required evidence was the owner's usefulness assessment of the latest editorial copy.
+That gate had remained open across the first-draft, review-label, recurring-feedback and concrete-workflow
+checkpoints. The subsequent owner acceptance above closes it for this pilot; it grants no publishing or recurring authority.
 The clipboard mismatch also reproduces in a fresh tab, but native verification requires available Computer Use
 app access. Do not substitute further model calls or infrastructure expansion for these missing observations.
 
@@ -212,7 +223,7 @@ had not yet been deployed to the existing workspace; the successful result was r
 | P1.5 | Editable concise brief; confirm/correct/remove; corrections authoritative                             | Saved and unsaved corrections, exact review/unknown/revoke, immutable paged correction history and mobile source/date display verified locally with fictional fixtures                               | verified                 |
 | P1.6 | Persist isolated company knowledge, documents and identity; no model use before approval              | Identity, evidence, approved profiles and private text documents persist with tenant isolation. UTF-8 and bounded Word imports, draft recovery, separate approval and scoped retrieval have fictional proof under ADR 0089. Selected Drive document copies now have fictional owner/setup/read/approval proof under ADR 0090. Selectable PDF text now has a bounded parser process, page labels, missing-text notices and separately approved scoped retrieval with local proof under ADR 0098. OCR, visual fidelity, broader formats, live private-source acceptance and further connectors remain pending | partial                  |
 | P1.7 | Recommend and set up one Marketing employee from approved company knowledge                           | Role-owned Marketing setup and goal-based Marketing/Developer/CEO suggestions reuse the current approved brief. Editable setup, existing-employee reuse and first assignments are verified in fictional browser journeys; real recommendation relevance remains pending | partial                  |
-| P1.8 | First useful modest research/marketing deliverable, observations separate from hypotheses             | The initial real run, revision and separately authorized quality check completed. A separate editorial correction adds coherent worked examples and a use-based learning goal. ADRs 0128–0131 preserve feedback, edits and review/completion history. Owner usefulness acceptance remains pending; fictional mechanics and installed delivery are verified | partial                  |
+| P1.8 | First useful modest research/marketing deliverable, observations separate from hypotheses             | The owner accepted the 460-word editorial copy after a native revision, confirmed its claims, concrete examples and completed-use learning goal, and authorized approval unchanged. The exact copy is approved and its task completed. This verifies one owner pilot including human editing, not consistent unedited quality or broader customer acceptance | verified                 |
 | P1.9 | Minimal-assistance onboarding that customers recognize as useful                                      | Requires observed prospective-customer sessions, not synthetic fixtures                                                                                                                              | field validation pending |
 
 ## Phase 2 — persistent employee workflows

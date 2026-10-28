@@ -146,3 +146,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0139](0139-distinguishable-review-items.md) | Distinguish review items by conversation and request | Accepted; consistent display labels preserve exact task navigation and authority |
 | [0140](0140-revision-feedback-in-recurring-drafts.md) | Retain owner revision feedback in new recurring drafts | Accepted; ordered editable instructions, explicit consolidation and separate schedule approval |
 | [0141](0141-latest-saved-draft-first.md) | Open work review with the latest saved draft | Accepted; stable draft numbers and approved-first completed work preserve earlier copies |
+| [0142](0142-explicit-marketing-review-labels.md) | Align Marketing's default format with its draft checks | Accepted; explicit labels, listed decisions or a none declaration, with owner format precedence |

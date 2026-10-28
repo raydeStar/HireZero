@@ -29,6 +29,12 @@ for (const heading of ["**Open decisions:**", "## Open decisions"]) {
   assert.equal(starterPlanChecks(decisionList + "- Channel?\n- Permission?\n", base, [base]).find(c => c.label === "Unknowns and decisions").state, "fail");
 }
 assert.equal(starterPlanChecks("**Open decisions:** confirm audience and timing.", base, [base]).find(c => c.label === "Unknowns and decisions").state, "review");
+for (const none of ["Open decisions: none", "**Open decisions:** None.", "## Open decisions\nNone."]) {
+  const result = starterPlanChecks(none, base, [base]).find(c => c.label === "Unknowns and decisions");
+  assert.equal(result.state, "pass");
+  assert.match(result.detail, /None declared/);
+}
+assert.equal(starterPlanChecks("**Open decisions: none**\n- One\n- Two\n- Three\n- Four\n", base, [base]).find(c => c.label === "Unknowns and decisions").state, "fail");
 checks = starterPlanChecks(body, revision, [revision]);
 assert.equal(checks.find(c => c.label === "Earlier requirements").state, "review");
 assert.equal(checks.find(c => c.label === "Monday length").state, "review");

@@ -72,14 +72,23 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
   const unknownSection = body.match(
     /^(?:#{1,6}\s+|\*\*)[^\n]*(?:unknowns|missing facts|owner decisions|open decisions)[^\n]*\n([\s\S]*?)(?=^#{1,2}\s|$(?![\s\S]))/im,
   );
-  const unknowns = unknownSection ? [...unknownSection[1].matchAll(/^\s*(?:[-*]|\d+[.)])\s+\S/gm)].length : undefined;
+  const listedUnknowns = unknownSection
+    ? [...unknownSection[1].matchAll(/^\s*(?:[-*]|\d+[.)])\s+\S/gm)].length
+    : undefined;
+  const noDecisionsDeclared =
+    /^(?:unknowns|missing facts|owner decisions|open decisions)\s*:\s*none[.!]?\s*$/im.test(
+      body.replace(/[*#]/g, ""),
+    ) || !!unknownSection?.[1].trim().match(/^(?:\*\*)?none[.!]?(?:\*\*)?$/i);
+  const unknowns = listedUnknowns || (noDecisionsDeclared ? 0 : undefined);
   checks.push({
     label: "Unknowns and decisions",
     detail:
-      unknowns === undefined || unknowns === 0
+      unknowns === undefined
         ? "No list detected; check the requested unknowns."
-        : `${unknowns} listed · at most three`,
-    state: unknowns ? (unknowns <= 3 ? "pass" : "fail") : "review",
+        : unknowns === 0
+          ? "None declared · confirm no consequential decision is missing."
+          : `${unknowns} listed · at most three`,
+    state: unknowns === undefined ? "review" : unknowns <= 3 ? "pass" : "fail",
   });
   const channelLabels = [...body.matchAll(/channel hypothesis\s*:/gi)].length;
   checks.push({
