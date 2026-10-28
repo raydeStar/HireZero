@@ -1,6 +1,15 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { X, Zap } from "lucide-react";
-import { actionChoices, runAction, type ActionChoice, type ActionFieldInfo, type Role } from "./api";
+import { actionChoices, runAction, type ActionChoice, type ActionFieldInfo, type Role, type Work } from "./api";
+import { ApiError } from "../lib/api";
+import {
+  actionReceiptKey,
+  readActionReceipts,
+  writeActionReceipts,
+  checkActionTask,
+  recoverAction,
+  type ActionReceipts,
+} from "./actionRecovery";
 
 // How many actions show as buttons before the rest move into a menu.
 const visibleActions = 4;
@@ -25,16 +34,33 @@ export function EmployeeActions({
   refresh: () => Promise<void>;
 }) {
   const actions = role?.actions ?? [];
-  const [values, setValues] = useState<Record<string, Record<string, string>>>({});
+  const key = actionReceiptKey(employeeId, threadId);
+  const [restored] = useState(() => {
+    try {
+      return { receipts: readActionReceipts(key), error: "" };
+    } catch (e) {
+      return { receipts: {} as ActionReceipts, error: (e as Error).message };
+    }
+  });
+  const [receipts, setReceipts] = useState(restored.receipts);
+  const currentReceipts = useRef(receipts);
+  const [values, setValues] = useState<Record<string, Record<string, string>>>(() =>
+    Object.fromEntries(Object.entries(restored.receipts).map(([id, receipt]) => [id, receipt.input])),
+  );
   const [running, setRunning] = useState("");
   const [refreshing, setRefreshing] = useState("");
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState<Record<string, { needsRefresh: boolean }>>({});
+  const [saved, setSaved] = useState<Record<string, { needsRefresh: boolean; taskState: string }>>({});
   const locked = useRef(false);
-  // One request ID per attempt, kept until the outcome is known, so a retry never runs the action twice.
-  const [attempt, setAttempt] = useState<Record<string, string>>({});
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   // One action form at a time, picked by name (owner walkthrough, 2026-10-19); none until a button is pressed.
-  const [picked, setPicked] = useState("");
+  const [picked, setPicked] = useState(() => actions.find((a) => restored.receipts[a.id])?.id || "");
   // Loaded choices by action and field; an empty list means none could be read, so the value is typed instead.
   const [loaded, setLoaded] = useState<Record<string, ActionChoice[]>>({});
   const shown = actions.find((action) => action.id === picked);
@@ -61,34 +87,50 @@ export function EmployeeActions({
   // A field with choices starts on its first choice.
   const valueOf = (action: string, field: ActionFieldInfo) =>
     values[action]?.[field.id] ?? choicesOf(action, field)[0]?.value ?? "";
+  function keep(next: ActionReceipts) {
+    writeActionReceipts(key, next);
+    currentReceipts.current = next;
+    setReceipts(next);
+  }
+  async function confirmed(action: string, task: Work) {
+    if (!alive.current) return;
+    checkActionTask(task, employeeId, threadId, action);
+    keep({ ...currentReceipts.current, [action]: { ...currentReceipts.current[action], taskId: task.id } });
+    setSaved((current) => ({ ...current, [action]: { needsRefresh: false, taskState: task.state } }));
+    try {
+      await refresh();
+    } catch {
+      setSaved((current) => ({ ...current, [action]: { needsRefresh: true, taskState: task.state } }));
+    }
+  }
   async function run(action: string, fields: ActionFieldInfo[]) {
-    if (disabled || locked.current || saved[action]) return;
+    if (disabled || locked.current || restored.error || currentReceipts.current[action]) return;
     const input = Object.fromEntries(fields.map((field) => [field.id, valueOf(action, field).trim()]));
     if (Object.values(input).some((value) => !value)) {
       setError("Fill in every field.");
       return;
     }
-    const requestId = attempt[action] ?? crypto.randomUUID();
+    const requestId = crypto.randomUUID();
     locked.current = true;
-    setAttempt({ ...attempt, [action]: requestId });
     setRunning(action);
     setError("");
     try {
-      await runAction(requestId, employeeId, threadId, action, input);
-      setAttempt((current) => {
-        const next = { ...current };
-        delete next[action];
-        return next;
-      });
+      keep({ ...currentReceipts.current, [action]: { requestId, input } });
       setValues((current) => ({ ...current, [action]: input }));
-      setSaved((current) => ({ ...current, [action]: { needsRefresh: false } }));
-      try {
-        await refresh();
-      } catch {
-        // The result is already served; a slow window must not send the kitchen the same order twice.
-        setSaved((current) => ({ ...current, [action]: { needsRefresh: true } }));
-      }
+      const result = (await runAction(requestId, employeeId, threadId, action, input)) as { task: Work };
+      await confirmed(action, result.task);
     } catch (failure) {
+      if (!alive.current) return;
+      // A definitive refusal admitted no action. Lost replies and server failures retain the exact receipt.
+      if (failure instanceof ApiError && failure.status >= 400 && failure.status < 500) {
+        const next = { ...currentReceipts.current };
+        delete next[action];
+        try {
+          keep(next);
+        } catch {
+          /* Keep recovery locked if storage could not be updated. */
+        }
+      }
       setError(failure instanceof Error ? failure.message : "The action did not complete.");
     } finally {
       locked.current = false;
@@ -96,21 +138,30 @@ export function EmployeeActions({
     }
   }
   async function refreshSaved(action: string) {
-    if (disabled || locked.current || !saved[action]) return;
+    const receipt = currentReceipts.current[action];
+    if (disabled || locked.current || !receipt || restored.error) return;
     locked.current = true;
     setRefreshing(action);
+    setError("");
     try {
-      await refresh();
-      setSaved((current) => ({ ...current, [action]: { needsRefresh: false } }));
-    } catch {
-      setSaved((current) => ({ ...current, [action]: { needsRefresh: true } }));
+      await confirmed(action, await recoverAction(receipt, employeeId, threadId, action));
+    } catch (e) {
+      setError("The saved action could not be confirmed. No new request was sent. " + (e as Error).message);
     } finally {
       locked.current = false;
       setRefreshing("");
     }
   }
   function startAnother(action: string) {
-    if (disabled || locked.current) return;
+    if (disabled || locked.current || restored.error || !saved[action] || !settled(saved[action].taskState)) return;
+    const next = { ...currentReceipts.current };
+    delete next[action];
+    try {
+      keep(next);
+    } catch (e) {
+      setError((e as Error).message);
+      return;
+    }
     setSaved((current) => {
       const next = { ...current };
       delete next[action];
@@ -162,26 +213,48 @@ export function EmployeeActions({
         [shown].map((action) => {
           const start = () => void run(action.id, action.fields);
           const confirmed = saved[action.id];
-          const blocked = disabled || running !== "" || refreshing !== "";
-          const Inputs = confirmed ? "details" : Fragment;
+          const pending = !!receipts[action.id] && !confirmed;
+          const blocked = disabled || !!restored.error || running !== "" || refreshing !== "";
+          const Inputs = confirmed || pending ? "details" : Fragment;
           const controls = (
             <div className="co-action-run">
               {confirmed ? (
                 <>
-                  {confirmed.needsRefresh && (
+                  {(confirmed.needsRefresh || !settled(confirmed.taskState)) && (
                     <button
                       type="button"
                       className="co-primary"
                       disabled={blocked}
                       onClick={() => void refreshSaved(action.id)}
                     >
-                      {refreshing === action.id ? "Refreshing…" : "Retry refresh"}
+                      {refreshing === action.id
+                        ? "Refreshing…"
+                        : confirmed.needsRefresh
+                          ? "Retry refresh"
+                          : "Check saved status"}
                     </button>
                   )}
-                  <button type="button" disabled={blocked} onClick={() => startAnother(action.id)}>
+                  <button
+                    type="button"
+                    disabled={blocked || !settled(confirmed.taskState)}
+                    onClick={() => startAnother(action.id)}
+                  >
                     Start another run
                   </button>
                 </>
+              ) : pending ? (
+                <button
+                  type="button"
+                  className="co-primary"
+                  disabled={blocked}
+                  onClick={() => void refreshSaved(action.id)}
+                >
+                  {running === action.id
+                    ? "Gathering…"
+                    : refreshing === action.id
+                      ? "Checking status…"
+                      : "Check saved status"}
+                </button>
               ) : (
                 <button type="button" className="co-primary" disabled={blocked} onClick={start}>
                   {running === action.id ? "Gathering…" : "Run"}
@@ -201,18 +274,32 @@ export function EmployeeActions({
           return (
             <div key={action.id} className="co-action" role="group" aria-label={action.name}>
               <p>
-                <b>{action.name}</b> {action.description} The result is saved for your review before it can be used.
+                <b>{action.name}</b>{" "}
+                {!confirmed && !pending && (
+                  <>{action.description} The result is saved for your review before it can be used.</>
+                )}
               </p>
+              {(confirmed || pending) && controls}
               {confirmed && (
                 <p role="status">
                   {confirmed.needsRefresh
                     ? "Action saved. The workspace could not refresh. Your result and inputs are kept."
-                    : "Action saved. Review its result in this conversation."}
+                    : !settled(confirmed.taskState)
+                      ? "Action saved and still running. Check its saved status before starting another run."
+                      : confirmed.taskState === "failed"
+                        ? "The action stopped. Review its saved failure before deciding whether to start another run."
+                        : "Action saved. Review its result in this conversation."}
                 </p>
               )}
-              {confirmed && controls}
+              {pending && (
+                <p role="status">
+                  {running === action.id
+                    ? "Gathering the requested evidence. Your recovery receipt is saved."
+                    : "This action needs a status check. Your submitted inputs and receipt are kept; it will not be repeated."}
+                </p>
+              )}
               <Inputs>
-                {confirmed && <summary>Submitted inputs</summary>}
+                {(confirmed || pending) && <summary>Submitted inputs</summary>}
                 {action.fields.map((field) => {
                   const value = valueOf(action.id, field);
                   const change = (text: string) =>
@@ -228,7 +315,7 @@ export function EmployeeActions({
                         <select
                           aria-label={field.label}
                           value={value}
-                          disabled={blocked || !!confirmed}
+                          disabled={blocked || pending || !!confirmed}
                           onChange={(event) => change(event.target.value)}
                         >
                           {choices.map((choice) => (
@@ -243,12 +330,12 @@ export function EmployeeActions({
                           maxLength={field.maxLength}
                           rows={6}
                           value={value}
-                          disabled={blocked || !!confirmed}
+                          disabled={blocked || pending || !!confirmed}
                           onChange={(event) => change(event.target.value)}
                           onKeyDown={(event) => {
                             if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) return;
                             event.preventDefault();
-                            if (!blocked && !confirmed) start();
+                            if (!blocked && !pending && !confirmed) start();
                           }}
                         />
                       ) : (
@@ -256,12 +343,12 @@ export function EmployeeActions({
                           aria-label={field.label}
                           maxLength={field.maxLength}
                           value={value}
-                          disabled={blocked || !!confirmed}
+                          disabled={blocked || pending || !!confirmed}
                           onChange={(event) => change(event.target.value)}
                           onKeyDown={(event) => {
                             if (event.key !== "Enter") return;
                             event.preventDefault();
-                            if (!blocked && !confirmed) start();
+                            if (!blocked && !pending && !confirmed) start();
                           }}
                         />
                       )}
@@ -269,11 +356,19 @@ export function EmployeeActions({
                   );
                 })}
               </Inputs>
-              {!confirmed && controls}
+              {!confirmed && !pending && controls}
             </div>
           );
         })}
-      {error && <p className="co-error">{error}</p>}
+      {(restored.error || error) && (
+        <p className="co-error" role="alert">
+          {restored.error || error}
+        </p>
+      )}
     </section>
   );
+}
+
+function settled(state: string) {
+  return ["awaiting_review", "completed", "failed", "canceled", "superseded"].includes(state);
 }

@@ -448,6 +448,7 @@ export function CompanyConversation({
       </div>
       {canWork && !company && employee && (
         <EmployeeActions
+          key={employee.id + ":" + thread}
           role={role}
           employeeName={employee.name}
           employeeId={employee.id}

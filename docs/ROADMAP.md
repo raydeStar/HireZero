@@ -67,8 +67,10 @@ identified host task exhaustion; reducing Node pools did not fix it. The
 checks passing on Windows/Linux. Its first workload-limit case failed and stopped the run; no receipt was issued
 ([attempt evidence](history/2026-10-26-script-task-budget-attempt.md)). The separately approved
 [single diagnostic](history/2026-10-26-script-task-limit-diagnostic-plan.md) found 33 workload tasks where 32
-were required; it stopped with cleanup confirmed and no receipt. The discrepancy remains unresolved.
-Execution remains disabled; production qualification and compute pricing remain pending.
+were required; it stopped with cleanup confirmed and no receipt. The subsequent approved correction accounts
+for the initial task outside the runtime UID counter: actual 32-workload/128-host limits now pass the bounded
+local standard/extended suite and restart-stable v3 receipt checks ([ADR 0146](adr/0146-script-initial-task-accounting.md)).
+Execution remains disabled; broader reliability, production acceptance and compute pricing remain pending.
 Saved script outputs can now enter task review, completion and explicit employee handoff while preserving revocable
 source lineage ([ADR 0069](adr/0069-reviewed-sandbox-output-reuse.md)); this journey has fictional desktop/mobile E2E proof.
 Never-approved document drafts can be explicitly deleted, including old operation-result copies, with optional

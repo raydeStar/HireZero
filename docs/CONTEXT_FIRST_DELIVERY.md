@@ -70,6 +70,18 @@ records/accounts and intact audits; the accepted Marketing copy and exact active
 See [specialist evaluation and delivery evidence](history/2026-10-27-specialist-first-work.md). This advances
 P1.7/P1.8/P2.2 and review reliability; no other runtime job or application execution activation occurred.
 
+Employee action recovery now preserves its pre-dispatch request receipt and submitted inputs across reload and
+conversation changes under [ADR 0148](adr/0148-action-receipts-survive-navigation.md). Missing receipts and failed
+status reads never resubmit; a current task read distinguishes ongoing gathering from reviewable completion.
+Unavailable browser storage prevents dispatch, and late replies cannot resurrect cleared receipts. This closes
+a gap left by server idempotency when the browser forgot the old identity. Recovery controls remain visible
+under a workspace-read warning. Focused client checks and the fictional arithmetic/browser journey verify
+storage refusal, lost replies, reload, navigation races and desktop/mobile layouts with no live provider calls.
+Both local installations have recovery backups, verified release files, intact audits and unchanged accounts,
+saved work and schedules. The accepted Marketing plan and exact two-run authorization remain intact.
+See [action recovery evidence and the separate Jev integration gap](history/2026-10-27-action-reload-recovery.md).
+This strengthens P2.2/P2.7/X9; it does not enable Jev, establish external completion or change model routing.
+
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
 example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
 it is 460 words with three complete posts and eleven passing format checks. The native result remains intact.
