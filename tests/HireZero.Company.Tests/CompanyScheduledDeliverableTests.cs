@@ -4,6 +4,67 @@ using Microsoft.Data.Sqlite;
 public sealed partial class CompanyScheduleTests
 {
     [Fact]
+    public async Task OwnerEditedRecurringResultPreservesTheModelReceiptAndRemainingSchedule()
+    {
+        var s = Store();
+        var schedule = Approve(s, Draft(s, Definition(Employee(s)) with { Skill = "marketing-starter-plan" }));
+        var model = new Model(policy: CompanyMeasuredPolicy.Deliverable);
+        using var scheduler = new CompanyScheduler(s, model);
+        _now = schedule.NextRunAt!.Value;
+        Assert.True(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        var before = s.ScheduleDetail(schedule.Id);
+        var run = Assert.Single(before.Runs);
+        var task = s.Work(run.TaskId!);
+        var original = MeasuredQueueChecks.Items<CompanyArtifact>(s, "artifacts").Single(a => a.TaskId == task.Id);
+        var receipts = CompanyJson.Encode(MeasuredQueueChecks.Items<System.Text.Json.JsonElement>(s, "measured"));
+        var budgets = CompanyJson.Encode(MeasuredQueueChecks.Items<CompanyBudget>(s, "budgets"));
+        var edited = A<CompanyArtifact>(
+            s,
+            C("artifact.create") with
+            {
+                Id = task.Id,
+                ExpectedVersion = task.Version,
+                Body = original.Body + "\nOwner correction: include the complete numbered paper-folding example.",
+            }
+        );
+        Assert.Equal("owner-authored", edited.Provenance);
+        Assert.Equal("needs_review", edited.State);
+        Assert.NotEqual(original.Id, edited.Id);
+        Assert.Throws<WorkspaceException>(() =>
+            s.Apply(C("task.complete") with { Id = task.Id, ExpectedVersion = s.Work(task.Id).Version })
+        );
+        s.Apply(
+            C("artifact.review") with
+            {
+                Id = edited.Id,
+                ExpectedVersion = edited.Version,
+                Digest = edited.Digest,
+                Decision = "approve",
+            }
+        );
+        s.Apply(C("task.complete") with { Id = task.Id, ExpectedVersion = s.Work(task.Id).Version });
+        var reopened = Store();
+        Assert.Equal("completed", reopened.Work(task.Id).State);
+        Assert.Equal(
+            original,
+            MeasuredQueueChecks.Items<CompanyArtifact>(reopened, "artifacts").Single(a => a.Id == original.Id)
+        );
+        Assert.Equal(CompanyJson.Encode(before), CompanyJson.Encode(reopened.ScheduleDetail(schedule.Id)));
+        Assert.Equal(
+            receipts,
+            CompanyJson.Encode(MeasuredQueueChecks.Items<System.Text.Json.JsonElement>(reopened, "measured"))
+        );
+        Assert.Equal(budgets, CompanyJson.Encode(MeasuredQueueChecks.Items<CompanyBudget>(reopened, "budgets")));
+        Assert.Equal(1, model.Calls);
+        Assert.False(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        _now = reopened.ScheduleDetail(schedule.Id).Schedule.NextRunAt!.Value;
+        Assert.True(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(2, model.Calls);
+        Assert.Equal(schedule.Definition.Prompt, model.Last!.Context.Input);
+        Assert.DoesNotContain("Owner correction", CompanyJson.Encode(model.Last.Context));
+    }
+
+    [Fact]
     public async Task RecurringDeliverablesKeepTheirSkillLimitsAndSeparateResultApproval()
     {
         var s = Store();

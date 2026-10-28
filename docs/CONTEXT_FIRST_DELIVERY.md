@@ -26,6 +26,10 @@ at 09:00 America/Denver, with the exact reviewed definition and authority preser
 Each private draft uses Luna through Codex OAuth at high effort, a 3,000-output-token target, a 90-second local
 deadline and an intended allowance of one existing credit; these are soft limits. Nothing was generated on
 activation. Actual recurring execution and owner usefulness of those future results remain unverified.
+Completed recurring text results now offer the same owner-editing flow that made the first plan useful. Under
+[ADR 0144](adr/0144-edit-completed-recurring-text-results.md), an edited copy needs separate approval and does
+not change the original model receipt, allowance or future schedule. Focused backend checks and the fictional
+recurring browser journey pass; see [verification](history/2026-10-27-recurring-result-owner-edits.md).
 The clipboard integration discrepancy and broader customer/commercial/runtime gates remain open.
 
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review

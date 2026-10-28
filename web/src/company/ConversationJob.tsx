@@ -147,7 +147,10 @@ export function ConversationJob({
   const measured = d.measured?.filter((m) => m.taskId === t.id).slice(-1)[0];
   const scheduledOccurrence = !!t.scheduleRunId;
   const canAuthor =
-    canWork && ["blocked", "awaiting_review", "queued"].includes(t.state) && t.kind === "work" && !scheduledOccurrence;
+    canWork &&
+    ["blocked", "awaiting_review", "queued"].includes(t.state) &&
+    t.kind === "work" &&
+    (!scheduledOccurrence || (t.state === "awaiting_review" && measured?.job.state === "completed"));
   function changeOutcome(value: string) {
     setOutcome(value);
     setEditorNotice("");
@@ -508,6 +511,11 @@ export function ConversationJob({
               ? "Save a separate draft for review. The original stays in history. No model request is made. Unsaved edits stay in this tab."
               : "This task no longer accepts drafts. Your unsaved text is preserved in this editor for copying."}
           </p>
+          {scheduledOccurrence && (
+            <p className="co-muted">
+              Your edits affect this result only. Later scheduled runs keep their approved instructions and references.
+            </p>
+          )}
           <p className="co-muted">
             {outcome.trim() ? outcome.trim().split(/\s+/).length : 0} words · {outcome.length.toLocaleString()} / 12,000
             characters

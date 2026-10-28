@@ -504,7 +504,31 @@ try {
       ),
     "Saved private scheduled result opens directly",
   );
-  await click("Approve result");
+  const beforeEdit = (await snapshot()).data;
+  const originalOccurrenceArtifact = beforeEdit.artifacts.find(a => a.taskId === first.runs[0].taskId);
+  const scheduleBeforeEdit = await detail(id);
+  await click("Edit a copy");
+  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), originalOccurrenceArtifact.body);
+  const correctedOccurrence = originalOccurrenceArtifact.body + "\n\nOwner correction: show the completed paper-folding example before asking readers to try it.";
+  await evaluate(`(()=>{const el=document.querySelector('.co-artifact-editor textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(correctedOccurrence)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await send("Page.reload");
+  await until(() => evaluate(`document.querySelector('.co-artifact-editor textarea')?.value===${JSON.stringify(correctedOccurrence)}`), "Unfinished recurring-result edit survives reload");
+  assert.ok(await evaluate("document.body.innerText.includes('Later scheduled runs keep their approved instructions and references.')"));
+  await click("Save for review");
+  await until(async () => (await snapshot()).data.artifacts.some(a => a.taskId === first.runs[0].taskId && a.body === correctedOccurrence), "Separate owner-edited recurring result saved");
+  const afterEdit = (await snapshot()).data;
+  const editedOccurrence = afterEdit.artifacts.find(a => a.taskId === first.runs[0].taskId && a.body === correctedOccurrence);
+  assert.equal(editedOccurrence.provenance, "owner-authored");
+  assert.equal(editedOccurrence.state, "needs_review");
+  assert.deepEqual(afterEdit.artifacts.find(a => a.id === originalOccurrenceArtifact.id), originalOccurrenceArtifact);
+  assert.deepEqual(afterEdit.measured, beforeEdit.measured, "An owner edit creates no model request or receipt");
+  assert.deepEqual(afterEdit.budgets, beforeEdit.budgets, "An owner edit spends no additional allowance");
+  assert.deepEqual(await detail(id), scheduleBeforeEdit, "Editing a result leaves the remaining schedule unchanged");
+  await until(() => evaluate(`document.querySelector('.co-artifact')?.dataset.artifactId===${JSON.stringify(editedOccurrence.id)}`), "Edited recurring draft is shown first");
+  await evaluate(`document.querySelector('[data-artifact-id="${editedOccurrence.id}"]').scrollIntoView({behavior:'instant',block:'start'})`);
+  await screenshot("recurring-deliverable-owner-edit.png");
+  await evaluate(`(()=>{const a=document.querySelector('[data-artifact-id="${editedOccurrence.id}"]');[...a.querySelectorAll('button')].find(b=>b.textContent.trim()==='Approve result').click();})()`);
+  await until(async () => (await snapshot()).data.artifacts.find(a => a.id === editedOccurrence.id)?.state === "approved", "Edited recurring draft approved separately");
   await click("Complete after review");
   await until(
     async () =>
