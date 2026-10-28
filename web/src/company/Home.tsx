@@ -99,7 +99,7 @@ export function Home({
       return review + (review === 1 ? " task waits" : " tasks wait") + (canWork ? " for your review" : " for review");
     if (completion) return completion + (completion === 1 ? " task is" : " tasks are") + " ready to complete";
     if (queued) return queued + " queued";
-    if (drafts) return drafts + (drafts === 1 ? " draft ready to use" : " drafts ready to use");
+    if (drafts) return drafts + (drafts === 1 ? " draft ready" : " drafts ready");
     return "Idle";
   };
   const results = [...d.artifacts]
@@ -223,7 +223,7 @@ export function Home({
                     {["completed", "canceled", "superseded"].includes(task.state) && artifact.state === "needs_review"
                       ? "Earlier draft"
                       : readyDraft(snapshot, task)
-                        ? "Ready to use"
+                        ? "Draft ready"
                         : artifactState(artifact.state)}
                   </em>
                 </button>

@@ -316,7 +316,7 @@ export function GoalStart({
         <div>
           <p>
             {saved && ["completed", "awaiting_review"].includes(saved.state)
-              ? "Your draft is ready to use or refine."
+              ? "Your draft is ready to read, copy or refine."
               : saved
                 ? "Your request is ready. Open it to review the run or follow its progress."
                 : "Your work was saved. Reload the saved view to open it."}

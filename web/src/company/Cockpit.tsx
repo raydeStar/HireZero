@@ -244,7 +244,7 @@ export function Cockpit({
                   <button className="fe-up-next-title" onClick={() => onOpenNeed(need)}>
                     <span>{need.title}</span>
                     <WorkContext snapshot={snapshot} taskId={need.taskId} />
-                    <small>Ready to use</small>
+                    <small>Draft ready</small>
                   </button>
                 </li>
               ))}
