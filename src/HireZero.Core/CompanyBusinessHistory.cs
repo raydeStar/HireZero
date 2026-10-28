@@ -32,7 +32,11 @@ public sealed record CompanyBusinessProvenance(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        CompanyBriefFreshness? Freshness = null
+        CompanyBriefFreshness? Freshness = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string[]? UnfilledFields = null
 );
 
 public sealed record CompanyFactState(string Field, string Status, string? OwnerNote, DateTimeOffset? CheckedAt);
@@ -41,6 +45,33 @@ public sealed record CompanyBriefFreshness(string Digest, CompanyFactState[] Fie
 
 public sealed partial class CompanyStore
 {
+    private static CompanyContext CompactBusinessPacket(CompanyContext context)
+    {
+        if (context.BusinessBrief is not { } brief)
+            return context;
+        var unfilled = brief
+            .Fields.Where(f =>
+                f.Verification == "unknown"
+                && f.Value.Equals("Unknown", StringComparison.OrdinalIgnoreCase)
+                && f.Citations.Length == 0
+            )
+            .Select(f => f.Key)
+            .ToArray();
+        // One place setting per fact. Keep any independently edited knowledge instead of guessing it is a copy.
+        return context with
+        {
+            CompanyKnowledge =
+                context.CompanyKnowledge == BusinessKnowledgeBody(brief.Fields, brief.ProfileId)
+                    ? ""
+                    : context.CompanyKnowledge,
+            BusinessBrief = brief with
+            {
+                Fields = brief.Fields.Where(f => !unfilled.Contains(f.Key)).ToArray(),
+                UnfilledFields = unfilled.Length == 0 ? null : unfilled,
+            },
+        };
+    }
+
     private const string BusinessHistorySchema =
         "CREATE TABLE co_business_history(id TEXT NOT NULL,company_id TEXT NOT NULL,parent_id TEXT,employee_id TEXT,state TEXT NOT NULL,revision INTEGER NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(company_id,id),UNIQUE(company_id,revision),FOREIGN KEY(company_id,parent_id) REFERENCES co_business_profiles(company_id,id));";
 

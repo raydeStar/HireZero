@@ -12,12 +12,14 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   [length and table follow-up](history/2026-10-28-deliverable-length-and-tables.md) removes a conflicting Core
   word ceiling, renders readable tables and preserves exact exports.
 - Raw agency, email and local-business samples provide some useful choice guidance, but repetition and
-  unsupported operational assumptions persist. [Prompt-only gains remain unproven](history/2026-10-28-grounded-actions-ready-drafts.md).
+  unsupported operational assumptions persist. [Compact task packets](history/2026-10-28-compact-business-packets.md)
+  remove duplicate facts and misleading empty fields; two comparisons used about 5% fewer input tokens,
+  with mixed writing quality. Repeatable first-run quality gains remain unproven.
   Finished private drafts appear as ready to use rather than urgent work; first-run usefulness remains open.
 - Local updates have verified backups and focused checks. The old weekly schedule remains saved and now
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
-- The evaluation allowance is 31 native runs: nine consumed, 22 remain, with 58,867 reported input/output
+- The evaluation allowance is 31 native runs: eleven consumed, 20 remain, with 72,771 reported input/output
   tokens. Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
 
 ## Next acceptance gate

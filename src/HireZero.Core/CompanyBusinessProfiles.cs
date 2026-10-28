@@ -122,29 +122,7 @@ public sealed partial class CompanyStore
                     "Review and explicitly revoke the previous approved brief before approving its replacement.",
                     409
                 );
-            string Field(string key)
-            {
-                var field = profile.Fields.Single(f => f.Key == key);
-                return field.Value + " [" + field.Verification + "]";
-            }
-            var body = CompanyJson.Encode(
-                new
-                {
-                    product = Field("business") + "\nServices: " + Field("services"),
-                    customers = Field("customers"),
-                    stage = "Owner goal: " + Field("goals"),
-                    facts = "Voice: "
-                        + Field("voice")
-                        + "\nMarket: "
-                        + Field("market")
-                        + "\nCompetitors: "
-                        + Field("competitors")
-                        + "\nOpportunities (not promised outcomes): "
-                        + Field("opportunities"),
-                    boundaries = Field("boundaries"),
-                    profileId = profile.Id,
-                }
-            );
+            var body = BusinessKnowledgeBody(profile.Fields, profile.Id);
             var knowledge = (CompanyKnowledge)Apply(db, new(command.RequestId, "knowledge.save", Body: body));
             knowledge = (CompanyKnowledge)Apply(
                 db,
@@ -185,5 +163,33 @@ public sealed partial class CompanyStore
         RecordProfileRevision(db, profile, "owner");
         Event(db, "business.profile-" + profile.State, profile.Id, null, "Business brief " + profile.State + ".");
         return profile;
+    }
+
+    // The exact legacy representation is also used to recognize a redundant copy in a new task packet.
+    private static string BusinessKnowledgeBody(CompanyProfileField[] fields, string profileId)
+    {
+        string Field(string key)
+        {
+            var field = fields.Single(f => f.Key == key);
+            return field.Value + " [" + field.Verification + "]";
+        }
+        return CompanyJson.Encode(
+            new
+            {
+                product = Field("business") + "\nServices: " + Field("services"),
+                customers = Field("customers"),
+                stage = "Owner goal: " + Field("goals"),
+                facts = "Voice: "
+                    + Field("voice")
+                    + "\nMarket: "
+                    + Field("market")
+                    + "\nCompetitors: "
+                    + Field("competitors")
+                    + "\nOpportunities (not promised outcomes): "
+                    + Field("opportunities"),
+                boundaries = Field("boundaries"),
+                profileId,
+            }
+        );
     }
 }

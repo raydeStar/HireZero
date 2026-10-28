@@ -64,7 +64,13 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.Equal(7, profile.Fields.Count(f => f.Verification == "unknown" && f.Value == "Unknown"));
         Assert.All(profile.Fields, field => Assert.Empty(field.Citations));
         var call = store.TextCall(prepared.Attempt.Id);
-        Assert.Contains("We sell paper craft kits.", call.Context.CompanyKnowledge);
+        Assert.Empty(call.Context.CompanyKnowledge);
+        Assert.Equal(
+            "We sell paper craft kits.",
+            call.Context.BusinessBrief!.Fields.Single(f => f.Key == "business").Value
+        );
+        Assert.Equal(2, call.Context.BusinessBrief.Fields.Length);
+        Assert.Equal(7, call.Context.BusinessBrief.UnfilledFields!.Length);
         Assert.Contains("Prepare a useful weekly content plan.", call.Context.Input);
         Assert.Equal("proposed", prepared.Attempt.Measured!.State);
         Assert.Empty(MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts"));
@@ -117,7 +123,10 @@ public sealed class CompanyGoalStartTests : IDisposable
         var call = store.TextCall(prepared.Attempt.Id);
         Assert.Equal("marketing-goal-draft", prepared.Task.Skill);
         Assert.Equal(goal, call.Context.Input);
-        Assert.Contains("We sell paper craft kits.", call.Context.CompanyKnowledge);
+        Assert.Equal(
+            "We sell paper craft kits.",
+            call.Context.BusinessBrief!.Fields.Single(f => f.Key == "business").Value
+        );
         Assert.Contains("finished marketing deliverable", call.Instructions);
         Assert.DoesNotContain("Prepare a practical one-week marketing starter plan", call.Instructions);
         Assert.Equal(CompanyMeasuredPolicy.Deliverable, store.GoalTerms("marketing", prepared.Task.Skill, null).Policy);

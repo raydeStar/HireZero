@@ -253,7 +253,7 @@ public sealed partial class BusinessDraftTests : IDisposable
         Assert.Throws<WorkspaceException>(() => store.Apply(firstRequest with { Digest = "changed" }));
         using var prepared = JsonDocument.Parse(store.Apply(firstRequest));
         var attempt = prepared.RootElement.GetProperty("attempt").Deserialize<CompanyAttempt>(CompanyJson.Options)!;
-        Assert.Contains("Fictional paper kits", store.TextCall(attempt.Id).Context.CompanyKnowledge);
+        Assert.Empty(store.TextCall(attempt.Id).Context.CompanyKnowledge);
         var packet = store.TextCall(attempt.Id);
         var provenance = Assert.IsType<CompanyBusinessProvenance>(packet.Context.BusinessBrief);
         Assert.Equal(profile.Id, provenance.ProfileId);

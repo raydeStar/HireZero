@@ -287,6 +287,7 @@ public sealed partial class CompanyStore
             ScheduledOccurrence = ScheduledOccurrence(db, t),
             WebsiteResearch = t.GoalWebsiteLookupId is null ? null : GoalWebsite(db, t.GoalWebsiteLookupId),
         };
+        context = CompactBusinessPacket(context);
         // A reply knows what is connected, so it can ask for a connection it needs (docs/adr/0046-connect-cards.md).
         if (t.MeetingId is null && t.Kind is not (ContextDraftKind or ActionKind))
             context = context with { Connections = ConnectionsLine() };
