@@ -13,22 +13,16 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   [length and table follow-up](history/2026-10-28-deliverable-length-and-tables.md) removes a conflicting Core
   word ceiling and renders readable tables. [Weekly-use follow-up](history/2026-10-28-weekly-use-and-review-notes.md)
   adds proposed posting days, batch preparation and recognition of internal-review headings for exact exports.
-- Raw agency, email and local-business samples provide some useful choice guidance, but repetition and
-  unsupported operational assumptions persist. The owner rejected the raw alterations plan for unedited use.
-  [Consolidated copy instructions](history/2026-10-28-customer-copy-comparisons.md) improve the agency comparison
-  and produce a useful fresh organising-business draft by assistant assessment; owner assessment is pending.
-  Alterations still repeats its advice and caveats. Saved facts and evidence are readable inside collapsed
-  Source and provenance. A separate [completed-message fix](history/2026-10-28-completed-model-messages.md)
-  prevents progress text or stale streamed fragments from becoming drafts; it does not explain the repeated
-  alterations advice. The later [reader-purpose candidate](history/2026-10-28-reader-purpose-comparison.md)
-  improved an agency sample but failed alterations grounding and was rolled back. Unreviewed results now say
-  “Draft ready,” preserving immediate copy/download/refine access. Two [frozen-request Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md)
-  are stronger by assistant assessment; owner acceptance is pending and the app still defaults to Luna.
-  Repeatable first-run usefulness remains open.
+- Raw quality remains uneven. The owner rejected the alterations plan; a later
+  [reader-purpose candidate](history/2026-10-28-reader-purpose-comparison.md) failed grounding and was rolled back.
+  Two [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) are stronger by assistant assessment;
+  owner acceptance is pending and Luna remains the default. A fresh [minimal-input Home run](history/2026-10-28-minimal-input-first-draft.md)
+  produced grounded but generic landing-page copy. It also exposed and fixed first-goal conversations losing
+  their goal title. Saved model text remains unedited. Repeatable first-run usefulness remains open.
 - Local updates have verified backups and focused checks. The old weekly schedule remains saved and now
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
-- The Luna evaluation allowance is 31 native runs: twenty consumed, eleven remain, with 134,814 reported input/output
+- The Luna evaluation allowance is 31 native runs: twenty-one consumed, ten remain, with 140,927 reported input/output
   tokens. Both separately authorized Sol diagnostics completed, reporting 14,892 tokens; no Sol allowance remains.
   Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
 

@@ -274,6 +274,16 @@ public sealed partial class CompanyStore
                     Name: goal.Length <= 80 ? goal : goal[..80]
                 )
             );
+        if (command.EmployeeId is null)
+        {
+            // Give the first result its owner's purpose, not the butler's empty-room label.
+            thread = thread with
+            {
+                Title = goal.Length <= 80 ? goal : goal[..80],
+                Version = thread.Version + 1,
+            };
+            Save(db, thread, thread.Id, employee: employee.Id, version: thread.Version);
+        }
         var result = PrepareAssignment(
             db,
             command with

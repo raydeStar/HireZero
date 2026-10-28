@@ -58,6 +58,10 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.Equal(result, store.Apply(command));
         Assert.Single(MeasuredQueueChecks.Items<CompanyDepartment>(store, "departments"));
         Assert.Equal("active", Assert.Single(MeasuredQueueChecks.Items<CompanyEmployee>(store, "employees")).State);
+        var thread = Assert.Single(MeasuredQueueChecks.Items<CompanyThread>(store, "threads"));
+        Assert.Equal("Prepare a useful weekly content plan.", thread.Title);
+        Assert.Equal(prepared.Task.ThreadId, thread.Id);
+        Assert.Equal("employee", thread.Scope);
         Assert.Equal("confirmed", store.BusinessIdentity()!.State);
         var profile = Assert.Single(MeasuredQueueChecks.Items<CompanyBusinessProfile>(store, "businessProfiles"));
         Assert.Equal("approved", profile.State);
@@ -191,6 +195,9 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.Contains("Draft a new campaign.", store.TextCall(second.Attempt.Id).Context.Input);
         Assert.Equal(first.Task.EmployeeId, second.Task.EmployeeId);
         Assert.NotEqual(first.Task.ThreadId, second.Task.ThreadId);
+        var threads = MeasuredQueueChecks.Items<CompanyThread>(store, "threads");
+        Assert.Equal("Prepare a useful weekly content plan.", threads.Single(t => t.Id == first.Task.ThreadId).Title);
+        Assert.Equal("Draft a new campaign.", threads.Single(t => t.Id == second.Task.ThreadId).Title);
         Assert.Empty(store.TextCall(second.Attempt.Id).Context.History);
         Assert.NotEqual(first.Task.Id, second.Task.Id);
         Assert.Single(MeasuredQueueChecks.Items<CompanyEmployee>(store, "employees"));
