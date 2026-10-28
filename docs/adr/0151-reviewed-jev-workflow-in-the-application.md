@@ -1,6 +1,6 @@
 # ADR 0151: Review Jev decisions through the saved company API account
 
-Status: application workflow implemented and fictionally verified; live acceptance pending.
+Status: application workflow fictionally verified and installed locally; live acceptance pending.
 
 ## Context
 

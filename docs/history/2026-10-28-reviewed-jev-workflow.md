@@ -1,6 +1,6 @@
 # Reviewed Jev decisions in the application
 
-Status: source and fictional workflow verified; local delivery recorded separately below when complete.
+Status: source and fictional workflow verified; installed in both local workspaces with recovery backups.
 
 [ADR 0151](../adr/0151-reviewed-jev-workflow-in-the-application.md) binds the durable decision ledger to the
 existing encrypted company OpenRouter AI account. It does not read the optional tool key, change text routing
@@ -36,3 +36,16 @@ corrected full journey passed. All provider traffic uses fictional handlers.
 
 Real Jev availability, charges and recommendation usefulness remain unverified. No live model request,
 scheduled run, publishing or runtime qualification job was performed for this workflow.
+
+## Local delivery
+
+Source commit `b8d536a` is installed in both local workspaces. Each idle application was stopped independently,
+its data backed up, and its prior application retained for recovery. All 180 release files match the installed
+copies. Both applications are healthy, with intact audit chains and unchanged accounts, saved work and model
+records. The accepted Marketing copy, native specialist originals and separate editorial copy are preserved.
+The exact active two-occurrence weekly schedule is unchanged, with zero runs consumed.
+
+The primary workspace recognizes its existing company OpenRouter AI account for decision review; this proves
+local credential availability, not remote provider access. The separate content pilot retains its host/Codex
+account and has no OpenRouter decision account configured. Both decision histories are empty. No credential
+was copied or replaced. Automatic model, coding, browser and script execution settings remain disabled.

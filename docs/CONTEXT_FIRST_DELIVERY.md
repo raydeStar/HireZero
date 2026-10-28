@@ -104,6 +104,11 @@ summary and the exact external packet, authorize one decision, recover its statu
 The complete fictional browser journey and 41 focused backend facts pass; a storage-refusal dead end in the shared
 command client is also fixed. Text routing is unchanged. This advances P2.5/P2.6 beyond transport groundwork;
 real Jev accounting and usefulness remain pending. See [workflow evidence](history/2026-10-28-reviewed-jev-workflow.md).
+Both local workspaces now have the update with recovery backups and all 180 release files verified. Accounts,
+work, audit chains, native results and the exact active weekly schedule are preserved. The main workspace's
+existing OpenRouter AI account is locally available to the decision flow; the content pilot retains Codex and
+has no decision API account. Neither decision history contains a run. This is installed readiness, not live
+Jev access or quality evidence, and the broader customer/commercial phase gates remain open.
 
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
 example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
