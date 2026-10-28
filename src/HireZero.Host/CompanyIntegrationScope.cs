@@ -123,6 +123,17 @@ public sealed class CompanyIntegrationScope
         + provider
         + "=";
 
+    // Created only by a future metered decision path, never adopted as an ordinary employee tool.
+    // The original local company's existing alias stays local; all other companies use only their own secret.
+    public OpenRouterDecisions CreateJevDecisions(HttpMessageHandler? handler = null) =>
+        new(
+            Store.CompanyId,
+            () =>
+                Secrets.Read("HIREZERO_OPENROUTER_API_KEY")
+                ?? (MachineAccess ? Secrets.Read("OPENROUTER_API_KEY") : null),
+            handler
+        );
+
     public static IntegrationStatus MachineOnly(string id, string name) =>
         new(
             id,

@@ -82,6 +82,14 @@ saved work and schedules. The accepted Marketing plan and exact two-run authoriz
 See [action recovery evidence and the separate Jev integration gap](history/2026-10-27-action-reload-recovery.md).
 This strengthens P2.2/P2.7/X9; it does not enable Jev, establish external completion or change model routing.
 
+The separate Jev Decisions transport and company-bound protected-secret factory now exist under
+[ADR 0149](adr/0149-company-bound-jev-decision-transport.md). Fictional adapter and company-isolation checks
+verify exact packet/credential boundaries, bounded reads, accounting preservation and non-replaying outcomes.
+The factory registers no ordinary tool or execution route. Durable spending admission, review UI, restart
+reconciliation and live usefulness remain unfinished. This advances the P2.5/P2.6 integration groundwork;
+Luna/Codex OAuth, the accepted Marketing plan and recurring authority remain unchanged. See
+[the implementation evidence and next delivery step](history/2026-10-27-jev-decision-transport.md).
+
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
 example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
 it is 460 words with three complete posts and eleven passing format checks. The native result remains intact.

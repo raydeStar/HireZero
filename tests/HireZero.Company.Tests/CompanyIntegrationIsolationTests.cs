@@ -83,6 +83,63 @@ public sealed class CompanyIntegrationIsolationTests : IDisposable
     }
 
     [Fact]
+    public async Task JevDecisionsUseCompanyEncryptedSecretsWithoutBecomingAnUnmeteredTool()
+    {
+        var a = Scope("co-decisions-a");
+        var b = Scope("co-decisions-b");
+        a.PastedSecrets!.Write("HIREZERO_OPENROUTER_API_KEY", "fictional-decision-a");
+        using var handler = new DecisionKeys();
+        using var first = a.CreateJevDecisions(handler);
+        using var second = b.CreateJevDecisions(handler);
+        HireZero.Integrations.Jev.JevChoiceRequest Prepare(HireZero.Integrations.Jev.OpenRouterDecisions client) =>
+            client.Prepare(
+                "typesafe/jev-1.14",
+                "{\"note\":\"Fictional campaign\"}",
+                "Classify, without authorizing work.",
+                new Dictionary<string, string> { ["act"] = "Propose an action", ["review"] = "Needs review" }
+            );
+        var request = Prepare(first);
+        Assert.Equal("not_sent", (await second.SendAsync(request, request.Digest, Token)).State);
+        var missing = Prepare(second);
+        Assert.Equal("not_sent", (await second.SendAsync(missing, missing.Digest, Token)).State);
+        Directory.CreateDirectory(Path.Combine(b.DataRoot, "secrets"));
+        File.Copy(
+            Path.Combine(a.DataRoot, "secrets", "HIREZERO_OPENROUTER_API_KEY.secret"),
+            Path.Combine(b.DataRoot, "secrets", "HIREZERO_OPENROUTER_API_KEY.secret")
+        );
+        Assert.Equal("not_sent", (await second.SendAsync(missing, missing.Digest, Token)).State);
+        Assert.Empty(handler.Keys);
+        Assert.Equal("completed", (await first.SendAsync(request, request.Digest, Token)).State);
+        b.PastedSecrets!.Write("HIREZERO_OPENROUTER_API_KEY", "fictional-decision-b");
+        Assert.Equal("completed", (await second.SendAsync(missing, missing.Digest, Token)).State);
+        a.Change(() => a.PastedSecrets.Remove("HIREZERO_OPENROUTER_API_KEY"));
+        var revoked = Prepare(first);
+        Assert.Equal("not_sent", (await first.SendAsync(revoked, revoked.Digest, Token)).State);
+        Assert.Equal(new[] { "fictional-decision-a", "fictional-decision-b" }, handler.Keys);
+        Assert.False(a.Tools.Has("jev.classify"));
+        Assert.False(b.Tools.Has("jev.classify"));
+    }
+
+    private sealed class DecisionKeys : HttpMessageHandler
+    {
+        public List<string> Keys { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
+        {
+            Assert.Equal("https://openrouter.ai/api/alpha/decisions", request.RequestUri!.AbsoluteUri);
+            Keys.Add(request.Headers.Authorization!.Parameter!);
+            return Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """{"id":"gen-fictional","model":"typesafe/jev-1.14","answers":{"answer":{"type":"choice","choice":"review","confidence":0.8,"probabilities":{"act":0.2,"review":0.8}}},"usage":{"input_tokens":100,"output_tokens":20,"cost":0.00002}}"""
+                    ),
+                }
+            );
+        }
+    }
+
+    [Fact]
     public async Task ProviderInstancesUseTheirOwnTokensAndRevocationStopsCachedTokens()
     {
         using var handler = new Tokens();
