@@ -11,6 +11,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   staged-host compatibility pass. The earlier goal-entry foundation passed its 93-fact regression set.
 - One real first-raw-output walkthrough completed with three website pages and one Luna/Codex OAuth request.
   The result opened automatically, unchanged. The UX works; content weaknesses and owner usefulness remain open.
+- Future starter requests lead with assets and ask for substantive improvements and complete measurement decisions;
+  [content direction](history/2026-10-28-first-draft-content-direction.md) is installed but not yet model-validated.
 - Current evidence: [single-step walkthrough](history/2026-10-28-single-step-goal-generation.md).
 
 ## Next acceptance gate
