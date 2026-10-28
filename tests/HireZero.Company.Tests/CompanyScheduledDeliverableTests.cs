@@ -4,6 +4,91 @@ using Microsoft.Data.Sqlite;
 public sealed partial class CompanyScheduleTests
 {
     [Fact]
+    public async Task ApprovedResultFeedbackReachesLaterOccurrencesAndRevocationRemovesIt()
+    {
+        var s = Store();
+        var employee = Employee(s);
+        var schedule = Approve(
+            s,
+            Draft(s, Definition(employee) with { Skill = "marketing-starter-plan", Occurrences = 3 })
+        );
+        var model = new Model(policy: CompanyMeasuredPolicy.Deliverable);
+        using var scheduler = new CompanyScheduler(s, model);
+        _now = schedule.NextRunAt!.Value;
+        Assert.True(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        Assert.Null(model.Last!.Context.Memory);
+        var run = Assert.Single(s.ScheduleDetail(schedule.Id).Runs);
+        var artifact = MeasuredQueueChecks.Items<CompanyArtifact>(s, "artifacts").Single(a => a.TaskId == run.TaskId);
+        var accepted = A<CompanyArtifact>(
+            s,
+            C("artifact.review") with
+            {
+                Id = artifact.Id,
+                ExpectedVersion = artifact.Version,
+                Digest = artifact.Digest,
+                Decision = "approve",
+            }
+        );
+        s.Apply(C("task.complete") with { Id = run.TaskId, ExpectedVersion = s.Work(run.TaskId!).Version });
+        var feedback = A<CompanyMemoryItem>(
+            s,
+            C("memory.save") with
+            {
+                Body = CompanyJson.Encode(
+                    new CompanyMemoryInput(
+                        "feedback",
+                        "Content plan feedback",
+                        "The fictional owner used the paper-folding content. Include numbered steps in the next plan.",
+                        "Owner-reported use, not independently verified campaign performance.",
+                        EmployeeId: employee,
+                        ArtifactId: accepted.Id,
+                        Quote: accepted.Body
+                    )
+                ),
+            }
+        );
+        Assert.Empty(s.RetrieveMemory(schedule.Definition.Prompt!, employee).Items);
+        feedback = A<CompanyMemoryItem>(
+            s,
+            C("memory.review") with
+            {
+                Id = feedback.Id,
+                ExpectedVersion = feedback.Version,
+                Digest = feedback.Digest,
+                Decision = "approve",
+            }
+        );
+        Assert.Equal(schedule.Digest, s.ScheduleDetail(schedule.Id).Schedule.Digest);
+        _now = s.ScheduleDetail(schedule.Id).Schedule.NextRunAt!.Value;
+        Assert.True(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        var remembered = Assert.Single(model.Last!.Context.Memory!.Items);
+        Assert.Equal(feedback.Id, remembered.MemoryId);
+        Assert.Equal(feedback.Definition.Statement, remembered.Statement);
+        Assert.Equal(accepted.Id, remembered.Origin!.ArtifactId);
+        Assert.Equal(accepted.Body, remembered.Origin.Quote);
+        Assert.Equal(schedule.Definition.Prompt, model.Last.Context.Input);
+        s.Apply(
+            C("memory.review") with
+            {
+                Id = feedback.Id,
+                ExpectedVersion = feedback.Version,
+                Digest = feedback.Digest,
+                Decision = "revoke",
+            }
+        );
+        _now = s.ScheduleDetail(schedule.Id).Schedule.NextRunAt!.Value;
+        Assert.True(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        Assert.Null(model.Last!.Context.Memory);
+        Assert.Equal(schedule.Digest, s.ScheduleDetail(schedule.Id).Schedule.Digest);
+        Assert.Equal("completed", s.ScheduleDetail(schedule.Id).Schedule.State);
+        Assert.Equal(3, model.Calls);
+        Assert.Equal(
+            accepted,
+            MeasuredQueueChecks.Items<CompanyArtifact>(s, "artifacts").Single(a => a.Id == accepted.Id)
+        );
+    }
+
+    [Fact]
     public async Task OwnerEditedRecurringResultPreservesTheModelReceiptAndRemainingSchedule()
     {
         var s = Store();

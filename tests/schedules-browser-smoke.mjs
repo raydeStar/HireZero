@@ -209,9 +209,9 @@ try {
       ),
     );
   };
-  const field = async (label, value) => {
+  const field = async (label, value, scope = ".co-schedule-editor") => {
     await evaluate(
-      `(()=>{const label=[...document.querySelectorAll('.co-schedule-editor label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===${JSON.stringify(label)});if(!label)throw Error('Missing schedule field '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`,
+      `(()=>{const label=[...document.querySelectorAll(${JSON.stringify(scope + " label")})].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===${JSON.stringify(label)});if(!label)throw Error('Missing form field '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`,
     );
     await delay(50);
   };
@@ -526,7 +526,7 @@ try {
   await until(() => evaluate("!!document.querySelector('.co-work-window') && !document.querySelector('.fe-composer')"), "Expand work returns to focused review");
   assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), correctedOccurrence,
     "Expanding work preserves the unsaved edit");
-  assert.equal(await evaluate("document.activeElement.classList.contains('co-work-window')"), true,
+  await until(() => evaluate("document.activeElement.classList.contains('co-work-window')"),
     "Keyboard focus follows the expanded result");
   await send("Page.reload");
   await until(() => evaluate(`document.querySelector('.co-artifact-editor textarea')?.value===${JSON.stringify(correctedOccurrence)}`), "Unfinished recurring-result edit survives reload");
@@ -553,6 +553,29 @@ try {
         ?.state === "completed",
     "recurring deliverable accepted separately",
   );
+  const beforeFeedback = await detail(id);
+  await click("Remember feedback for future work");
+  await click("Capture feedback from this result");
+  const learnedFeedback = "The fictional owner used the paper-folding content plan. Include numbered steps in the next weekly outline.";
+  await field("Title", "Weekly content plan feedback", ".co-memory-editor");
+  await field("Statement", learnedFeedback, ".co-memory-editor");
+  await click("Save memory draft");
+  const memories = () => fetch(url + "/api/company/memory").then(r => r.json());
+  await until(async () => (await memories()).some(row => row.memory.definition.statement === learnedFeedback), "Recurring-result feedback draft saved");
+  let feedbackRow = (await memories()).find(row => row.memory.definition.statement === learnedFeedback);
+  assert.equal(feedbackRow.usable, false, "Unapproved feedback cannot enter future model context");
+  assert.equal(feedbackRow.memory.origin.artifactId, editedOccurrence.id);
+  assert.equal(feedbackRow.memory.origin.quote, correctedOccurrence.slice(0,600).trim());
+  assert.equal(feedbackRow.memory.definition.employeeId, editedOccurrence.employeeId);
+  await until(() => evaluate("!!document.querySelector('.co-memory-check input') && window.__smokeIdle()"), "Feedback ready for separate approval");
+  await evaluate("document.querySelector('.co-memory-check input').click()");
+  await click("Approve memory");
+  await until(async () => (await memories()).find(row => row.memory.id === feedbackRow.memory.id)?.usable, "Approved feedback available to its employee");
+  feedbackRow = (await memories()).find(row => row.memory.id === feedbackRow.memory.id);
+  assert.deepEqual(await detail(id), beforeFeedback, "Feedback approval preserves the exact remaining schedule");
+  await until(() => evaluate("window.__smokeIdle() && !document.querySelector('.co-memory-review button')?.disabled && !document.body.innerText.includes('Review memory: Weekly content plan feedback')"),
+    "Approved feedback clears its attention item after refresh");
+  await screenshot("recurring-result-feedback.png");
   await send("Page.navigate", {
     url: url + "/?view=departments&section=schedules",
   });
@@ -585,6 +608,13 @@ try {
     false,
   );
   assert.equal((await detail(id)).runs.length, 2);
+  const secondRun = (await detail(id)).runs.find(run => run.taskId !== first.runs[0].taskId);
+  const secondAttempt = (await snapshot()).data.measured.find(attempt => attempt.taskId === secondRun.taskId);
+  const secondPacket = await fetch(url + "/api/company/measured/" + secondAttempt.id).then(r => r.json());
+  const rememberedFeedback = secondPacket.call.context.memory.items.find(item => item.memoryId === feedbackRow.memory.id);
+  assert.equal(rememberedFeedback.statement, learnedFeedback, "Later scheduled work receives the owner's actual guidance");
+  assert.equal(rememberedFeedback.origin.artifactId, editedOccurrence.id);
+  assert.equal(rememberedFeedback.origin.quote, correctedOccurrence.slice(0,600).trim());
   assert.equal(
     (await snapshot()).data.budgets.find((b) => b.id === "schedule:" + id).used,
     60,
@@ -692,6 +722,9 @@ try {
         fullWorkReviewByDefault: true,
         splitComposerFits: true,
         expandPreservesOwnerEdit: true,
+        recurringFeedbackSeparatelyApproved: true,
+        recurringFeedbackPreservesSchedule: true,
+        recurringFeedbackReachesNextOccurrence: true,
         pauseRespected: true,
         finiteAllowanceSettled: true,
         backgroundSourceRefresh: true,

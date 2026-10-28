@@ -1,6 +1,7 @@
 # Script task accounting: source review and one-job diagnostic proposal
 
-Status: diagnostic prepared, not authorized or executed. The revised runtime remains unqualified and application
+Status: owner authorized up to ten bounded jobs; the first diagnostic ran and failed with cleanup confirmed.
+The revised runtime remains unqualified and application
 script execution remains disabled. The accepted content plan and its two authorized weekly runs are independent.
 
 ## What changed the next action
@@ -50,6 +51,9 @@ does not approve a different process limit, runtime upgrade or replacement worke
 
 The previous one-job authorization is consumed and required stopping. A fresh owner decision is therefore
 required for this additional executable job; the ongoing Luna authorization does not cover runtime qualification.
+The owner subsequently accepted this proposal and authorized up to ten further runs as needed. This is tracked
+as a maximum of ten bounded runtime jobs including this diagnostic, with the same image and approved limits.
+It does not turn an unknown outcome into permission to replay it or authorize application activation.
 
 ## Offline preparation evidence
 
@@ -58,3 +62,24 @@ Node syntax checking. A private offline probe of the actual snapshot function re
 refuses missing fields/unreadable rows/49-row inventories, and retains numeric provenance in a bounded failure
 record. No container, application model request or runtime job was started. These checks cover diagnostic
 instrumentation only; they do not test containment or turn the source hypothesis into a runtime result.
+
+## Executed accounting diagnostic
+
+The qualification distribution was stopped. It was started for the approved job, with a bounded idle process
+keeping WSL available between commands. Both other distributions remained stopped. The fresh boot had IPv4
+and IPv6 forwarding disabled; the older baseline had IPv4 enabled. The diagnostic preserved the disabled
+values and verified them before and after, without modifying global network settings. Every other recorded
+engine/configuration/image/installation check matched. All 569 source files were verified before and after
+transferring the single fixture as supplement 11. The Linux build passed without restore, warnings or errors.
+
+One fictional job ran under the 15-second deadline and failed after 873 ms at the unchanged 32-task assertion.
+The baseline contained the protected root supervisor with four threads and the workload process with four
+threads. Exhaustion added 29 one-thread child processes, all under the workload UID: **4 + 29 = 33**. No extra
+process or double-counted supervisor explains the total. This supports the source-based uncharged-first-task
+explanation; the diagnostic does not directly inspect the runtime's internal user counter.
+
+The observer collected 26 samples, with a peak of 90 host tasks, zero host PID rejections, zero OOM events and
+no limit change. The original resource was removed; the final audit found zero containers and volumes. The
+image/configuration/browser receipt and external workload state were unchanged. No qualification receipt was
+issued and no application was activated. One of the maximum ten jobs is consumed; repeating this unchanged
+case is not useful. A runtime correction must preserve the approved workload ceiling and earn new qualification.
