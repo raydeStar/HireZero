@@ -1,7 +1,7 @@
 {
   "runtime": "codex-cli",
-  "version": "0.164.0-alpha.11.1",
-  "sha256": "1103E9E09C71FA2CD0AFD6D8F3B9A2D63174FE8EFD7CB5BD09F1CB14EF58A098",
-  "source": "codex.exe bundled in the OpenAI Codex desktop app 26.1021.3705.0 (app/resources)",
-  "pinned": "2026-10-26"
+  "version": "0.165.0-alpha.1.2",
+  "sha256": "5C1B55966BF9F757DCBF00065C9A6CB862EAD55D34B015F1BE1939FF18E43943",
+  "source": "codex.exe bundled in the OpenAI Codex desktop app 26.1023.6123.0 (app/resources)",
+  "pinned": "2026-10-28"
 }

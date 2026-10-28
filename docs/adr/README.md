@@ -159,3 +159,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0152](0152-collapse-earlier-draft-bodies.md) | Collapse earlier draft bodies during review | Accepted; first result expanded, earlier copies remain available through native disclosures |
 | [0153](0153-reviewed-scheduled-time-context.md) | Include an approved calendar anchor in recurring employee work | Accepted; explicit definition option preserves older approvals and supplies immutable local occurrence times |
 | [0154](0154-clear-business-draft-preflight-and-review.md) | Explain business-draft model terms and local runtime refusals | Accepted; missing pins are confirmed pre-process refusals, never replayed |
+| [0155](0155-durable-local-codex-runtime.md) | Keep the reviewed Codex executable outside desktop update directories | Text preflight verified on the official candidate and standalone copy; no inferred approval transfer or coding qualification |

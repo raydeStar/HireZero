@@ -9,6 +9,14 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
+The local native runtime has been restored under [ADR 0155](adr/0155-durable-local-codex-runtime.md). Both
+installations now use a verified, versioned copy outside the desktop updater's package directories. Native
+preflight succeeds on both hosts with the existing account and Luna route; no inference was performed during
+recovery. The original records, accepted plan and schedule are preserved. The historical uncertain brief attempt
+still needs supported reconciliation, and the schedule needs review against the changed runtime binding before
+use. See [recovery evidence](history/2026-10-28-durable-runtime-recovery.md). This does not close the real generated
+brief, recurring usefulness or customer-validation gates.
+
 The real public-site onboarding walkthrough now confirms identity and imports three sourced pages in a separate
 company. The first native brief request exposed a missing pinned executable after a desktop package update;
 no generated brief or provider receipt resulted, and the uncertain saved request was not replayed.
