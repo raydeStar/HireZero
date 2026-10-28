@@ -95,7 +95,14 @@ public sealed record CompanySchedule(
     string? ApprovedBy = null,
     string? ThreadId = null,
     string? Reason = null
-);
+)
+{
+    // A read-time projection, never a new approval or a change to the saved schedule.
+    [System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+    public bool? ReviewCurrent { get; init; }
+}
 
 public sealed record CompanyScheduleRun(
     string Id,
@@ -193,7 +200,7 @@ public sealed partial class CompanyStore
     public CompanySchedule[] Schedules()
     {
         using var db = Open();
-        return All<CompanySchedule>(db);
+        return Transaction(db, () => All<CompanySchedule>(db).Select(s => ScheduleReviewStatus(db, s)).ToArray());
     }
 
     public CompanyScheduleDetail ScheduleDetail(string id)
@@ -205,7 +212,7 @@ public sealed partial class CompanyStore
             {
                 var schedule = Need<CompanySchedule>(db, id);
                 return new CompanyScheduleDetail(
-                    schedule,
+                    ScheduleReviewStatus(db, schedule),
                     ScheduleRuns(db, id).OrderByDescending(r => r.Slot).Take(31).ToArray(),
                     Enumerable
                         .Range(schedule.Consumed, Math.Min(3, schedule.Definition.Occurrences - schedule.Consumed))
@@ -224,6 +231,15 @@ public sealed partial class CompanyStore
             CompanyId,
             id
         );
+
+    private CompanySchedule ScheduleReviewStatus(StoreConnection db, CompanySchedule schedule) =>
+        schedule with
+        {
+            ReviewCurrent =
+                schedule.State is "completed" or "canceled" ? null
+                : schedule.State == "active" ? ScheduleAuthorityCurrent(db, schedule)
+                : ScheduleScopeCurrent(db, schedule),
+        };
 
     private void SaveSchedule(StoreConnection db, CompanySchedule s) =>
         Save(db, s, s.Id, employee: s.Definition.EmployeeId, state: s.State, version: s.Version);
@@ -392,6 +408,11 @@ public sealed partial class CompanyStore
             || Find<CompanyMember>(db, schedule.ApprovedBy) is not { State: "active", Role: CompanyRoles.Owner }
         )
             return false;
+        return ScheduleScopeCurrent(db, schedule);
+    }
+
+    private bool ScheduleScopeCurrent(StoreConnection db, CompanySchedule schedule)
+    {
         try
         {
             return CompanyJson.Digest(

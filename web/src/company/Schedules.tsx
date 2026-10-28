@@ -33,6 +33,7 @@ type Schedule = {
   definition: Definition;
   digest: string;
   state: string;
+  reviewCurrent?: boolean | null;
   version: number;
   consumed: number;
   nextRunAt: string | null;
@@ -780,7 +781,7 @@ export function Schedules({
             <button aria-pressed={selected === s.id} disabled={busy} onClick={() => void choose(s.id)}>
               <strong>{s.definition.name}</strong>
               <span>
-                {s.state} ·{" "}
+                {s.reviewCurrent === false ? "Review needed" : s.state} ·{" "}
                 {s.state === "canceled"
                   ? `${s.consumed} of ${s.definition.occurrences} occurrences consumed`
                   : `${s.definition.occurrences - s.consumed} occurrences remaining`}
@@ -793,9 +794,18 @@ export function Schedules({
         <article className="co-schedule-review" aria-label="Schedule review">
           <h3>{schedule.definition.name}</h3>
           <p>
-            <b>{schedule.state}</b> · {schedule.definition.cadence} at {schedule.definition.localTime} in{" "}
-            {schedule.definition.timeZone}
+            <b>{schedule.reviewCurrent === false ? "Review needed" : schedule.state}</b> · {schedule.definition.cadence}{" "}
+            at {schedule.definition.localTime} in {schedule.definition.timeZone}
           </p>
+          {schedule.reviewCurrent === false && (
+            <p role="status" className="co-error">
+              The owner permission, employee, approved context or runtime has changed. Remaining runs will not start
+              under this review.{" "}
+              {schedule.state === "draft"
+                ? "Edit and save this draft to review the current scope."
+                : "Copy into a new draft and review its scope, dates and allowance."}
+            </p>
+          )}
           {schedule.reason && (
             <p role="status" className="co-error">
               {schedule.reason}
@@ -944,6 +954,7 @@ export function Schedules({
           {owner && (
             <div className="co-schedule-controls">
               {["draft", "paused", "blocked"].includes(schedule.state) &&
+                schedule.reviewCurrent !== false &&
                 schedule.consumed < schedule.definition.occurrences && (
                   <>
                     <label className="co-schedule-check">

@@ -12,8 +12,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   complete assets. See [small-team UX and raw persona evidence](history/2026-10-28-small-team-drafts-and-personas.md).
 - Three first raw outputs were preserved: the email is basic, the agency plan is a usable starting point,
   and the service landing page is too repetitive and leaks an internal caveat. First-run usefulness remains open.
-- Web/Marketing builds, 56 focused backend facts and Marketing routing/check tests pass. Local updates have
-  verified backups. The old weekly schedule remains saved but needs re-review after the role instruction change.
+- Local updates have verified backups and focused checks. The old weekly schedule remains saved and now
+  [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
+  direct review link. No replacement is active.
 - [Direct-asset comparisons and a fresh tutor check](history/2026-10-28-direct-asset-quality-comparison.md)
   show better reader choices. Repetition and avoidable service/contact assumptions still need work.
 - [Grounding and ready-draft follow-up](history/2026-10-28-grounded-actions-ready-drafts.md) separates useful

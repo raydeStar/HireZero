@@ -116,18 +116,28 @@ public sealed partial class CompanyStore
                             memory.Id
                         )
                     );
-                foreach (var schedule in All<CompanySchedule>(db).Where(s => s.State is "blocked" or "draft"))
+                foreach (
+                    var schedule in All<CompanySchedule>(db)
+                        .Where(s => s.State is "blocked" or "draft" or "active")
+                        .Select(s => ScheduleReviewStatus(db, s))
+                        .Where(s => s.State != "active" || s.ReviewCurrent == false)
+                )
                     needs.Add(
                         new(
                             "schedule",
                             "Recurring work: " + schedule.Definition.Name,
-                            schedule.State == "draft"
-                                ? "Review the schedule, scope and remaining allowance before authorizing."
+                            schedule.ReviewCurrent == false
+                                    ? "The approved scope or permission changed. Review a new schedule before its remaining runs."
+                                : schedule.State == "draft"
+                                    ? "Review the schedule, scope and remaining allowance before authorizing."
                                 : schedule.Reason
                                     ?? "A recurring occurrence needs your review before the schedule can continue.",
-                            null,
+                            schedule.Definition.EmployeeId,
                             null
                         )
+                        {
+                            TargetId = schedule.Id,
+                        }
                     );
                 foreach (var profile in All<CompanyBusinessProfile>(db).Where(p => p.State == "approved"))
                 {

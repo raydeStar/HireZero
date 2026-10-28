@@ -340,7 +340,14 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
     // An assistant's request has no conversation; its card waits on the Integrations page.
     else if (need.kind === "connection") openHub("integrations");
     else if (need.kind === "business-freshness") openHub("business");
-    else if (need.kind === "schedule") openHub("schedules");
+    else if (need.kind === "schedule")
+      navigate({
+        ...routeRef.current,
+        tab: "departments",
+        section: "schedules",
+        noticeTarget: need.targetId,
+        work: "",
+      });
     else if (need.kind === "memory")
       navigate({ ...routeRef.current, tab: "departments", section: "memory", memoryId: need.taskId, work: "" });
     else if (need.kind === "plan") navigate({ tab: "plans", selected: "", thread: "", planId: need.targetId });
