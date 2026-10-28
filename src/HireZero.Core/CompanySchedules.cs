@@ -34,7 +34,19 @@ public sealed record CompanyScheduleInput(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        string? ModelRoute = null
+        string? ModelRoute = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault
+    )]
+        bool IncludeOccurrenceTime = false
+);
+
+public sealed record CompanyScheduledOccurrence(
+    DateTimeOffset ScheduledFor,
+    string TimeZone,
+    string Cadence,
+    int RunNumber,
+    int TotalRuns
 );
 
 public sealed record CompanyScheduleReviewContext(
@@ -421,6 +433,7 @@ public sealed partial class CompanyStore
             Skill = input.Kind == "employee-task" && input.Skill != PlatformSkills.Chat ? input.Skill : null,
             Evidence = input.Kind == "employee-task" && input.Evidence is { Length: > 0 } ? input.Evidence : null,
             ModelRoute = input.Kind == "employee-task" ? ReviewModelChoice(input.ModelRoute) : null,
+            IncludeOccurrenceTime = input.Kind == "employee-task" && input.IncludeOccurrenceTime,
         };
         if (
             input.Name.Length == 0
@@ -701,6 +714,24 @@ public sealed partial class CompanyStore
             && schedule.Definition.Kind == "source-refresh"
             && run.ScheduleDigest == schedule.Digest
             && ScheduleAuthorityCurrent(db, schedule);
+    }
+
+    private CompanyScheduledOccurrence? ScheduledOccurrence(StoreConnection db, CompanyTask task)
+    {
+        if (task.ScheduleRunId is null)
+            return null;
+        var run = Need<CompanyScheduleRun>(db, task.ScheduleRunId);
+        var definition = Need<CompanySchedule>(db, run.ScheduleId).Definition;
+        if (!definition.IncludeOccurrenceTime || definition.Kind != "employee-task")
+            return null;
+        // The calendar gets a seat at the table; it must never pretend to be fresh business evidence.
+        return new(
+            TimeZoneInfo.ConvertTime(run.DueAt, CompanyScheduleCalendar.Zone(definition.TimeZone)),
+            definition.TimeZone,
+            definition.Cadence,
+            run.Slot + 1,
+            definition.Occurrences
+        );
     }
 
     public CompanyAttempt StartScheduledTask(string runId)

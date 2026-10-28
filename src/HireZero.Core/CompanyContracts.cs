@@ -244,7 +244,11 @@ public sealed record CompanyContext(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        CompanyRevisionContext? Revision = null
+        CompanyRevisionContext? Revision = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyScheduledOccurrence? ScheduledOccurrence = null
 );
 
 public sealed record CompanyAttempt(

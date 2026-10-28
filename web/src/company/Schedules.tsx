@@ -20,6 +20,7 @@ type Definition = {
   prompt?: string | null;
   creditAllowance: number;
   modelRoute?: string | null;
+  includeOccurrenceTime?: boolean;
   profileId?: string | null;
   sourceIds?: string[] | null;
   scriptJobId?: string | null;
@@ -94,6 +95,7 @@ function initial(snapshot: Snapshot): Definition {
     employeeId: snapshot.data.employees.find((e) => e.state === "active")?.id || "",
     prompt: "",
     creditAllowance: 1,
+    includeOccurrenceTime: true,
     sourceIds: [],
   };
 }
@@ -531,6 +533,14 @@ export function Schedules({
                     requirements you still want. The full text stays in this draft until you edit it.
                   </p>
                 )}
+                <label className="co-check">
+                  <input
+                    type="checkbox"
+                    checked={!!form.includeOccurrenceTime}
+                    onChange={(e) => edit({ ...form, includeOccurrenceTime: e.target.checked })}
+                  />
+                  Include the scheduled date in each request
+                </label>
                 <p>
                   Say what should be fresh each run and what a useful result contains. For a content plan, ask for new
                   examples using approved facts, with complete drafts and a way to assess their use. Save audience
@@ -826,6 +836,13 @@ export function Schedules({
             </p>
           )}
           {schedule.definition.prompt && <blockquote>{schedule.definition.prompt}</blockquote>}
+          {schedule.definition.kind === "employee-task" && (
+            <p>
+              {schedule.definition.includeOccurrenceTime
+                ? `Each request includes its scheduled date and time in ${schedule.definition.timeZone}, cadence and run number. This anchors dates in the work; it does not supply new research or earlier results.`
+                : "This schedule sends the same instructions without a scheduled date or run number. To add them, prepare and approve a new schedule."}
+            </p>
+          )}
           {schedule.authority.browser && (
             <ScheduledBrowserReview
               browser={schedule.authority.browser}

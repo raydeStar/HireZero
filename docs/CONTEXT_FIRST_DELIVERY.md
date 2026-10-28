@@ -9,6 +9,14 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
+New recurring employee schedules can include a separately reviewed calendar anchor under
+[ADR 0153](adr/0153-reviewed-scheduled-time-context.md). Each immutable request gets its planned local date,
+time zone, cadence and slot number; legacy schedules keep their exact approved packets without this addition.
+This closes a date-context gap in P2.1/P2.4, without claiming useful recurring output or changing the active pilot.
+Forty-one focused facts and the complete fictional recurring browser journey pass. Both local installations have
+backups and verified release files; the accepted plan, accounts, records and exact active schedule are preserved.
+See [calendar-context evidence](history/2026-10-28-scheduled-time-context.md).
+
 Current checkpoint (2026-10-27): the owner accepted draft 3 unchanged as useful and authorized its approval. The
 exact editorial copy is approved in the installed app and its task is completed; all earlier copies remain
 intact. This closes first-result usefulness for this owner pilot, including human editing, not general customer

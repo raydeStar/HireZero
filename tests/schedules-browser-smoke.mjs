@@ -432,6 +432,9 @@ try {
   assert.equal(records.length, 1);
   assert.equal(records[0].definition.skill, "marketing-starter-plan");
   assert.equal(records[0].definition.prompt, instructionsForRuns);
+  assert.equal(records[0].definition.includeOccurrenceTime, true,
+    "New recurring work includes reviewed calendar context by default");
+  await waitText("Each request includes its scheduled date and time");
   assert.deepEqual(records[0].definition.evidence, [editedResult.id]);
   assert.ok(records[0].authority.context.selectedResults.includes(editedResult.body));
   assert.equal(records[0].authority.context.selectedResults.includes(originalResult.body), false,
@@ -491,6 +494,9 @@ try {
   const firstAttempt = (await snapshot()).data.measured.find(m => m.taskId === first.runs[0].taskId);
   const firstPacket = await fetch(url + "/api/company/measured/" + firstAttempt.id).then(r => r.json());
   assert.ok(firstPacket.call.context.input.includes(earlierFeedback));
+  assert.equal(firstPacket.call.context.scheduledOccurrence.runNumber, 1);
+  assert.equal(firstPacket.call.context.scheduledOccurrence.timeZone, approved.definition.timeZone);
+  assert.equal(Date.parse(firstPacket.call.context.scheduledOccurrence.scheduledFor), Date.parse(first.runs[0].dueAt));
   assert.ok(firstPacket.call.context.input.includes(latestFeedback));
   assert.equal(
     (await snapshot()).data.budgets.find((b) => b.id === "schedule:" + id).used,
@@ -505,6 +511,12 @@ try {
     "Saved private scheduled result opens directly",
   );
   const beforeEdit = (await snapshot()).data;
+  await evaluate("document.querySelector('.co-job-receipt > summary').click()");
+  await click("View scheduled request date");
+  await until(() => evaluate("document.querySelector('[aria-label=\"Scheduled date in this request\"]')?.innerText.includes('Run 1 of 2')"),
+    "The saved occurrence date is readable in its execution receipt");
+  await screenshot("recurring-request-date.png");
+  await evaluate("document.querySelector('.co-job-receipt > summary').click()");
   assert.equal(await evaluate("!!document.querySelector('.fe-composer')"), false,
     "Opening a saved deliverable prioritizes the full Work view");
   assert.ok(await evaluate("document.querySelector('.co-work-window').getBoundingClientRect().width > 700"),
@@ -611,6 +623,9 @@ try {
   const secondRun = (await detail(id)).runs.find(run => run.taskId !== first.runs[0].taskId);
   const secondAttempt = (await snapshot()).data.measured.find(attempt => attempt.taskId === secondRun.taskId);
   const secondPacket = await fetch(url + "/api/company/measured/" + secondAttempt.id).then(r => r.json());
+  assert.equal(secondPacket.call.context.scheduledOccurrence.runNumber, 2);
+  assert.equal(Date.parse(secondPacket.call.context.scheduledOccurrence.scheduledFor), Date.parse(secondRun.dueAt));
+  assert.notEqual(secondPacket.call.context.scheduledOccurrence.scheduledFor, firstPacket.call.context.scheduledOccurrence.scheduledFor);
   const rememberedFeedback = secondPacket.call.context.memory.items.find(item => item.memoryId === feedbackRow.memory.id);
   assert.equal(rememberedFeedback.statement, learnedFeedback, "Later scheduled work receives the owner's actual guidance");
   assert.equal(rememberedFeedback.origin.artifactId, editedOccurrence.id);
@@ -717,6 +732,8 @@ try {
         lostSaveReconciled: true,
         draftEditedInPlace: true,
         exactRecurringConsent: true,
+        reviewedOccurrenceDatesReachSeparateRequests: true,
+        savedOccurrenceDateReadable: true,
         backgroundEmployeeRuns: 2,
         savedResultOpened: true,
         fullWorkReviewByDefault: true,

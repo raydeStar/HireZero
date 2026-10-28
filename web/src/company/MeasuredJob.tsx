@@ -23,6 +23,13 @@ type Packet = {
       notes: string;
       history: unknown[];
       evidence: unknown[];
+      scheduledOccurrence?: {
+        scheduledFor: string;
+        timeZone: string;
+        cadence: string;
+        runNumber: number;
+        totalRuns: number;
+      };
       revision?: { request: { feedback: string }; originalDraft: string; priorFeedback?: { feedback: string }[] };
       memory?: {
         notice: string;
@@ -442,6 +449,28 @@ export function MeasuredJob({
                 </>
               )}
             </>
+          )}
+          {task.scheduleRunId && entry.job.state !== "proposed" && (
+            <section aria-label="Scheduled date in this request">
+              <button disabled={reviewing} aria-busy={reviewing} onClick={() => void review()}>
+                {reviewing ? "Loading saved date…" : "View scheduled request date"}
+              </button>
+              {packet &&
+                (packet.call.context.scheduledOccurrence ? (
+                  <p>
+                    {new Date(packet.call.context.scheduledOccurrence.scheduledFor).toLocaleString(undefined, {
+                      timeZone: packet.call.context.scheduledOccurrence.timeZone,
+                    })}{" "}
+                    ({packet.call.context.scheduledOccurrence.timeZone}) · Run{" "}
+                    {packet.call.context.scheduledOccurrence.runNumber} of{" "}
+                    {packet.call.context.scheduledOccurrence.totalRuns} ·{" "}
+                    {packet.call.context.scheduledOccurrence.cadence}. This planned date anchors the work; it does not
+                    establish when sources were last checked.
+                  </p>
+                ) : (
+                  <p>This request did not include a scheduled date.</p>
+                ))}
+            </section>
           )}
           {entry.usage && (
             <p>
