@@ -184,6 +184,7 @@ assert.equal(
 );
 assert.match(text(render()), /not upstream token caps/);
 assert.match(text(render()), /no provider-enforced per-job credit cap/);
+await flush(); // Non-conversation proposals load their saved review automatically.
 find("button", "Review task and context").props.onClick();
 await flush();
 assert.equal(reads[0], "/company/measured/fictional-attempt");
@@ -216,7 +217,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(runs[0].fields)), {
 assert.equal(refreshes, 1);
 state = [];
 responseDigest = "changed-packet";
-find("button", "Review task and context").props.onClick();
+render();
 await flush();
 assert.equal(
   find("button", "Authorize and run").props.disabled,
@@ -264,7 +265,7 @@ await flush();
 assert.equal(runs.length, sendsBefore + 1);
 state = [];
 props = { ...props, entry, available: true, conversational: false };
-find("button", "Review task and context").props.onClick();
+render();
 await flush();
 nodes(render())
   .find((n) => n.type === "input" && n.props.type === "checkbox")
@@ -299,7 +300,7 @@ let rejectOldRead;
 nextRead = new Promise((_, reject) => {
   rejectOldRead = reject;
 });
-find("button", "Review task and context").props.onClick();
+render();
 assert.equal(find("button", "Loading review…").props.disabled, true);
 assert.equal(find("button", "Loading review…").props["aria-busy"], true);
 props = {
@@ -311,6 +312,7 @@ props = {
   },
 };
 render();
+await flush();
 assert.equal(
   find("button", "Review task and context").props.disabled,
   false,
@@ -351,6 +353,7 @@ assert.equal(
   ),
   false,
 );
+await flush();
 find("button", "Review task and context").props.onClick();
 await flush();
 assert.match(text(render()), /Fictional sealed instructions/);

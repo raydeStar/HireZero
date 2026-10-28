@@ -8,6 +8,7 @@ import { MeasuredJob } from "./MeasuredJob";
 import { providerName } from "./ModelChoice";
 import { ArtifactHandoff } from "./ArtifactHandoff";
 import { ArtifactRevision } from "./ArtifactRevision";
+import { ArtifactSources } from "./ArtifactSources";
 import { draftChecks } from "../roles/company";
 import { DraftChecks, draftRepairFeedback } from "./DraftChecks";
 import { ArtifactPublication, ExecutionSteps } from "./ExecutionSteps";
@@ -345,8 +346,7 @@ export function ConversationJob({
               }
             />
           )}
-          <details className="co-draft-provenance">
-            <summary>Source and provenance</summary>
+          <ArtifactSources key={`${company()}:${a.id}:${a.contextId}`} artifact={a} entry={measured}>
             <p>
               {provenance(employeeRole, a.provenance)} · {artifactState(a.state, canWork)}
             </p>
@@ -363,7 +363,7 @@ export function ConversationJob({
                 Approval does not publish or share this result.
               </p>
             )}
-          </details>
+          </ArtifactSources>
           <DraftChecks checks={draftChecks(employeeRole, a.body, t, d.tasks)} />
           {a.reviewFeedback && (
             <section aria-label="Saved review feedback">

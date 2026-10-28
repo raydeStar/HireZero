@@ -4,13 +4,14 @@ import { command, type MeasuredEntry, type Work } from "./api";
 import { MonthlyAllowance, type UsageAllowance } from "./Usage";
 import { useMemberAccess } from "./MemberAccess";
 import { ModelChoice, providerName, type ModelOption } from "./ModelChoice";
+import { TaskBusinessContext, type TaskBusinessContextData } from "./TaskBusinessContext";
 
 type Packet = {
   usage?: UsageAllowance;
   attempt: { id: string; measured: { digest: string } };
   call: {
     instructions: string;
-    context: {
+    context: TaskBusinessContextData & {
       id: string;
       employeeId: string;
       roleId: string;
@@ -337,12 +338,7 @@ export function MeasuredJob({
                     )}
                     <h4>Approved department facts</h4>
                     <Contents body={packet.call.context.departmentKnowledge} />
-                    {packet.call.context.companyKnowledge && (
-                      <>
-                        <h4>Approved company facts</h4>
-                        <Contents body={packet.call.context.companyKnowledge} />
-                      </>
-                    )}
+                    <TaskBusinessContext context={packet.call.context} />
                     {packet.usage && <MonthlyAllowance usage={packet.usage} />}
                     <h4>Private notes included</h4>
                     <Contents body={packet.call.context.notes} />

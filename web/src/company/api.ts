@@ -147,6 +147,7 @@ export type ConnectionRequest = {
   account?: string | null;
 };
 export type Artifact = {
+  contextId?: string | null;
   reviewFeedback?: string | null;
   id: string;
   taskId: string;

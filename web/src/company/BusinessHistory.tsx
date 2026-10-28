@@ -8,7 +8,7 @@ export function BusinessFieldEvidence({
   collapsible = false,
 }: {
   field: ProfileField;
-  sources: BusinessSource[];
+  sources: Pick<BusinessSource, "id" | "url" | "title" | "retrievedAt" | "clipped">[];
   collapsible?: boolean;
 }) {
   const status = { owner: "Owner-provided", sourced: "Source-supported", hypothesis: "Hypothesis", unknown: "Unknown" };
