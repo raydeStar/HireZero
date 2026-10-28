@@ -16,9 +16,14 @@ a complete five-case pass and receipt checks across a dedicated-daemon restart, 
 failures. The [subsequent diagnosis](../../docs/history/2026-10-26-script-runtime-task-exhaustion.md) identifies
 host task exhaustion. Worker protocol 2 uses smaller Node pools but still failed its first runtime observation;
 it has no qualification receipt. The [revised resource plan](../../docs/history/2026-10-26-script-task-budget-plan.md)
-is now owner-approved. The adapter requires a 128-task host ceiling and separate soft/hard 32-task workload
-limit under ADR 0120. The [first workload-limit case](../../docs/history/2026-10-26-script-task-budget-attempt.md)
-failed and stopped qualification. No new receipt was issued; earlier failures remain recorded.
+is now owner-approved. The adapter requires a 128-task host ceiling and 32 actual workload tasks. The
+[first workload-limit case](../../docs/history/2026-10-26-script-task-budget-attempt.md) failed and stopped
+qualification. The [accounting correction](../../docs/adr/0146-script-initial-task-accounting.md) tightens the
+internal soft/hard limit to 31 to account for the initial process outside the runtime UID counter. The
+[corrected local profile](../../docs/history/2026-10-27-script-task-accounting-correction.md) passed its diagnostic
+and all six standard/extended cases, with receipt bindings preserved across an idle-daemon restart. Earlier
+failures remain recorded. Application execution is still disabled; wider reliability and production acceptance
+are separate from this bounded local qualification.
 
 An operator provisions a Linux Docker engine with the `runsc` runtime using the
 [gVisor guide](https://gvisor.dev/docs/user_guide/quick_start/docker/). Runtime/daemon installation and service
@@ -40,8 +45,9 @@ dotnet tests/HireZero.Integrations.Tests/bin/Debug/net10.0/HireZero.Integrations
 The build uses the exact base digest in the Dockerfile and may download it if absent. The adapter itself
 accepts only the resulting immutable `sha256:` image ID and uses `--pull never`.
 
-Qualification protocol v2 first checks the 32-task workload limit through bounded process/thread exhaustion,
-unprivileged identity, zero effective capabilities and refusal to raise the hard limit or regain root.
+Qualification protocol v3 first checks the 32-task workload limit through bounded process/thread exhaustion,
+visible internal limits of 31/31, unprivileged identity, zero effective capabilities and refusal to raise the
+hard limit or regain root. Older qualification protocols cannot authorize the revised profile.
 The opt-in qualification also checks the real unprivileged script identity, protected PID 1 supervisor, read-only
 input/image files, recovery of the bounded result log, a CPU-loop deadline, refusal of linked output and confirmed resource removal. A skipped test
 does not qualify an engine. Generate the installation ID once as a GUID without hyphens, save it in private operator

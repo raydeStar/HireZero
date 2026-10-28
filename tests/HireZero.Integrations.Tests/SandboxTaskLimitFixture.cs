@@ -31,9 +31,9 @@ internal static class SandboxTaskLimitFixture
         assert.throws(() => process.setuid(0), e => e.code === 'EPERM');
         const limits = fs.readFileSync('/proc/self/limits','utf8');
         stage = 'visible-process-limits';
-        assert.match(limits, /^Max processes\s+32\s+32\s+processes\s*$/m);
+        assert.match(limits, /^Max processes\s+31\s+31\s+processes\s*$/m);
         stage = 'raise-hard-limit';
-        const raise = spawnSync('/bin/sh',['-c','ulimit -H -u 33'],{encoding:'utf8',timeout:2000});
+        const raise = spawnSync('/bin/sh',['-c','ulimit -H -u 32'],{encoding:'utf8',timeout:2000});
         assert.equal(raise.error, undefined);
         assert.notEqual(raise.status, 0);
         assert.match(raise.stderr, /not permitted/i);

@@ -14,7 +14,7 @@ public sealed class DockerSandbox : ISandboxExecutor
     private readonly string _engine;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _started = new();
     private const string Label = "io.hirezero.sandbox.";
-    public string Identity => "docker-runsc-v4:" + _image + ":" + CompanyJson.Digest(new { _installation, _engine });
+    public string Identity => "docker-runsc-v5:" + _image + ":" + CompanyJson.Digest(new { _installation, _engine });
 
     public DockerSandbox(IDockerCommands docker, string image, string installationId, string engineId)
     {
@@ -176,7 +176,8 @@ public sealed class DockerSandbox : ISandboxExecutor
             "--cgroupns",
             "private",
             "--ulimit",
-            "nproc=32:32",
+            // The pinned runtime charges the initial UID-changing child to root: 31 counted + 1 = 32 workload tasks.
+            "nproc=31:31",
             "--ulimit",
             "nofile=128:128",
             "--ulimit",
@@ -284,7 +285,7 @@ public sealed class DockerSandbox : ISandboxExecutor
             return false;
         var remaining = new Dictionary<string, long>(StringComparer.Ordinal)
         {
-            ["nproc"] = 32,
+            ["nproc"] = 31,
             ["nofile"] = 128,
             ["core"] = 0,
         };

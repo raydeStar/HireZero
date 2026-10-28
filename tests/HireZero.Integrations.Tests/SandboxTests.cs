@@ -394,7 +394,7 @@ public sealed class SandboxTests
         Assert.Equal("completed", accepted.State);
         var create = Assert.Single(good.Calls, a => a.Contains("create"));
         Assert.Equal("128", create[Array.IndexOf(create, "--pids-limit") + 1]);
-        Assert.Contains("nproc=32:32", create);
+        Assert.Contains("nproc=31:31", create);
         var changes = new List<Action<JsonObject>>
         {
             c => c["HostConfig"]!["PidsLimit"] = 32,
@@ -416,7 +416,9 @@ public sealed class SandboxTests
                     ),
             c => c["HostConfig"]!["Ulimits"]![1] = c["HostConfig"]!["Ulimits"]![0]!.DeepClone(),
             c => c["HostConfig"]!["Ulimits"]![0]!["Name"] = "NPROC",
-            c => c["HostConfig"]!["Ulimits"]![0]!["Soft"] = "32",
+            c => c["HostConfig"]!["Ulimits"]![0]!["Soft"] = "31",
+            c => c["HostConfig"]!["Ulimits"]![0]!["Soft"] = 32,
+            c => c["HostConfig"]!["Ulimits"]![0]!["Hard"] = 32,
             c => c["HostConfig"]!["Ulimits"]![0]!.AsObject().Remove("Hard"),
             c => c["HostConfig"]!["Ulimits"]![0] = null,
         };

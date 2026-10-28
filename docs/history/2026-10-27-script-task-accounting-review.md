@@ -83,3 +83,7 @@ no limit change. The original resource was removed; the final audit found zero c
 image/configuration/browser receipt and external workload state were unchanged. No qualification receipt was
 issued and no application was activated. One of the maximum ten jobs is consumed; repeating this unchanged
 case is not useful. A runtime correction must preserve the approved workload ceiling and earn new qualification.
+
+The subsequent [accounting correction and qualification](2026-10-27-script-task-accounting-correction.md)
+resolved this count discrepancy without increasing the actual ceiling. This earlier diagnostic and its failure
+remain part of the evidence; the later checkpoint records the updated authorization balance and qualified scope.

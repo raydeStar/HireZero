@@ -27,7 +27,7 @@ public sealed record SandboxQualification(
         string[]? ExtendedChecks = null
 )
 {
-    public const string CurrentProtocol = "sandbox-qualification-v2";
+    public const string CurrentProtocol = "sandbox-qualification-v3";
     public static string[] RequiredExtendedChecks =>
         ["extended-duration", "extended-deadline", "extended-recovery-and-release"];
     public bool ExtendedQualified =>

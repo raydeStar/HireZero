@@ -93,6 +93,7 @@ public sealed class SandboxQualificationTests
         bool Valid(SandboxQualification r) => r.Matches(Image, Installation, Endpoint, Executable, now);
         Assert.True(Valid(receipt));
         Assert.False(Valid(receipt with { Protocol = "sandbox-qualification-v1" }));
+        Assert.False(Valid(receipt with { Protocol = "sandbox-qualification-v2" }));
         Assert.False(Valid(receipt with { Checks = receipt.Checks.Where(c => c != "workload-task-limit").ToArray() }));
         Assert.False(Valid(receipt with { InstallationId = Guid.NewGuid().ToString("N") }));
         Assert.False(Valid(receipt with { Endpoint = "tcp://untrusted.invalid" }));

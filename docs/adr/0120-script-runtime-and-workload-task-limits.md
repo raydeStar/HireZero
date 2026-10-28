@@ -2,6 +2,10 @@
 
 Status: accepted and implemented, 2026-10-26. First qualification case failed; no new receipt issued.
 
+The internal 32/32 setting is superseded by [ADR 0146](0146-script-initial-task-accounting.md), which accounts for
+the initial task while preserving the 32 actual workload / 128 host ceilings. The history below records the
+original decision and failures.
+
 The [32-task qualification diagnostics](../history/2026-10-26-script-runtime-task-exhaustion.md) captured a
 gVisor Sentry `newosproc` panic and host PID-limit rejections. The host cgroup includes Sentry, filesystem
 service and platform overhead. Reducing Node background pools did not resolve the failure. A passing run
