@@ -16,6 +16,7 @@ import { humanize } from "./labels";
 import { SandboxTools } from "./Sandbox";
 import { PlanProposal, planProposal } from "./PlanProposal";
 import { workState, workTitle } from "./Cockpit";
+import { splitDraftReview } from "./reportSections";
 const BrowserTools = lazy(() => import("./Browser").then((module) => ({ default: module.BrowserTools })));
 const TaskCosts = lazy(() => import("./TaskCosts").then((module) => ({ default: module.TaskCosts })));
 const reasonLabels: Record<string, string> = {
@@ -640,22 +641,24 @@ function Report({
     }
   }
   const shown = callAt >= 0 ? lines.filter((_, i) => i !== callAt).join("\n") : body;
-  const long = shown.split(/\r?\n/).length > 14 || shown.length > 1400;
+  const sections = callAt >= 0 ? { draft: shown, notes: undefined } : splitDraftReview(shown);
+  const usable = sections.notes ? sections.draft : body;
+  const long = sections.draft.split(/\r?\n/).length > 14 || sections.draft.length > 1400;
   const [full, setFull] = useState(true);
   const [copyStatus, setCopyStatus] = useState("");
   async function copy() {
     try {
-      await navigator.clipboard.writeText(body);
+      await navigator.clipboard.writeText(usable);
       setCopyStatus("Draft copied.");
     } catch {
       setCopyStatus("Clipboard unavailable. Use Download draft or select the text below.");
     }
   }
-  function download() {
-    const url = URL.createObjectURL(new Blob([body], { type: "text/markdown;charset=utf-8" }));
+  function download(text = usable, filename = "hirezero-draft.md") {
+    const url = URL.createObjectURL(new Blob([text], { type: "text/markdown;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "hirezero-draft.md";
+    link.download = filename;
     link.click();
     // Let the browser finish accepting the local download before releasing its URL.
     setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -666,7 +669,7 @@ function Report({
         <button type="button" className="co-ghost" onClick={() => void copy()}>
           Copy draft
         </button>
-        <button type="button" className="co-ghost" onClick={download}>
+        <button type="button" className="co-ghost" onClick={() => download()}>
           Download draft
         </button>
         {refine}
@@ -689,13 +692,37 @@ function Report({
             ),
           }}
         >
-          {shown}
+          {sections.draft}
         </Markdown>
       </div>
       {long && (
         <button type="button" className="co-ghost co-report-toggle" onClick={() => setFull(!full)}>
           {full ? "Show less" : "Show full report"}
         </button>
+      )}
+      {sections.notes && (
+        <details className="co-internal-review-notes">
+          <summary>Internal review notes</summary>
+          <p className="co-muted">
+            Copy and Download use the draft above. The full saved response includes these notes.
+          </p>
+          <Markdown
+            skipHtml
+            disallowedElements={["img"]}
+            components={{
+              a: ({ children, href }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer">
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {sections.notes}
+          </Markdown>
+          <button type="button" className="co-ghost" onClick={() => download(body, "hirezero-full-result.md")}>
+            Download full saved result
+          </button>
+        </details>
       )}
       {call && (
         <details className="co-exact-call">

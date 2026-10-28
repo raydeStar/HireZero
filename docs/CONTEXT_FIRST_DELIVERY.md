@@ -6,7 +6,7 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 ## Current checkpoint — 2026-10-28
 
 - Home accepts a business sentence, goal and optional website, then generates one disclosed draft. Results
-  open with Copy, Download and Refine; receipts and administration are collapsed. Company knowledge and
+  open with Copy, Download and Refine; internal notes, receipts and administration are collapsed. Company knowledge and
   Settings group the navigation; multi-employee tools stay secondary for a small workspace.
 - Weekly plans now adapt to the business instead of prescribing an AI-workflow demonstration, with room for
   complete assets. See [small-team UX and raw persona evidence](history/2026-10-28-small-team-drafts-and-personas.md).
@@ -14,12 +14,14 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   and the service landing page is too repetitive and leaks an internal caveat. First-run usefulness remains open.
 - Web/Marketing builds, 56 focused backend facts and Marketing routing/check tests pass. Local updates have
   verified backups. The old weekly schedule remains saved but needs re-review after the role instruction change.
-- Two [direct-asset comparisons](history/2026-10-28-direct-asset-quality-comparison.md) improve reader choices and remove an internal caveat, but repetition and an inferred service option remain.
-- The owner extended the evaluation allowance to 31 native runs: four consumed, 27 remain. Exact receipts and raw outputs stay private; reported usage is recorded in the history notes.
+- [Direct-asset comparisons and a fresh tutor check](history/2026-10-28-direct-asset-quality-comparison.md)
+  show better reader choices. Repetition and avoidable service/contact assumptions still need work.
+- The owner extended the evaluation allowance to 31 native runs: five consumed, 26 remain. Exact receipts
+  and raw outputs stay private; reported usage is recorded in the history notes.
 
 ## Next acceptance gate
 
-1. Evaluate usefulness on an unseen business before claiming the prompt change generalizes. Keep later runs labeled as comparisons,
+1. Improve repeatable first-draft usefulness across more fresh businesses. Keep later runs labeled as comparisons,
    never as replacement acceptance evidence. No assistant editorial copies or automatic retries.
 2. Obtain owner usefulness assessment; do not equate complete sections or successful execution with useful work.
 3. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md). Local runs do not

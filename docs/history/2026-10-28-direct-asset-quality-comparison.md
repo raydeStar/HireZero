@@ -2,7 +2,8 @@
 
 Follow-up to [the three-persona first-run evaluation](2026-10-28-small-team-drafts-and-personas.md).
 The owner added 25 native Luna evaluations to the six-run allowance. Two additional comparison requests
-were used here. The first outputs remain unchanged; these comparisons are not replacement acceptance runs.
+were followed by one first run for a fresh business. Earlier outputs remain unchanged; comparisons are not
+replacement acceptance runs.
 
 ## Change and observed effect
 
@@ -19,12 +20,22 @@ direct marketing assets; no sample wording or business-specific answer was suppl
 Both were new Home submissions using the same company facts and exact owner goals, with no previous draft
 or assistant editorial copy supplied. Both used Luna through Codex OAuth, high effort, a 3,000-output target,
 a 90-second local deadline and one intended existing credit, all soft limits. Both reported zero reasoning
-tokens and no actual credit charge. No automatic retry, publication, additional integration or schedule.
+tokens; actual credit charges were not returned. No automatic retry, publication, additional integration or schedule.
 
-Four new requests have consumed 25,611 reported input + output tokens from the 31-run allowance;
-27 remain. The earlier prepared email belongs to the prior two-run approval. Across the previously audited
-application evaluation batches, the count is now 19 requests / 147,387 reported input + output tokens.
+Five new requests have consumed 31,698 reported input + output tokens from the 31-run allowance;
+26 remain. The earlier prepared email belongs to the prior two-run approval. Across the previously audited
+application evaluation batches, the count is now 20 requests / 153,474 reported input + output tokens.
 This accounting excludes the coding assistant's own conversation tokens.
+
+## Fresh-business first run
+
+A fictional solo spreadsheet tutor received one Home-generated welcome email from only its business sentence
+and a simple goal. No previous output or feedback was supplied. It used 6,087 reported tokens under the same
+terms and reported zero reasoning tokens. The unedited email gives useful choice cues for formulas, sorting
+and charts, and preserves agreement of scope and price before booking. This is usable internal draft material.
+It also invites replies despite a known website enquiry route, then asks the owner to decide which channel
+to use. That is an avoidable assumption and extra decision. One fresh success with a remaining caveat does
+not establish consistent quality or a success rate.
 
 ## Delivery and verification
 
@@ -32,10 +43,17 @@ Web and Marketing builds and goal-routing tests passed. Both local apps were upd
 accounts, saved work and schedule records were preserved. First-output IDs, version-one bodies, exact model
 packets and changed instruction digests were retained privately under `.pilot/goal-start/`.
 
-The earlier clipboard uncertainty is resolved: Copy followed by a real paste into an unsaved local field
-matched all 1,638 characters of the raw comparison exactly. The field was cleared and closed without saving
-feedback or starting a revision. Download had already matched the raw email exactly. No editorial artifacts
-were created. Disposable staging directories were removed; compact evidence and backups remain.
+The earlier clipboard uncertainty was resolved with a real paste into an unsaved local field. That check
+also exposed a usability problem: Copy included internal review notes. The result view now collapses a
+clearly marked review-notes footer and copies/downloads the exact asset text before it. The full saved
+response remains available through its own download. Unrecognized formats remain intact; fenced examples
+and notes-only responses are not split. This changes presentation only, never the saved artifact.
+
+The installed tutor result verified a 608-character asset through both clipboard paste and download, and
+an exact 1,080-character full-response download. The temporary feedback field was cleared without saving
+or starting a revision. All six saved sample formats and the fallback cases passed focused presentation
+checks. All five new outputs remain version one, with matching bodies and digests and no editorial artifacts.
+Disposable staging directories were removed; compact evidence and backups remain.
 
 The UX cycle is delivered. Raw content quality is improved but inconsistent, and owner usefulness acceptance
 remains open. These few samples do not establish a success rate or generalization to unseen businesses.
