@@ -381,7 +381,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
             turn =
                 result.GetProperty("turn").GetProperty("id").GetString()
                 ?? throw new WorkspaceException("Missing turn identity.");
-            var output = new StringBuilder();
+            var output = new CodexTextOutput(measured?.Policy.VisibleCharacterStop ?? 2000);
             CompanyCodexReceipt? receipt = null;
             while (true)
             {
@@ -421,15 +421,11 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                         throw new ModelTransportException(
                             "A non-text runtime item was withheld; qualification stopped."
                         );
-                    if (method == "item/completed" && kind == "agentMessage" && output.Length == 0)
-                        output.Append(Text(item, "text"));
+                    if (kind == "agentMessage")
+                        output.ObserveItem(item, completed: method == "item/completed");
                 }
                 if (method == "item/agentMessage/delta")
-                    output.Append(Text(p, "delta"));
-                if (output.Length > (measured?.Policy.VisibleCharacterStop ?? 2000))
-                    throw new ModelTransportException(
-                        "Local output character allowance exceeded; native work stopped."
-                    );
+                    output.ObserveDelta(p);
                 if (method == "thread/tokenUsage/updated")
                 {
                     receipt = observedReceipt = ReadUsage(p);
@@ -449,9 +445,10 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                     var completed = p.GetProperty("turn");
                     if (Text(completed, "id") != turn)
                         continue;
-                    if (Text(completed, "status") != "completed" || receipt is null || output.Length == 0)
+                    if (Text(completed, "status") != "completed" || receipt is null)
                         throw new ModelTransportException("Completion or complete usage was not confirmed.");
                     completedReceipt = receipt;
+                    var body = output.Complete();
                     var after = Billing(
                         await rpc.Request(
                             "account/rateLimits/read",
@@ -488,7 +485,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                         _stopped = true;
                     return receipt with
                     {
-                        Body = stop is null ? output.ToString() : "",
+                        Body = stop is null ? body : "",
                         Before = inspection.Billing,
                         After = after,
                         StopReason = stop,
@@ -540,7 +537,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 throw;
             if (completedReceipt is { } known)
                 throw new ModelTransportException(
-                    "The native turn completed but final account reconciliation failed; observed usage is retained. No replay.",
+                    "The native turn completed but its result could not be accepted; observed usage is retained. No replay.",
                     known.TotalTokens,
                     "codex:" + known.TurnId,
                     new(known.InputTokens, known.OutputTokens, known.ReasoningTokens)

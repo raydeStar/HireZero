@@ -694,6 +694,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                             {
                                 threadId = thread,
                                 turnId = turn,
+                                itemId = "unfinished-answer",
                                 delta = "UNCONFIRMED_PARTIAL_REPLY_SHOULD_NOT_RENDER",
                             },
                         }
@@ -805,18 +806,81 @@ while (await Console.In.ReadLineAsync() is { } line)
                         },
                     }
                 );
-            Write(
-                new
-                {
-                    method = "item/agentMessage/delta",
-                    @params = new
+            void Message(string id, string? phase, string text, string? delta = null, bool complete = true)
+            {
+                Write(
+                    new
                     {
-                        threadId = thread,
-                        turnId = turn,
-                        delta = body,
-                    },
-                }
-            );
+                        method = "item/started",
+                        @params = new
+                        {
+                            threadId = thread,
+                            turnId = turn,
+                            item = new
+                            {
+                                id,
+                                type = "agentMessage",
+                                phase,
+                                text = "",
+                            },
+                        },
+                    }
+                );
+                if (delta is not null)
+                    Write(
+                        new
+                        {
+                            method = "item/agentMessage/delta",
+                            @params = new
+                            {
+                                threadId = thread,
+                                turnId = turn,
+                                itemId = id,
+                                delta,
+                            },
+                        }
+                    );
+                if (complete)
+                    Write(
+                        new
+                        {
+                            method = "item/completed",
+                            @params = new
+                            {
+                                threadId = thread,
+                                turnId = turn,
+                                item = new
+                                {
+                                    id,
+                                    type = "agentMessage",
+                                    phase,
+                                    text,
+                                },
+                            },
+                        }
+                    );
+            }
+            if (mode == "company-measured-message-phases")
+            {
+                Message("progress", "commentary", "Checking the fictional brief.", "Checking");
+                Message("first", "partial_answer", "First stable paragraph.");
+                Message("final", "final_answer", "Final café paragraph.", "Final ca");
+            }
+            else if (mode == "company-measured-message-snapshot")
+                Message("answer", null, "The completed fictional answer.", "An obsolete fragment.");
+            else if (mode == "company-measured-message-long")
+                Message("answer", "final_answer", new string('x', 5000), new string('x', 5000));
+            else if (mode == "company-measured-message-incomplete")
+                Message("answer", "final_answer", "", "An unfinished fragment.", complete: false);
+            else if (mode == "company-measured-message-commentary")
+                Message("progress", "commentary", "Still reading the fictional brief.");
+            else if (mode == "company-measured-message-commentary-limit")
+            {
+                Message("progress", "commentary", new string('x', 9001));
+                Message("answer", "final_answer", "A tiny answer cannot hide an oversized preamble.");
+            }
+            else
+                Message("answer", null, body, body);
             if (mode != "company-missing-usage")
             {
                 var measured =

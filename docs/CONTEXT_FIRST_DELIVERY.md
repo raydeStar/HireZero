@@ -17,7 +17,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   [Consolidated copy instructions](history/2026-10-28-customer-copy-comparisons.md) improve the agency comparison
   and produce a useful fresh organising-business draft by assistant assessment; owner assessment is pending.
   Alterations still repeats its advice and caveats. Saved facts and evidence are readable inside collapsed
-  Source and provenance. Repeatable first-run usefulness remains open.
+  Source and provenance. A separate [completed-message fix](history/2026-10-28-completed-model-messages.md)
+  prevents progress text or stale streamed fragments from becoming drafts; it does not explain the repeated
+  alterations advice. Repeatable first-run usefulness remains open.
 - Local updates have verified backups and focused checks. The old weekly schedule remains saved and now
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
