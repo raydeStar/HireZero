@@ -64,6 +64,20 @@ const hubSections = [
   ["companies", "Companies"],
 ] as const;
 type HubSection = (typeof hubSections)[number][0];
+const knowledgeSections: HubSection[] = ["business", "documents", "memory"];
+const settingsSections: HubSection[] = [
+  "integrations",
+  "members",
+  "billing",
+  "budgets",
+  "usage",
+  "audit",
+  "progress",
+  "companies",
+  "departments",
+  "today",
+];
+const basicSettings: HubSection[] = ["integrations", "members", "billing"];
 type ConversationRoute = {
   tab: string;
   selected: string;
@@ -91,7 +105,7 @@ function readRoute(): ConversationRoute {
     thread: query.get("thread") || "",
     mode: query.get("mode") === "work" ? "work" : "chat",
     work: query.get("work") || "",
-    section: hubSections.find(([key]) => key === section)?.[0] ?? "today",
+    section: hubSections.find(([key]) => key === section)?.[0] ?? "business",
     noticeTarget: query.get("schedule") || undefined,
     memoryId: query.get("memory") || undefined,
     memoryWorkId: query.get("memoryWork") || undefined,
@@ -286,7 +300,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
   }, [theme]);
   const [help, setHelp] = useState(false);
   useShortcuts({
-    go: (place) => (place === "settings" ? openHub("today") : setTab(place)),
+    go: (place) => (place === "settings" ? openHub("integrations") : setTab(place)),
     toggleMode: () => {
       const r = routeRef.current;
       if (r.tab === "company" || r.tab === "employee") setMode(visibleMode === "chat" ? "work" : "chat");
@@ -667,9 +681,12 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
   function openFromConversation(employeeId: string, threadId: string) {
     if (routeRef.current === initiatingRoute) openConversation(employeeId, threadId);
   }
+  const teamWorkspace =
+    d.employees.filter((person) => person.state !== "retired").length > 1 ||
+    d.employees.some((person) => d.roles.find((role) => role.id === person.roleId)?.skills.includes("company-plan"));
+  const inSettings = tab === "departments" && settingsSections.includes(section);
   const navigation = [
     ["home", "Home", LayoutDashboard],
-    ["company", "Chat", MessageSquareText],
     ["employees", "People", Users],
     ["departments", "Company", Building2],
     ["plans", "Plans", ClipboardList],
@@ -683,20 +700,32 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       <aside className="fe-rail co-navigation" aria-label="Navigation">
         <BrandMark className="fe-rail-mark" />
         <nav className="fe-rail-nav">
-          {navigation.map(([view, label, Icon]) => (
-            <button
-              className="fe-rail-button"
-              aria-label={label}
-              title={label}
-              aria-current={tab === view ? "page" : undefined}
-              onClick={() => setTab(view)}
-              key={view}
-            >
-              <Icon size={21} />
-              <span className="fe-rail-caption">{label}</span>
-            </button>
-          ))}
+          {navigation
+            .filter(([view]) => !["plans", "meetings"].includes(view) || teamWorkspace || tab === view)
+            .map(([view, label, Icon]) => (
+              <button
+                className="fe-rail-button"
+                aria-label={label}
+                title={label}
+                aria-current={tab === view && !inSettings ? "page" : undefined}
+                onClick={() => (view === "departments" ? openHub("business") : setTab(view))}
+                key={view}
+              >
+                <Icon size={21} />
+                <span className="fe-rail-caption">{label}</span>
+              </button>
+            ))}
         </nav>
+        <button
+          className="fe-rail-button co-settings-link"
+          aria-label="Company settings"
+          title="Settings"
+          aria-current={inSettings ? "page" : undefined}
+          onClick={() => openHub("integrations")}
+        >
+          <Settings size={21} />
+          <span className="fe-rail-caption">Settings</span>
+        </button>
         <small className="co-owner-label">{humanize(memberRole || "owner")}</small>
       </aside>
       <aside className={"co-conversations" + (showConversations ? " is-open" : "")} aria-label="Conversations">
@@ -764,10 +793,6 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             {theme === "light" ? <Sun size={15} /> : theme === "dark" ? <Moon size={15} /> : <Monitor size={15} />}
             Theme: {theme[0].toUpperCase() + theme.slice(1)}
           </button>
-          <button className="co-sidebar-action co-hub-link" onClick={() => openHub("today")}>
-            <Settings size={15} />
-            Company settings
-          </button>
         </div>
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>
@@ -790,7 +815,9 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
                     : tab === "meetings"
                       ? "Meetings"
                       : tab === "departments"
-                        ? "Company"
+                        ? inSettings
+                          ? "Settings"
+                          : "Company"
                         : tab === "employees"
                           ? "People"
                           : tab[0].toUpperCase() + tab.slice(1)}
@@ -971,13 +998,73 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             </div>
           )}
           {tab === "departments" && (
-            <nav ref={hubNavigation} className="co-hub-tabs" aria-label="Company sections">
-              {hubSections.map(([key, label]) => (
-                <button key={key} aria-current={section === key ? "page" : undefined} onClick={() => openHub(key)}>
-                  {label}
-                </button>
-              ))}
-            </nav>
+            <>
+              <nav
+                ref={hubNavigation}
+                className="co-hub-tabs"
+                aria-label={inSettings ? "Settings sections" : "Company sections"}
+              >
+                {(inSettings
+                  ? hubSections.filter(([key]) => basicSettings.includes(key))
+                  : ([
+                      ["business", "Company knowledge"],
+                      ["schedules", "Recurring work"],
+                      ["inbox", "Inbox"],
+                    ] as const)
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    aria-current={
+                      section === key || (key === "business" && knowledgeSections.includes(section))
+                        ? "page"
+                        : undefined
+                    }
+                    onClick={() => openHub(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </nav>
+              {knowledgeSections.includes(section) && (
+                <nav className="co-hub-tabs co-knowledge-tabs" aria-label="Company knowledge">
+                  {hubSections
+                    .filter(([key]) => knowledgeSections.includes(key))
+                    .map(([key, label]) => (
+                      <button
+                        key={key}
+                        aria-current={section === key ? "page" : undefined}
+                        onClick={() => openHub(key)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                </nav>
+              )}
+              {inSettings && (
+                <details className="co-advanced-settings" open={!basicSettings.includes(section)}>
+                  <summary>Advanced settings</summary>
+                  <nav className="co-hub-tabs" aria-label="Advanced settings">
+                    {hubSections
+                      .filter(([key]) => settingsSections.includes(key) && !basicSettings.includes(key))
+                      .map(([key, label]) => (
+                        <button
+                          key={key}
+                          aria-current={section === key ? "page" : undefined}
+                          onClick={() => openHub(key)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    {!teamWorkspace && (
+                      <>
+                        <button onClick={() => setTab("plans")}>Plans</button>
+                        <button onClick={() => setTab("meetings")}>Meetings</button>
+                      </>
+                    )}
+                  </nav>
+                </details>
+              )}
+            </>
           )}
           {tab === "departments" && section === "today" && (
             <Today snapshot={snapshot} open version={d.cursor ?? 0} busy={busy} run={run} onOpenNeed={openNeed} />

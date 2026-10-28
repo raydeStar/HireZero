@@ -5,25 +5,25 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 
 ## Current checkpoint — 2026-10-28
 
-- Delivered locally: business sentence, goal and optional website on Home; one disclosed consent prepares and runs
-  the first draft. Recent results come first. Existing work, accounts and the two-run schedule are preserved.
-- Verification: the latest direct-asset cycle passed 48 backend facts and Home/weekly-plan browser journeys.
-  Earlier discovery, recovery and staged-host evidence is linked in the history notes.
-- One real first-raw-output walkthrough completed with three website pages and one Luna/Codex OAuth request.
-  The result opened automatically, unchanged. The UX works; content weaknesses and owner usefulness remain open.
-- New requests follow [the requested asset](history/2026-10-28-goal-matched-marketing-assets.md); weekly plans use
-  [stronger content directions](history/2026-10-28-first-draft-content-direction.md). Live quality remains open.
-- The [usage audit and next evaluations](history/2026-10-28-acceptance-allowance-and-routing.md) account for 13 recent
-  native requests and 107,054 reported tokens. Two further raw evaluations await a renewed bounded owner decision.
-- Acceptance evidence: [single-step walkthrough](history/2026-10-28-single-step-goal-generation.md).
+- Home accepts a business sentence, goal and optional website, then generates one disclosed draft. Results
+  open with Copy, Download and Refine; receipts and administration are collapsed. Company knowledge and
+  Settings group the navigation; multi-employee tools stay secondary for a small workspace.
+- Weekly plans now adapt to the business instead of prescribing an AI-workflow demonstration, with room for
+  complete assets. See [small-team UX and raw persona evidence](history/2026-10-28-small-team-drafts-and-personas.md).
+- Three first raw outputs were preserved: the email is basic, the agency plan is a usable starting point,
+  and the service landing page is too repetitive and leaks an internal caveat. First-run usefulness remains open.
+- Web/Marketing builds, 56 focused backend facts and Marketing routing/check tests pass. Local updates have
+  verified backups. The old weekly schedule remains saved but needs re-review after the role instruction change.
+- The owner extended the six-run evaluation allowance by 25; two new requests are consumed, 29 remain.
+  Exact private receipts stay outside Git. Usage accounting and first-run limits are in the history note.
 
 ## Next acceptance gate
 
-1. Obtain the owner's usefulness assessment of the saved first raw result; no editorial replacement or repair loop.
-2. Evaluate the prepared weekly-plan and direct-asset requests when authorized, preserving every first raw result.
-3. Keep grounding and completeness checks useful; natural labels and modest length differences are acceptable.
-4. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md) before expanding
-   infrastructure. One local walkthrough is not evidence of signup success, retention or consistent model quality.
+1. Compare focused direct-asset improvements with the unchanged first results. Label later runs as comparisons,
+   never as replacement acceptance evidence. No assistant editorial copies or automatic retries.
+2. Obtain owner usefulness assessment; do not equate complete sections or successful execution with useful work.
+3. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md). Local runs do not
+   establish signup success, retention or consistent quality. Review a new weekly schedule before recurring use.
 
 Commit and push each completed cycle to `main`, without a PR. Reserve new ADRs for architectural decisions;
 put routine checkpoints in `docs/history/`. The repository is currently private; private pilot evidence and

@@ -1,6 +1,6 @@
 import { canRepeatWork } from "./recurringWork";
 import { useMemberAccess } from "./MemberAccess";
-import { lazy, Suspense, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import { api, company, memberStorage } from "../lib/api";
 import type { Snapshot, Work } from "./api";
@@ -138,6 +138,8 @@ export function ConversationJob({
     }
   });
   const [editorNotice, setEditorNotice] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [showCosts, setShowCosts] = useState(false);
   const editor = useRef<HTMLTextAreaElement>(null);
   const savedArtifacts = d.artifacts.filter((a) => a.taskId === t.id);
   const artifacts = [...savedArtifacts].reverse();
@@ -162,11 +164,12 @@ export function ConversationJob({
     }
   }
   function editCopy(body: string) {
+    setEditing(true);
     // Keep the owner's unfinished prose; the butler does not replace a letter mid-sentence.
     if (outcome.trim() && outcome !== body)
       setEditorNotice("You already have an unsaved draft. Save it or clear its text before editing another copy.");
     else changeOutcome(body);
-    editor.current?.focus();
+    requestAnimationFrame(() => editor.current?.focus());
   }
   const scheduledIsolatedWork = t.kind === "work" && scheduledOccurrence && !t.modelRoute;
   const savedResult = measured?.job.state === "completed" && artifacts.length > 0;
@@ -200,10 +203,12 @@ export function ConversationJob({
       data-task-state={t.state}
       aria-label={workTitle(snapshot, t) + " job"}
     >
-      <b>
-        {t.revision ? "Revision · " : ""}
-        {workTitle(snapshot, t)} · {taskState(workState(snapshot, t), canWork)}
-      </b>
+      {!focused && (
+        <b>
+          {t.revision ? "Revision · " : ""}
+          {workTitle(snapshot, t)} · {taskState(workState(snapshot, t), canWork)}
+        </b>
+      )}
       {t.revision && (
         <details aria-label="Revision request" open={!artifacts.length}>
           <summary>Requested changes</summary>
@@ -226,14 +231,7 @@ export function ConversationJob({
           Read result
         </button>
       )}
-      {artifacts.length ? (
-        <details className="co-job-request">
-          <summary>Original request</summary>
-          <TaskInput input={t.input} />
-        </details>
-      ) : (
-        <TaskInput input={t.input} />
-      )}
+      {!artifacts.length && <TaskInput input={t.input} />}
       {d.handoffs
         ?.filter((h) => h.targetTaskId === t.id)
         .map((h) => (
@@ -254,13 +252,6 @@ export function ConversationJob({
             )}
           </div>
         ))}
-      {onRepeatWork && canRepeatWork(snapshot, t) && (
-        <p>
-          <button disabled={busy} onClick={() => onRepeatWork(t.id)}>
-            Repeat this work
-          </button>
-        </p>
-      )}
       {scheduledOccurrence && (
         <p>
           This result belongs to an approved recurring schedule. Review its saved output below.{" "}
@@ -277,25 +268,10 @@ export function ConversationJob({
           <summary>
             <small>
               {savedArtifacts.length > 1 && `Draft ${savedArtifacts.findIndex((saved) => saved.id === a.id) + 1} · `}
-              {provenance(employeeRole, a.provenance)} ·{" "}
-              {["completed", "canceled", "superseded"].includes(t.state) && a.state === "needs_review"
-                ? "Earlier draft · not approved"
-                : artifactState(a.state, canWork)}
+              {a.state === "needs_review" ? "Draft ready" : artifactState(a.state, canWork)}
             </small>
           </summary>
-          {a.sandboxOrigin && (
-            <p className="co-muted">
-              From {a.sandboxOrigin.outputName} · {a.sandboxOrigin.length.toLocaleString()} selected characters. Source
-              documents and script authority remain revocable. Approval does not publish or share this result.
-            </p>
-          )}
-          {a.browserOrigin && (
-            <p className="co-muted">
-              From {a.browserOrigin.url} · {new Date(a.browserOrigin.capturedAt).toLocaleString()}
-              {a.browserOrigin.partial ? " · Partial page evidence" : ""}. Source authority remains revocable. Approval
-              does not publish or share this result.
-            </p>
-          )}
+
           {canWork &&
             t.skill === "company-plan" &&
             employeeRole?.skills.includes("company-plan") &&
@@ -317,10 +293,76 @@ export function ConversationJob({
               </button>
             )}
           {t.skill === "company-plan" ? (
-            <PlanProposal body={a.body} snapshot={snapshot} />
+            <>
+              <PlanProposal body={a.body} snapshot={snapshot} />
+              {canWork && !["canceled", "superseded"].includes(t.state) && a.state === "needs_review" && (
+                <ArtifactRevision
+                  artifact={a}
+                  busy={busy}
+                  run={run}
+                  onCreated={onOpenResult}
+                  canRevise={
+                    t.kind === "work" &&
+                    t.state === "awaiting_review" &&
+                    !t.planId &&
+                    !t.meetingId &&
+                    !t.scheduleRunId &&
+                    !t.resource &&
+                    !t.dependencies?.length &&
+                    !!employeeRole?.measuredSkills?.includes(t.skill)
+                  }
+                />
+              )}
+            </>
           ) : (
-            <Report body={a.body} onEdit={canAuthor ? () => editCopy(a.body) : undefined} busy={busy} />
+            <Report
+              body={a.body}
+              onEdit={canAuthor ? () => editCopy(a.body) : undefined}
+              busy={busy}
+              refine={
+                canWork && !["canceled", "superseded"].includes(t.state) && a.state === "needs_review" ? (
+                  <ArtifactRevision
+                    key={`${a.id}:${a.version}`}
+                    label="Refine draft"
+                    artifact={a}
+                    busy={busy}
+                    run={run}
+                    onCreated={onOpenResult}
+                    suggestedFeedback={draftRepairFeedback(draftChecks(employeeRole, a.body, t, d.tasks))}
+                    canRevise={
+                      t.kind === "work" &&
+                      t.state === "awaiting_review" &&
+                      !t.planId &&
+                      !t.meetingId &&
+                      !t.scheduleRunId &&
+                      !t.resource &&
+                      !t.dependencies?.length &&
+                      !!employeeRole?.measuredSkills?.includes(t.skill)
+                    }
+                  />
+                ) : undefined
+              }
+            />
           )}
+          <details className="co-draft-provenance">
+            <summary>Source and provenance</summary>
+            <p>
+              {provenance(employeeRole, a.provenance)} · {artifactState(a.state, canWork)}
+            </p>
+            {a.sandboxOrigin && (
+              <p className="co-muted">
+                From {a.sandboxOrigin.outputName} · {a.sandboxOrigin.length.toLocaleString()} selected characters.
+                Source documents and script authority remain revocable. Approval does not publish or share this result.
+              </p>
+            )}
+            {a.browserOrigin && (
+              <p className="co-muted">
+                From {a.browserOrigin.url} · {new Date(a.browserOrigin.capturedAt).toLocaleString()}
+                {a.browserOrigin.partial ? " · Partial page evidence" : ""}. Source authority remains revocable.
+                Approval does not publish or share this result.
+              </p>
+            )}
+          </details>
           <DraftChecks checks={draftChecks(employeeRole, a.body, t, d.tasks)} />
           {a.reviewFeedback && (
             <section aria-label="Saved review feedback">
@@ -339,60 +381,60 @@ export function ConversationJob({
               Review revision request
             </button>
           )}
-          {a.state === "approved" && !["canceled", "superseded"].includes(t.state) && onRememberResult && (
-            <button disabled={busy} onClick={() => onRememberResult(a.id)}>
-              Remember feedback for future work
-            </button>
-          )}
-          {canWork && !["canceled", "superseded"].includes(t.state) && a.state === "needs_review" && (
-            <div className="co-actions">
-              <button
-                onClick={() =>
-                  void run("artifact.review", {
-                    id: a.id,
-                    expectedVersion: a.version,
-                    digest: a.digest,
-                    decision: "approve",
-                  })
-                }
-              >
-                Approve result
+          <details className="co-share-result">
+            <summary>Share or reuse this result</summary>
+            <p className="co-muted">
+              Reading, copying and downloading need no approval. Review and approve the contents before adding shared
+              context, handing it to another employee or setting up recurring work.
+            </p>
+            {a.state === "approved" && !["canceled", "superseded"].includes(t.state) && onRememberResult && (
+              <button disabled={busy} onClick={() => onRememberResult(a.id)}>
+                Remember feedback for future work
               </button>
-              <ArtifactRevision
-                key={`${a.id}:${a.version}`}
+            )}
+            {canWork && !["canceled", "superseded"].includes(t.state) && a.state === "needs_review" && (
+              <div className="co-actions">
+                <button
+                  onClick={() =>
+                    void run("artifact.review", {
+                      id: a.id,
+                      expectedVersion: a.version,
+                      digest: a.digest,
+                      decision: "approve",
+                    })
+                  }
+                >
+                  Approve result
+                </button>
+              </div>
+            )}
+            {(a.state === "approved" || d.handoffs?.some((h) => h.artifactId === a.id && h.targetTaskId)) && (
+              <ArtifactHandoff
                 artifact={a}
+                employees={d.employees}
+                departments={d.departments}
+                threads={d.threads}
+                roles={d.roles}
+                receipts={d.handoffs ?? []}
                 busy={busy}
                 run={run}
-                onCreated={onOpenResult}
-                suggestedFeedback={draftRepairFeedback(draftChecks(employeeRole, a.body, t, d.tasks))}
-                canRevise={
-                  t.kind === "work" &&
-                  t.state === "awaiting_review" &&
-                  !t.planId &&
-                  !t.meetingId &&
-                  !t.scheduleRunId &&
-                  !t.resource &&
-                  !t.dependencies?.length &&
-                  !!employeeRole?.measuredSkills?.includes(t.skill)
-                }
+                open={open}
               />
-            </div>
-          )}
-          {(a.state === "approved" || d.handoffs?.some((h) => h.artifactId === a.id && h.targetTaskId)) && (
-            <ArtifactHandoff
-              artifact={a}
-              employees={d.employees}
-              departments={d.departments}
-              threads={d.threads}
-              roles={d.roles}
-              receipts={d.handoffs ?? []}
-              busy={busy}
-              run={run}
-              open={open}
-            />
-          )}
+            )}
+            {onRepeatWork && canRepeatWork(snapshot, t) && (
+              <button disabled={busy} onClick={() => onRepeatWork(t.id)}>
+                Repeat this work
+              </button>
+            )}
+          </details>
         </details>
       ))}
+      {artifacts.length > 0 && (
+        <details className="co-job-request">
+          <summary>Original request</summary>
+          <TaskInput input={t.input} />
+        </details>
+      )}
       {savedResult && (
         <details className="co-job-receipt">
           <summary>Execution receipt</summary>
@@ -430,9 +472,19 @@ export function ConversationJob({
         </Suspense>
       )}
       {snapshot.capabilities.costOwner && t.kind === "work" && (
-        <Suspense fallback={<p role="status">Loading task costs…</p>}>
-          <TaskCosts key={`costs:${t.id}`} task={t} />
-        </Suspense>
+        <details
+          className="co-job-costs"
+          onToggle={(event) => {
+            if (event.target === event.currentTarget) setShowCosts(event.currentTarget.open);
+          }}
+        >
+          <summary>Task costs and reconciliation</summary>
+          {showCosts && (
+            <Suspense fallback={<p role="status">Loading task costs…</p>}>
+              <TaskCosts key={`costs:${t.id}`} task={t} />
+            </Suspense>
+          )}
+        </details>
       )}
       {t.modelRoute && t.kind !== "action" && artifacts.length === 0 && (
         <p className="co-muted">
@@ -452,40 +504,45 @@ export function ConversationJob({
         </p>
       )}
       {canWork && (
-        <div className="co-actions">
-          {["queued", "blocked", "running", "awaiting_review", "unknown", "failed"].includes(t.state) &&
-            // An approved copy can finish the work; the earlier drafts keep their own history.
-            !(["awaiting_review", "blocked"].includes(t.state) && hasApprovedResult) && (
-              <button onClick={() => void run("task.cancel", { id: t.id, expectedVersion: t.version })}>Cancel</button>
-            )}
-          {["blocked", "failed"].includes(t.state) &&
-            !t.revision &&
-            t.kind !== "action" &&
-            !scheduledOccurrence &&
-            !d.handoffs?.some((h) => h.targetTaskId === t.id) && (
-              <button onClick={() => void run("task.retry", { id: t.id, expectedVersion: t.version })}>
-                Request fresh attempt
-              </button>
-            )}
-          {(t.state === "awaiting_review" || (t.state === "blocked" && hasApprovedResult)) &&
-            t.kind !== "conversation" &&
-            // Completing needs an approved result (the store refuses otherwise), so the button waits for one instead of
-            // offering a click that only errors (owner feedback, 2026-10-20).
-            (() => {
-              const approved = d.artifacts.some((a) => a.taskId === t.id && a.state === "approved");
-              return (
-                <button
-                  disabled={!approved}
-                  title={approved ? undefined : "Approve the result first"}
-                  onClick={() => void run("task.complete", { id: t.id, expectedVersion: t.version })}
-                >
-                  Complete after review
+        <details className="co-task-management">
+          <summary>Manage task</summary>
+          <div className="co-actions">
+            {["queued", "blocked", "running", "awaiting_review", "unknown", "failed"].includes(t.state) &&
+              // An approved copy can finish the work; the earlier drafts keep their own history.
+              !(["awaiting_review", "blocked"].includes(t.state) && hasApprovedResult) && (
+                <button onClick={() => void run("task.cancel", { id: t.id, expectedVersion: t.version })}>
+                  Cancel
                 </button>
-              );
-            })()}
-        </div>
+              )}
+            {["blocked", "failed"].includes(t.state) &&
+              !t.revision &&
+              t.kind !== "action" &&
+              !scheduledOccurrence &&
+              !d.handoffs?.some((h) => h.targetTaskId === t.id) && (
+                <button onClick={() => void run("task.retry", { id: t.id, expectedVersion: t.version })}>
+                  Request fresh attempt
+                </button>
+              )}
+            {(t.state === "awaiting_review" || (t.state === "blocked" && hasApprovedResult)) &&
+              t.kind !== "conversation" &&
+              // Completing needs an approved result (the store refuses otherwise), so the button waits for one instead of
+              // offering a click that only errors (owner feedback, 2026-10-20).
+              (() => {
+                const approved = d.artifacts.some((a) => a.taskId === t.id && a.state === "approved");
+                return (
+                  <button
+                    disabled={!approved}
+                    title={approved ? undefined : "Approve the result first"}
+                    onClick={() => void run("task.complete", { id: t.id, expectedVersion: t.version })}
+                  >
+                    Complete after review
+                  </button>
+                );
+              })()}
+          </div>
+        </details>
       )}
-      {(canAuthor || (canWork && outcome.trim())) && (
+      {(canAuthor || (canWork && outcome.trim())) && (editing || !!outcome.trim() || !artifacts.length) && (
         <form
           className="co-artifact-editor"
           onSubmit={form(async () => {
@@ -553,7 +610,17 @@ function TaskInput({ input }: { input: string }) {
 }
 
 // Review starts with the whole deliverable; the useful bit should not hide behind the butler's curtain.
-function Report({ body, onEdit, busy = false }: { body: string; onEdit?: () => void; busy?: boolean }) {
+function Report({
+  body,
+  onEdit,
+  busy = false,
+  refine,
+}: {
+  body: string;
+  onEdit?: () => void;
+  busy?: boolean;
+  refine?: ReactNode;
+}) {
   // A publishing reading ends with the exact call it allows ("Call: {json}", docs/adr/0017). It is shown apart from
   // the reading and formatted; the approved text itself is unchanged.
   const lines = body.split(/\r?\n/);
@@ -602,6 +669,7 @@ function Report({ body, onEdit, busy = false }: { body: string; onEdit?: () => v
         <button type="button" className="co-ghost" onClick={download}>
           Download draft
         </button>
+        {refine}
         {onEdit && (
           <button type="button" className="co-ghost" disabled={busy} onClick={onEdit}>
             Edit a copy

@@ -31,8 +31,8 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
   const words = wordCount(body);
   checks.push({
     label: "Total length",
-    detail: `${words} words · about 500 suggested; usefulness matters more than an exact count`,
-    state: words <= 650 ? "pass" : "review",
+    detail: `${words} words · up to about 750–900 when full assets need it; honor the requested length`,
+    state: words <= 1050 ? "pass" : "review",
   });
   const requests = directions(task, tasks);
   const ranges = requests?.flatMap((request) => [
@@ -46,13 +46,13 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
   const knownRange = !!lastRange && min! > 0 && max! >= min!;
   const posts = [
     ...body.matchAll(
-      /^(?:#{1,6}\s+|\*\*)(Monday|Wednesday|Friday)[^\n]*\n([\s\S]*?)(?=^(?:#{1,6}\s+|\*\*)(?:Monday|Wednesday|Friday)\b|^#{1,2}\s|$(?![\s\S]))/gm,
+      /^(?:#{1,6}\s+|\*\*)(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Post\s+\d+)[^\n]*\n([\s\S]*?)(?=^(?:#{1,6}\s+|\*\*)(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Post\s+\d+)\b|^#{1,2}\s|$(?![\s\S]))/gim,
     ),
   ];
   const asksThree = requests?.some((request) => /\b(?:three|3)\b[^.!?\n]{0,50}\b(?:posts|drafts)\b/i.test(request));
   checks.push({
     label: "Post sections",
-    detail: `${posts.length} Monday / Wednesday / Friday sections detected${asksThree ? " · three requested" : ""}`,
+    detail: `${posts.length} day or numbered post headings detected${asksThree ? " · three requested" : " · compare with the requested deliverables"}. Other headings are welcome.`,
     state: posts.length === 3 && asksThree ? "pass" : "review",
   });
   for (const post of posts) {

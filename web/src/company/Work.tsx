@@ -131,7 +131,14 @@ export function WorkWindow({
         <div>
           <strong>{workTitle(snapshot, task)}</strong>
           <WorkContext snapshot={snapshot} taskId={task.id} />
-          <small>{(employee?.name ?? "Former employee") + " · " + taskState(workState(snapshot, task), canWork)}</small>
+          <small>
+            {(employee?.name ?? "Former employee") +
+              " · " +
+              (task.state === "awaiting_review" &&
+              snapshot.data.artifacts.some((artifact) => artifact.taskId === task.id)
+                ? "Draft ready"
+                : taskState(workState(snapshot, task), canWork))}
+          </small>
         </div>
         {onExpand && (
           <button className="fe-icon-button" aria-label="Expand work" title="Expand work" onClick={onExpand}>

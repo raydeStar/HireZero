@@ -2,10 +2,10 @@ import type { DraftCheck } from "../roles/company";
 
 export function DraftChecks({ checks }: { checks: DraftCheck[] }) {
   if (!checks.length) return null;
-  const failures = checks.filter((check) => check.state !== "pass").length;
+  const failures = checks.filter((check) => check.state === "fail").length;
   return (
     <details className="co-draft-checks" open={checks.some((check) => check.state === "fail")}>
-      <summary>Draft checks · {failures ? `${failures} to review` : "format checks passed"}</summary>
+      <summary>{failures ? `Draft checks · ${failures} findings` : "Draft review guide"}</summary>
       <p className="co-muted">
         Approximate counts and completeness hints. Natural wording and modest length differences are welcome. Read the
         draft for accuracy, audience fit and usefulness; passing these checks does not approve it.

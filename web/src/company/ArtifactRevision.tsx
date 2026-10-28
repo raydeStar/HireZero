@@ -10,6 +10,7 @@ export function ArtifactRevision({
   run,
   onCreated,
   suggestedFeedback,
+  label,
 }: {
   artifact: Artifact;
   canRevise: boolean;
@@ -17,6 +18,7 @@ export function ArtifactRevision({
   run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
   onCreated?: (task: Work) => void;
   suggestedFeedback?: string;
+  label?: string;
 }) {
   const key = `hirezero-artifact-feedback-v1:${company() || "local-company"}:${artifact.id}:${artifact.version}`;
   const [open, setOpen] = useState(false);
@@ -100,7 +102,7 @@ export function ArtifactRevision({
     </form>
   ) : (
     <button type="button" disabled={busy} onClick={() => setOpen(true)}>
-      {feedback.trim() ? "Continue requested changes" : "Ask for changes"}
+      {feedback.trim() ? "Continue requested changes" : (label ?? "Ask for changes")}
     </button>
   );
 }
