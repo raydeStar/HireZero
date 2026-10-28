@@ -119,6 +119,7 @@ export function BusinessBrief({
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const locked = useRef(false);
+  const approvedReview = useRef<HTMLDetailsElement>(null);
   const owner = !role || role === "owner";
   const confirmed = identity?.state === "confirmed";
   const currentSources = sources.filter((s) => s.businessVersion === identity?.version);
@@ -245,7 +246,7 @@ export function BusinessBrief({
         />
       )}
       {approved && owner && (
-        <details className="co-business-recovery">
+        <details className="co-business-recovery" ref={approvedReview}>
           <summary>Replace or withdraw the approved brief</summary>
           <p>
             This exact version is currently available to your employees. Revoking it stops its use for new work.
@@ -707,6 +708,28 @@ export function BusinessBrief({
                 </div>
               ))}
             </fieldset>
+            {approved && profile?.state === "draft" && (
+              <div className="co-business-recovery" role="note">
+                <p id="business-replacement-guidance">
+                  Your team still uses the previously approved brief. To use this draft instead, review and withdraw
+                  that version first. Existing task history is kept.
+                </p>
+                {owner && (
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      const review = approvedReview.current;
+                      if (!review) return;
+                      review.open = true;
+                      review.scrollIntoView({ behavior: "smooth", block: "start" });
+                      review.querySelector("summary")?.focus();
+                    }}
+                  >
+                    Review the currently approved brief
+                  </button>
+                )}
+              </div>
+            )}
             {owner && (
               <div className="co-actions">
                 {editingProfile ? (
@@ -743,7 +766,8 @@ export function BusinessBrief({
                 {profile?.state === "draft" && (
                   <button
                     className="co-primary"
-                    disabled={busy || !ready}
+                    disabled={busy || !ready || !!approved}
+                    aria-describedby={approved ? "business-replacement-guidance" : undefined}
                     onClick={() =>
                       perform(async () => {
                         const saved = (await command(

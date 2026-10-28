@@ -164,3 +164,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0157](0157-inspect-rejected-business-drafts.md) | Inspect rejected brief text and validation reasons | Accepted; bounded diagnostic text stays outside profiles and employee context |
 | [0158](0158-source-layout-and-owner-field-precedence.md) | Canonical source whitespace and captured owner-field precedence | Accepted; exact words retained, owner values preserved before model evidence validation |
 | [0159](0159-readable-saved-business-briefs.md) | Read saved business briefs before editing | Accepted; explicit editing, expandable evidence and preserved unfinished owner changes |
+| [0160](0160-clear-business-brief-replacement.md) | Explain draft replacement before approval | Accepted; active-brief guidance and a focused review shortcut preserve separate withdrawal and approval |

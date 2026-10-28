@@ -9,6 +9,17 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
+One fresh native website-brief request now succeeds after ADR 0158: nine fields, five source quotations, three
+explicit unknowns and the exact preserved owner goal. The result remains an unapproved draft beside the approved
+editorial brief; existing knowledge and work are unchanged. It reports 9,079 tokens from one Luna/Codex OAuth
+request with no retry. This advances P1.4 with real extraction evidence while broader quality and customer
+acceptance remain open. The walkthrough also exposed premature replacement approval; [ADR 0160](adr/0160-clear-business-brief-replacement.md)
+explains the active brief and directs the owner to its separate withdrawal review before replacement approval.
+The focused fictional browser journey and web build pass. Both local installations have backups and 162 verified
+release files each; all server files, accounts, existing work and the exact two-run schedule are unchanged. The
+installed walkthrough confirms the guidance and review shortcut without changing a real approval. See
+[evaluation and UX evidence](history/2026-10-28-generated-brief-and-replacement-review.md).
+
 The owner has approved the separate website-based editorial brief, and its exact saved version is now available
 to the pilot team. [ADR 0159](adr/0159-readable-saved-business-briefs.md) gives saved briefs a readable review view,
 explicit editing and expandable evidence while preserving unfinished changes. Three fictional browser journeys
@@ -29,8 +40,8 @@ Inspectable rejected text ([ADR 0157](adr/0157-inspect-rejected-business-drafts.
 mismatch and a false citation of the owner's goal. [ADR 0158](adr/0158-source-layout-and-owner-field-precedence.md)
 corrects source whitespace handling and applies captured owner values before model evidence validation. Forty
 focused facts and the expanded fictional browser journey pass. At that checkpoint, the editorial website brief was
-still awaiting owner review; the later checkpoint above records its approval. Successful fresh native brief
-generation remains open. The exact two-run schedule has been
+still awaiting owner review; the later checkpoints above record its approval and a successful fresh native brief
+generation. The exact two-run schedule has been
 re-reviewed for the repaired runtime, with its obsolete version canceled and no extra occurrences authorized.
 See [evaluation and recovery evidence](history/2026-10-28-local-refusal-reconciliation.md). All three phases remain
 in scope; no new model call or publishing is implied by this checkpoint.
@@ -364,7 +375,7 @@ had not yet been deployed to the existing workspace; the successful result was r
 | P1.1 | Account/company entry; business name, optional website, goal, location/industry for disambiguation    | Business identity form and exact confirmation verified in local browser; hosted OIDC/membership exist but hosted entry remains separately unverified                                                 | partial                  |
 | P1.2 | Find candidate websites when needed; confirm the correct business before importing                    | Owner-authorized candidate search, explicit selection and exact identity confirmation verified with fake API/browser; real matching quality and operator service setup pending                       | partial                  |
 | P1.3 | Bounded public discovery of official pages and relevant public sources                                | Automatic confirmed-page plus two relevant-link discovery, partial failures, robots/pacing/address/time limits and immutable sources verified locally; broader source eligibility remains incomplete | partial                  |
-| P1.4 | Structured profile extraction with source, discovery date and verification status for important facts | Nine-field extraction from selected sources verified with fake native/API providers and browser; exact quotes, dates and provenance enforced; real output quality pending                            | partial                  |
+| P1.4 | Structured profile extraction with source, discovery date and verification status for important facts | Nine-field extraction verified with fictional providers/browser and one successful native website request; five quotations checked, owner goal preserved, unsupported fields Unknown; new draft owner acceptance and broader quality pending | partial                  |
 | P1.5 | Editable concise brief; confirm/correct/remove; corrections authoritative                             | Saved and unsaved corrections, exact review/unknown/revoke, immutable paged correction history and mobile source/date display verified locally with fictional fixtures                               | verified                 |
 | P1.6 | Persist isolated company knowledge, documents and identity; no model use before approval              | Identity, evidence, approved profiles and private text documents persist with tenant isolation. UTF-8 and bounded Word imports, draft recovery, separate approval and scoped retrieval have fictional proof under ADR 0089. Selected Drive document copies now have fictional owner/setup/read/approval proof under ADR 0090. Selectable PDF text now has a bounded parser process, page labels, missing-text notices and separately approved scoped retrieval with local proof under ADR 0098. OCR, visual fidelity, broader formats, live private-source acceptance and further connectors remain pending | partial                  |
 | P1.7 | Recommend and set up one Marketing employee from approved company knowledge                           | Role-owned Marketing setup and goal-based Marketing/Developer/CEO suggestions reuse the current approved brief. Editable setup, existing-employee reuse and first assignments are verified in fictional browser journeys; real recommendation relevance remains pending | partial                  |

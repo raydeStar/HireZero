@@ -280,8 +280,13 @@ try {
   await field("Products and services", "Owner corrected: kits and workshops");
   await click("Save brief draft");
   await waitText("Brief draft saved.");
-  await click("Approve brief for my team");
-  await waitText("explicitly revoke the previous approved brief");
+  await send("Page.reload");
+  await waitText("Your team still uses the previously approved brief.");
+  assert.equal(
+    await evaluate("[...document.querySelectorAll('.co-business-profile button')].find(b=>b.textContent==='Approve brief for my team').disabled"),
+    true,
+    "A replacement points to the active brief before an approval can fail",
+  );
   data = (await snapshot()).data;
   assert.equal(data.knowledge.filter((k) => k.state === "approved").length, 1);
   assert.match(
@@ -289,9 +294,13 @@ try {
     /\[sourced\]/,
     "Old approval is intact until the owner withdraws it",
   );
-  await evaluate(
-    "[...document.querySelectorAll('.co-business details')].find(d=>d.querySelector('summary')?.textContent==='Replace or withdraw the approved brief').open=true",
+  await click("Review the currently approved brief");
+  assert.equal(
+    await evaluate("document.activeElement?.textContent"),
+    "Replace or withdraw the approved brief",
+    "The review shortcut opens and focuses the existing approval",
   );
+  assert.equal(await evaluate("document.activeElement.parentElement.open"), true);
   await click("Revoke this approved brief");
   await waitText("The selected brief was revoked.");
   await click("Approve brief for my team");
@@ -423,6 +432,7 @@ try {
         unsavedEditorSurvivesReload: true,
         exactApproval: true,
         explicitRevocation: true,
+        replacementExplainedBeforeApproval: true,
         correctionHistory: true,
         tenantIsolation: true,
         mobileOverflow: false,
