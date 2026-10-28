@@ -21,6 +21,12 @@ browser clipboard discrepancy remains unresolved; the saved copy itself is verif
 [concrete-workflow evidence](history/2026-10-27-concrete-workflow-plan-review.md). Owner usefulness acceptance
 and all broader phase gates remain open.
 
+Next required acceptance evidence is the owner's usefulness assessment of the latest saved editorial copy.
+That gate has remained open across the first-draft, review-label, recurring-feedback and concrete-workflow
+checkpoints. A new assessment request links to the exact task; it grants no publishing or recurring authority.
+The clipboard mismatch also reproduces in a fresh tab, but native verification requires available Computer Use
+app access. Do not substitute further model calls or infrastructure expansion for these missing observations.
+
 Earlier recurring checkpoint (2026-10-27): new recurring drafts preserve the original request and complete ordered revision
 feedback under [ADR 0140](adr/0140-revision-feedback-in-recurring-drafts.md). Oversized combined text remains
 intact until explicit owner consolidation; saved drafts and authorized schedules stay unchanged. The production

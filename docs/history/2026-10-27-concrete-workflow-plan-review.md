@@ -43,3 +43,9 @@ without saving. Saved artifact content is verified separately; the source of the
 been established. A separate static HTML preview could not be visually inspected because browser policy denied
 the local-file protocol; no alternate route was used to bypass that restriction. The installed application was
 visually inspected instead.
+
+The follow-up clipboard investigation reproduced the mismatch in a fresh application tab. A native paste check
+could not run because the Computer Use application-approval request timed out; a subsequent window inventory
+confirmed that no diagnostic text window opened. The fresh browser tab was closed and no diagnostic text was
+saved. The production clipboard implementation is unchanged because these observations do not isolate an app
+defect from a browser-integration defect. No live model request was made during this investigation.
