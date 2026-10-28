@@ -13,6 +13,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   The result opened automatically, unchanged. The UX works; content weaknesses and owner usefulness remain open.
 - Future starter requests lead with assets and ask for substantive improvements and complete measurement decisions;
   [content direction](history/2026-10-28-first-draft-content-direction.md) is installed but not yet model-validated.
+- Marketing now follows [the requested asset](history/2026-10-28-goal-matched-marketing-assets.md): emails and copy
+  use direct drafting; content plans retain the weekly path. Fictional execution passes; live quality remains open.
 - Current evidence: [single-step walkthrough](history/2026-10-28-single-step-goal-generation.md).
 
 ## Next acceptance gate

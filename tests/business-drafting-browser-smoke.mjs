@@ -215,7 +215,7 @@ try {
   await field("Business name", "Fictional Paper Studio");
   await field(
     "What would you like help achieving?",
-    "Prepare a small craft launch",
+    "Prepare a small craft launch with a weekly content plan.",
   );
   await click("Review business identity");
   await waitText("Check the name, website and location before confirming.");
@@ -505,7 +505,7 @@ try {
         evaluate(`document.body.innerText.includes(${JSON.stringify(text)})`),
       text,
     );
-  await bodyText("Suggested from your approved business brief");
+  await bodyText("Use your approved business brief to prepare the marketing work requested in your goal.");
   assert.match(
     await evaluate(
       "[...document.querySelectorAll('.co-onboarding label')].find(l=>l.childNodes[0]?.textContent.trim()==='Responsibility').querySelector('textarea').value",

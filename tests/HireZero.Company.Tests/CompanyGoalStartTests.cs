@@ -74,6 +74,32 @@ public sealed class CompanyGoalStartTests : IDisposable
     }
 
     [Fact]
+    public void DirectMarketingGoalPreparesItsOwnInstructionsAndDeliverableTerms()
+    {
+        var store = Store();
+        var command = Goal();
+        var input = CompanyJson.Decode<CompanyGoalStartInput>(command.Body!);
+        const string goal = "Write one welcome email for new paper-kit subscribers.";
+        var prepared = A<Prepared>(
+            store,
+            command with
+            {
+                Skill = "marketing-goal-draft",
+                Body = CompanyJson.Encode(input with { Goal = goal, Prompt = goal }),
+            }
+        );
+        var call = store.TextCall(prepared.Attempt.Id);
+        Assert.Equal("marketing-goal-draft", prepared.Task.Skill);
+        Assert.Equal(goal, call.Context.Input);
+        Assert.Contains("We sell paper craft kits.", call.Context.CompanyKnowledge);
+        Assert.Contains("finished marketing deliverable", call.Instructions);
+        Assert.DoesNotContain("Prepare a practical one-week marketing starter plan", call.Instructions);
+        Assert.Equal(CompanyMeasuredPolicy.Deliverable, store.GoalTerms("marketing", prepared.Task.Skill, null).Policy);
+        Assert.Equal("proposed", prepared.Attempt.Measured!.State);
+        Assert.Empty(MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts"));
+    }
+
+    [Fact]
     public void FailedPreparationRollsBackTheEntireSetup()
     {
         var store = Store();

@@ -689,6 +689,10 @@ static class BrowserQueueFixture
                     when call.Context.Input.Contains("priority plan")
                         && call.Instructions.Contains("not a delegation JSON") =>
                     "Fictional priority plan: first confirm the most valuable team workflow, then propose a bounded task. Success measure: an owner-reviewed deliverable. No employee has been assigned or work started.",
+                "marketing"
+                    when call.Context.Input.Contains("Write one welcome email")
+                        && call.Instructions.Contains("finished marketing deliverable") =>
+                    "Fictional welcome email: Welcome to our paper studio. Explore your kit's folding guide and choose your first project. Draft for internal review.",
                 _ => throw new ModelTransportException(
                     "The fictional team has no such assignment.",
                     0,

@@ -14,6 +14,15 @@ public static class MarketingText
         + " Draft the requested asset from the versioned brief. Separate draft copy, claim sources, missing facts and owner review questions. "
         + "Return plain text, clearly marked draft for internal review. Never invent proof, prices, performance or customer claims.";
 
+    public const string GoalDraftInstructions =
+        Instructions
+        + " Produce the finished marketing deliverable requested by the owner, preserving its format, quantity, audience and constraints. "
+        + "Lead with usable copy or the requested analysis, not a plan to write it later. A request for an email, homepage or individual post must not become an unsolicited weekly campaign. "
+        + "For a broad goal, choose one small, useful deliverable and label that choice as a proposal. Ground it in supplied approved facts. "
+        + "Keep factual sources, reversible assumptions and consequential missing details in brief review notes after the asset. "
+        + "Do not invent contact details, ordering routes, offers, proof or results to fill gaps. Never claim research or measurements that were not supplied. "
+        + "Follow the requested length; otherwise stay concise. Return a draft for internal owner review; do not perform actions.";
+
     public const string StarterPlanInstructions =
         Instructions
         + " Prepare a practical one-week marketing starter plan for an independent professional or team of one to five people. "

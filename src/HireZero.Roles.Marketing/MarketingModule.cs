@@ -12,6 +12,7 @@ public sealed class MarketingModule : IEmployeeModule
 {
     public const string Draft = "marketing-draft";
     public const string StarterPlan = "marketing-starter-plan";
+    public const string GoalDraft = "marketing-goal-draft";
 
     public EmployeeManifest Manifest { get; } =
         new(
@@ -26,6 +27,15 @@ public sealed class MarketingModule : IEmployeeModule
                     StarterPlan,
                     "Marketing starter plan",
                     "Prepare a practical one-week plan from approved company knowledge for owner review.",
+                    SkillMode.Measured
+                )
+                {
+                    MeasuredProfile = CompanyMeasuredPolicy.DeliverableProfile,
+                },
+                new(
+                    GoalDraft,
+                    "Marketing goal draft",
+                    "Produce the marketing asset requested in the owner's goal from supplied business context.",
                     SkillMode.Measured
                 )
                 {
@@ -131,6 +141,7 @@ public sealed class MarketingModule : IEmployeeModule
         {
             Draft => MarketingText.DraftInstructions,
             StarterPlan => MarketingText.StarterPlanInstructions,
+            GoalDraft => MarketingText.GoalDraftInstructions,
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
             MarketingExperiments.Skill => MarketingExperiments.Instructions,
             MarketingAds.Review => MarketingAds.ReviewInstructions,

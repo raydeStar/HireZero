@@ -284,9 +284,25 @@ try {
   assert.equal(state.tasks.length,2);
   assert.equal(state.measured.length,2);
   assert.equal(state.artifacts.filter(a=>a.taskId!==task.id).length,1,'Normal single-click path saves the first raw result');
+  await send('Page.navigate',{url:url+'/'});
+  await text('Start another goal');
+  await click('Start another goal');
+  await setField('Your goal','Write one welcome email for new paper-kit subscribers.');
+  await text('Your marketing draft');
+  await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'marketing-run terms');
+  await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
+  await click('Generate my first draft');
+  await text('Fictional welcome email');
+  state=(await dashboard()).data;
+  const emailTask=state.tasks.find(t=>t.skill==='marketing-goal-draft');
+  assert.ok(emailTask,'A requested email uses direct Marketing drafting');
+  assert.equal(state.measured.length,3,'One run per consent, including a change of specialist');
+  assert.equal(state.artifacts.filter(a=>a.taskId===emailTask.id).length,1);
+  assert.doesNotMatch(emailTask.input,/Monday|Wednesday|Friday/);
+  assert.equal(await evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(emailTask.id)}`),true);
   assert.deepEqual(errors,[]);
   await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),singleHomeConsent:true,optionalWebsiteDiscovery:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
-  console.log('PASS goal start: optional website, automatic setup, single Home consent and the exact saved result. The butler handled the paperwork.');
+  console.log('PASS goal start: optional website, automatic setup, single Home consent and a requested email instead of a weekly plan. The butler handled the paperwork.');
   await send('Browser.close').catch(()=>{});
 } catch (error) {
   await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
