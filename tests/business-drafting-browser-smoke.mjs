@@ -200,7 +200,7 @@ try {
         ),
       text,
     );
-  await click("Set up my business");
+  await click("Start from a website instead");
   await field("Business name", "Fictional Paper Studio");
   await field(
     "What would you like help achieving?",
@@ -573,33 +573,33 @@ try {
   await until(
     () =>
       evaluate(
-        "!!document.querySelector('.co-home .co-first-assignment textarea')",
+        "!!document.querySelector('.co-home .co-goal-start textarea')",
       ),
     "Home resumes the suggested assignment after leaving onboarding and reloading",
   );
   assert.match(
     await evaluate(
-      "document.querySelector('.co-checklist li.next').textContent",
+      "document.querySelector('.co-goal-output').textContent",
     ),
-    /Prepare a first assignment/,
+    /Your first marketing plan/,
   );
   assert.equal(
     (await snapshot()).data.tasks.filter((t) => t.kind === "work").length,
     0,
   );
   await evaluate(
-    "(()=>{const el=document.querySelector('.co-home .co-first-assignment textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,el.value+' Keep the first experiment modest.');el.dispatchEvent(new Event('input',{bubbles:true}));})()",
+    "(()=>{const el=document.querySelector('.co-home .co-goal-start textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,el.value+' Keep the first experiment modest.');el.dispatchEvent(new Event('input',{bubbles:true}));})()",
   );
   await send("Page.reload");
   await until(
     () =>
       evaluate(
-        "document.querySelector('.co-home .co-first-assignment textarea')?.value.includes('Keep the first experiment modest.')",
+        "document.querySelector('.co-home .co-goal-start textarea')?.value.includes('Keep the first experiment modest.')",
       ),
     "First-assignment edits survive a Home reload",
   );
   await evaluate(
-    "document.querySelector('.co-home .co-first-assignment').scrollIntoView({block:'start'})",
+    "document.querySelector('.co-home .co-goal-start').scrollIntoView({block:'start'})",
   );
   assert.equal(
     await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
@@ -619,7 +619,7 @@ try {
     mobile: false,
   });
   await evaluate(
-    "document.querySelector('.co-home .co-first-assignment').scrollIntoView({block:'start'})",
+    "document.querySelector('.co-home .co-goal-start').scrollIntoView({block:'start'})",
   );
   assert.equal(
     await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
@@ -640,7 +640,7 @@ try {
   });
   // A transient read failure clears after recovery without losing the unfinished request.
   const unsavedFirstRequest = await evaluate(
-    "document.querySelector('.co-first-assignment textarea').value",
+    "document.querySelector('.co-goal-start textarea').value",
   );
   await evaluate(
     "window.refreshOriginalFetch=window.fetch;window.failWorkspaceRefresh=true;window.fetch=(input,init)=>window.failWorkspaceRefresh&&String(input)==='/api/company'?Promise.reject(new TypeError('Synthetic workspace refresh failure')):window.refreshOriginalFetch(input,init)",
@@ -648,7 +648,7 @@ try {
   await bodyText("Workspace updates are unavailable.");
   assert.equal(
     await evaluate(
-      "document.querySelector('.co-first-assignment textarea').value",
+      "document.querySelector('.co-goal-start textarea').value",
     ),
     unsavedFirstRequest,
   );
@@ -660,16 +660,16 @@ try {
   );
   assert.equal(
     await evaluate(
-      "document.querySelector('.co-first-assignment textarea').value",
+      "document.querySelector('.co-goal-start textarea').value",
     ),
     unsavedFirstRequest,
   );
   // While a save is still pending, show progress. A lost reply is reconciled without a duplicate assignment.
   await evaluate(
-    "window.firstPlanFetch=window.fetch;window.loseFirstPlan=true;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(window.loseFirstPlan&&body.action==='assignment.prepare'){window.loseFirstPlan=false;await new Promise(resolve=>window.releaseFirstPlan=resolve);await window.firstPlanFetch(input,init);throw new TypeError('Synthetic lost first-plan reply');}return window.firstPlanFetch(input,init);};",
+    "window.firstPlanFetch=window.fetch;window.loseFirstPlan=true;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(window.loseFirstPlan&&body.action==='goal.prepare'){window.loseFirstPlan=false;await new Promise(resolve=>window.releaseFirstPlan=resolve);await window.firstPlanFetch(input,init);throw new TypeError('Synthetic lost first-plan reply');}return window.firstPlanFetch(input,init);};",
   );
-  await click("Prepare my first plan");
-  await bodyText("Preparing your request for review…");
+  await click("Prepare my draft");
+  await bodyText("Preparing your draft…");
   assert.equal(
     await evaluate(
       "document.body.innerText.includes('The save needs confirmation')",
@@ -678,7 +678,7 @@ try {
   );
   assert.equal(
     await evaluate(
-      "document.querySelector('.co-first-assignment button').disabled",
+      "document.querySelector('.co-goal-start button').disabled",
     ),
     true,
   );
@@ -708,18 +708,18 @@ try {
   await until(
     () =>
       evaluate(
-        "document.querySelector('.co-checklist li.next')?.textContent.includes('Open first assignment')",
+        "document.querySelector('.co-goal-start')?.textContent.includes('Continue my work')",
       ),
     "Home offers the saved assignment before it runs",
   );
   assert.equal(
     await evaluate(
-      "!!document.querySelector('.co-home .co-first-assignment form')",
+      "!!document.querySelector('.co-home .co-goal-start form')",
     ),
     false,
     "No duplicate preparation form after a saved assignment",
   );
-  await click("Open first assignment");
+  await click("Continue my work");
   await click("Review task and context");
   await until(
     () => evaluate("!!document.querySelector('.co-job-card .co-packet')"),
@@ -783,11 +783,12 @@ try {
   await until(
     () =>
       evaluate(
-        "document.querySelector('.co-checklist li.next')?.textContent.includes('Review first result')",
+        "!!document.querySelector('[aria-label=\"Recent results\"] .co-home-row')",
       ),
     "Approving a result alone does not finish the first assignment",
   );
-  await click("Review first result");
+  assert.equal((await snapshot()).data.tasks.find(t=>t.id===firstTask().id).state,"awaiting_review");
+  await evaluate("document.querySelector('[aria-label=\"Recent results\"] .co-home-row').click()");
   await until(
     () =>
       evaluate(
@@ -1012,15 +1013,15 @@ try {
   await until(
     () =>
       evaluate(
-        "!!document.querySelector('.co-home') && !document.querySelector('[aria-label=\"Getting started\"]')",
+        "!!document.querySelector('.co-home [aria-label=\"Recent results\"] .co-home-row')",
       ),
-    "Getting started finishes only after approved result and task completion",
+    "The completed result stays directly available on Home",
   );
   await send("Page.reload");
   await until(
     () =>
       evaluate(
-        "!!document.querySelector('.co-home') && !document.querySelector('[aria-label=\"Getting started\"]')",
+        "!!document.querySelector('.co-home [aria-label=\"Recent results\"] .co-home-row')",
       ),
     "Completed Home progress survives reload",
   );

@@ -328,22 +328,33 @@ public sealed partial class CompanyStore
                     .TakeLast(30)
                     .ToArray(),
             };
-        var documents = RetrieveDocuments(db, t.Input, e, context.Scope == "company" || t.MeetingId is not null);
-        if (documents.Excerpts.Length > 0)
-            context = context with { Documents = documents };
-        var memory = RetrieveMemory(db, t.Input, e, context.Scope == "company" || t.MeetingId is not null);
-        if (memory.Items.Length > 0)
-            context = context with { Memory = memory };
+        var referenceQuery = t.Input;
         if (t.Revision is { } revisionRequest)
+        {
+            var priorFeedback = EarlierRevisionFeedback(db, t);
             context = context with
             {
                 History = [],
                 Revision = new(
                     revisionRequest,
                     Need<CompanyArtifact>(db, revisionRequest.ArtifactId).Body,
-                    EarlierRevisionFeedback(db, t)
+                    priorFeedback
                 ),
             };
+            // Search the owner's bounded requirements, not inventions in the draft being corrected.
+            referenceQuery = string.Join(
+                '\n',
+                new[] { t.Input }
+                    .Concat((priorFeedback ?? []).Select(previous => previous.Feedback))
+                    .Append(revisionRequest.Feedback)
+            );
+        }
+        var documents = RetrieveDocuments(db, referenceQuery, e, context.Scope == "company" || t.MeetingId is not null);
+        if (documents.Excerpts.Length > 0)
+            context = context with { Documents = documents };
+        var memory = RetrieveMemory(db, referenceQuery, e, context.Scope == "company" || t.MeetingId is not null);
+        if (memory.Items.Length > 0)
+            context = context with { Memory = memory };
         if (!KnowledgeCurrent(db, context, t))
             throw new WorkspaceException("Knowledge was revoked; request fresh admission.");
         Save(db, context, context.Id, a.Id, e.Id);

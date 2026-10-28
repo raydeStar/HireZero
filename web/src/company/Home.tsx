@@ -8,6 +8,7 @@ import { approvedBusinessProfile, businessSetup } from "../roles/company";
 import { FirstAssignment } from "./FirstAssignment";
 import { useMemberAccess } from "./MemberAccess";
 import { WorkContext } from "./WorkContext";
+import { GoalStart } from "./GoalStart";
 
 export function initials(name: string) {
   return (
@@ -69,6 +70,7 @@ export function Home({
   canPrepare?: boolean;
 }) {
   const { canManage, canWork } = useMemberAccess();
+  const goalStart = canManage && !!onBusiness;
   const d = snapshot.data;
   const work = d.tasks.filter((t) => t.kind !== "conversation");
   const count = (group: readonly string[]) => work.filter((t) => group.includes(workState(snapshot, t))).length;
@@ -96,10 +98,14 @@ export function Home({
   };
   const results = [...d.artifacts]
     .reverse()
-    .filter((a) => a.state !== "superseded")
-    .slice(0, 6)
+    .filter((a) => !["superseded", "revoked"].includes(a.state))
     .map((a) => ({ artifact: a, task: d.tasks.find((t) => t.id === a.taskId) }))
-    .filter((r): r is { artifact: (typeof d.artifacts)[number]; task: Work } => !!r.task);
+    .filter(
+      (r): r is { artifact: (typeof d.artifacts)[number]; task: Work } =>
+        !!r.task && !["canceled", "superseded"].includes(r.task.state),
+    )
+    .filter((r, index, all) => all.findIndex((other) => other.task.id === r.task.id) === index)
+    .slice(0, 3);
   const nameOf = (id: string) => d.employees.find((e) => e.id === id)?.name ?? "Former employee";
   // Getting started (UX round 6): the path from an empty company to a first approved result, shown until it is done.
   const active = d.employees.find((e) => e.state === "active");
@@ -193,6 +199,40 @@ export function Home({
   ].filter(Boolean);
   return (
     <div className="co-home">
+      {results.length > 0 && (
+        <section className="co-home-section" aria-label="Recent results">
+          <h2>Your results</h2>
+          <ul className="co-home-list">
+            {results.map(({ artifact, task }) => (
+              <li key={artifact.id}>
+                <button className="co-home-row" onClick={() => onOpenWork(task)}>
+                  <span>
+                    <b>
+                      {workTitle(snapshot, task)} · {nameOf(task.employeeId)}
+                    </b>
+                    <WorkContext snapshot={snapshot} taskId={task.id} />
+                    <small>{firstLine(artifact.body)}</small>
+                  </span>
+                  <em className={"co-chip state-" + artifact.state}>
+                    {["completed", "canceled", "superseded"].includes(task.state) && artifact.state === "needs_review"
+                      ? "Earlier draft"
+                      : artifactState(artifact.state)}
+                  </em>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {goalStart && (
+        <GoalStart
+          snapshot={snapshot}
+          refresh={refresh}
+          openWork={onOpenWork}
+          onBusiness={onBusiness}
+          onResumeHire={onResumeHire}
+        />
+      )}
       {needsError && (
         <div className="co-needs-error" role="status">
           <p>
@@ -206,31 +246,32 @@ export function Home({
           </button>
         </div>
       )}
-      {d.employees.length === 0 ? (
-        <section className="co-home-welcome" aria-label="Welcome to your company">
-          <p className="co-eyebrow">Your company starts here</p>
-          <h2>
-            {onBusiness
-              ? "Start with your business. Then build your team."
-              : "Build your team, one employee at a time."}
-          </h2>
-          <p>
-            {!canManage ? (
-              "A company owner sets up the business brief and hires the first employee. You can follow the team's progress here."
-            ) : (
-              <>
-                Confirm your business and review the facts your employees will share. Then choose a role and a small
-                first assignment. You review each result and decide what happens next.
-              </>
-            )}
+      {!goalStart &&
+        (d.employees.length === 0 ? (
+          <section className="co-home-welcome" aria-label="Welcome to your company">
+            <p className="co-eyebrow">Your company starts here</p>
+            <h2>
+              {onBusiness
+                ? "Start with your business. Then build your team."
+                : "Build your team, one employee at a time."}
+            </h2>
+            <p>
+              {!canManage ? (
+                "A company owner sets up the business brief and hires the first employee. You can follow the team's progress here."
+              ) : (
+                <>
+                  Confirm your business and review the facts your employees will share. Then choose a role and a small
+                  first assignment. You review each result and decide what happens next.
+                </>
+              )}
+            </p>
+          </section>
+        ) : (
+          <p className="co-home-today" aria-label="Today so far">
+            <b>Today so far:</b> {todayParts.length ? todayParts.join(" · ") : "nothing has happened yet."}
           </p>
-        </section>
-      ) : (
-        <p className="co-home-today" aria-label="Today so far">
-          <b>Today so far:</b> {todayParts.length ? todayParts.join(" · ") : "nothing has happened yet."}
-        </p>
-      )}
-      {onBusiness && d.employees.length > 0 && (
+        ))}
+      {!goalStart && onBusiness && d.employees.length > 0 && (
         <section className="co-home-welcome" aria-label="Business knowledge">
           <h2>
             {profile ? "Your team has an approved business brief." : "Start with what makes your business yours."}
@@ -279,7 +320,7 @@ export function Home({
         </section>
       )}
 
-      {next >= 0 && (
+      {next >= 0 && !goalStart && (
         <section className="co-home-section" aria-label="Getting started">
           <h2>Getting started</h2>
           {!canManage && (
@@ -367,32 +408,6 @@ export function Home({
               </article>
             ))}
           </div>
-        </section>
-      )}
-
-      {results.length > 0 && (
-        <section className="co-home-section" aria-label="Recent results">
-          <h2>Recent results</h2>
-          <ul className="co-home-list">
-            {results.map(({ artifact, task }) => (
-              <li key={artifact.id}>
-                <button className="co-home-row" onClick={() => onOpenWork(task)}>
-                  <span>
-                    <b>
-                      {workTitle(snapshot, task)} · {nameOf(task.employeeId)}
-                    </b>
-                    <WorkContext snapshot={snapshot} taskId={task.id} />
-                    <small>{firstLine(artifact.body)}</small>
-                  </span>
-                  <em className={"co-chip state-" + artifact.state}>
-                    {["completed", "canceled", "superseded"].includes(task.state) && artifact.state === "needs_review"
-                      ? "Earlier draft"
-                      : artifactState(artifact.state)}
-                  </em>
-                </button>
-              </li>
-            ))}
-          </ul>
         </section>
       )}
     </div>

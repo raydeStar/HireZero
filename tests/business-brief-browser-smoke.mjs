@@ -173,7 +173,7 @@ try {
         ),
       text,
     );
-  await click("Set up my business");
+  await click("Start from a website instead");
   await field("Business name", "Fictional Paper Studio");
   await field("Website (optional)", "https://paper.example.invalid/");
   await field(

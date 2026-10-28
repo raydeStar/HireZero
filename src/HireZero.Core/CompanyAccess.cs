@@ -48,6 +48,7 @@ public static class CompanyAccess
         "notification.preferences",
         "notification.close",
         "employee.hire",
+        "goal.prepare",
         "employee.update",
         "employee.lifecycle",
         "knowledge.save",

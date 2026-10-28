@@ -69,7 +69,15 @@ export function businessSetup(snapshot: Snapshot, roleId: string): BusinessSetup
 export function teamRecommendations(snapshot: Snapshot) {
   const profile = approvedBusinessProfile(snapshot);
   if (!profile) return [];
-  const choices = snapshot.data.roles.flatMap((role) => {
+  return recommendationsForProfile(snapshot.data.roles, profile);
+}
+
+export function setupForProfile(profile: BusinessProfile, role: Role): BusinessSetup | undefined {
+  return role.uiSlots?.includes("business-setup") ? byRole[role.id]?.businessSetup?.(profile) : undefined;
+}
+
+export function recommendationsForProfile(roles: Role[], profile: BusinessProfile) {
+  const choices = roles.flatMap((role) => {
     if (!role.uiSlots?.includes("business-setup") || !byRole[role.id]?.businessSetup) return [];
     const match = byRole[role.id]?.recommendation?.(profile);
     return match ? [{ role, ...match }] : [];

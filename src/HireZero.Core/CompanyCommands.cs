@@ -110,6 +110,8 @@ public sealed partial class CompanyStore
                 return PrepareConversation(db, c);
             case "assignment.prepare":
                 return PrepareAssignment(db, c);
+            case "goal.prepare":
+                return PrepareGoal(db, c);
             case "context.draft":
                 return PrepareContextDraft(db, c);
             case "connection.resolve":

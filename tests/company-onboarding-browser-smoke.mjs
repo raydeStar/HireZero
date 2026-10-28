@@ -36,7 +36,7 @@ try{
   const guideText=()=>evaluate("document.querySelector('.co-onboarding').innerText");
   const inject=async(action,mode)=>evaluate(`(()=>{const original=window.fetch;window.fetch=async(input,options)=>{const body=options?.body?JSON.parse(options.body):{};if(body.action===${JSON.stringify(action)}){window.fetch=original;if(${JSON.stringify(mode)}==='definitive')return new Response(JSON.stringify({error:'Synthetic definitive refusal'}),{status:422,headers:{'Content-Type':'application/json'}});await new Promise(resolve=>setTimeout(resolve,250));const response=await original(input,options);window.fetch=async(input,options)=>{if(String(input).includes('/operations/'))throw new TypeError('Synthetic unavailable receipt');return original(input,options);};throw new TypeError('Synthetic lost saved response');}return original(input,options);};})()`);
   const headingVisible=async label=>{assert.equal(await evaluate("(()=>{const h=document.querySelector('.co-onboarding h2'),r=h.getBoundingClientRect();return r.top>=document.querySelector('.fe-topbar').getBoundingClientRect().bottom&&r.bottom<innerHeight-60&&document.activeElement===h;})()"),true,label+' heading is visible and focused after footer submission');};
-  assert.equal(await evaluate("!!document.querySelector('[aria-label=\"Welcome to your company\"]')"),true,'An empty Home explains the first step');
+  assert.equal(await evaluate("!!document.querySelector('[aria-label=\"Start with a goal\"]')"),true,'An empty Home explains the first step');
   assert.equal(await evaluate("document.querySelectorAll('.co-home .co-primary').length"),1,'An empty Home has one clear next action');
   await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
   const homeDesktop=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/ux-home-desktop.png'),Buffer.from(homeDesktop.data,'base64'));
@@ -45,7 +45,7 @@ try{
   assert.equal(await evaluate("(()=>{const r=document.querySelector('.co-home .co-primary').getBoundingClientRect();return r.top>=document.querySelector('.fe-topbar').getBoundingClientRect().bottom&&r.bottom<=innerHeight;})()"),true,'The first Home action is fully visible on mobile');
   const homeMobile=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/ux-home-mobile.png'),Buffer.from(homeMobile.data,'base64'));
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
-  assert.equal(await evaluate("document.querySelector('.co-home .co-primary').textContent.trim()"),'Set up my business','New companies start with context');
+  assert.equal(await evaluate("document.querySelector('.co-home .co-primary').textContent.trim()"),'Prepare my draft','New companies start with a goal');
   await click('People');assert.match(await guideText(),/Hire your first employee/);
   assert.match(await guideText(),/Hiring creates a private chat/);
   assert.equal(await evaluate("document.querySelector('.co-onboarding select').value"),'marketing','Marketing default');
@@ -67,9 +67,9 @@ try{
   await inject('knowledge.save','definitive');await click('Save context for review');await until(()=>evaluate("document.body.innerText.includes('Synthetic definitive refusal')"),'context failure');assert.equal((await dashboard()).data.knowledge.length,0);
   await inject('knowledge.save','uncertain');await twice();await until(()=>evaluate("document.body.innerText.includes('Check saved state')"),'unconfirmed context draft');await reload();assert.equal((await dashboard()).data.employees[0].state,'onboarding');await click('Check saved state');await until(()=>evaluate("document.body.innerText.includes('Approve shared context')"),'saved context review');state=await dashboard();assert.equal(state.data.knowledge.length,1,'Duplicate submit creates one context');assert.equal(state.data.employees[0].state,'onboarding','Save does not approve');
   await evaluate("sessionStorage.removeItem('hirezero-hire-draft-v2:local-company')");await reload();await click('Home');
-  await until(()=>evaluate("!!document.querySelector('.co-checklist button')"),'Home onboarding next action');
-  assert.equal(await evaluate("document.querySelector('.co-checklist button').textContent"),'Continue onboarding');
-  await evaluate("document.querySelector('.co-checklist button').click()");
+  await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-primary')"),'Home onboarding next action');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start .co-primary').textContent"),'Continue '+(await dashboard()).data.employees[0].name+'’s setup');
+  await evaluate("document.querySelector('.co-goal-start .co-primary').click()");
   await until(()=>evaluate("document.body.innerText.includes('Approve shared context')"),'Home resumes the existing saved hire after draft loss');assert.match(await guideText(),/Fictional marketing purpose/,'Saved draft is resumed without re-entry');
   assert.equal((await dashboard()).data.employees.length,1,'Continuing from Home does not start another hire');
   // The full activity view recovers in place and opens the same review as Home and the cockpit.

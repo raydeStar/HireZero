@@ -1,7 +1,7 @@
 using HireZero.Core;
 using Microsoft.Data.Sqlite;
 
-public sealed class CompanyArtifactRevisionTests : IDisposable
+public sealed partial class CompanyArtifactRevisionTests : IDisposable
 {
     private readonly TemporaryRoot _root = new("company-artifact-revision-");
 

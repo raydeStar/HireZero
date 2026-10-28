@@ -1,0 +1,65 @@
+.co-goal-start {
+  padding: 24px;
+  border: 1px solid var(--fe-line);
+  border-radius: 16px;
+  background: var(--fe-bg-2);
+  max-width: 820px;
+}
+.co-workspace .co-goal-start h2 {
+  font-size: 1.7rem;
+  margin: 8px 0;
+}
+.co-workspace .co-goal-start fieldset {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.co-goal-start label {
+  display: grid;
+  gap: 7px;
+  font-weight: 600;
+}
+.co-goal-start textarea,
+.co-goal-start input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.co-workspace .co-goal-start textarea {
+  resize: vertical;
+  line-height: 1.5;
+  min-height: 76px;
+}
+.co-goal-start details {
+  font-size: 0.9rem;
+}
+.co-goal-start details > label {
+  margin-top: 12px;
+}
+.co-goal-start summary {
+  cursor: pointer;
+}
+.co-goal-start .co-goal-output {
+  padding: 15px;
+  border-radius: 10px;
+  background: rgba(128, 143, 185, 0.1);
+}
+.co-goal-output p {
+  margin: 6px 0;
+}
+.co-goal-start .co-primary {
+  justify-self: start;
+  min-height: 44px;
+}
+.co-goal-start dd {
+  margin: 4px 0 12px;
+}
+@media (max-width: 600px) {
+  .co-goal-start {
+    padding: 18px;
+  }
+  .co-workspace .co-goal-start h2 {
+    font-size: 1.4rem;
+  }
+}

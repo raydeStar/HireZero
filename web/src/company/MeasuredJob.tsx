@@ -104,6 +104,7 @@ export function MeasuredJob({
     reviewRequest = useRef(0);
   const [allowance, setAllowance] = useState(""),
     [packet, setPacket] = useState<Packet | null>(null),
+    [contextOpen, setContextOpen] = useState(false),
     [ack, setAck] = useState(false),
     [reviewing, setReviewing] = useState(false),
     [running, setRunning] = useState(false),
@@ -120,9 +121,15 @@ export function MeasuredJob({
     setAck(false);
     setError("");
     setReviewing(false);
-  }, [entry?.id, entry?.job.digest]);
-  async function review() {
+    setContextOpen(false);
+    if (entry?.job.state === "proposed" && !conversational) void review(false);
+    return () => {
+      reviewRequest.current++;
+    };
+  }, [entry?.id, entry?.job.digest, entry?.job.state, conversational]);
+  async function review(expand = true) {
     if (!entry) return;
+    setContextOpen(expand);
     const request = ++reviewRequest.current;
     setError("");
     setAck(false);
@@ -280,96 +287,104 @@ export function MeasuredJob({
               </button>
               {packet && (
                 <div className="co-packet">
-                  <h4>Context for this request</h4>
                   <p>
-                    {packet.call.context.roleId} · {packet.call.context.scope ?? "employee"} context
+                    {packet.call.context.input.length > 240
+                      ? packet.call.context.input.slice(0, 240) + "…"
+                      : packet.call.context.input}
                   </p>
-                  <details>
-                    <summary>Request identifiers</summary>
-                    <small>
-                      Employee {packet.call.context.employeeId} · conversation {packet.call.context.threadId}
-                    </small>
-                  </details>
-                  <h4>Responsibility included</h4>
-                  <Contents body={packet.call.context.responsibility} />
-                  <h4>Requested work</h4>
-                  <Contents body={packet.call.context.input} />
-                  {packet.call.context.revision && (
-                    <section aria-label="Revision context">
-                      {!!packet.call.context.revision.priorFeedback?.length && (
-                        <section aria-label="Earlier requested changes">
-                          <h4>Earlier requested changes retained</h4>
-                          <ol>
-                            {packet.call.context.revision.priorFeedback.map((item, index) => (
-                              <li key={index}>
-                                <Contents body={item.feedback} />
-                              </li>
-                            ))}
-                          </ol>
-                          <p>
-                            Oldest first. The latest feedback only replaces earlier directions where it explicitly
-                            changes them.
-                          </p>
-                        </section>
-                      )}
-                      <h4>Requested changes</h4>
-                      <Contents body={packet.call.context.revision.request.feedback} />
-                      <details>
-                        <summary>Previous unapproved draft included for revision</summary>
-                        <Contents body={packet.call.context.revision.originalDraft} />
-                      </details>
-                      <p>The previous draft is reference material, not approved company knowledge.</p>
-                    </section>
-                  )}
-                  <h4>Approved department facts</h4>
-                  <Contents body={packet.call.context.departmentKnowledge} />
-                  {packet.call.context.companyKnowledge && (
-                    <>
-                      <h4>Approved company facts</h4>
-                      <Contents body={packet.call.context.companyKnowledge} />
-                    </>
-                  )}
-                  {packet.usage && <MonthlyAllowance usage={packet.usage} />}
-                  <h4>Private notes included</h4>
-                  <Contents body={packet.call.context.notes} />
-                  <h4>Conversation history included</h4>
-                  <Entries items={packet.call.context.history} />
-                  <h4>Selected evidence included</h4>
-                  <Entries items={packet.call.context.evidence} />
-                  {packet.call.context.memory && (
-                    <>
-                      <h4>Approved organizational memory included</h4>
-                      <p>{packet.call.context.memory.notice}</p>
-                      {packet.call.context.memory.items.map((item) => (
-                        <article key={item.memoryId}>
-                          <h5>
-                            {item.title} · version {item.version}
-                          </h5>
-                          <p>{item.statement}</p>
-                          {item.rationale && <p>{item.rationale}</p>}
-                          <small>
-                            Approved {new Date(item.approvedAt).toLocaleString()}
-                            {item.reviewOn ? ` · Review on ${item.reviewOn} (UTC)` : ""}
-                          </small>
-                          {item.origin && (
-                            <blockquote>
-                              {item.origin.quote}
-                              <small>
-                                Approved result {item.origin.artifactId} · version {item.origin.version}
-                              </small>
-                            </blockquote>
-                          )}
-                        </article>
-                      ))}
-                    </>
-                  )}
-                  <details>
-                    <summary>Complete sealed application context</summary>
-                    <pre>{JSON.stringify(packet.call.context, null, 2)}</pre>
-                  </details>
-                  <details>
-                    <summary>Employee instructions</summary>
-                    <pre>{packet.call.instructions}</pre>
+                  <details open={contextOpen} onToggle={(event) => setContextOpen(event.currentTarget.open)}>
+                    <summary>Full request and business context</summary>
+                    <h4>Context for this request</h4>
+                    <p>
+                      {packet.call.context.roleId} · {packet.call.context.scope ?? "employee"} context
+                    </p>
+                    <details>
+                      <summary>Request identifiers</summary>
+                      <small>
+                        Employee {packet.call.context.employeeId} · conversation {packet.call.context.threadId}
+                      </small>
+                    </details>
+                    <h4>Responsibility included</h4>
+                    <Contents body={packet.call.context.responsibility} />
+                    <h4>Requested work</h4>
+                    <Contents body={packet.call.context.input} />
+                    {packet.call.context.revision && (
+                      <section aria-label="Revision context">
+                        {!!packet.call.context.revision.priorFeedback?.length && (
+                          <section aria-label="Earlier requested changes">
+                            <h4>Earlier requested changes retained</h4>
+                            <ol>
+                              {packet.call.context.revision.priorFeedback.map((item, index) => (
+                                <li key={index}>
+                                  <Contents body={item.feedback} />
+                                </li>
+                              ))}
+                            </ol>
+                            <p>
+                              Oldest first. The latest feedback only replaces earlier directions where it explicitly
+                              changes them.
+                            </p>
+                          </section>
+                        )}
+                        <h4>Requested changes</h4>
+                        <Contents body={packet.call.context.revision.request.feedback} />
+                        <details>
+                          <summary>Previous unapproved draft included for revision</summary>
+                          <Contents body={packet.call.context.revision.originalDraft} />
+                        </details>
+                        <p>The previous draft is reference material, not approved company knowledge.</p>
+                      </section>
+                    )}
+                    <h4>Approved department facts</h4>
+                    <Contents body={packet.call.context.departmentKnowledge} />
+                    {packet.call.context.companyKnowledge && (
+                      <>
+                        <h4>Approved company facts</h4>
+                        <Contents body={packet.call.context.companyKnowledge} />
+                      </>
+                    )}
+                    {packet.usage && <MonthlyAllowance usage={packet.usage} />}
+                    <h4>Private notes included</h4>
+                    <Contents body={packet.call.context.notes} />
+                    <h4>Conversation history included</h4>
+                    <Entries items={packet.call.context.history} />
+                    <h4>Selected evidence included</h4>
+                    <Entries items={packet.call.context.evidence} />
+                    {packet.call.context.memory && (
+                      <>
+                        <h4>Approved organizational memory included</h4>
+                        <p>{packet.call.context.memory.notice}</p>
+                        {packet.call.context.memory.items.map((item) => (
+                          <article key={item.memoryId}>
+                            <h5>
+                              {item.title} · version {item.version}
+                            </h5>
+                            <p>{item.statement}</p>
+                            {item.rationale && <p>{item.rationale}</p>}
+                            <small>
+                              Approved {new Date(item.approvedAt).toLocaleString()}
+                              {item.reviewOn ? ` · Review on ${item.reviewOn} (UTC)` : ""}
+                            </small>
+                            {item.origin && (
+                              <blockquote>
+                                {item.origin.quote}
+                                <small>
+                                  Approved result {item.origin.artifactId} · version {item.origin.version}
+                                </small>
+                              </blockquote>
+                            )}
+                          </article>
+                        ))}
+                      </>
+                    )}
+                    <details>
+                      <summary>Complete sealed application context</summary>
+                      <pre>{JSON.stringify(packet.call.context, null, 2)}</pre>
+                    </details>
+                    <details>
+                      <summary>Employee instructions</summary>
+                      <pre>{packet.call.instructions}</pre>
+                    </details>
                   </details>
                 </div>
               )}
