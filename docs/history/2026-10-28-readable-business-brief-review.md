@@ -55,3 +55,26 @@ Remaining UX observation: the generic editing form counts whitespace tokens incl
 whereas Marketing checks count visible words. The two counters can differ; the acceptance figures above use the
 Marketing checker. Recommendation ordering also places incidental role keywords ahead of the explicit content
 goal. These are follow-up findings, not claims of a completed customer experience.
+
+## Owner acceptance and editorial corrections
+
+The owner accepted Draft 3 as useful for internal review after checking its claims against the separate website
+brief. Its exact artifact is now approved for that internal use. The owner also identified three improvements
+before any future posting: ask readers to report the completed workflow, let Friday introduce the clearer shopper
+action rather than requiring it on Monday, and identify the fictional example in independently viewed posts.
+
+A separate Draft 4 implements those corrections without another model request. Wednesday names the fictional
+business and connects the example to the website's description of an AI marketing employee drafting for owner
+review. Friday explicitly asks for a reply containing the brief, before-and-after FAQ and usefulness assessment.
+Review notes distinguish workflow usefulness from demand for the product. The corrected copy passes all local
+checks at 457 words, with posts of 55, 66 and 59 words, one open decision and the same 45-minute schedule. It remains
+an unapproved editorial copy; internal acceptance of Draft 3 is not publication approval or acceptance of new text.
+The saved contents, exact accepted version, unchanged model receipts and schedules, and intact audit were verified.
+
+The owner also flagged the revision's zero reported reasoning tokens. A fresh receipt read confirms the requested
+high effort, measured-deliverable-v2 policy and 3,000-token output target, alongside zero reported reasoning tokens
+for both the initial call and the revision. Detailed feedback is an untested explanation; these receipts do not
+establish the cause or reveal hidden provider reasoning. The revision's invented ordering details and overlong
+Friday post remain recorded failures, even though editorial changes repaired the result. No trend or policy change
+is inferred from this small sample. No new live calls, publishing, outreach, schedule changes or runtime installation
+were performed for these corrections.

@@ -15,7 +15,9 @@ explicit editing and expandable evidence while preserving unfinished changes. Th
 pass, and both local installations preserve every server binary, account, existing record and the exact active
 schedule. Marketing setup carries the approved brief into its first assignment. Two native calls total 17,772
 reported tokens; a separate assistant editorial copy supplies the concrete example and passes all format checks.
-The original outputs and receipts remain intact, and usefulness acceptance of this website-based result is pending.
+The owner subsequently accepted Draft 3 for internal review, closing usefulness acceptance for this editorial
+website-based result. A separate Draft 4 applies the owner's reporting, sequence and standalone-example corrections
+and passes all format checks; it remains a draft for review. The original outputs and receipts remain intact.
 See [review and walkthrough evidence](history/2026-10-28-readable-business-brief-review.md). This advances P1.5/P1.7/P1.8;
 automatic brief quality, minimally assisted customer onboarding, recurring usefulness and all wider validation
 gates remain open. All three product phases remain in scope.
