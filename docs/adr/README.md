@@ -144,3 +144,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0137](0137-complete-first-assignment-assets.md) | Require complete useful assets in the default first Marketing assignment | Accepted; fresh native case evaluated without a previous draft |
 | [0138](0138-single-current-request-in-context.md) | Send the current task request once | Accepted; new packets omit only the exact owner-message duplicate at the task watermark |
 | [0139](0139-distinguishable-review-items.md) | Distinguish review items by conversation and request | Accepted; consistent display labels preserve exact task navigation and authority |
+| [0140](0140-revision-feedback-in-recurring-drafts.md) | Retain owner revision feedback in new recurring drafts | Accepted; ordered editable instructions, explicit consolidation and separate schedule approval |

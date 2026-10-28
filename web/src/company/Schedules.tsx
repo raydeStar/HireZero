@@ -1,6 +1,6 @@
 import { memberStorage as sessionStorage } from "../lib/api";
 import { ScheduledBrowserReview, type ScheduledBrowser } from "./ScheduledBrowserReview";
-import { canRepeatWork } from "./recurringWork";
+import { canRepeatWork, recurringInstructions } from "./recurringWork";
 import { workTitle } from "./Cockpit";
 import { useEffect, useRef, useState } from "react";
 import { api, company } from "../lib/api";
@@ -136,7 +136,7 @@ export function Schedules({
       name: ("Recurring: " + workTitle(snapshot, sourceTask)).slice(0, 120),
       employeeId: sourceTask.employeeId,
       skill: sourceTask.skill,
-      prompt: sourceTask.input,
+      prompt: recurringInstructions(snapshot, sourceTask),
       modelRoute: sourceTask.requestedModelRoute,
       evidence: [
         ...new Set([
@@ -362,9 +362,16 @@ export function Schedules({
       {initialTaskId && (
         <p role="status">
           {sourceTask
-            ? `Start from ${workTitle(snapshot, sourceTask)}. New drafts include its request, skill and approved results as references. Your saved edits are kept. Review what each run should produce, the timing, context and allowance before authorizing any runs.`
+            ? `Start from ${workTitle(snapshot, sourceTask)}. New drafts include its request, revision feedback, skill and approved results as references. Your saved edits are kept. Review what each run should produce, the timing, context and allowance before authorizing any runs.`
             : "The original work is no longer available to repeat. Any saved schedule draft is preserved for your review."}
         </p>
+      )}
+      {sourceTask?.revision && (
+        <details>
+          <summary>Original request and revision feedback</summary>
+          <p>Compare this history with the editable instructions. Saved drafts stay as you left them.</p>
+          <pre>{recurringInstructions(snapshot, sourceTask)}</pre>
+        </details>
       )}
       {error && (
         <p role="alert" className="co-error">
@@ -520,7 +527,8 @@ export function Schedules({
                 </label>
                 {(form.prompt?.length || 0) > 2000 && (
                   <p role="alert">
-                    Shorten this request to 2,000 characters before saving. Your full request is kept in this draft.
+                    Consolidate the request and feedback into at most 2,000 characters before saving. Keep the
+                    requirements you still want. The full text stays in this draft until you edit it.
                   </p>
                 )}
                 <p>

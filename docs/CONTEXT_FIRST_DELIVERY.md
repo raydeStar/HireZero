@@ -9,7 +9,16 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
-Current checkpoint (2026-10-27): review lists and opened work now identify the conversation and request under
+Current checkpoint (2026-10-27): new recurring drafts preserve the original request and complete ordered revision
+feedback under [ADR 0140](adr/0140-revision-feedback-in-recurring-drafts.md). Oversized combined text remains
+intact until explicit owner consolidation; saved drafts and authorized schedules stay unchanged. The production
+builds and fictional recurring browser journey pass, including both feedback requirements reaching the scheduled
+model context. The release is installed with backups, preserved accounts/work and intact audit chains; both
+workspaces still have no schedules. No live model calls or real schedule activations were needed. See
+[recurring-feedback evidence](history/2026-10-27-recurring-revision-feedback.md). Owner usefulness and the broader
+phase gates remain open.
+
+Earlier review checkpoint (2026-10-27): review lists and opened work now identify the conversation and request under
 [ADR 0139](adr/0139-distinguishable-review-items.md), resolving identical skill titles in the pilot. The fictional
 browser journey verifies exact selection, refresh, stable numbering and mobile navigation with no live model call.
 See [review-label evidence](history/2026-10-27-review-request-labels.md). Owner usefulness and the broader phase

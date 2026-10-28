@@ -322,19 +322,25 @@ try {
     "First deliverable saved for editing");
   const generated = (await snapshot()).data;
   const originalResult = generated.artifacts.find(a => a.taskId === originalTask.id);
+  const earlierFeedback = "Include a complete folding checklist, not just content themes.";
+  const fullEarlierFeedback = earlierFeedback + "\n" + "Keep a complete fictional folding checklist. ".repeat(55);
+  const latestFeedback = "Keep the checklist. Replace a broad closing question with a specific reader action.";
+  const firstRevision = await post("artifact.revise", { id: originalResult.id, expectedVersion: originalResult.version, digest: originalResult.digest, body: fullEarlierFeedback });
+  const firstRevisionResult = await post("artifact.create", { id: firstRevision.id, expectedVersion: firstRevision.version, body: "Fictional intermediate checklist for owner correction." });
+  const acceptedTask = await post("artifact.revise", { id: firstRevisionResult.id, expectedVersion: firstRevisionResult.version, digest: firstRevisionResult.digest, body: latestFeedback });
   const editedResult = await post("artifact.create", {
-    id: originalTask.id,
-    expectedVersion: generated.tasks.find(t => t.id === originalTask.id).version,
+    id: acceptedTask.id,
+    expectedVersion: acceptedTask.version,
     body: "Fictional edited plan: give readers a complete folding checklist. Align the corners, crease the diagonal, and check the edge. Ask which step they used or changed.",
   });
-  await send("Page.reload");
+  await send("Page.navigate", { url: `${url}/?view=employee&employee=${employee.id}&thread=${privateThread.id}&work=${acceptedTask.id}&mode=work` });
   await until(() => evaluate(`!!document.querySelector('[data-artifact-id="${editedResult.id}"]')`),
     "Edited result ready for review");
   await evaluate(`[...document.querySelectorAll('[data-artifact-id="${editedResult.id}"] button')].find(b=>b.textContent.trim()==='Approve result').click()`);
   await click("Complete after review");
   await until(
     async () =>
-      (await snapshot()).data.tasks.find((t) => t.id === originalTask.id)
+      (await snapshot()).data.tasks.find((t) => t.id === acceptedTask.id)
         ?.state === "completed",
     "first useful work accepted",
   );
@@ -353,26 +359,28 @@ try {
   await evaluate(`document.querySelector('${referenceSection} summary').click()`);
   assert.equal(await evaluate(`document.querySelector('${referenceSection} pre').innerText`), editedResult.body,
     "The owner can inspect the exact accepted copy before saving");
-  assert.equal((await snapshot()).data.artifacts.find(a => a.id === originalResult.id).state, "needs_review");
+  assert.equal((await snapshot()).data.artifacts.find(a => a.id === originalResult.id).state, "changes_requested");
   assert.equal(
     await evaluate(
       "JSON.parse(sessionStorage.getItem('hirezero-schedule-draft-v1:local-company')).name",
     ),
     "Unfinished original draft",
   );
-  assert.equal(
-    await evaluate(
-      "document.querySelector('.co-schedule-editor textarea').value",
-    ),
-    originalTask.input,
-  );
+  const copiedInstructions = await evaluate("document.querySelector('.co-schedule-editor textarea').value");
+  assert.ok(copiedInstructions.startsWith(originalTask.input));
+  assert.ok(copiedInstructions.includes(firstRevision.revision.feedback), "Exact saved feedback reaches the draft without truncation");
+  assert.ok(copiedInstructions.indexOf(latestFeedback) > copiedInstructions.indexOf(earlierFeedback));
+  assert.ok(copiedInstructions.length > 2000, "Oversized revision history is kept in full for explicit consolidation");
+  await waitText("Consolidate the request and feedback");
+  assert.equal(await evaluate("document.querySelector('.co-schedule-editor button[type=submit]').disabled"), true);
   await evaluate(
     "sessionStorage.removeItem('hirezero-schedule-draft-v1:local-company')",
   );
   await field("Schedule name", "Fictional content rhythm");
+  const instructionsForRuns = originalTask.input + "\n\nOwner feedback (consolidated):\n" + earlierFeedback + "\n" + latestFeedback + "\n\nUse a different fictional example each time.";
   await field(
     "Instructions for each run",
-    "Prepare three content themes from the approved company facts.",
+    instructionsForRuns,
   );
   await field("Repeat", "daily");
   await field("Number of occurrences", "2");
@@ -385,6 +393,7 @@ try {
       ),
     "Unsaved schedule survives reload",
   );
+  assert.equal(await evaluate("document.querySelector('.co-schedule-editor textarea').value"), instructionsForRuns, "Restoring a saved draft never replaces owner consolidation");
   await send("Emulation.setDeviceMetricsOverride", {
     width: 390,
     height: 844,
@@ -422,6 +431,7 @@ try {
   let records = await schedules();
   assert.equal(records.length, 1);
   assert.equal(records[0].definition.skill, "marketing-starter-plan");
+  assert.equal(records[0].definition.prompt, instructionsForRuns);
   assert.deepEqual(records[0].definition.evidence, [editedResult.id]);
   assert.ok(records[0].authority.context.selectedResults.includes(editedResult.body));
   assert.equal(records[0].authority.context.selectedResults.includes(originalResult.body), false,
@@ -478,6 +488,10 @@ try {
   await waitText("1 of 2 occurrences consumed.");
   let first = await detail(id);
   assert.equal(first.runs.length, 1);
+  const firstAttempt = (await snapshot()).data.measured.find(m => m.taskId === first.runs[0].taskId);
+  const firstPacket = await fetch(url + "/api/company/measured/" + firstAttempt.id).then(r => r.json());
+  assert.ok(firstPacket.call.context.input.includes(earlierFeedback));
+  assert.ok(firstPacket.call.context.input.includes(latestFeedback));
   assert.equal(
     (await snapshot()).data.budgets.find((b) => b.id === "schedule:" + id).used,
     30,
@@ -622,6 +636,9 @@ try {
         unrelatedDraftPreserved: true,
         selectedSkillRetained: true,
         approvedEditorialCopyRetained: true,
+        orderedRevisionFeedbackRetained: true,
+        oversizedFeedbackRequiresExplicitConsolidation: true,
+        approvedFeedbackReachesScheduledModelContext: true,
         referencePreviewMatchesExactBody: true,
         unapprovedOriginalExcluded: true,
         recurringResultApproved: true,
