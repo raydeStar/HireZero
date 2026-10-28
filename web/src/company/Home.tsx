@@ -7,6 +7,7 @@ import { dollars } from "./money";
 import { approvedBusinessProfile, businessSetup } from "../roles/company";
 import { FirstAssignment } from "./FirstAssignment";
 import { useMemberAccess } from "./MemberAccess";
+import { WorkContext } from "./WorkContext";
 
 export function initials(name: string) {
   return (
@@ -379,6 +380,7 @@ export function Home({
                     <b>
                       {workTitle(snapshot, task)} · {nameOf(task.employeeId)}
                     </b>
+                    <WorkContext snapshot={snapshot} taskId={task.id} />
                     <small>{firstLine(artifact.body)}</small>
                   </span>
                   <em className={"co-chip state-" + artifact.state}>

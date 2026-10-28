@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import type { Need as CockpitNeed } from "./Cockpit";
 import { useMemberAccess } from "./MemberAccess";
+import type { Snapshot } from "./api";
+import { WorkContext, workContext } from "./WorkContext";
 
 type Need = CockpitNeed & {
   markVersion: number;
@@ -33,12 +35,14 @@ const shift = (day: string, days: number) => {
 // The company's day (Phase 2B.5i, with the legacy owner tasks and work log ported in 2B.5j): what waits on you, which
 // you can prioritize or snooze, and the day's work log, from the company's own records. No model.
 export function Today({
+  snapshot,
   version,
   busy,
   run,
   open,
   onOpenNeed,
 }: {
+  snapshot: Snapshot;
   open?: boolean;
   version: number;
   busy: boolean;
@@ -94,8 +98,14 @@ export function Today({
           {today.needsYou.map((n) => (
             <li key={n.key}>
               {onOpenNeed ? (
-                <button className="co-link" type="button" onClick={() => onOpenNeed(n)} aria-label={"Open " + n.title}>
+                <button
+                  className="co-link"
+                  type="button"
+                  onClick={() => onOpenNeed(n)}
+                  aria-label={["Open " + n.title, workContext(snapshot, n.taskId)].filter(Boolean).join(" · ")}
+                >
                   <strong>{n.title}</strong>
+                  <WorkContext snapshot={snapshot} taskId={n.taskId} />
                 </button>
               ) : (
                 <strong>{n.title}</strong>
@@ -104,7 +114,7 @@ export function Today({
               {canWork && (
                 <>
                   <select
-                    aria-label={"Priority of " + n.title}
+                    aria-label={["Priority of " + n.title, workContext(snapshot, n.taskId)].filter(Boolean).join(" · ")}
                     disabled={busy}
                     value={n.priority}
                     onChange={(e) => mark(n, e.target.value)}

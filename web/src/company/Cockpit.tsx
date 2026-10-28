@@ -6,6 +6,7 @@ import { taskState, workName } from "./labels";
 import { ago, elapsed, useNow } from "./time";
 import { dollars } from "./money";
 import { useMemberAccess } from "./MemberAccess";
+import { WorkContext } from "./WorkContext";
 
 export type Need = {
   kind: string;
@@ -153,6 +154,7 @@ export function Cockpit({
     <li key={t.id}>
       <button className="fe-up-next-title" onClick={() => onOpenWork(t)} title={title(t)}>
         <span>{title(t)}</span>
+        <WorkContext snapshot={snapshot} taskId={t.id} />
         <small>
           {(scoped
             ? taskState(workState(snapshot, t))
@@ -211,6 +213,7 @@ export function Cockpit({
                     title={canWork ? n.detail : n.detail.replace(/\byour /g, "")}
                   >
                     <span>{n.title}</span>
+                    <WorkContext snapshot={snapshot} taskId={n.taskId} />
                     <small>{canWork ? n.detail : n.detail.replace(/\byour /g, "")}</small>
                   </button>
                 </li>
@@ -266,6 +269,7 @@ export function Cockpit({
                     )}
                     <span className="fe-done-text">
                       <span>{title(t)}</span>
+                      <WorkContext snapshot={snapshot} taskId={t.id} />
                       <small className="fe-muted">
                         {scoped ? taskState(t.state) : nameOf(t.employeeId) + " · " + taskState(t.state)}
                       </small>

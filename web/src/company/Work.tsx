@@ -6,6 +6,7 @@ import { workGroups, workState, workTitle } from "./Cockpit";
 import { taskState } from "./labels";
 import { ago, useNow } from "./time";
 import { useMemberAccess } from "./MemberAccess";
+import { WorkContext } from "./WorkContext";
 
 const sections = [
   ["Needs review", workGroups.review],
@@ -68,6 +69,7 @@ export function WorkBoard({
                       onClick={() => onOpen(t)}
                     >
                       <span>{workTitle(snapshot, t)}</span>
+                      <WorkContext snapshot={snapshot} taskId={t.id} />
                       {asked(t) && <q className="co-work-asked">{asked(t)}</q>}
                       <small>
                         {(everyone ? nameOf(t.employeeId) + " · " : "") + taskState(workState(snapshot, t), canWork)}
@@ -126,6 +128,7 @@ export function WorkWindow({
       <header className="co-work-window-head">
         <div>
           <strong>{workTitle(snapshot, task)}</strong>
+          <WorkContext snapshot={snapshot} taskId={task.id} />
           <small>{(employee?.name ?? "Former employee") + " · " + taskState(workState(snapshot, task), canWork)}</small>
         </div>
         {onChat && (

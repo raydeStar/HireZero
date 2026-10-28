@@ -9,7 +9,13 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
-Current checkpoint (2026-10-27): new task packets omit only the exact current owner request duplicated in history,
+Current checkpoint (2026-10-27): review lists and opened work now identify the conversation and request under
+[ADR 0139](adr/0139-distinguishable-review-items.md), resolving identical skill titles in the pilot. The fictional
+browser journey verifies exact selection, refresh, stable numbering and mobile navigation with no live model call.
+See [review-label evidence](history/2026-10-27-review-request-labels.md). Owner usefulness and the broader phase
+gates remain open.
+
+Earlier context-cost checkpoint (2026-10-27): new task packets omit only the exact current owner request duplicated in history,
 preserving saved messages, earlier feedback and already-reviewed packets under [ADR 0138](adr/0138-single-current-request-in-context.md).
 The observed first-plan request had 1,890 duplicated characters. Thirty-three focused facts and four shared-path
 check groups pass without a live model call; no provider-token or billing saving is claimed. See

@@ -1086,6 +1086,35 @@ try {
   await bodyText("Reasoning effort: high");
   await bodyText("3,000 observed output tokens");
   assert.equal((await snapshot()).data.measured.find(m => m.id === preparedRevision.id).job.state, "proposed");
+  // Same skill, repeated requests and separate conversations must remain distinguishable before opening a result.
+  const measuredBeforeLabels = (await snapshot()).data.measured;
+  const labelled = [];
+  for (const [name, count] of [["Fictional paper-kit week one", 2], ["Fictional paper-kit week two", 1]]) {
+    const thread = await ownerPost("thread.create", { employeeId: nextRevision.employeeId, name });
+    for (let number = 1; number <= count; number++) {
+      const task = await ownerPost("task.create", { employeeId: nextRevision.employeeId, threadId: thread.id, skill: "marketing-starter-plan", body: "Prepare the fictional weekly content plan." });
+      await ownerPost("artifact.create", { id: task.id, expectedVersion: task.version, body: `Fictional result for ${name}, request ${number}.` });
+      labelled.push({ task, label: `${name} · Request ${number}` });
+    }
+  }
+  await send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await send("Page.navigate", { url: `${url}/?view=employee&employee=${nextRevision.employeeId}&thread=${labelled[0].task.threadId}&mode=work` });
+  for (const item of labelled) {
+    await until(() => evaluate(`Array.from(document.querySelectorAll('.co-needs .co-work-context')).some(e=>e.textContent===${JSON.stringify(item.label)})`), "Distinct review label appears");
+    await evaluate(`Array.from(document.querySelectorAll('.co-needs .co-work-context')).find(e=>e.textContent===${JSON.stringify(item.label)}).closest('button').click()`);
+    await until(() => evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(item.task.id)}&&document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(item.label)}`), "Review label opens the exact task and matches its header");
+  }
+  await send("Page.reload");
+  await until(() => evaluate(`document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(labelled[2].label)}`), "Selected review label survives reload");
+  const firstLabelTask = (await snapshot()).data.tasks.find(t => t.id === labelled[0].task.id);
+  await ownerPost("task.cancel", { id: firstLabelTask.id, expectedVersion: firstLabelTask.version });
+  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await send("Page.navigate", { url: `${url}/?view=departments&section=today` });
+  await until(() => evaluate(`Array.from(document.querySelectorAll('.co-today .co-work-context')).some(e=>e.textContent===${JSON.stringify(labelled[1].label)})`), "Request number is stable after earlier work is canceled");
+  await evaluate(`Array.from(document.querySelectorAll('.co-today .co-work-context')).find(e=>e.textContent===${JSON.stringify(labelled[1].label)}).closest('button').click()`);
+  await until(() => evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(labelled[1].task.id)}&&document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(labelled[1].label)}`), "Mobile Today opens the exact labelled request");
+  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
+  assert.deepEqual((await snapshot()).data.measured, measuredBeforeLabels, "Labelling and opening saved work makes no model request");
   assert.deepEqual(errors, []);
   await fs.writeFile(
     path.join(repo, "test-results/business-drafting-browser.json"),
@@ -1133,6 +1162,9 @@ try {
         completedAndSupersededWorkLeavesReviewQueue: true,
         completedWorkShowsApprovedCopyFirst: true,
         repeatedRevisionRetainsFeedback: true,
+        reviewLabelsIdentifyConversationAndRequest: true,
+        reviewLabelOpensExactWorkAcrossReloadAndMobile: true,
+        requestNumbersSurviveEarlierCancellation: true,
         deliverableReviewShowsHighEffortAnd3000Tokens: true,
         draftCheckFeedbackIsEditableAndNeverAutoRuns: true,
         boundedDeliverablePolicy: true,

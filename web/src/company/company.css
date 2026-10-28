@@ -1246,6 +1246,13 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+.co-workspace .co-work-context {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--fe-fg-2);
+  font-weight: 500;
+}
 .co-workspace .co-cockpit .done li button.fe-up-next-title {
   flex-direction: row;
   align-items: flex-start;

@@ -950,7 +950,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             </nav>
           )}
           {tab === "departments" && section === "today" && (
-            <Today open version={d.cursor ?? 0} busy={busy} run={run} onOpenNeed={openNeed} />
+            <Today snapshot={snapshot} open version={d.cursor ?? 0} busy={busy} run={run} onOpenNeed={openNeed} />
           )}
           {tab === "departments" && section === "inbox" && (
             <Inbox
