@@ -8,20 +8,17 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 - Home accepts a business sentence, goal and optional website, then generates one disclosed draft. Results
   open with Copy, Download and Refine; internal notes, receipts and administration are collapsed. Company knowledge and
   Settings group the navigation; multi-employee tools stay secondary for a small workspace.
-- Weekly plans now adapt to the business instead of prescribing an AI-workflow demonstration, with room for
-  complete assets. See [small-team UX and raw persona evidence](history/2026-10-28-small-team-drafts-and-personas.md).
-- Three first raw outputs were preserved: the email is basic, the agency plan is a usable starting point,
-  and the service landing page is too repetitive and leaks an internal caveat. First-run usefulness remains open.
+- Weekly plans adapt to the business instead of prescribing an AI-workflow demonstration. The latest
+  [length and table follow-up](history/2026-10-28-deliverable-length-and-tables.md) removes a conflicting Core
+  word ceiling, renders readable tables and preserves exact exports.
+- Raw agency, email and local-business samples provide some useful choice guidance, but repetition and
+  unsupported operational assumptions persist. [Prompt-only gains remain unproven](history/2026-10-28-grounded-actions-ready-drafts.md).
+  Finished private drafts appear as ready to use rather than urgent work; first-run usefulness remains open.
 - Local updates have verified backups and focused checks. The old weekly schedule remains saved and now
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
-- [Direct-asset comparisons and a fresh tutor check](history/2026-10-28-direct-asset-quality-comparison.md)
-  show better reader choices. Repetition and avoidable service/contact assumptions still need work.
-- [Grounding and ready-draft follow-up](history/2026-10-28-grounded-actions-ready-drafts.md) separates useful
-  private results from urgent work on Home and in the cockpit. Two more raw runs show that operational
-  assumptions persist despite clearer instructions; further prompt-only gains remain unproven.
-- The owner extended the evaluation allowance to 31 native runs: seven consumed, 24 remain. Exact receipts
-  and raw outputs stay private; reported usage is recorded in the history notes.
+- The evaluation allowance is 31 native runs: nine consumed, 22 remain, with 58,867 reported input/output
+  tokens. Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
 
 ## Next acceptance gate
 

@@ -74,6 +74,32 @@ public sealed class CompanyGoalStartTests : IDisposable
     }
 
     [Fact]
+    public void WeeklyGoalKeepsItsRequestedLengthWithoutAConflictingGenericCeiling()
+    {
+        var store = Store();
+        var command = Goal();
+        var input = CompanyJson.Decode<CompanyGoalStartInput>(command.Body!);
+        const string goal = "Write a weekly content plan with three finished posts, about 800 words overall.";
+        var prepared = A<Prepared>(
+            store,
+            command with
+            {
+                Body = CompanyJson.Encode(input with { Goal = goal, Prompt = goal }),
+            }
+        );
+        var call = store.TextCall(prepared.Attempt.Id);
+        Assert.Equal(goal, call.Context.Input);
+        Assert.Contains("750–900 words", call.Instructions);
+        Assert.DoesNotContain("at most 500 words", call.Instructions);
+        Assert.DoesNotContain("at most 80 words", call.Instructions);
+        Assert.Equal(CompanyMeasuredPolicy.Deliverable, prepared.Attempt.Measured!.Policy);
+        Assert.Equal(3000, prepared.Attempt.Measured.Policy.OutputTarget);
+        Assert.Equal("high", prepared.Attempt.Measured.Policy.Effort);
+        Assert.Equal(1, prepared.Attempt.Measured.Policy.NativeRequests);
+        Assert.Empty(MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts"));
+    }
+
+    [Fact]
     public void DirectMarketingGoalPreparesItsOwnInstructionsAndDeliverableTerms()
     {
         var store = Store();

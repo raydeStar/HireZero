@@ -224,9 +224,10 @@ public sealed class CompanyAssignmentTests : IDisposable
         Assert.Equal(CompanyMeasuredPolicy.Deliverable, prepared.Attempt.Measured.Policy);
         Assert.InRange(prepared.Attempt.Measured.ApplicationBytes, 4097, 24 * 1024);
         var call = Store().TextCall(prepared.Attempt.Id);
-        Assert.Contains("at most 500 words", call.Instructions);
+        Assert.DoesNotContain("at most 500 words", call.Instructions);
+        Assert.Contains("skill's format guidance", call.Instructions);
         Assert.DoesNotContain("at most 80 words", call.Instructions);
-        Assert.Contains("success measure", call.Instructions);
+        Assert.Contains("observable learning target", call.Instructions);
         Assert.Equal(knowledge.Body, call.Context.CompanyKnowledge);
         Assert.All(
             MeasuredQueueChecks.Items<CompanyBudget>(store, "budgets"),

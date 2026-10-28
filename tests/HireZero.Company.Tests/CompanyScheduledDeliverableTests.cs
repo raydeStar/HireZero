@@ -168,7 +168,8 @@ public sealed partial class CompanyScheduleTests
             Assert.Equal(input.Skill, task.Skill);
             Assert.Equal("awaiting_review", task.State);
             Assert.Empty(model.Last!.Context.History);
-            Assert.Contains("500 words", model.Last.Instructions);
+            Assert.DoesNotContain("at most 500 words", model.Last.Instructions);
+            Assert.Contains("skill's format guidance", model.Last.Instructions);
             Assert.DoesNotContain("80 words", model.Last.Instructions);
             var artifact = MeasuredQueueChecks.Items<CompanyArtifact>(s, "artifacts").Single(a => a.TaskId == task.Id);
             Assert.Equal("needs_review", artifact.State);

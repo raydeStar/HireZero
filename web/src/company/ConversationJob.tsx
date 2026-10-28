@@ -1,7 +1,7 @@
 import { canRepeatWork } from "./recurringWork";
 import { useMemberAccess } from "./MemberAccess";
 import { lazy, Suspense, useRef, useState, type FormEvent, type ReactNode } from "react";
-import Markdown from "react-markdown";
+import { DraftMarkdown } from "./DraftMarkdown";
 import { api, company, memberStorage } from "../lib/api";
 import type { Snapshot, Work } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
@@ -681,19 +681,7 @@ function Report({
         <span role="status">{copyStatus}</span>
       </div>
       <div className="co-report-content">
-        <Markdown
-          skipHtml
-          disallowedElements={["img"]}
-          components={{
-            a: ({ children, href }) => (
-              <a href={href} target="_blank" rel="noopener noreferrer">
-                {children}
-              </a>
-            ),
-          }}
-        >
-          {sections.draft}
-        </Markdown>
+        <DraftMarkdown>{sections.draft}</DraftMarkdown>
       </div>
       {long && (
         <button type="button" className="co-ghost co-report-toggle" onClick={() => setFull(!full)}>
@@ -706,19 +694,7 @@ function Report({
           <p className="co-muted">
             Copy and Download use the draft above. The full saved response includes these notes.
           </p>
-          <Markdown
-            skipHtml
-            disallowedElements={["img"]}
-            components={{
-              a: ({ children, href }) => (
-                <a href={href} target="_blank" rel="noopener noreferrer">
-                  {children}
-                </a>
-              ),
-            }}
-          >
-            {sections.notes}
-          </Markdown>
+          <DraftMarkdown>{sections.notes}</DraftMarkdown>
           <button type="button" className="co-ghost" onClick={() => download(body, "hirezero-full-result.md")}>
             Download full saved result
           </button>

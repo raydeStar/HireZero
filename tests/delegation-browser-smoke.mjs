@@ -286,7 +286,7 @@ try {
     await text("Fictional shared launch");
     assert.ok(
       await evaluate(
-        "document.querySelector('.co-packet').textContent.includes('500 words')",
+        'document.querySelector(".co-packet").textContent.includes("skill\'s format guidance")',
       ),
     );
     await evaluate(

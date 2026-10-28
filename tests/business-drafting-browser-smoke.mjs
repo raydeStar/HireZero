@@ -735,7 +735,8 @@ try {
   assert.match(firstPacket, /businessBrief/);
   assert.match(firstPacket, /https:\/\/paper.example.invalid\//);
   assert.match(firstPacket, /retrievedAt/);
-  assert.match(firstPacket, /at most 500 words/);
+  assert.match(firstPacket, /skill's format guidance/);
+  assert.doesNotMatch(firstPacket, /at most 500 words/);
   assert.doesNotMatch(firstPacket, /at most 80 words/);
   await bodyText("DRAFT FOR INTERNAL REVIEW");
   await bodyText("Hypothesis: a short folding demonstration may help.");
