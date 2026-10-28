@@ -56,6 +56,19 @@ public sealed class MeasuredEffortTests
         Assert.Equal("low", await Effort(CompanyMeasuredPolicy.Current));
     }
 
+    [Fact]
+    public async Task ARuntimeThatDoesNotConfirmTheEffortSendsNoTurn()
+    {
+        await using var root = new TemporaryRoot("measured-effort-");
+        var model = MeasuredQueueChecks.Model(root.Path, "company-ignored-effort");
+        var (call, job) = Packet(model, CompanyMeasuredPolicy.Deliverable);
+        var refused = await Assert.ThrowsAsync<WorkspaceException>(() =>
+            model.CompleteMeasuredAsync(call, job, TestContext.Current.CancellationToken)
+        );
+        Assert.Contains("reasoning effort", refused.Message);
+        Assert.Empty(Directory.GetFiles(root.Path, "fixture-native-starts", SearchOption.AllDirectories));
+    }
+
     private static string[] Efforts(string root) =>
         Directory.GetFiles(root, "fixture-native-efforts", SearchOption.AllDirectories);
 

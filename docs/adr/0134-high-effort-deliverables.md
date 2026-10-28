@@ -15,6 +15,9 @@ crossed the 1,800-token output target and been discarded.
 
 - `CompanyMeasuredPolicy` gains an optional `Effort`, sent as the Codex turn effort. Absent means low and is omitted
   from JSON, so stored policies, jobs and schedule approvals keep their digests. Qualification turns stay low.
+  Since 2026-10-28 it is also set at thread start, and the thread must confirm it before any turn is sent; the
+  pinned runtime had ignored the turn's own effort
+  ([note](../history/2026-10-28-runtime-ignored-turn-effort.md)).
 - `measured-deliverable-v2` runs at high effort with a 3,000-token output target. Planning tokens (22,000), the
   90-second deadline and the 9,000-character visible stop are unchanged. It covers every measured deliverable:
   Marketing, CEO, Developer and plan work.

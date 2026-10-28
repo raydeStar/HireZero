@@ -314,6 +314,9 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                     "A selected model is absent from this account's catalog; no substitution."
                 );
             await rpc.VerifyPermissions(PermissionProfile, ReadOnly(rpc.WorkingDirectory), deadline.Token);
+            // The reviewed policy sets the effort; qualification turns stay low. The pinned runtime applies the
+            // thread's effort and ignores the turn's own, so it is set on both and confirmed before any turn.
+            var effort = measured?.Policy.Effort ?? "low";
             var response = await rpc.Request(
                 "thread/start",
                 new
@@ -333,6 +336,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                         ? "You are a text-only employee assistant. Use only the supplied context. Never call tools, access files, retrieve other history or perform actions. Reply in at most 80 words."
                         : "",
                     developerInstructions = call.Instructions,
+                    config = new { model_reasoning_effort = effort },
                 },
                 deadline.Token
             );
@@ -352,6 +356,10 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 throw new WorkspaceException(
                     "Codex thread isolation is unconfirmed: exact route, ephemeral state, read-only sandbox and zero ambient instruction sources are required. No model turn was sent."
                 );
+            if (Text(response, "reasoningEffort") != effort)
+                throw new WorkspaceException(
+                    "The runtime did not confirm the reviewed reasoning effort. No model turn was sent."
+                );
             thread =
                 response.GetProperty("thread").GetProperty("id").GetString()
                 ?? throw new WorkspaceException("Missing thread identity.");
@@ -366,8 +374,7 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
                 {
                     threadId = thread,
                     model,
-                    // The reviewed policy sets the effort; qualification turns stay low.
-                    effort = measured?.Policy.Effort ?? "low",
+                    effort,
                     summary = "none",
                     approvalPolicy = "never",
                     environments = Array.Empty<object>(),

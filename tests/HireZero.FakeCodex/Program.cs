@@ -6,6 +6,9 @@ const string thread = "fixture-thread",
 var companyTextModel = mode == "company-analysis-routing" ? "gpt-6.1-sol" : "gpt-6-luna";
 var companyTurnSent = false;
 var companyConversationTurn = false;
+
+// Like the pinned runtime, the thread's configured effort is the one applied; the "-ignored-effort" modes drop it.
+string? threadEffort = null;
 const string companyProfile = "hirezero_qualification";
 const string removedReadAccess = "readOnly.access is no longer supported; use permissionProfile for restricted reads";
 void Write(object value)
@@ -315,6 +318,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                     != (mode == "coding-live-network")
             )
                 throw new Exception("Invalid live coding thread");
+            threadEffort = pr.GetProperty("config").GetProperty("model_reasoning_effort").GetString();
             File.WriteAllText(Path.Combine(home, "fixture-coding-cwd"), pr.GetProperty("cwd").GetString());
             Reply(
                 new
@@ -328,6 +332,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                         ? new[] { "fictional/AGENTS.md" }
                         : Array.Empty<string>(),
                     sandbox = new { type = "workspaceWrite", networkAccess = mode == "coding-live-network" },
+                    reasoningEffort = mode == "coding-live-ignored-effort" ? null : threadEffort,
                 }
             );
         }
@@ -342,6 +347,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || pr.GetProperty("runtimeWorkspaceRoots").GetArrayLength() != 1
                 || pr.GetProperty("runtimeWorkspaceRoots")[0].GetString()
                     != File.ReadAllText(Path.Combine(home, "fixture-coding-cwd"))
+                || pr.GetProperty("effort").GetString() != threadEffort
             )
                 throw new Exception("Invalid live coding turn");
             companyTurnSent = true;
@@ -555,6 +561,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                 || p.GetProperty("permissions").GetString() != companyProfile
             )
                 throw new Exception("Invalid company thread envelope");
+            threadEffort = p.GetProperty("config").GetProperty("model_reasoning_effort").GetString();
             Write(
                 new
                 {
@@ -574,6 +581,7 @@ while (await Console.In.ReadLineAsync() is { } line)
                             ? new[] { "fictional/global/AGENTS.md" }
                             : Array.Empty<string>(),
                         sandbox = new { type = "readOnly", networkAccess = false },
+                        reasoningEffort = mode == "company-ignored-effort" ? null : threadEffort,
                     },
                 }
             );
@@ -599,7 +607,7 @@ while (await Console.In.ReadLineAsync() is { } line)
             File.AppendAllText(Path.Combine(Directory.GetCurrentDirectory(), "fixture-native-starts"), "start\n");
             File.AppendAllText(
                 Path.Combine(Directory.GetCurrentDirectory(), "fixture-native-efforts"),
-                p.GetProperty("effort").GetString() + "\n"
+                threadEffort + "\n"
             );
             if (mode == "company-start-refusal")
             {
@@ -633,6 +641,7 @@ while (await Console.In.ReadLineAsync() is { } line)
             if (
                 p.GetProperty("model").GetString() != companyTextModel
                 || p.GetProperty("effort").GetString() is not ("low" or "high")
+                || p.GetProperty("effort").GetString() != threadEffort
                 || p.GetProperty("summary").GetString() != "none"
                 || p.GetProperty("serviceTierForTurn").GetString() != "default"
                 || p.TryGetProperty("sandboxPolicy", out _)

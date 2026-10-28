@@ -110,6 +110,7 @@ public sealed class LiveCodingTests : IDisposable
     [InlineData("coding-live-missing-model")]
     [InlineData("coding-live-broad")]
     [InlineData("coding-live-ambient")]
+    [InlineData("coding-live-ignored-effort")]
     public void EveryPreflightDoubtRefusesBeforeATurnIsSent(string mode)
     {
         var grant = Grant();

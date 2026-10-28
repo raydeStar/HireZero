@@ -270,6 +270,8 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
                 serviceName = "hirezero_execution",
                 baseInstructions = BaseInstructions(_grant.AllowNetwork),
                 developerInstructions = "",
+                // The pinned runtime applies the thread's effort and ignores the turn's own.
+                config = new { model_reasoning_effort = _grant.Bounds.Effort },
             },
             token
         );
@@ -289,6 +291,10 @@ public sealed class CompanyCodexCodingRunner : ICodingRunner, ICodingRunLifecycl
         )
             throw new WorkspaceException(
                 "Codex thread isolation is unconfirmed: exact model, ephemeral state, the approved profile without network and zero ambient instruction sources are required. No turn was sent."
+            );
+        if (CodexAppServer.Text(response, "reasoningEffort") != _grant.Bounds.Effort)
+            throw new WorkspaceException(
+                "The runtime did not confirm the approved reasoning effort. No turn was sent."
             );
         return (
             CodexAppServer.Text(thread, "id") ?? throw new WorkspaceException("Missing thread identity."),

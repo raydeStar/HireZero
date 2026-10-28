@@ -239,6 +239,7 @@ static class CompanyCodexChecks
             "company-wrong-profile",
             "company-removed-access",
             "company-diagnostic-suffix",
+            "company-ignored-effort",
         };
         if (OperatingSystem.IsWindows())
             modes = [.. modes, "company-windows-disabled", "company-windows-unelevated", "company-windows-elevated"];
@@ -266,6 +267,7 @@ static class CompanyCodexChecks
                         e.Message.Contains("restricted permissions are unconfirmed"),
                     "company-disallowed-profile" => e.Message.Contains("did not allow"),
                     "company-wrong-profile" => e.Message.Contains("thread isolation is unconfirmed"),
+                    "company-ignored-effort" => e.Message.Contains("did not confirm the reviewed reasoning effort"),
                     "company-windows-disabled" or "company-windows-unelevated" or "company-windows-elevated" =>
                         e.Message.Contains("Windows sandbox enforcement is not configured"),
                     _ => true,
