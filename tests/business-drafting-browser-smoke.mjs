@@ -972,6 +972,10 @@ try {
   assert.deepEqual(afterCopy.measured, beforeCopy.measured, "Manual editing makes no model request");
   await send("Page.reload");
   await bodyText("Show the fold with its printed step number");
+  assert.equal(await evaluate("document.querySelector('.co-work-window .co-artifact')?.dataset.artifactId"), savedCopy.id,
+    "The newest saved copy is the first result after refresh");
+  assert.match(await evaluate(`document.querySelector('[data-artifact-id="${savedCopy.id}"] small').innerText`), /Draft 2/);
+  assert.match(await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"] small').innerText`), /Draft 1/);
   assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), "",
     "Confirmed save clears this tab's recovery draft");
   await click("Ask for changes");
@@ -1152,6 +1156,7 @@ try {
         narrowWorkLinkSelectsVisibleTab: true,
         chatLeavesNarrowWorkWindow: true,
         editableCopyPreservesOriginal: true,
+        latestSavedCopyAppearsFirstWithStableDraftNumbers: true,
         editorDraftSurvivesRefresh: true,
         editorNeverOverwritesUnsavedText: true,
         manualEditNeedsReviewWithoutModelCall: true,

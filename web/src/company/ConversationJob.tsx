@@ -139,7 +139,8 @@ export function ConversationJob({
   });
   const [editorNotice, setEditorNotice] = useState("");
   const editor = useRef<HTMLTextAreaElement>(null);
-  const artifacts = d.artifacts.filter((a) => a.taskId === t.id);
+  const savedArtifacts = d.artifacts.filter((a) => a.taskId === t.id);
+  const artifacts = [...savedArtifacts].reverse();
   if (t.state === "completed")
     artifacts.sort((a, b) => Number(b.state === "approved") - Number(a.state === "approved"));
   const hasApprovedResult = artifacts.some((a) => a.state === "approved");
@@ -271,6 +272,7 @@ export function ConversationJob({
       {artifacts.map((a) => (
         <div className="co-artifact" key={a.id} data-artifact-id={a.id} tabIndex={-1}>
           <small>
+            {savedArtifacts.length > 1 && `Draft ${savedArtifacts.findIndex((saved) => saved.id === a.id) + 1} · `}
             {provenance(employeeRole, a.provenance)} ·{" "}
             {["completed", "canceled", "superseded"].includes(t.state) && a.state === "needs_review"
               ? "Earlier draft · not approved"

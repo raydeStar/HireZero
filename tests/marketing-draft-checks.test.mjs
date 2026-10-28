@@ -21,6 +21,14 @@ assert.equal(starterPlanChecks(body, base, [base]).find(c => c.label === "Monday
 assert.equal(wordCount("**Fold** [the paper](https://example.invalid/paper) — then crease."), 5);
 assert.equal(starterPlanChecks(text(501), base, [base])[0].state, "fail");
 assert.equal(starterPlanChecks(body + "4. Permission?\n", base, [base]).find(c => c.label === "Unknowns and decisions").state, "fail");
+for (const heading of ["**Open decisions:**", "## Open decisions"]) {
+  const decisionList = `${heading}\n- Audience?\n- Timing?\n`;
+  const result = starterPlanChecks(decisionList, base, [base]).find(c => c.label === "Unknowns and decisions");
+  assert.equal(result.state, "pass");
+  assert.match(result.detail, /2 listed/);
+  assert.equal(starterPlanChecks(decisionList + "- Channel?\n- Permission?\n", base, [base]).find(c => c.label === "Unknowns and decisions").state, "fail");
+}
+assert.equal(starterPlanChecks("**Open decisions:** confirm audience and timing.", base, [base]).find(c => c.label === "Unknowns and decisions").state, "review");
 checks = starterPlanChecks(body, revision, [revision]);
 assert.equal(checks.find(c => c.label === "Earlier requirements").state, "review");
 assert.equal(checks.find(c => c.label === "Monday length").state, "review");

@@ -9,7 +9,19 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
-Current checkpoint (2026-10-27): new recurring drafts preserve the original request and complete ordered revision
+Current checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
+example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
+it is 460 words with three complete posts and eleven passing format checks. The native result remains intact.
+The review now starts with the newest saved copy and stable draft numbers under
+[ADR 0141](adr/0141-latest-saved-draft-first.md). The checker recognizes listed open decisions. Focused checks and
+the fictional first-plan/edit/revision browser journey pass. The update is installed with preserved accounts,
+work and audit chains; the actual latest copy and passing format checks are visible after refresh. An in-app
+browser clipboard discrepancy remains unresolved; the saved copy itself is verified. Seven calls under the ongoing authorization total
+64,684 reported input/output tokens; actual credits remain unknown. See
+[concrete-workflow evidence](history/2026-10-27-concrete-workflow-plan-review.md). Owner usefulness acceptance
+and all broader phase gates remain open.
+
+Earlier recurring checkpoint (2026-10-27): new recurring drafts preserve the original request and complete ordered revision
 feedback under [ADR 0140](adr/0140-revision-feedback-in-recurring-drafts.md). Oversized combined text remains
 intact until explicit owner consolidation; saved drafts and authorized schedules stay unchanged. The production
 builds and fictional recurring browser journey pass, including both feedback requirements reaching the scheduled

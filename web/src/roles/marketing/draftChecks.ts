@@ -70,7 +70,7 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
       state: "review",
     });
   const unknownSection = body.match(
-    /^(?:#{1,6}\s+|\*\*)[^\n]*(?:unknowns|missing facts|owner decisions)[^\n]*\n([\s\S]*?)(?=^#{1,2}\s|$(?![\s\S]))/im,
+    /^(?:#{1,6}\s+|\*\*)[^\n]*(?:unknowns|missing facts|owner decisions|open decisions)[^\n]*\n([\s\S]*?)(?=^#{1,2}\s|$(?![\s\S]))/im,
   );
   const unknowns = unknownSection ? [...unknownSection[1].matchAll(/^\s*(?:[-*]|\d+[.)])\s+\S/gm)].length : undefined;
   checks.push({
