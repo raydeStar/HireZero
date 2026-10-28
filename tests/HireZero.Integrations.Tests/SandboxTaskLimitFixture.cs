@@ -7,6 +7,20 @@ internal static class SandboxTaskLimitFixture
         import {spawn, spawnSync} from 'node:child_process';
         import {Worker} from 'node:worker_threads';
         let stage = 'identity';
+        const accounting = {pid:process.pid, baseline:null, exhausted:null, children:[]};
+        function taskSnapshot() {
+          const ids = fs.readdirSync('/proc').filter(id => /^\d+$/.test(id));
+          assert(ids.length <= 48, 'Unexpected process inventory size');
+          return ids.map(id => {
+            const info = fs.readFileSync('/proc/'+id+'/status','utf8');
+            const field = name => {
+              const match = info.match(new RegExp('^'+name+':\\s+(\\d+)', 'm'));
+              assert(match, 'Missing process field: '+name);
+              return Number(match[1]);
+            };
+            return {pid:Number(id),ppid:field('PPid'),uid:field('Uid'),threads:field('Threads')};
+          });
+        }
         try {
         assert.equal(process.getuid(), 65534);
         assert.equal(process.getgid(), 65534);
@@ -26,6 +40,8 @@ internal static class SandboxTaskLimitFixture
         const children = [];
         let worker, processError = '', threadError = '', workloadTasks = 0;
         try {
+          stage = 'baseline-task-accounting';
+          accounting.baseline = taskSnapshot();
           for (let attempt = 0; attempt < 40; attempt++) {
             stage = 'sleep-child-' + attempt;
             const child = spawn('/bin/sleep',['30'],{stdio:'ignore'});
@@ -35,15 +51,14 @@ internal static class SandboxTaskLimitFixture
             });
             if (result !== 'spawned') { processError = result; break; }
             children.push(child);
+            accounting.children.push(child.pid);
           }
           stage = 'process-limit-error';
           assert.equal(processError, 'EAGAIN');
           assert(children.length > 0 && children.length < 40);
           stage = 'count-workload-tasks';
-          for (const id of fs.readdirSync('/proc').filter(id => /^\d+$/.test(id))) {
-            const info = fs.readFileSync('/proc/'+id+'/status','utf8');
-            if (/^Uid:\s+65534\s/m.test(info)) workloadTasks += Number(info.match(/^Threads:\s+(\d+)/m)[1]);
-          }
+          accounting.exhausted = taskSnapshot();
+          workloadTasks = accounting.exhausted.filter(row => row.uid === 65534).reduce((sum,row) => sum + row.threads, 0);
           assert.equal(workloadTasks, 32);
           stage = 'worker-thread-limit';
           try {
@@ -63,10 +78,10 @@ internal static class SandboxTaskLimitFixture
           })));
         }
         stage = 'save-proof';
-        fs.writeFileSync('result.txt',JSON.stringify({uid:process.getuid(),workloadTasks,processError,threadRefused:true,childrenReaped:children.length}));
+        fs.writeFileSync('result.txt',JSON.stringify({uid:process.getuid(),workloadTasks,processError,threadRefused:true,childrenReaped:children.length,accounting}));
         } catch (error) {
-          // Preserve a bounded fictional assertion result even when the supervisor requires an output file.
-          fs.writeFileSync('result.txt',JSON.stringify({failed:true,stage,errorCode:error.code??null,errorName:error.name,errorMessage:String(error.message).slice(0,1000)}));
+          // Count every guest task; an extra guest cannot escape the bill by changing its dinner jacket.
+          fs.writeFileSync('result.txt',JSON.stringify({failed:true,stage,errorCode:error.code??null,errorName:error.name,errorMessage:String(error.message).slice(0,1000),accounting}));
           throw error;
         }
         """;

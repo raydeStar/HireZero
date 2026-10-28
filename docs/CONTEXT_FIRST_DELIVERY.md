@@ -36,6 +36,10 @@ edits survive both view changes and refresh. Both fictional drafting and recurri
 update is installed in both workspaces with verified backups, preserved model records and the exact active
 schedule unchanged. No live model calls were needed; see [review-layout evidence](history/2026-10-27-focused-result-review.md).
 The clipboard integration discrepancy and broader customer/commercial/runtime gates remain open.
+The next runtime investigation found a source-based UID-counter hypothesis for the earlier 33-versus-32 task
+failure. A bounded process-inventory diagnostic is prepared and passes its offline build/syntax/probe checks;
+see [source evidence and proposed one-job scope](history/2026-10-27-script-task-accounting-review.md). It has not
+run, changes no runtime limit or pin, and requires a fresh decision under the prior diagnostic's stop condition.
 
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
 example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
