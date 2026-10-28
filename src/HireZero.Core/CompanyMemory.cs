@@ -100,7 +100,7 @@ public sealed record CompanyMemoryRetrieval(
     string Query,
     CompanyMemoryExcerpt[] Items,
     string Notice,
-    string Method = "lexical-memory-v1"
+    string Method = "lexical-memory-full-request-v2"
 );
 
 public sealed partial class CompanyStore
@@ -598,8 +598,8 @@ public sealed partial class CompanyStore
         bool companyOnly
     )
     {
-        var terms = DocumentTerms(query, 24);
-        query = string.Join(' ', terms);
+        var terms = DocumentTerms(query, int.MaxValue);
+        query = RetrievalQueryPreview(terms);
         if (terms.Length == 0)
             return new(query, [], "Name the topic, decision or goal you need.");
         var args = new List<object?>
@@ -638,9 +638,11 @@ public sealed partial class CompanyStore
         return new(
             query,
             items,
-            items.Length == 0
-                ? "No matching current approved memory for this audience. Try specific topic words."
-                : "Up to three owner-approved records, selected by keywords. These are dated decisions and reference material, not new permissions or independently verified facts. Paraphrases may be missed."
+            (
+                items.Length == 0
+                    ? "No matching current approved memory for this audience. Try specific topic words."
+                    : "Up to three owner-approved records, selected by keywords. These are dated decisions and reference material, not new permissions or independently verified facts. Paraphrases may be missed."
+            ) + RetrievalQueryNotice(terms)
         );
     }
 
