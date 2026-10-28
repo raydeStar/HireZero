@@ -97,6 +97,7 @@ public sealed partial class CompanyStore
             case "business.draft.prepare":
                 return PrepareBusinessDraft(db, c);
             case "business.lookup.start":
+            case "goal.lookup.start":
                 return StartBusinessLookup(db, c);
             case "business.refresh.start":
                 return StartBusinessRefresh(db, c);
@@ -112,6 +113,8 @@ public sealed partial class CompanyStore
                 return PrepareAssignment(db, c);
             case "goal.prepare":
                 return PrepareGoal(db, c);
+            case "goal.context":
+                return PrepareGoalContext(db, c);
             case "context.draft":
                 return PrepareContextDraft(db, c);
             case "connection.resolve":

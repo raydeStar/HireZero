@@ -51,6 +51,7 @@ const host = spawn(
       HIREZERO_DATA_ROOT: path.join(temporary, "data"),
       HIREZERO_EXECUTION_HOLD: "0",
       HIREZERO_BROWSER_TEAM: "1",
+      HIREZERO_BROWSER_SYNTHETIC_BUSINESS: "1",
     },
     stdio: ["ignore", "pipe", "pipe"],
   },
@@ -204,15 +205,35 @@ try {
   assert.equal(await evaluate("!!document.querySelector('[aria-label=\"Getting started\"]')"),false);
   await setField('What does your business do?','Fictional team studio sells paper craft kits.');
   await setField('Your goal','Improve website accessibility');
+  await setField('Website (optional)','http://paper.example.invalid/');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start input[type=url]').validity.valid"),false,'Only supported https addresses can be submitted');
+  await setField('Website (optional)','https://paper.example.invalid/');
   await text('Your first technical plan');
+  await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'run terms on Home');
+  await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
   await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
   const capture=async name=>fs.writeFile(path.join(repo,'test-results/'+name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
   await capture('goal-start-desktop');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
-  assert.equal(await evaluate("document.querySelector('.co-goal-start .co-primary').getBoundingClientRect().bottom < innerHeight - 60"),true,'Main action is visible above mobile navigation');
+  await evaluate("document.querySelector('.co-goal-start .co-primary').scrollIntoView({block:'center'})");
+  await delay(150);
+  await capture('goal-start-mobile');
+  await until(()=>evaluate("document.querySelector('.co-goal-start .co-primary').getBoundingClientRect().height >= 44"),'Main action remains comfortably tappable');
   await capture('goal-start-mobile');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+  await evaluate(`(()=>{const original=window.fetch;let refuse=true;window.fetch=async(input,options)=>{
+    if(refuse&&String(input)==='/api/company/commands'&&JSON.parse(options?.body||'{}').action==='goal.context'){
+      refuse=false;return new Response(JSON.stringify({error:'Fictional setup refusal'}),{status:422,headers:{'Content-Type':'application/json'}});
+    }return original(input,options);
+  };})()`);
+  await click('Generate my first draft');
+  await text('Fictional setup refusal');
+  await click('Edit request');
+  await until(()=>evaluate("!!document.querySelector('.co-goal-start form')"),'confirmed refusal returns to Home editing');
+  assert.equal((await dashboard()).data.tasks.length,0);
+  assert.equal(await evaluate("document.querySelector('.co-goal-start .co-check input').checked"),false,'Fresh consent after editing a refused request');
+  await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
   // Lose the confirmed save reply and its immediate lookup. Reload must recover the same work.
   await evaluate(`(()=>{const original=window.fetch;window.fetch=async(input,options)=>{
     if(String(input).includes('/company/operations/')) throw new TypeError('Fictional unavailable lookup');
@@ -221,7 +242,7 @@ try {
     }
     return original(input,options);
   };})()`);
-  await click('Prepare my draft');
+  await click('Generate my first draft');
   await text('Check saved request');
   let state=(await dashboard()).data;
   assert.equal(state.employees.length,1);
@@ -232,16 +253,18 @@ try {
   await send('Page.reload');
   await text('Check saved request');
   await click('Check saved request');
-  await text('Authorize and run one job');
-  await until(()=>evaluate("!!document.querySelector('.co-job-card .co-packet')"),'review loads without another click');
+  await text('Fictional technical plan');
   assert.equal((await dashboard()).data.tasks.length,1);
   assert.equal(await evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(task.id)}`),true);
-  await evaluate("document.querySelector('.co-job-card .co-check input').click()");
-  await click('Authorize and run one job');
-  await text('Fictional technical plan');
   state=(await dashboard()).data;
   const result=state.artifacts.find(a=>a.taskId===task.id);
   assert.ok(result);
+  assert.equal(state.businessLookups.length,1);
+  assert.ok(state.businessSources.length > 0);
+  const packet = await fetch(url+'/api/company/measured/'+state.measured[0].id).then(r=>r.json());
+  assert.match(packet.call.context.websiteResearch.sources[0].text,/folding guide/);
+  assert.equal(packet.call.context.businessBrief.fields.find(f=>f.key==='services').verification,'unknown');
+  assert.equal(state.measured.length,1,'Only one model run after a lost reply');
   assert.equal(await evaluate(`document.querySelector('[data-artifact-id="${result.id}"]')?.open===true`),true);
   await capture('goal-first-result');
   await command('artifact.create',{id:task.id,expectedVersion:state.tasks[0].version,body:'Fictional revised accessibility draft.'});
@@ -250,9 +273,20 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('[aria-label=\"Recent results\"] li').length"),1);
   assert.equal(await evaluate("document.querySelector('.co-home').firstElementChild.getAttribute('aria-label')"),'Recent results');
   await text('Fictional revised accessibility draft.');
+  await click('Start another goal');
+  await setField('Your goal','Improve website keyboard accessibility');
+  await setField('Website (optional)','');
+  await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'next-run terms');
+  await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
+  await click('Generate my first draft');
+  await text('Fictional technical plan');
+  state=(await dashboard()).data;
+  assert.equal(state.tasks.length,2);
+  assert.equal(state.measured.length,2);
+  assert.equal(state.artifacts.filter(a=>a.taskId!==task.id).length,1,'Normal single-click path saves the first raw result');
   assert.deepEqual(errors,[]);
-  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),goalToPreparedReview:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
-  console.log('PASS goal start: two short inputs, automatic setup, one run review and the exact saved result. The butler handled the paperwork.');
+  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),singleHomeConsent:true,optionalWebsiteDiscovery:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
+  console.log('PASS goal start: optional website, automatic setup, single Home consent and the exact saved result. The butler handled the paperwork.');
   await send('Browser.close').catch(()=>{});
 } catch (error) {
   await fs.mkdir(path.join(repo, "test-results"), { recursive: true });

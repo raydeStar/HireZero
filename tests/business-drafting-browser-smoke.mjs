@@ -167,7 +167,11 @@ try {
   };
   const snapshot = () => fetch(url + "/api/company").then((r) => r.json());
   const ownerPost = async (action, fields) => {
-    const response = await fetch(url + "/api/company/commands", {
+    if (action === "artifact.create") {
+      // The fixture worker may park an unqualified task between creation and seeding.
+      fields = { ...fields, expectedVersion: (await snapshot()).data.tasks.find(t => t.id === fields.id).version };
+    }
+    const post = () => fetch(url + "/api/company/commands", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -180,6 +184,12 @@ try {
         ...fields,
       }),
     });
+    let response = await post();
+    if (action === "artifact.create" && response.status === 409) {
+      // A confirmed version refusal wrote nothing. Refresh this fictional setup once; never replay an uncertain write.
+      fields = { ...fields, expectedVersion: (await snapshot()).data.tasks.find(t => t.id === fields.id).version };
+      response = await post();
+    }
     assert.equal(response.status, 200, await response.clone().text());
     return response.json();
   };
@@ -200,7 +210,8 @@ try {
         ),
       text,
     );
-  await click("Start from a website instead");
+  await send("Page.navigate", { url: url + "/?view=departments&section=business" });
+  await until(() => evaluate("!!document.querySelector('.co-business')"), "Business brief editor");
   await field("Business name", "Fictional Paper Studio");
   await field(
     "What would you like help achieving?",
@@ -668,8 +679,10 @@ try {
   await evaluate(
     "window.firstPlanFetch=window.fetch;window.loseFirstPlan=true;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(window.loseFirstPlan&&body.action==='goal.prepare'){window.loseFirstPlan=false;await new Promise(resolve=>window.releaseFirstPlan=resolve);await window.firstPlanFetch(input,init);throw new TypeError('Synthetic lost first-plan reply');}return window.firstPlanFetch(input,init);};",
   );
-  await click("Prepare my draft");
-  await bodyText("Preparing your draft…");
+  await until(() => evaluate("!!document.querySelector('.co-goal-start .co-check input')"), "Home run terms");
+  await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
+  await click("Generate my first draft");
+  await bodyText("Preparing your request…");
   assert.equal(
     await evaluate(
       "document.body.innerText.includes('The save needs confirmation')",
@@ -683,7 +696,7 @@ try {
     true,
   );
   await evaluate("window.releaseFirstPlan()");
-  await bodyText("Review task and context");
+  await bodyText("DRAFT FOR INTERNAL REVIEW");
   data = (await snapshot()).data;
   const firstTask = () =>
     data.tasks.find((t) => t.skill === "marketing-starter-plan");
@@ -698,12 +711,8 @@ try {
     (m) => m.job.policy.version === "measured-deliverable-v2",
   );
   assert.ok(firstMeasured);
-  assert.equal(firstMeasured.job.state, "proposed");
-  assert.equal(
-    data.budgets.find((b) => b.id === "company-total").used,
-    360,
-    "Preparing first plan spends nothing",
-  );
+  assert.equal(firstMeasured.job.state, "completed");
+  assert.ok(data.budgets.find((b) => b.id === "company-total").used > 360, "Single Home consent dispatches the draft");
   await home();
   await until(
     () =>
@@ -720,14 +729,7 @@ try {
     "No duplicate preparation form after a saved assignment",
   );
   await click("Continue my work");
-  await click("Review task and context");
-  await until(
-    () => evaluate("!!document.querySelector('.co-job-card .co-packet')"),
-    "First plan packet",
-  );
-  const firstPacket = await evaluate(
-    "document.querySelector('.co-job-card .co-packet').textContent",
-  );
+  const firstPacket = JSON.stringify(await fetch(url + "/api/company/measured/" + firstMeasured.id).then(r => r.json()));
   assert.match(firstPacket, /Paper craft kits for adult hobbyists/);
   assert.match(firstPacket, /Warm and patient, from my unsaved edit/);
   assert.match(firstPacket, /businessBrief/);
@@ -735,10 +737,6 @@ try {
   assert.match(firstPacket, /retrievedAt/);
   assert.match(firstPacket, /at most 500 words/);
   assert.doesNotMatch(firstPacket, /at most 80 words/);
-  await evaluate(
-    "document.querySelector('.co-job-card .co-check input').click()",
-  );
-  await click("Authorize and run one job");
   await bodyText("DRAFT FOR INTERNAL REVIEW");
   await bodyText("Hypothesis: a short folding demonstration may help.");
   // Home already opened focused work mode; the completed draft is readable without another navigation step.
@@ -1185,13 +1183,14 @@ try {
     body: "Fictional folding checklist. " + "Fold the fictional paper. ".repeat(130),
   });
   await send("Page.navigate", { url: `${url}/?view=employee&employee=${revision.employeeId}&thread=${revision.threadId}&work=${revision.id}&mode=work` });
-  await bodyText("500-word starter-plan limit");
-  await bodyText("Outside limit");
+  await until(() => evaluate(`!!document.querySelector('[data-artifact-id="${revisionCopy.id}"] .co-draft-checks')`), "Advisory checks for the latest draft");
+  await evaluate(`(()=>{const checks=document.querySelector('[data-artifact-id="${revisionCopy.id}"] .co-draft-checks');if(!checks.open)checks.querySelector('summary').click();})()`);
+  await bodyText("about 500 suggested");
+  assert.equal(await evaluate("document.querySelector('.co-draft-checks').textContent.includes('Outside limit')"), false, "Modest length differences are not failures");
   await click("Ask for changes");
-  await click("Use draft check findings");
-  const repairText = await evaluate("document.querySelector('.co-revision-feedback textarea').value");
-  assert.match(repairText, /Total length:/);
-  assert.match(repairText, /earlier feedback/);
+  assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Use draft check findings')"), false);
+  const repairText = "Make the opening more concrete and preserve earlier feedback.";
+  await evaluate(`(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(repairText)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   const measuredBeforeRepair = (await snapshot()).data.measured;
   await send("Page.reload");
   await bodyText("Continue requested changes");

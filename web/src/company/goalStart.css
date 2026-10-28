@@ -48,12 +48,29 @@
 .co-goal-output p {
   margin: 6px 0;
 }
-.co-goal-start .co-primary {
+.co-workspace .co-goal-start button.co-primary {
   justify-self: start;
-  min-height: 44px;
+  /* The shell's mobile :not() chain has unusually high specificity. Keep this primary action tappable. */
+  min-height: 48px !important;
 }
 .co-goal-start dd {
   margin: 4px 0 12px;
+}
+.co-goal-start .co-check {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 12px;
+}
+.co-goal-start input[type="checkbox"] {
+  width: 18px;
+  flex: 0 0 18px;
+  margin-top: 3px;
+}
+.co-goal-terms {
+  font-size: 0.9rem;
+}
+.co-goal-terms p {
+  margin: 6px 0;
 }
 @media (max-width: 600px) {
   .co-goal-start {

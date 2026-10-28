@@ -173,7 +173,8 @@ try {
         ),
       text,
     );
-  await click("Start from a website instead");
+  await send("Page.navigate", { url: url + "/?view=departments&section=business" });
+  await until(() => evaluate("!!document.querySelector('.co-business')"), "Business brief editor");
   await field("Business name", "Fictional Paper Studio");
   await field("Website (optional)", "https://paper.example.invalid/");
   await field(

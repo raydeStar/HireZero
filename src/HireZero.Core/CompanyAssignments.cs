@@ -3,7 +3,7 @@ namespace HireZero.Core;
 public sealed partial class CompanyStore
 {
     // One transaction creates a tracked task and its reviewable packet. Preparation is not permission to run it.
-    private object PrepareAssignment(StoreConnection db, CompanyCommand command)
+    private object PrepareAssignment(StoreConnection db, CompanyCommand command, string? websiteLookupId = null)
     {
         if (command.Id is null || command.Digest is null || command.ExpectedVersion <= 0)
             throw new WorkspaceException("Select the exact approved company brief for this assignment.", 422);
@@ -38,6 +38,11 @@ public sealed partial class CompanyStore
             null,
             null
         );
+        if (websiteLookupId is not null)
+        {
+            task = task with { GoalWebsiteLookupId = websiteLookupId };
+            Put(db, task);
+        }
         var attempt = PrepareMeasured(db, command with { Id = task.Id, ExpectedVersion = task.Version });
         Event(
             db,

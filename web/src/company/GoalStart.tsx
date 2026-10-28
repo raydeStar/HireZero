@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { company, memberStorage } from "../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { api, company, memberStorage } from "../lib/api";
 import { approvedBusinessProfile, recommendationsForProfile, setupForProfile } from "../roles/company";
 import {
   command,
@@ -9,7 +9,8 @@ import {
   type Snapshot,
   type Work,
 } from "./api";
-import { ModelChoice } from "./ModelChoice";
+import { ModelChoice, providerName } from "./ModelChoice";
+import { advanceGoal, type GoalFlow, type GoalTerms } from "./goalFlow";
 import "./goalStart.css";
 
 type Draft = {
@@ -18,6 +19,8 @@ type Draft = {
   goal: string;
   modelRoute: string;
   allowance: string;
+  website?: string;
+  flow?: GoalFlow;
   pending?: string;
   taskId?: string;
 };
@@ -56,6 +59,9 @@ export function GoalStart({
   const [busy, setBusy] = useState(false),
     [checking, setChecking] = useState(false),
     [error, setError] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [terms, setTerms] = useState<GoalTerms>();
+  const [termsError, setTermsError] = useState("");
   const current = useRef(draft),
     locked = useRef(false);
   current.current = draft;
@@ -117,6 +123,28 @@ export function GoalStart({
     (snapshot.capabilities.modelChoices?.find((c) => c.route === draft.modelRoute)?.allowanceUnit ??
       snapshot.capabilities.allowanceUnit) === "usd-cents";
 
+  useEffect(() => {
+    let active = true;
+    setTerms(undefined);
+    setTermsError("");
+    setConsent(false);
+    if (selected && setup && snapshot.capabilities.measuredOneJob) {
+      const query = new URLSearchParams({ roleId: selected.id, skill: setup.firstAssignment.skill });
+      if (draft.modelRoute) query.set("modelRoute", draft.modelRoute);
+      void api<GoalTerms>("/company/goals/terms?" + query)
+        .then((value) => {
+          if (active) setTerms(value);
+        })
+        .catch((e) => {
+          if (active) setTermsError((e as Error).message);
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [selected?.id, setup?.firstAssignment.skill, draft.modelRoute, snapshot.capabilities.measuredOneJob]);
+  useEffect(() => setConsent(false), [draft.goal, draft.business, draft.name, draft.website, draft.allowance]);
+
   async function prepare() {
     if (locked.current || !setup || !selected) return;
     locked.current = true;
@@ -168,6 +196,76 @@ export function GoalStart({
     }
   }
 
+  async function generate() {
+    if (locked.current || (!current.current.flow && (!consent || !terms || !setup || !selected))) return;
+    locked.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      let flow = current.current.flow;
+      if (!flow) {
+        flow = {
+          stage: "context",
+          terms: terms!,
+          fields: {
+            decision: "use-details-and-prepare",
+            id: knowledge?.id,
+            expectedVersion: knowledge?.version || 0,
+            digest: knowledge?.digest,
+            roleId: selected!.id,
+            employeeId: employee?.id,
+            skill: setup!.firstAssignment.skill,
+            creditAllowance: Number(current.current.allowance),
+            modelRoute: terms!.route,
+          },
+          input: {
+            businessName: current.current.name.trim() || "My business",
+            businessDescription: current.current.business.trim(),
+            goal: current.current.goal.trim(),
+            website: current.current.website?.trim() || null,
+            employeeName: selected!.onboarding?.name || selected!.name,
+            departmentName: selected!.onboarding?.department || selected!.name,
+            responsibility: setup!.responsibility,
+            values: setup!.values,
+            prompt,
+          },
+        };
+        change({ ...current.current, flow }, true);
+      }
+      const task = await advanceGoal(flow, (next) => change({ ...current.current, flow: next }, true));
+      if (!task) return;
+      change({ ...current.current, flow: undefined, taskId: task.id }, true);
+      await refresh();
+      openWork(task);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      locked.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function editStoppedGoal() {
+    setBusy(true);
+    try {
+      await refresh();
+      change({ ...current.current, flow: undefined }, true);
+      setConsent(false);
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const progress = {
+    context: "Setting up your business…",
+    lookup: "Reading your website…",
+    sources: "Checking saved website context…",
+    prepare: "Preparing your request…",
+    run: "Writing your first draft…",
+    done: "Opening your draft…",
+  };
   return (
     <section className="co-goal-start" aria-label="Start with a goal">
       <p className="co-eyebrow">Put your team to work</p>
@@ -178,7 +276,30 @@ export function GoalStart({
           {error}
         </p>
       )}
-      {draft.pending ? (
+      {draft.flow ? (
+        <div role="status">
+          <p>
+            {busy
+              ? progress[draft.flow.stage]
+              : draft.flow.stopped
+                ? "Your request stopped before another action was taken."
+                : "Your request is saved. Check its status to continue the same run."}
+          </p>
+          {draft.flow.stopped ? (
+            <button
+              className="co-primary"
+              disabled={busy}
+              onClick={() => (draft.flow?.prepared ? openWork(draft.flow.prepared.task) : void editStoppedGoal())}
+            >
+              {draft.flow.prepared ? "Review saved work" : "Edit request"}
+            </button>
+          ) : (
+            <button className="co-primary" disabled={busy} onClick={() => void generate()}>
+              {busy ? "Working…" : "Check saved request"}
+            </button>
+          )}
+        </div>
+      ) : draft.pending ? (
         <div role="status">
           <p>
             {busy
@@ -221,7 +342,7 @@ export function GoalStart({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            void prepare();
+            void generate();
           }}
         >
           <fieldset disabled={busy}>
@@ -249,10 +370,49 @@ export function GoalStart({
                 onChange={(e) => change({ ...draft, goal: e.target.value })}
               />
             </label>
+            <label>
+              Website (optional)
+              <input
+                type="url"
+                pattern="https://.+"
+                title="Use a public https:// address."
+                maxLength={800}
+                placeholder="https://your-business.example"
+                value={draft.website || ""}
+                onChange={(e) => change({ ...draft, website: e.target.value })}
+              />
+            </label>
             <p className="co-muted">
-              {profile ? "Uses your approved brief." : "Uses your details; missing facts stay unknown."} Review the
-              model and cost next.
+              {profile ? "Uses your approved brief." : "Uses your details; missing facts stay unknown."}
+              {draft.website ? " Reads up to three public pages as unverified references for this draft." : ""}
             </p>
+            {terms ? (
+              <div className="co-goal-terms">
+                <strong>
+                  {providerName(terms.terms?.provider || "host")} · {terms.route}
+                </strong>
+                <p>
+                  One private draft · {draft.allowance}{" "}
+                  {terms.terms?.allowanceUnit === "usd-cents" ? "US cents maximum" : "intended existing credit(s)"} ·{" "}
+                  {terms.policy.localDeadlineSeconds}s local deadline.
+                </p>
+                <small>
+                  {terms.terms?.provider === "codex-oauth"
+                    ? `Reasoning effort: ${terms.policy.effort || "low"} · ${terms.policy.outputTarget.toLocaleString()} output-token target. Credit, time and token limits are soft.`
+                    : `Output target and deadline are planning limits; provider terms apply.`}{" "}
+                  No publishing or automatic retry.
+                </small>
+                <label className="co-check">
+                  <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+                  <span>
+                    Use these details{draft.website ? " and this website" : ""} and run this one draft under the terms
+                    above.
+                  </span>
+                </label>
+              </div>
+            ) : (
+              <p role="status">{termsError || "Loading the model and run terms…"}</p>
+            )}
             {unfinished ? (
               <button type="button" className="co-primary" onClick={() => onResumeHire?.(unfinished)}>
                 Continue {unfinished.name}’s setup
@@ -262,8 +422,12 @@ export function GoalStart({
                 Open current work
               </button>
             ) : (
-              <button className="co-primary" type="submit" disabled={!setup || !snapshot.capabilities.measuredOneJob}>
-                {busy ? "Preparing your draft…" : "Prepare my draft"}
+              <button
+                className="co-primary"
+                type="submit"
+                disabled={!setup || !terms || !consent || !snapshot.capabilities.measuredOneJob}
+              >
+                {busy ? "Writing your draft…" : "Generate my first draft"}
               </button>
             )}
             {activeJob && (
@@ -339,11 +503,6 @@ export function GoalStart({
             </details>
             {!snapshot.capabilities.measuredOneJob && (
               <p>Connect a model in Company → Integrations to create drafts.</p>
-            )}
-            {!profile && onBusiness && (
-              <button type="button" onClick={onBusiness}>
-                Start from a website instead
-              </button>
             )}
           </fieldset>
         </form>

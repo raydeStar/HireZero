@@ -175,6 +175,118 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.Null(store.BusinessIdentity());
     }
 
+    private sealed record GoalContext(CompanyKnowledge Knowledge, CompanyBusinessIdentity Business);
+
+    [Fact]
+    public void GoalWebsiteContextIsBoundedUnverifiedAndBoundToItsLookup()
+    {
+        var store = Store();
+        var input = CompanyJson.Decode<CompanyGoalStartInput>(Goal().Body!) with
+        {
+            Website = "https://paper.example.invalid/",
+        };
+        var contextCommand = Goal() with { Action = "goal.context", Body = CompanyJson.Encode(input) };
+        var context = A<GoalContext>(store, contextCommand);
+        Assert.Equal(CompanyJson.Encode(context), store.Apply(contextCommand));
+        Assert.Empty(MeasuredQueueChecks.Items<CompanyTask>(store, "tasks"));
+        var lookup = A<CompanyBusinessLookup>(
+            store,
+            C("goal.lookup.start") with
+            {
+                ExpectedVersion = context.Business.Version,
+                Digest = context.Business.Digest,
+                Decision = "authorize-one-lookup",
+                Body = input.Website,
+            }
+        );
+        var source = store.RecordBusinessSource(
+            "owner@example.invalid",
+            context.Business.Version,
+            input.Website!,
+            "Fictional paper website",
+            "Our website claims all kits include a folding guide. " + new string('x', 1900),
+            false
+        );
+        store.CompleteBusinessLookup(lookup.Id, "owner@example.invalid", [source.Id], [], []);
+        var prepare = Goal() with
+        {
+            Id = context.Knowledge.Id,
+            ExpectedVersion = context.Knowledge.Version,
+            Digest = context.Knowledge.Digest,
+            Body = CompanyJson.Encode(input with { WebsiteLookupId = lookup.Id }),
+        };
+        Assert.Throws<WorkspaceException>(() =>
+            store.Apply(
+                prepare with
+                {
+                    Body = CompanyJson.Encode(
+                        input with
+                        {
+                            Website = "https://another.example.invalid/",
+                            WebsiteLookupId = lookup.Id,
+                        }
+                    ),
+                }
+            )
+        );
+        var prepared = A<Prepared>(store, prepare);
+        var call = store.TextCall(prepared.Attempt.Id);
+        Assert.Equal(source.Id, Assert.Single(call.Context.WebsiteResearch!.Sources).Id);
+        Assert.Equal(1500, call.Context.WebsiteResearch.Sources[0].Text.Length);
+        Assert.True(call.Context.WebsiteResearch.Sources[0].Clipped);
+        Assert.Contains("not approved company knowledge", call.Instructions);
+        Assert.DoesNotContain("folding guide", call.Context.CompanyKnowledge);
+        Assert.Equal(
+            "unknown",
+            MeasuredQueueChecks
+                .Items<CompanyBusinessProfile>(store, "businessProfiles")
+                .Single()
+                .Fields.Single(f => f.Key == "services")
+                .Verification
+        );
+        Assert.Equal(
+            prepared.Attempt.Measured!.Route,
+            store.GoalTerms("marketing", "marketing-starter-plan", null).Route
+        );
+    }
+
+    [Fact]
+    public void EmptyWebsiteDiscoveryStillPreparesAnHonestFirstDraft()
+    {
+        var store = Store();
+        var context = A<GoalContext>(store, Goal() with { Action = "goal.context" });
+        var lookup = A<CompanyBusinessLookup>(
+            store,
+            C("goal.lookup.start") with
+            {
+                ExpectedVersion = context.Business.Version,
+                Digest = context.Business.Digest,
+                Decision = "authorize-one-lookup",
+                Body = "https://paper.example.invalid/",
+            }
+        );
+        store.CompleteBusinessLookup(lookup.Id, "owner@example.invalid", [], [], ["The page was unavailable."]);
+        var input = CompanyJson.Decode<CompanyGoalStartInput>(Goal().Body!) with
+        {
+            Website = lookup.Website,
+            WebsiteLookupId = lookup.Id,
+        };
+        var result = A<Prepared>(
+            store,
+            Goal() with
+            {
+                Id = context.Knowledge.Id,
+                ExpectedVersion = context.Knowledge.Version,
+                Digest = context.Knowledge.Digest,
+                Body = CompanyJson.Encode(input),
+            }
+        );
+        Assert.Contains("No readable pages", store.TextCall(result.Attempt.Id).Context.WebsiteResearch!.Notice);
+        Assert.Null(store.BusinessIdentity()!.Website); // A goal reference cannot rewrite an existing identity.
+        Assert.Equal(CompanyRoles.Owner, CompanyAccess.Required("goal.context"));
+        Assert.Equal(CompanyRoles.Owner, CompanyAccess.Required("goal.lookup.start"));
+    }
+
     public void Dispose()
     {
         SqliteConnection.ClearAllPools();

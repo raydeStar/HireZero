@@ -31,8 +31,8 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
   const words = wordCount(body);
   checks.push({
     label: "Total length",
-    detail: `${words} words · 500-word starter-plan limit`,
-    state: words <= 500 ? "pass" : "fail",
+    detail: `${words} words · about 500 suggested; usefulness matters more than an exact count`,
+    state: words <= 650 ? "pass" : "review",
   });
   const requests = directions(task, tasks);
   const ranges = requests?.flatMap((request) => [
@@ -60,7 +60,7 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
     checks.push({
       label: `${post[1]} length`,
       detail: `${count} words${knownRange ? ` · ${min}–${max} requested` : " · check your requested length"}`,
-      state: knownRange ? (count >= min! && count <= max! ? "pass" : "fail") : "review",
+      state: knownRange ? (count >= min! * 0.65 && count <= max! * 1.5 ? "pass" : "review") : "review",
     });
   }
   if (!requests)
@@ -70,7 +70,7 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
       state: "review",
     });
   const unknownSection = body.match(
-    /^(?:#{1,6}\s+|\*\*)[^\n]*(?:unknowns|missing facts|owner decisions|open decisions)[^\n]*\n([\s\S]*?)(?=^#{1,2}\s|$(?![\s\S]))/im,
+    /^\s*(?:[-*]\s+)?(?:#{1,6}\s+|\*\*)[^\n]*(?:unknowns|missing facts|owner decisions|open decisions)[^\n]*\n([\s\S]*?)(?=^#{1,2}\s|$(?![\s\S]))/im,
   );
   const listedUnknowns = unknownSection
     ? [...unknownSection[1].matchAll(/^\s*(?:[-*]|\d+[.)])\s+\S/gm)].length
@@ -79,33 +79,57 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
     /^(?:unknowns|missing facts|owner decisions|open decisions)\s*:\s*none[.!]?\s*$/im.test(
       body.replace(/[*#]/g, ""),
     ) || !!unknownSection?.[1].trim().match(/^(?:\*\*)?none[.!]?(?:\*\*)?$/i);
+  const inlineDecisions = /(?:unknowns|missing facts|owner decisions|open decisions)\s*:\s*\S.+/i.test(
+    body.replace(/[*#]/g, ""),
+  );
   const unknowns = listedUnknowns || (noDecisionsDeclared ? 0 : undefined);
   checks.push({
     label: "Unknowns and decisions",
     detail:
       unknowns === undefined
-        ? "No list detected; check the requested unknowns."
+        ? inlineDecisions
+          ? "Decisions are written in prose; review whether they affect using the draft."
+          : "Check whether any consequential decisions are left unresolved. A list is optional."
         : unknowns === 0
           ? "None declared · confirm no consequential decision is missing."
-          : `${unknowns} listed · at most three`,
-    state: unknowns === undefined ? "review" : unknowns <= 3 ? "pass" : "fail",
+          : `${unknowns} listed · prioritize only decisions that affect using the draft`,
+    state: unknowns === undefined ? (inlineDecisions ? "pass" : "review") : unknowns <= 3 ? "pass" : "review",
   });
-  const channelLabels = [...body.matchAll(/channel hypothesis\s*:/gi)].length;
+  const channelHypothesis =
+    /channel hypothesis/i.test(body) ||
+    (/\b(?:channel|newsletter|linkedin|facebook|instagram|email)\b/i.test(body) &&
+      /\b(?:hypothesis|unconfirmed|test|try|propos\w*)\b/i.test(body));
   checks.push({
     label: "Channel hypothesis",
-    detail: `${channelLabels} explicit labels found · confirm the channel fits`,
-    state: channelLabels === 1 ? "pass" : "review",
+    detail: channelHypothesis
+      ? "Proposed channel detected; confirm its fit with the intended audience."
+      : "Check that the channel is a proposal unless the brief establishes its fit.",
+    state: channelHypothesis ? "pass" : "review",
   });
   for (const [label, pattern] of [
-    ["Preparation schedule", /\b(?:preparation|schedule)\b/i],
-    ["Learning goal", /\blearning goal\s*:/i],
-    ["Tally", /\btally\s*:/i],
-    ["Next-week decision rule", /\bdecision rule\s*:/i],
+    ["Preparation schedule", /\b(?:preparation|schedule|\d+\s*minutes?|monday|wednesday|friday)\b/i],
+    [
+      "Learning goal",
+      /\blearning goal\b|\b(?:aim|target|goal)\b[^.\n]{0,180}\b(?:use|complet\w*|learn|report|reply|replies)\b/i,
+    ],
+    ["Tally", /\b(?:tally|count|record|track|log)\b/i],
+    [
+      "Next-week decision rule",
+      /\bdecision rule\b|\b(?:if|when)\b[^.\n]{0,240}\b(?:repeat|keep|change|revise|stop|inconclusive|try|next week)\b/i,
+    ],
   ] as const)
     checks.push({
       label,
-      detail: pattern.test(body) ? "Label found; review the content." : "Label not found; check the requested content.",
+      detail: pattern.test(body)
+        ? "Relevant wording detected; review whether it is useful and complete."
+        : "Confirm this part is present and useful; no particular heading is required.",
       state: pattern.test(body) ? "pass" : "review",
     });
+  checks.push({
+    label: "Factual grounding",
+    detail:
+      "Compare factual claims with the approved brief and cited references. These text checks cannot verify claims or the quality of the work.",
+    state: "review",
+  });
   return checks;
 }

@@ -79,6 +79,7 @@ public sealed partial class CompanyStore
             Reason = "revision-awaiting-approval",
             RequestedModelRoute = source.RequestedModelRoute ?? source.ModelRoute,
             Revision = new(source.Id, artifact.Id, artifact.Version, artifact.Digest, feedback),
+            GoalWebsiteLookupId = source.GoalWebsiteLookupId,
         };
         // Keep every owner's note, but never turn a family tree into an unbounded prompt.
         _ = EarlierRevisionFeedback(db, revision);

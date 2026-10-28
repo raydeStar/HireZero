@@ -34,18 +34,21 @@ public sealed partial class CompanyStore
         DemandWorkAdmission(db);
         var identity = Need<CompanyBusinessIdentity>(db, BusinessIdentityId);
         Version(identity.Version, command.ExpectedVersion);
+        var goal = command.Action == "goal.lookup.start";
+        var kind = goal ? "discovery" : command.Body;
+        var website = goal ? BusinessUrl(command.Body) : identity.Website;
         if (
             identity.Digest != command.Digest
-            || command.Body is not ("search" or "discovery")
+            || kind is not ("search" or "discovery")
             || command.Decision != "authorize-one-lookup"
         )
             throw new WorkspaceException("Review the current business and authorize one lookup.", 409);
-        if (command.Body == "discovery" && (identity.State != "confirmed" || identity.Website is null))
+        if (kind == "discovery" && (identity.State != "confirmed" || website is null))
             throw new WorkspaceException("Confirm the business website before discovering its pages.", 409);
         var recent = All<CompanyBusinessLookup>(db).Where(r => r.StartedAt > Clock().AddHours(-1)).ToArray();
         if (recent.Any(r => r.State == "running"))
             throw new WorkspaceException("A business lookup is already running. Check its saved status.", 409);
-        if (recent.Count(r => r.Kind == command.Body) >= 3)
+        if (recent.Count(r => r.Kind == kind) >= 3)
             throw new WorkspaceException(
                 "This company has reached its limit of three lookups of this kind per hour. Use the saved results or try later.",
                 429
@@ -56,11 +59,11 @@ public sealed partial class CompanyStore
         );
         var lookup = new CompanyBusinessLookup(
             Id(),
-            command.Body,
+            kind,
             identity.Version,
             identity.Digest,
             query,
-            identity.Website,
+            website,
             "running",
             Clock(),
             AuthorizedBy: CurrentActor.Value?.Subject ?? _owner

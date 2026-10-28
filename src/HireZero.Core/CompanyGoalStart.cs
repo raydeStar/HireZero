@@ -8,18 +8,46 @@ public sealed record CompanyGoalStartInput(
     string DepartmentName,
     string Responsibility,
     Dictionary<string, string> Values,
-    string Prompt
+    string Prompt,
+    string? Website = null,
+    string? WebsiteLookupId = null
 );
+
+public sealed record CompanyGoalTerms(
+    string Route,
+    string RuntimeIdentity,
+    CompanyModelTerms? Terms,
+    CompanyMeasuredPolicy Policy
+);
+
+public sealed record CompanyGoalWebsite(string Website, string Notice, CompanyBusinessSource[] Sources);
 
 public sealed partial class CompanyStore
 {
+    public CompanyGoalTerms GoalTerms(string roleId, string skill, string? modelRoute)
+    {
+        var role = Role(roleId);
+        if (!role.MeasuredSkills.Contains(skill))
+            throw new WorkspaceException("Choose an internal deliverable offered by this specialist.", 403);
+        var route = ReviewModelChoice(modelRoute) ?? ModelRouteFor(role, skill, "work");
+        return new(
+            route,
+            MeasuredRuntimeIdentity
+                ?? throw new WorkspaceException("Connect a measured model before generating a draft.", 409),
+            MeasuredTerms(route),
+            CompanyMeasuredPolicy.For("work", role.Manifest?.Skills.FirstOrDefault(s => s.Id == skill)?.MeasuredProfile)
+        );
+    }
+
+    private object PrepareGoalContext(StoreConnection db, CompanyCommand command)
+    {
+        var input = CompanyJson.Decode<CompanyGoalStartInput>(command.Body ?? "null");
+        var knowledge = GoalKnowledge(db, command, input);
+        return new { knowledge, business = Need<CompanyBusinessIdentity>(db, BusinessIdentityId) };
+    }
+
     private object PrepareGoal(StoreConnection db, CompanyCommand command)
     {
-        if (command.Decision != "use-details-and-prepare")
-            throw new WorkspaceException(
-                "Confirm the supplied details and suggested setup before preparing work.",
-                422
-            );
         var input = CompanyJson.Decode<CompanyGoalStartInput>(command.Body ?? "null");
         var goal = Text(input.Goal, 600).Trim();
         if (goal.Length == 0)
@@ -30,6 +58,27 @@ public sealed partial class CompanyStore
         if (!role.MeasuredSkills.Contains(command.Skill))
             throw new WorkspaceException("Choose an internal deliverable offered by this specialist.", 403);
 
+        var knowledge = GoalKnowledge(db, command, input);
+        if (input.WebsiteLookupId is not null)
+        {
+            var research = GoalWebsite(db, input.WebsiteLookupId);
+            if (research.Website != BusinessUrl(input.Website))
+                throw new WorkspaceException("Use the website authorized for this goal.", 409);
+        }
+        return PrepareGoalAssignment(db, command, input, goal, role, knowledge);
+    }
+
+    private CompanyKnowledge GoalKnowledge(StoreConnection db, CompanyCommand command, CompanyGoalStartInput input)
+    {
+        if (command.Decision != "use-details-and-prepare")
+            throw new WorkspaceException(
+                "Confirm the supplied details and suggested setup before preparing work.",
+                422
+            );
+        var goal = Text(input.Goal, 600).Trim();
+        if (goal.Length == 0)
+            throw new WorkspaceException("Describe the result you want.", 422);
+        _ = BusinessUrl(input.Website);
         var knowledge = All<CompanyKnowledge>(db).LastOrDefault(k => k.DepartmentId is null && k.State == "approved");
         if (knowledge is null && command.Id is null)
         {
@@ -51,7 +100,7 @@ public sealed partial class CompanyStore
                 new(
                     command.RequestId,
                     "business.identify",
-                    Body: CompanyJson.Encode(new CompanyBusinessInput(name, null, goal))
+                    Body: CompanyJson.Encode(new CompanyBusinessInput(name, input.Website, goal))
                 )
             );
             identity = (CompanyBusinessIdentity)ConfirmBusiness(
@@ -97,6 +146,68 @@ public sealed partial class CompanyStore
         )
             throw new WorkspaceException("Your business brief changed. Refresh before preparing this work.", 409);
 
+        return knowledge;
+    }
+
+    private CompanyGoalWebsite GoalWebsite(StoreConnection db, string lookupId)
+    {
+        var lookup = Need<CompanyBusinessLookup>(db, lookupId);
+        var identity = Need<CompanyBusinessIdentity>(db, BusinessIdentityId);
+        if (
+            lookup.Kind != "discovery"
+            || lookup.State is not ("completed" or "partial" or "unknown")
+            || lookup.BusinessVersion != identity.Version
+            || lookup.BusinessDigest != identity.Digest
+            || identity.State != "confirmed"
+        )
+            throw new WorkspaceException(
+                "Website context changed or is still being read. Check the saved lookup.",
+                409
+            );
+        var sources = (lookup.SourceIds ?? [])
+            .Select(id => Need<CompanyBusinessSource>(db, id))
+            .Take(3)
+            .Select(source =>
+                source with
+                {
+                    Text = source.Text[..Math.Min(source.Text.Length, 1500)],
+                    Clipped = source.Clipped || source.Text.Length > 1500,
+                }
+            )
+            .ToArray();
+        return new(
+            lookup.Website!,
+            "Unverified public website excerpts, authorized only as reference for this goal. Owner facts take precedence. "
+                + (sources.Length == 0 ? "No readable pages were available; work from the supplied facts. " : "")
+                + string.Join(" ", lookup.Notices ?? []),
+            sources
+        );
+    }
+
+    private bool GoalWebsiteCurrent(StoreConnection db, CompanyContext context, CompanyTask task)
+    {
+        if (task.GoalWebsiteLookupId is null)
+            return context.WebsiteResearch is null;
+        try
+        {
+            return CompanyJson.Encode(context.WebsiteResearch)
+                == CompanyJson.Encode(GoalWebsite(db, task.GoalWebsiteLookupId));
+        }
+        catch (WorkspaceException)
+        {
+            return false;
+        }
+    }
+
+    private object PrepareGoalAssignment(
+        StoreConnection db,
+        CompanyCommand command,
+        CompanyGoalStartInput input,
+        string goal,
+        CompanyRole role,
+        CompanyKnowledge knowledge
+    )
+    {
         CompanyEmployee employee;
         if (command.EmployeeId is { } employeeId)
         {
@@ -173,7 +284,8 @@ public sealed partial class CompanyStore
                 EmployeeId = employee.Id,
                 ThreadId = thread.Id,
                 Body = input.Prompt,
-            }
+            },
+            input.WebsiteLookupId
         );
         Event(
             db,

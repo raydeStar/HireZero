@@ -136,7 +136,11 @@ public sealed record CompanyTask(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        CompanyTaskRevision? Revision = null
+        CompanyTaskRevision? Revision = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string? GoalWebsiteLookupId = null
 );
 
 public sealed record CompanyTaskRevision(
@@ -248,7 +252,11 @@ public sealed record CompanyContext(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        CompanyScheduledOccurrence? ScheduledOccurrence = null
+        CompanyScheduledOccurrence? ScheduledOccurrence = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyGoalWebsite? WebsiteResearch = null
 );
 
 public sealed record CompanyAttempt(

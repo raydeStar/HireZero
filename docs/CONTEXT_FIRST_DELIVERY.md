@@ -5,21 +5,21 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 
 ## Current checkpoint — 2026-10-28
 
-- Delivered locally: goal entry, automatic specialist setup, automatic loading of the run review, and recent results
-  first on Home. Existing work, accounts, audit chains and the exact two-run schedule are preserved.
-- Verification: 93 focused facts, three fictional browser journeys, and staged-host compatibility pass.
-- Three raw model development samples remain saved. The last improves the example and measurement, but these are
-  not acceptance runs. Earlier accepted pilot plans included assistant editing; that is not unassisted quality proof.
-- Current cycle details: [goal-first walkthrough](history/2026-10-28-goal-first-walkthrough.md).
+- Delivered locally: business sentence, goal and optional website on Home; one disclosed consent prepares and runs
+  the first draft. Recent results come first. Existing work, accounts and the two-run schedule are preserved.
+- Verification: 34 focused backend facts, JavaScript recovery/rubric checks, four fictional browser journeys, and
+  staged-host compatibility pass. The earlier goal-entry foundation passed its 93-fact regression set.
+- One real first-raw-output walkthrough completed with three website pages and one Luna/Codex OAuth request.
+  The result opened automatically, unchanged. The UX works; content weaknesses and owner usefulness remain open.
+- Current evidence: [single-step walkthrough](history/2026-10-28-single-step-goal-generation.md).
 
 ## Next acceptance gate
 
-1. Optional website context stays in the Home fast path, with automatic bounded discovery.
-2. Model/allowance disclosure and single-run consent live on Home. **Generate my first draft** prepares and dispatches
-   one digest-bound job without another approval screen.
-3. Assess the first raw, unedited model output. No assistant editorial replacement and no repair loop for acceptance.
-4. Check factual grounding and completeness; treat natural labels and modest length variation as acceptable.
-5. Measure inputs, clicks, navigation, assistance, elapsed time and actual usefulness before expanding infrastructure.
+1. Obtain the owner's usefulness assessment of the saved first raw result; no editorial replacement or repair loop.
+2. Improve substantive examples and complete measurement decisions for future drafts, without disguising this result.
+3. Keep grounding and completeness checks useful; natural labels and modest length differences are acceptable.
+4. Validate time to useful work with prospective users before expanding infrastructure. One local walkthrough is not
+   evidence of signup success, customer retention or consistent model quality.
 
 Commit and push each completed cycle to `main`, without a PR. Reserve new ADRs for architectural decisions;
 put routine checkpoints in `docs/history/`. The repository is currently private; private pilot evidence and

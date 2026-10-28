@@ -168,3 +168,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0161](0161-recommend-the-requested-work.md) | Rank requested work before incidental goal topics | Accepted; shared specificity, role-owned matching and explicit exclusions preserve owner choice |
 | [0162](0162-search-the-complete-bounded-request.md) | Search the full bounded request for approved context | Accepted; compact query previews preserve existing audience, record and packet limits |
 | [0163](0163-goal-first-draft-start.md) | Replace setup chores with a goal-led first draft | Accepted; transactional setup, automatic review loading and results first on Home |
+| [0164](0164-single-consent-goal-generation.md) | Generate a first draft with one Home consent | Accepted; exact terms, optional unverified website references and durable non-replaying steps |

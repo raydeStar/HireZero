@@ -1290,6 +1290,11 @@ public static class CompanyWorkspace
             app.MapGet("/api/company/tasks/{id}", (string id) => Results.Ok(Store().TaskDetail(id)));
             app.MapGet("/api/company/measured/{id}", (string id) => Results.Ok(Store().MeasuredDetail(id)));
             app.MapGet(
+                "/api/company/goals/terms",
+                (string roleId, string skill, string? modelRoute) =>
+                    Results.Ok(Store().GoalTerms(roleId, skill, modelRoute))
+            );
+            app.MapGet(
                 "/api/company/operations/{id}",
                 (string id, HttpContext context) =>
                 {
@@ -1389,7 +1394,7 @@ public static class CompanyWorkspace
                             );
                         return Results.Content(receipt, "application/json");
                     }
-                    if (command.Action == "business.lookup.start")
+                    if (command.Action is "business.lookup.start" or "goal.lookup.start")
                     {
                         var receipt = await CompanyBusinessResearch.RunLookupAsync(
                             command,

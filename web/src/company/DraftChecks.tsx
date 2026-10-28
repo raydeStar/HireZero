@@ -7,8 +7,8 @@ export function DraftChecks({ checks }: { checks: DraftCheck[] }) {
     <details className="co-draft-checks" open={checks.some((check) => check.state === "fail")}>
       <summary>Draft checks · {failures ? `${failures} to review` : "format checks passed"}</summary>
       <p className="co-muted">
-        Local counts and label checks. Read the draft for accuracy, audience fit and usefulness; passing these checks
-        does not approve it.
+        Approximate counts and completeness hints. Natural wording and modest length differences are welcome. Read the
+        draft for accuracy, audience fit and usefulness; passing these checks does not approve it.
       </p>
       <ul>
         {checks.map((check) => (

@@ -49,6 +49,7 @@ public sealed partial class CompanyStore
         && DocumentsCurrent(db, context, t)
         && MemoryCurrent(db, context, t, depth)
         && BusinessFreshnessCurrent(db, context, t)
+        && GoalWebsiteCurrent(db, context, t)
         && HandoffsCurrent(db, t, depth)
         && RevisionCurrent(db, context, t, depth)
         && context.Evidence.All(e =>
@@ -284,6 +285,7 @@ public sealed partial class CompanyStore
         {
             BusinessBrief = BusinessProvenance(db, t.CompanyKnowledgeId),
             ScheduledOccurrence = ScheduledOccurrence(db, t),
+            WebsiteResearch = t.GoalWebsiteLookupId is null ? null : GoalWebsite(db, t.GoalWebsiteLookupId),
         };
         // A reply knows what is connected, so it can ask for a connection it needs (docs/adr/0046-connect-cards.md).
         if (t.MeetingId is null && t.Kind is not (ContextDraftKind or ActionKind))
