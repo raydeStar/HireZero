@@ -681,7 +681,7 @@ function Report({
         <span role="status">{copyStatus}</span>
       </div>
       <div className="co-report-content">
-        <DraftMarkdown>{sections.draft}</DraftMarkdown>
+        <DraftMarkdown copySections>{sections.draft}</DraftMarkdown>
       </div>
       {long && (
         <button type="button" className="co-ghost co-report-toggle" onClick={() => setFull(!full)}>

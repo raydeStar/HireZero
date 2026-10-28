@@ -6,7 +6,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 ## Current checkpoint — 2026-10-28
 
 - Home accepts a business sentence, goal and optional website, then generates one disclosed draft. Results
-  open with Copy, Download and Refine; internal notes, receipts and administration are collapsed. Company knowledge and
+  open with Copy, Download and Refine, plus [section copying](history/2026-10-28-section-copy.md) beside individual
+  post headings. Internal notes, receipts and administration are collapsed. Company knowledge and
   Settings group the navigation; multi-employee tools stay secondary for a small workspace.
 - Weekly plans adapt to the business instead of prescribing an AI-workflow demonstration. The latest
   [length and table follow-up](history/2026-10-28-deliverable-length-and-tables.md) removes a conflicting Core
