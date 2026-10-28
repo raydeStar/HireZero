@@ -4,7 +4,7 @@ import { approvedGoal, goalMatch } from "../businessContext";
 
 export function developerRecommendation(profile: BusinessProfile) {
   const match = goalMatch(profile, [
-    /\b(automate|integrate|debug)\b|\bwrite\s+(?:some\s+)?code\b|\b(fix|build|develop|implement|repair|test|audit|review|improve|optimi[sz]e)\s+(?:(?!about\b|from\b|using\b|based\b|grounded\b|for\b|with\b|and\b)[\w'-]+\s+){0,4}(websites?|web\s+pages?|landing\s+pages?|apps?|software|bugs?|code|integrations?|performance|accessibility|forms?|errors?)\b/i,
+    /\b(automate|integrate|debug)\b|\bwrite\s+(?:some\s+)?code\b|\b(fix|build|develop|implement|repair|test|audit|review|improve|optimi[sz]e)\s+(?:(?!about\b|from\b|using\b|based\b|grounded\b|for\b|with\b|and\b)[\w'-]+\s+){0,4}(websites?|web\s+pages?|landing\s+pages?|apps?|software|bugs?|code|integrations?|performance|accessibility|keyboard\s+navigation|forms?|errors?)\b(?!\s+(?:copy|content|headlines?|messaging)\b)/i,
     /\b(website|web|software|code|technical)\s+(audit|review|fixes?|implementation|performance|accessibility)\b|\b(bug\s+fixes?|automation|integrations?)\b/i,
     /\b(websites?|web\s+pages?|landing\s+pages?|technical|software|bugs?|coding|code|integrations?|automat\w*|performance|accessibility)\b/i,
   ]);

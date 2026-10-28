@@ -274,7 +274,7 @@ try {
   assert.equal(await evaluate("document.querySelector('.co-home').firstElementChild.getAttribute('aria-label')"),'Recent results');
   await text('Fictional revised accessibility draft.');
   await click('Start another goal');
-  await setField('Your goal','Improve website keyboard accessibility');
+  await setField('Your goal','Improve keyboard navigation.');
   await setField('Website (optional)','');
   await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'next-run terms');
   await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
@@ -287,6 +287,8 @@ try {
   await send('Page.navigate',{url:url+'/'});
   await text('Start another goal');
   await click('Start another goal');
+  await setField('Your goal','Improve website copy for our paper kits.');
+  await text('Your marketing draft');
   await setField('Your goal','Write one welcome email for new paper-kit subscribers.');
   await text('Your marketing draft');
   await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'marketing-run terms');

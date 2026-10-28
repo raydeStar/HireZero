@@ -21,6 +21,8 @@ const profile = goal => ({ fields: [{ key: "goals", value: goal, verification: "
 
 for (const goal of [
   "Draft homepage copy for our fictional paper kits.",
+  "Improve website copy for our fictional paper kits.",
+  "Improve landing page copy for our paper kits.",
   "Write a welcome email for new subscribers.",
   "Create one Instagram post about our folding guide.",
   "Do not create a weekly content plan; write a newsletter instead.",
@@ -41,5 +43,14 @@ for (const goal of [
   const assignment = marketing.marketingBusinessSetup(profile(goal)).firstAssignment;
   assert.equal(assignment.skill, "marketing-starter-plan", goal);
   assert.ok(assignment.prompt.includes(goal));
+}
+for (const goal of [
+  "Improve website accessibility.",
+  "Review landing page performance.",
+  "Fix website form errors.",
+  "Improve keyboard navigation.",
+]) {
+  const p = profile(goal);
+  assert.ok(developer.developerRecommendation(p).priority > marketing.marketingRecommendation(p).priority, goal);
 }
 console.log("PASS Marketing goals: requested assets keep their own format; weekly plans keep their specialist path. The butler serves what was ordered.");

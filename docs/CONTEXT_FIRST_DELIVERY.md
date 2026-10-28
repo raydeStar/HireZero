@@ -7,20 +7,20 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 
 - Delivered locally: business sentence, goal and optional website on Home; one disclosed consent prepares and runs
   the first draft. Recent results come first. Existing work, accounts and the two-run schedule are preserved.
-- Verification: 34 focused backend facts, JavaScript recovery/rubric checks, four fictional browser journeys, and
-  staged-host compatibility pass. The earlier goal-entry foundation passed its 93-fact regression set.
+- Verification: the latest direct-asset cycle passed 48 backend facts and Home/weekly-plan browser journeys.
+  Earlier discovery, recovery and staged-host evidence is linked in the history notes.
 - One real first-raw-output walkthrough completed with three website pages and one Luna/Codex OAuth request.
   The result opened automatically, unchanged. The UX works; content weaknesses and owner usefulness remain open.
-- Future starter requests lead with assets and ask for substantive improvements and complete measurement decisions;
-  [content direction](history/2026-10-28-first-draft-content-direction.md) is installed but not yet model-validated.
-- Marketing now follows [the requested asset](history/2026-10-28-goal-matched-marketing-assets.md): emails and copy
-  use direct drafting; content plans retain the weekly path. Fictional execution passes; live quality remains open.
-- Current evidence: [single-step walkthrough](history/2026-10-28-single-step-goal-generation.md).
+- New requests follow [the requested asset](history/2026-10-28-goal-matched-marketing-assets.md); weekly plans use
+  [stronger content directions](history/2026-10-28-first-draft-content-direction.md). Live quality remains open.
+- The [usage audit and next evaluations](history/2026-10-28-acceptance-allowance-and-routing.md) account for 13 recent
+  native requests and 107,054 reported tokens. Two further raw evaluations await a renewed bounded owner decision.
+- Acceptance evidence: [single-step walkthrough](history/2026-10-28-single-step-goal-generation.md).
 
 ## Next acceptance gate
 
 1. Obtain the owner's usefulness assessment of the saved first raw result; no editorial replacement or repair loop.
-2. Improve substantive examples and complete measurement decisions for future drafts, without disguising this result.
+2. Evaluate the prepared weekly-plan and direct-asset requests when authorized, preserving every first raw result.
 3. Keep grounding and completeness checks useful; natural labels and modest length differences are acceptable.
 4. Validate time to useful work with prospective users before expanding infrastructure. One local walkthrough is not
    evidence of signup success, customer retention or consistent model quality.
