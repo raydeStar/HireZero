@@ -16,8 +16,12 @@ validation or unedited model quality. [ADR 0142](adr/0142-explicit-marketing-rev
 instructions with the checker's labels and decision-list format. No additional model request, publishing or
 recurring activation was needed. See [owner acceptance](history/2026-10-27-owner-acceptance-and-review-format.md).
 The format update is installed with backups and preserved records. A concrete two-occurrence weekly draft now
-retains the accepted copy and consolidated feedback, with zero runs. Reliable startup for the separate acceptance
-workspace must be settled before activation is presented for approval.
+retains the accepted copy and consolidated feedback, with zero runs. The separate acceptance workspace now has
+its own verified install, sign-in startup and nightly backup tasks under [ADR 0143](adr/0143-independent-local-startup-tasks.md).
+An idle stop/restart and a real backup preserve the accepted copy, exact schedule, model history and audit chain;
+the primary workspace and its tasks stayed unchanged. The computer must be awake and signed in; an actual OS
+reboot was not performed. See [startup verification](history/2026-10-27-independent-pilot-startup.md).
+The two-occurrence schedule is ready for an explicit activation decision and remains inactive.
 The clipboard integration discrepancy and broader customer/commercial/runtime gates remain open.
 
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review

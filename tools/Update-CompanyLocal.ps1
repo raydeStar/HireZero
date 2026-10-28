@@ -4,6 +4,7 @@
 # The data root is never touched. Then start it again with <Target>/tools/Start-CompanyLocal.ps1.
 param(
     [Parameter(Mandatory)][string]$Target,
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$')][string]$TaskPrefix = 'HireZero',
     [switch]$Stop,
     [switch]$SkipWeb
 )
@@ -31,12 +32,13 @@ $current = Join-Path $Target 'app'
 $hostDll = Join-Path $current 'HireZero.Host.dll'
 # A company kept running by Register-CompanyLocalTasks.ps1 is stopped through its task first, so the task's restart
 # does not race the swap, and started again after it.
-$task = Get-ScheduledTask -TaskName 'HireZero company' -ErrorAction SilentlyContinue
+$taskName = "$TaskPrefix company"
+$task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 $scheduled = $task -and $task.State -eq 'Running' -and ($task.Actions.Arguments -join ' ').Contains($Target, [StringComparison]::OrdinalIgnoreCase)
 if ($scheduled) {
     if (-not $Stop) { throw "The company runs from its scheduled task. Pass -Stop to stop it, swap and start it again." }
     Write-Output '== Stopping the scheduled company task'
-    Stop-ScheduledTask -TaskName 'HireZero company'
+    Stop-ScheduledTask -TaskName $taskName
     Start-Sleep -Seconds 2
 }
 $running = @(Get-CimInstance Win32_Process -Filter "Name = 'dotnet.exe'" -ErrorAction SilentlyContinue |
@@ -55,7 +57,7 @@ foreach ($script in 'Start-CompanyLocal.ps1', 'Backup-CompanyLocal.ps1', 'Regist
 }
 $commit = git -C $repository rev-parse --short HEAD
 if ($scheduled) {
-    Start-ScheduledTask -TaskName 'HireZero company'
+    Start-ScheduledTask -TaskName $taskName
     Write-Output "Published $commit to $current and started the scheduled company task again."
 }
 else { Write-Output "Published $commit to $current. Start it with $(Join-Path $Target 'tools/Start-CompanyLocal.ps1') -DataRoot <data root>." }

@@ -7,6 +7,8 @@ param(
     [string]$BackupTo,
     [int]$Keep = 14,
     [string]$BackupAt = '03:00',
+    # Separate installs need separate task names; one butler must not dismiss another's shift.
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$')][string]$TaskPrefix = 'HireZero',
     # Environment the company needs, for example @{ HIREZERO_API_MODELS = '1'; HIREZERO_MODEL_ROUTES = 'C:\...\model-routes.json' }.
     # Never secrets: keys stay in the user's environment or the app's secret store.
     [hashtable]$Environment = @{},
@@ -14,7 +16,7 @@ param(
     [switch]$Remove
 )
 $ErrorActionPreference = 'Stop'
-$names = 'HireZero company', 'HireZero backup'
+$names = "$TaskPrefix company", "$TaskPrefix backup"
 if ($Remove) {
     foreach ($name in $names) { Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue }
     Write-Output 'Removed the HireZero scheduled tasks.'
