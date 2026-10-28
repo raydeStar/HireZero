@@ -3,14 +3,16 @@ import type { BusinessSetup } from "../company";
 import { approvedGoal, goalMatch } from "../businessContext";
 
 export function ceoRecommendation(profile: BusinessProfile) {
-  const match = goalMatch(
-    profile,
+  const match = goalMatch(profile, [
+    /\b(coordinate|prioriti[sz]e|delegate|sequence)\b/i,
+    /\b(company|team|business|project)\s+(priorities|roadmaps?|strategy|plans?)\b/i,
     /\b(coordinat\w*|prioriti\w*|team|delegat\w*|roadmap|strateg\w*|workflow\w*|project\s+plan\w*)\b/i,
-  );
+  ]);
   return match
     ? {
-        reason: `Your approved goal mentions “${match}”. A CEO can turn it into priorities and decisions for your review.`,
-        priority: 90,
+        reason: `Your approved goal mentions “${match.text}”. A CEO can turn it into priorities and decisions for your review.`,
+        priority: match.priority,
+        position: match.position,
       }
     : undefined;
 }

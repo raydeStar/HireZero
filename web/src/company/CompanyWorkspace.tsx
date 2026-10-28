@@ -1003,6 +1003,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
               snapshot={snapshot}
               refresh={refresh}
               role={memberRole}
+              onWork={(task) => openWork(task, "work")}
               onHire={(role) => {
                 setRequestedHireRole(role ?? "");
                 setTab("employees");

@@ -3,14 +3,16 @@ import type { BusinessSetup } from "../company";
 import { approvedGoal, goalMatch } from "../businessContext";
 
 export function developerRecommendation(profile: BusinessProfile) {
-  const match = goalMatch(
-    profile,
+  const match = goalMatch(profile, [
+    /\b(automate|integrate|debug)\b|\bwrite\s+(?:some\s+)?code\b|\b(fix|build|develop|implement|repair|test|audit|review|improve|optimi[sz]e)\s+(?:(?!about\b|from\b|using\b|based\b|grounded\b|for\b|with\b|and\b)[\w'-]+\s+){0,4}(websites?|web\s+pages?|landing\s+pages?|apps?|software|bugs?|code|integrations?|performance|accessibility|forms?|errors?)\b/i,
+    /\b(website|web|software|code|technical)\s+(audit|review|fixes?|implementation|performance|accessibility)\b|\b(bug\s+fixes?|automation|integrations?)\b/i,
     /\b(websites?|web\s+pages?|landing\s+pages?|technical|software|bugs?|coding|code|integrations?|automat\w*|performance|accessibility)\b/i,
-  );
+  ]);
   return match
     ? {
-        reason: `Your approved goal mentions “${match}”. A Developer can scope the work and identify evidence needed before changes.`,
-        priority: 80,
+        reason: `Your approved goal mentions “${match.text}”. A Developer can scope the work and identify evidence needed before changes.`,
+        priority: match.priority,
+        position: match.position,
       }
     : undefined;
 }

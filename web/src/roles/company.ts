@@ -13,7 +13,8 @@ export type CompanyRoleUi = {
   skillInputs?: Record<string, SkillInput>;
   panels?: Record<string, ComponentType>;
   businessSetup?: (profile: BusinessProfile) => BusinessSetup;
-  recommendation?: (profile: BusinessProfile) => { reason: string; priority: number } | undefined;
+  // Shared specificity: 3 requested work, 2 named deliverable, 1 topic, 0 general starting option.
+  recommendation?: (profile: BusinessProfile) => { reason: string; priority: number; position?: number } | undefined;
   draftChecks?: Record<string, (body: string, task: Work, tasks: Work[]) => DraftCheck[]>;
 };
 export type DraftCheck = { label: string; detail: string; state: "pass" | "fail" | "review" };
@@ -73,9 +74,12 @@ export function teamRecommendations(snapshot: Snapshot) {
     const match = byRole[role.id]?.recommendation?.(profile);
     return match ? [{ role, ...match }] : [];
   });
-  // A module may offer a general starting point, but a matching goal gets the first seat at the table.
-  const relevant = choices.some((c) => c.priority > 0) ? choices.filter((c) => c.priority > 0) : choices;
-  return relevant.sort((a, b) => b.priority - a.priority || a.role.name.localeCompare(b.role.name)).slice(0, 3);
+  // Incidental topics should not compete with the work the owner actually asked for.
+  const strongest = Math.max(0, ...choices.map((c) => c.priority));
+  return choices
+    .filter((c) => c.priority === strongest)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.role.name.localeCompare(b.role.name))
+    .slice(0, 3);
 }
 
 // Every panel contributed to a named slot by the given roles, in role order.

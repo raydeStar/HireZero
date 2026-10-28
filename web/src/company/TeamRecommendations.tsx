@@ -1,4 +1,4 @@
-import type { Employee, Snapshot } from "./api";
+import type { Employee, Snapshot, Work } from "./api";
 import { approvedBusinessProfile, teamRecommendations } from "../roles/company";
 
 export function TeamRecommendations({
@@ -6,11 +6,13 @@ export function TeamRecommendations({
   disabled,
   onHire,
   onEmployee,
+  onWork,
 }: {
   snapshot: Snapshot;
   disabled: boolean;
   onHire: (role?: string) => void;
   onEmployee: (employee: Employee) => void;
+  onWork: (task: Work) => void;
 }) {
   if (!approvedBusinessProfile(snapshot)) return null;
   const suggestions = teamRecommendations(snapshot);
@@ -28,12 +30,38 @@ export function TeamRecommendations({
               {existing.length ? (
                 <>
                   <p className="co-muted">Already on your team. Continue with an existing employee.</p>
-                  {existing.map((e) => (
-                    <button key={e.id} disabled={disabled} onClick={() => onEmployee(e)}>
-                      {e.state === "onboarding" ? "Continue onboarding " : "Open "}
-                      {e.name}
-                    </button>
-                  ))}
+                  {existing.map((e) => {
+                    const latest = [...snapshot.data.tasks]
+                      .reverse()
+                      .filter(
+                        (task) =>
+                          task.employeeId === e.id &&
+                          ["awaiting_review", "completed"].includes(task.state) &&
+                          snapshot.data.artifacts.some((a) => a.taskId === task.id),
+                      )
+                      .sort(
+                        (a, b) =>
+                          (Date.parse(snapshot.data.taskTimes?.[b.id]?.updated ?? "") || 0) -
+                          (Date.parse(snapshot.data.taskTimes?.[a.id]?.updated ?? "") || 0),
+                      )[0];
+                    return (
+                      <div key={e.id} className="co-actions">
+                        <button disabled={disabled} onClick={() => onEmployee(e)}>
+                          {e.state === "onboarding" ? "Continue onboarding " : "Open "}
+                          {e.name}
+                        </button>
+                        {latest && e.state !== "onboarding" && (
+                          <button
+                            disabled={disabled}
+                            aria-label={`Open latest result from ${e.name}`}
+                            onClick={() => onWork(latest)}
+                          >
+                            Open latest result
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </>
               ) : (
                 <button className="co-primary" disabled={disabled} onClick={() => onHire(role.id)}>

@@ -165,3 +165,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0158](0158-source-layout-and-owner-field-precedence.md) | Canonical source whitespace and captured owner-field precedence | Accepted; exact words retained, owner values preserved before model evidence validation |
 | [0159](0159-readable-saved-business-briefs.md) | Read saved business briefs before editing | Accepted; explicit editing, expandable evidence and preserved unfinished owner changes |
 | [0160](0160-clear-business-brief-replacement.md) | Explain draft replacement before approval | Accepted; active-brief guidance and a focused review shortcut preserve separate withdrawal and approval |
+| [0161](0161-recommend-the-requested-work.md) | Rank requested work before incidental goal topics | Accepted; shared specificity, role-owned matching and explicit exclusions preserve owner choice |

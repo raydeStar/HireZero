@@ -9,6 +9,7 @@ import {
   type ProfileField,
   type Snapshot,
   type Employee,
+  type Work,
 } from "./api";
 import "./business.css";
 import { BusinessDrafting } from "./BusinessDrafting";
@@ -91,12 +92,14 @@ export function BusinessBrief({
   refresh,
   onHire,
   onEmployee,
+  onWork,
   role,
 }: {
   snapshot: Snapshot;
   refresh: () => Promise<void>;
   onHire: (role?: string) => void;
   onEmployee: (employee: Employee) => void;
+  onWork: (task: Work) => void;
   role?: string;
 }) {
   const [identity, setIdentity] = useState(snapshot.data.business);
@@ -203,7 +206,13 @@ export function BusinessBrief({
         <li aria-current={profile?.state === "approved" ? "step" : undefined}>3. Set up your team</li>
       </ol>
       {confirmed && !editingIdentity && profile?.state === "approved" && !editingProfile && (
-        <TeamRecommendations snapshot={snapshot} disabled={busy || !owner} onHire={onHire} onEmployee={onEmployee} />
+        <TeamRecommendations
+          snapshot={snapshot}
+          disabled={busy || !owner}
+          onHire={onHire}
+          onEmployee={onEmployee}
+          onWork={onWork}
+        />
       )}
       {!owner && (
         <p role="status">

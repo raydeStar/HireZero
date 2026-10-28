@@ -3,12 +3,17 @@ import type { BusinessSetup } from "../company";
 import { approvedGoal, goalMatch } from "../businessContext";
 
 export function marketingRecommendation(profile: BusinessProfile) {
-  const match = goalMatch(
-    profile,
+  const match = goalMatch(profile, [
+    /\b(write|draft|prepare|create|plan|launch|improve|grow)\s+(?:(?!about\b|from\b|using\b|based\b|grounded\b|for\b|with\b|and\b)[\w'-]+\s+){0,4}(marketing|campaigns?|content|posts?|copy|newsletters?|advertising|leads?|sales|audience|brand)\b/i,
+    /\b(content|marketing|campaign|social\s+media)\s+(plans?|strategy|calendars?|campaigns?)\b|\b(website|landing\s+page|email|blog)\s+copy\b/i,
     /\b(marketing|campaigns?|content|advertis\w*|leads?|audience|brand\w*|launch\w*|sales|customers?)\b/i,
-  );
+  ]);
   return match
-    ? { reason: `Your approved goal mentions “${match}”. Start with a small campaign or content plan.`, priority: 60 }
+    ? {
+        reason: `Your approved goal mentions “${match.text}”. Start with a small campaign or content plan.`,
+        priority: match.priority,
+        position: match.position,
+      }
     : {
         reason:
           "A starting option for a small business: a modest marketing experiment. Choose another role if that better fits your goal.",

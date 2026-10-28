@@ -311,6 +311,7 @@ try {
     heading,
     expected,
     goalText,
+    wordLimit,
   ) => {
     const before = (await dashboard()).data.employees.length;
     await click("Set up a " + roleName + " employee");
@@ -360,7 +361,7 @@ try {
     );
     assert.ok(
       await evaluate(
-        "document.querySelector('.co-job-card .co-packet').textContent.includes('at most 500 words')",
+        `document.querySelector('.co-job-card .co-packet').textContent.includes('at most ${wordLimit} words')`,
       ),
     );
     assert.equal(
@@ -374,7 +375,13 @@ try {
     );
     await click("Authorize and run one job");
     await text(expected);
-    await click("Read result");
+    const result = (await dashboard()).data.artifacts.find((a) => a.body.includes(expected));
+    assert.ok(result, "The shown result is saved");
+    assert.equal(
+      await evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(result.taskId)} && new URLSearchParams(location.search).get('mode')==='work' && document.querySelector('[data-artifact-id="${result.id}"]')?.open===true`),
+      true,
+      "The first assignment opens its exact saved result for review",
+    );
     await click("Approve result");
     await click("Complete after review");
     await until(
@@ -397,6 +404,7 @@ try {
     "Your first technical plan",
     "Fictional technical plan",
     goal,
+    500,
   );
   await openBrief();
   await text("Already on your team.");
@@ -409,6 +417,23 @@ try {
   const developer = (await dashboard()).data.employees.find(
     (e) => e.roleId === "developer",
   );
+  const newerThread = await command("thread.create", { employeeId: developer.id, name: "Newer technical work" });
+  const newerTask = await command("task.create", {
+    employeeId: developer.id, threadId: newerThread.id, skill: "technical-starter-plan", body: "Review the fictional form improvement.",
+  });
+  await command("artifact.create", { id: newerTask.id, expectedVersion: newerTask.version, body: "Fictional newer form result ready for review." });
+  await command("task.create", {
+    employeeId: developer.id, threadId: newerThread.id, skill: "technical-starter-plan", body: "A later request without a result yet.",
+  });
+  await reload();
+  await click("Open latest result");
+  await text("Fictional newer form result ready for review.");
+  assert.equal(
+    await evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(newerTask.id)} && new URLSearchParams(location.search).get('thread')===${JSON.stringify(newerThread.id)} && new URLSearchParams(location.search).get('mode')==='work'`),
+    true,
+    "The latest-result shortcut skips the oldest conversation and later unfinished requests",
+  );
+  await openBrief();
   await click("Open " + developer.name);
   await until(
     () => evaluate(`location.search.includes(${JSON.stringify(developer.id)})`),
@@ -448,7 +473,30 @@ try {
     "Your first priority plan",
     "Fictional priority plan",
     coordinatedGoal,
+    450,
   );
+  const goalCases = [
+    ["Create a useful weekly content plan grounded in our website and measure completed workflow use.", "marketing"],
+    ["Fix website accessibility for our marketing team.", "developer"],
+    ["Coordinate website and content teams.", "ceo"],
+    ["Write website copy for our launch.", "marketing"],
+    ["Build a website for our launch.", "developer"],
+    ["Draft posts about our software roadmap.", "marketing"],
+    ["Automate weekly content reporting.", "developer"],
+    ["Prioritize our content and website work.", "ceo"],
+    ["Weekly content plan based on our website.", "marketing"],
+    ["Do not write content; fix website accessibility.", "developer"],
+  ];
+  for (const [goalText, expectedRole] of goalCases) {
+    profile = await reviewProfile("revoke");
+    profile = await command("business.profile.save", {
+      body: JSON.stringify({ businessVersion: identity.version, fields: fields(goalText) }),
+    });
+    profile = await reviewProfile("approve");
+    await openBrief();
+    await reload();
+    assert.deepEqual(await recommendations(), [expectedRole], "Requested work wins: " + goalText);
+  }
   profile = await reviewProfile("revoke");
   profile = await command("business.profile.save", {
     body: JSON.stringify({
@@ -479,9 +527,11 @@ try {
           "[...document.querySelectorAll('script[src]')].map(s=>new URL(s.src).pathname)",
         ),
         approvedGoalSuggestions: true,
+        requestedWorkCases: goalCases.length,
         unknownGoalExcluded: true,
         revocation: true,
         existingEmployeeReuse: true,
+        latestSavedResultShortcut: true,
         developerFirstAssignment: true,
         ceoFirstAssignment: true,
         roleOwnedSetup: true,

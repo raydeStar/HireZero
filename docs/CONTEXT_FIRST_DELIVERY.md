@@ -9,6 +9,16 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
+Team suggestions now rank requested work above incidental topics under [ADR 0161](adr/0161-recommend-the-requested-work.md).
+A content-plan request no longer loses to mentions of a website or workflow. Existing employees also offer a
+direct link to their latest saved result, preserving the exact task and conversation instead of requiring a search
+through old chats. Ten contrasting goal cases, two specialist onboarding/first-result journeys and the latest-result
+handoff pass in the fictional browser test; the web build passes with no live model call. Both local installations
+have verified files and backups, with server binaries, approved work, accounts and the exact future schedule
+unchanged. The installed original pilot recommends Marketing and opens its accepted Draft 3 directly in Work.
+This advances P1.7/P2.3;
+customer relevance and usefulness remain separate gates. See [evidence and limits](history/2026-10-28-relevant-team-and-result-handoff.md).
+
 One fresh native website-brief request now succeeds after ADR 0158: nine fields, five source quotations, three
 explicit unknowns and the exact preserved owner goal. The result remains an unapproved draft beside the approved
 editorial brief; existing knowledge and work are unchanged. It reports 9,079 tokens from one Luna/Codex OAuth
@@ -378,7 +388,7 @@ had not yet been deployed to the existing workspace; the successful result was r
 | P1.4 | Structured profile extraction with source, discovery date and verification status for important facts | Nine-field extraction verified with fictional providers/browser and one successful native website request; five quotations checked, owner goal preserved, unsupported fields Unknown; new draft owner acceptance and broader quality pending | partial                  |
 | P1.5 | Editable concise brief; confirm/correct/remove; corrections authoritative                             | Saved and unsaved corrections, exact review/unknown/revoke, immutable paged correction history and mobile source/date display verified locally with fictional fixtures                               | verified                 |
 | P1.6 | Persist isolated company knowledge, documents and identity; no model use before approval              | Identity, evidence, approved profiles and private text documents persist with tenant isolation. UTF-8 and bounded Word imports, draft recovery, separate approval and scoped retrieval have fictional proof under ADR 0089. Selected Drive document copies now have fictional owner/setup/read/approval proof under ADR 0090. Selectable PDF text now has a bounded parser process, page labels, missing-text notices and separately approved scoped retrieval with local proof under ADR 0098. OCR, visual fidelity, broader formats, live private-source acceptance and further connectors remain pending | partial                  |
-| P1.7 | Recommend and set up one Marketing employee from approved company knowledge                           | Role-owned Marketing setup and goal-based Marketing/Developer/CEO suggestions reuse the current approved brief. Editable setup, existing-employee reuse and first assignments are verified in fictional browser journeys; real recommendation relevance remains pending | partial                  |
+| P1.7 | Recommend and set up one Marketing employee from approved company knowledge                           | Role-owned setup and shared goal-specificity ranking reuse the approved brief. Ten contrasting goals, editable setup, existing-employee reuse, direct latest-result access and reviewed first assignments have fictional browser proof; broader customer recommendation relevance remains pending | partial                  |
 | P1.8 | First useful modest research/marketing deliverable, observations separate from hypotheses             | The owner accepted the 460-word editorial copy after a native revision, confirmed its claims, concrete examples and completed-use learning goal, and authorized approval unchanged. The exact copy is approved and its task completed. This verifies one owner pilot including human editing, not consistent unedited quality or broader customer acceptance | verified                 |
 | P1.9 | Minimal-assistance onboarding that customers recognize as useful                                      | Requires observed prospective-customer sessions, not synthetic fixtures                                                                                                                              | field validation pending |
 
