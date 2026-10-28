@@ -64,10 +64,6 @@ function weeklyAssignment(objective: string): BusinessSetup["firstAssignment"] {
     prompt: `Prepare the finished one-week marketing plan requested here:
 ${objective}
 
-Use the approved business brief for company claims and commitments, and ordinary domain knowledge for helpful reader tips that do not invent company policies or promises. Preserve the owner's explicit quantity, channel, days, format and length. Otherwise supply three complete posts, each with a proposed posting day and a different useful takeaway. Choose the content mix for this business and goal; do not impose a fixed teaching sequence. Include promised examples, templates or checklists in full. Weave natural calls to action into copy; omit 'Reader action:' labels and repeated disclaimer footers.
-
-After the copy, include only necessary remaining preparation, with honest effort estimates totaling no more than 90 minutes. Do not add unrequested photo sourcing, document-copying or approval chores. Propose one observable learning target, how to record it, and next-week choices for promising, weak or inconclusive evidence. If the signal needs reader attribution, ask for it naturally in the actual copy using the established contact route; do not invent one.
-
-Keep sources, assumptions and at most three consequential open decisions in short internal review notes. Facts supplied anywhere in the brief are facts, not assumptions. Aim for a focused plan; allow about 750–900 words when full assets and notes need the space, or honor a shorter requested length. Return a private draft only; proposed posting days do not authorize publishing.`,
+Use the approved business brief and department context. Lead with the finished reader-facing posts, followed by the light preparation and learning plan. Keep internal review notes separate. Preserve all explicit requirements in the goal. Return a private draft; do not publish or perform actions.`,
   };
 }

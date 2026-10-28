@@ -14,14 +14,14 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   adds proposed posting days, batch preparation and recognition of internal-review headings for exact exports.
 - Raw agency, email and local-business samples provide some useful choice guidance, but repetition and
   unsupported operational assumptions persist. The owner rejected the raw alterations plan for unedited use.
-  [Reader-guidance comparisons](history/2026-10-28-reader-guidance-and-saved-sources.md) improve practical advice
-  and attribution, but still repeat caveats or introduce unsupported contact routes and preparation filler.
-  Neither new comparison is ready unedited. Saved business facts and their evidence are now readable inside
-  collapsed Source and provenance. Repeatable first-run usefulness remains open.
+  [Consolidated copy instructions](history/2026-10-28-customer-copy-comparisons.md) improve the agency comparison
+  and produce a useful fresh organising-business draft by assistant assessment; owner assessment is pending.
+  Alterations still repeats its advice and caveats. Saved facts and evidence are readable inside collapsed
+  Source and provenance. Repeatable first-run usefulness remains open.
 - Local updates have verified backups and focused checks. The old weekly schedule remains saved and now
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
-- The evaluation allowance is 31 native runs: fifteen consumed, 16 remain, with 100,881 reported input/output
+- The evaluation allowance is 31 native runs: eighteen consumed, 13 remain, with 121,166 reported input/output
   tokens. Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
 
 ## Next acceptance gate
