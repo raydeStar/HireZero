@@ -26,8 +26,9 @@ conversion. The tool itself makes no network calls and creates no subscriptions 
 
 | Stage | Ask the participant to do | Observe and retain privately |
 | --- | --- | --- |
-| Initial onboarding | Identify the business, confirm its website, review the discovered brief, correct it and approve it | Whether the correct business was found; assistance required; corrections versus preferences; source quality; elapsed time, including interruptions |
-| First useful result | Prepare the Marketing starter assignment, review its exact context/budget, run it, inspect the result and complete it only when ready | The first assignment ID; useful as delivered, useful after edits, or not useful; what prevented use; actual cost receipts |
+| Goal-first onboarding | On Home, describe the business and desired result, optionally supply its website, read the model/allowance disclosure and use the single-run consent plus **Generate my first draft** | Whether the correct business and goal are understood; fields and interactions required; assistance; visible progress and recovery; elapsed time including interruptions |
+| First raw result | Inspect the automatically opened draft before changing it; assess whether it fulfills the stated goal and complete it only when genuinely ready | First task and raw artifact references; useful as delivered or not yet useful; missing work, unsupported claims, intervention count and actual model receipts |
+| Optional knowledge review | After assessing the first result, inspect website references or use the Business Brief editor to approve/correct reusable company knowledge | Whether website claims stay separate from owner facts; corrections versus preferences; sources and retrieval dates; additional time spent building durable context |
 | Recurring work follow-up | Choose a valued recurring job, approve its finite schedule, and review later occurrences | Whether useful work actually caused a return; whether this was observed in a session or reported by the participant; failed or missed occurrences; time spent correcting outputs |
 | Advanced work | Once qualified, review a browser/script or delegated developer task and the higher-cost allowance it needs | What additional work was completed; source/permission boundaries; output usefulness; cleanup and cost evidence; whether it displaced a manual task |
 | Commercial follow-up | Review an owner-approved paid offer, manage the subscription, and later inspect any renewal | Declined, test-only, paid or renewed; dated provider receipt review; cancellations and reasons; eligibility for the measured follow-up window |
@@ -36,6 +37,37 @@ Start by letting the participant work without coaching. Record each intervention
 an onboarding-time statistic. Ask neutral questions: “What would you use this for?”, “What must change before you
 can use it?”, and “Which task would you want repeated next week?” Intent to return or pay is separate from
 observed return or payment. Do not complete a task on the participant's behalf merely to improve the metric.
+
+### First-result acceptance
+
+Run the participant's stated goal without coaching them into the product's favorite example. An email request
+must be assessed as an email; a weekly content plan must be assessed as a plan. Judge whether the requested work
+is actually delivered, its factual claims are grounded and the next action is usable. A brief, a plan to create
+the asset later, or a tidy format alone does not establish useful completion. Natural wording and modest length
+differences are acceptable unless the participant's task has a real hard constraint.
+
+Retain the first model output unchanged, including its task, artifact version/digest and usage receipt. No assistant
+or observer may create an editorial copy, repair the output, rerun it or hide a failed attempt to improve this
+acceptance result. Ask the usefulness questions before any participant edits. If the participant then chooses to
+edit or separately authorize a revision, preserve both the initial assessment and the later result; record
+`useful-after-edits` separately from useful as delivered. An owner-edited result cannot retroactively pass the raw
+first-output gate. A subsequent run is a new observation, not a replacement for the original.
+
+Record four timestamps in private session notes: Home entry, Generate activation, first raw result visible, and
+usefulness assessment. Also record fields filled, primary actions, assistance count and interruption time.
+Backend job or discovery durations are useful diagnostics, but cannot stand in for observed time to a usable
+result. The existing Progress export does not measure these browser-visible timestamps or human interventions;
+do not derive them from server timestamps or infer an absent observation as zero.
+
+Use the same initial facts/goal when comparing product versions, and retain which version produced each output.
+If model terms change before dispatch, record the extra review as friction. For an uncertain request, recover its
+saved status and preserve the original attempt; do not authorize another run merely because its response is slow
+or missing. Do not spend beyond the participant's approved allowance.
+
+The optional website is reference material for that goal; discovery does not silently turn website claims into
+approved team knowledge. A participant without a website can still use Home. Do not route participants through
+the longer Business Brief editor as an undocumented workaround for a broken fast path. If that path fails, record
+the failure before exploring alternatives.
 
 After each session, retain the observations, source/result references and any consented session notes privately.
 Use pseudonyms such as P01 in the manifest. Keep names, contact details, URLs, raw documents, recordings and
@@ -59,6 +91,9 @@ content belongs in fixtures, commits or screenshots checked into source control.
 4. Fill the observation choices below. Preserve unknowns as null or `unobserved`. Initial and follow-up dates use
    ISO 8601 timestamps with a timezone. Useful first-deliverable feedback must name the exported first assignment
    and that assignment must be completed. This checks the saved workflow link, not the truth of a human judgment.
+   Keep the raw-result assessment and intervention/timing notes alongside the manifest; the reporter does not
+   independently verify them. A useful opinion before task completion remains a private observation until the
+   workflow is actually completed; do not complete the task just to make the reporter accept the opinion.
 5. Record each completed task's costs in its **Task costs** panel. Use zero only for known zero expenses, retain
    receipt/allocation evidence, then download a fresh Progress snapshot. Company-key model funding and estimates
    are separately labeled. Allocate shared costs deliberately; this report cannot infer business profitability.

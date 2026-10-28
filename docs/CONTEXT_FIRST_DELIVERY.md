@@ -22,8 +22,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 1. Obtain the owner's usefulness assessment of the saved first raw result; no editorial replacement or repair loop.
 2. Evaluate the prepared weekly-plan and direct-asset requests when authorized, preserving every first raw result.
 3. Keep grounding and completeness checks useful; natural labels and modest length differences are acceptable.
-4. Validate time to useful work with prospective users before expanding infrastructure. One local walkthrough is not
-   evidence of signup success, customer retention or consistent model quality.
+4. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md) before expanding
+   infrastructure. One local walkthrough is not evidence of signup success, retention or consistent model quality.
 
 Commit and push each completed cycle to `main`, without a PR. Reserve new ADRs for architectural decisions;
 put routine checkpoints in `docs/history/`. The repository is currently private; private pilot evidence and
