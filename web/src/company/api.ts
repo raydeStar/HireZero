@@ -82,6 +82,8 @@ export type BusinessDraftJob = {
   usage?: { inputTokens: number; outputTokens: number; billedUsd?: number | null } | null;
   reportedUsage?: number | null;
   providerReceipt?: string | null;
+  localRefusalReceipt?: string | null;
+  rejectedResponse?: string | null;
 };
 export type BusinessLookup = {
   id: string;

@@ -18,14 +18,23 @@ public sealed record CompanyBusinessDraft(
     string? Error = null,
     ModelUsage? Usage = null,
     long? ReportedUsage = null,
-    string? ProviderReceipt = null
+    string? ProviderReceipt = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string? LocalRefusalReceipt = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string? RejectedResponse = null
 );
 
 public sealed record CompanyBusinessReconciliation(
     string Receipt,
     ModelUsage Usage,
     string Evidence,
-    bool ProviderStopped
+    bool ProviderStopped,
+    string Kind = "provider"
 );
 
 public sealed partial class CompanyStore
@@ -39,7 +48,7 @@ public sealed partial class CompanyStore
         + "Each field has key, value (at most 600 characters), verification, citations. verification is sourced, hypothesis, or unknown, NEVER owner. "
         + "Every sourced fact or hypothesis needs citations [{sourceId,quote}] using an exact short quotation from a supplied source, with at most one citation per field. "
         + "Use unknown with value Unknown and no citations wherever evidence is missing. A hypothesis is an idea to investigate, never a claimed result. "
-        + "Do not invent audiences, pricing, competitors, performance, evidence or permissions. Existing owner facts in the input will be preserved by the application.";
+        + "Do not invent audiences, pricing, competitors, performance, evidence or permissions. For each key in ownerFields, return Unknown with verification unknown and no citations: the application preserves the owner's exact value. Owner input is not a website source.";
 
     public CompanyBusinessDraft BusinessDraft(string id)
     {

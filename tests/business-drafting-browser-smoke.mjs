@@ -397,7 +397,7 @@ try {
   await send("Page.reload");
   await waitText("Provider receipt needs reconciliation");
   await evaluate(
-    "[...document.querySelectorAll('.co-business-drafting details')].find(d=>d.querySelector('summary').textContent==='Reconcile a provider receipt').open=true",
+    "[...document.querySelectorAll('.co-business-drafting details')].find(d=>d.querySelector('summary').textContent==='Reconcile request outcome').open=true",
   );
   await field("Provider receipt", "fictional-reconciled-receipt");
   await field("Confirmed input tokens", "150");
@@ -419,6 +419,42 @@ try {
     1,
     "Unknown output was never imported",
   );
+  await evaluate("document.querySelector('.co-business-drafting > details').open=true");
+  await click("Prepare brief draft");
+  await waitText("Prepared for authorization");
+  await click("Review draft request");
+  await waitText("I authorize one draft");
+  await evaluate(
+    "[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('I authorize one draft')).querySelector('input').click()",
+  );
+  await click("Authorize one brief draft");
+  await waitText("Provider receipt needs reconciliation");
+  await evaluate(
+    "[...document.querySelectorAll('.co-business-drafting details')].find(d=>d.querySelector('summary').textContent==='Reconcile request outcome').open=true",
+  );
+  await evaluate(
+    "const select=[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('Evidence type')).querySelector('select');select.value='local-refusal';select.dispatchEvent(new Event('change',{bubbles:true}));",
+  );
+  await waitText("Local diagnostic receipt");
+  assert.equal(await evaluate("document.querySelector('.co-business-drafting').innerText.includes('Confirmed output tokens')"), false);
+  await field("Local diagnostic receipt", "fictional-local-refusal");
+  await field("How was this verified?", "Fictional dispatch log establishes refusal before any model request.");
+  await evaluate(
+    "[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('I verified from local evidence')).querySelector('input').click()",
+  );
+  await click("Record local refusal");
+  await waitText("Local refusal recorded");
+  await send("Page.reload");
+  await waitText("Local refusal recorded");
+  data = (await snapshot()).data;
+  assert.equal(data.businessDrafts.length, 3);
+  const locallyResolved = data.businessDrafts.find(d => d.localRefusalReceipt);
+  assert.equal(locallyResolved.localRefusalReceipt, "fictional-local-refusal");
+  assert.equal(locallyResolved.providerReceipt, null);
+  assert.equal(locallyResolved.reportedUsage, 0);
+  assert.equal(data.budgets.find((b) => b.id === "company-total").reserved, 0);
+  assert.equal(data.budgets.find((b) => b.id === "company-total").used, 360);
+  assert.equal(data.businessProfiles.length, 1);
   await send("Emulation.setDeviceMetricsOverride", {
     width: 390,
     height: 844,
@@ -859,7 +895,7 @@ try {
   assert.ok(progress.onboarding.ownerFieldEdits > 0);
   assert.equal(progress.onboarding.approvedBriefs, 1);
   assert.equal(progress.averageRecordedModelUsdPerCompletion, 0.002);
-  assert.equal(progress.modelCosts.jobs, 3);
+  assert.equal(progress.modelCosts.jobs, 4);
   assert.ok(
     progress.modelCosts.unpricedJobs > 0,
     "Unpriced earlier draft remains visible instead of becoming free",
@@ -1206,6 +1242,25 @@ try {
   assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
   assert.deepEqual((await snapshot()).data.measured, measuredBeforeLabels, "Labelling and opening saved work makes no model request");
   assert.deepEqual(errors, []);
+  await send("Page.navigate", { url: `${url}/?view=departments&section=business` });
+  await bodyText("Let HireZero draft the brief");
+  await evaluate("document.querySelector('.co-business-drafting > details').open=true");
+  await click("Prepare brief draft");
+  await waitText("Prepared for authorization");
+  await click("Review draft request");
+  await waitText("I authorize one draft");
+  await evaluate("[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('I authorize one draft')).querySelector('input').click()");
+  await click("Authorize one brief draft");
+  await waitText("The response did not pass evidence checks");
+  await waitText("not valid brief JSON");
+  await evaluate("[...document.querySelectorAll('.co-business-drafting details')].find(d=>d.querySelector('summary').textContent==='Inspect rejected model response').open=true");
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-business-drafting pre')].some(p=>p.textContent==='not JSON <script>fictional()</script>')"), true);
+  assert.equal(await evaluate("document.querySelectorAll('.co-business-drafting script').length"), 0);
+  data = (await snapshot()).data;
+  assert.equal(data.businessProfiles.length, 1, "Rejected text never became a profile");
+  assert.equal(data.businessDrafts.find(d=>d.state==='invalid').rejectedResponse, "not JSON <script>fictional()</script>");
+  await send("Page.reload");
+  await waitText("Inspect rejected model response");
   await fs.writeFile(
     path.join(repo, "test-results/business-drafting-browser.json"),
     JSON.stringify(
@@ -1275,7 +1330,9 @@ try {
         candidateSelectionRequiresConfirmation: true,
         searchLostReplyNeverRepeated: true,
         boundedAutomaticDiscovery: true,
-        modelCalls: 3,
+        modelCalls: 5,
+        localRefusalUsesSeparateReceiptWithoutUsageOrReplay: true,
+        rejectedResponseInspectableAsTextWithoutImport: true,
         liveModelCalls: 0,
         externalRequests: 0,
       },

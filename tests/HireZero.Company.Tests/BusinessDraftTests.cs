@@ -378,6 +378,14 @@ public sealed partial class BusinessDraftTests : IDisposable
                 TestContext.Current.CancellationToken
             );
             Assert.Equal("invalid", store.BusinessDraft(prepared.Id).State);
+            var rejected = Store().BusinessDraft(prepared.Id);
+            Assert.NotNull(rejected.RejectedResponse);
+            Assert.Equal(response(prepared.Call), rejected.RejectedResponse);
+            Assert.Contains("No brief was imported", rejected.Error);
+            if (rejected.RejectedResponse == "not JSON")
+                Assert.Contains("not valid brief JSON", rejected.Error);
+            else if (rejected.RejectedResponse.Contains("Invented evidence"))
+                Assert.Contains("business citation must exactly quote", rejected.Error);
         }
         Assert.Empty(Items<CompanyBusinessProfile>(store, "businessProfiles"));
         Assert.Equal(375, Items<CompanyBudget>(store, "budgets").Single(b => b.Id == "company-total").Used);
@@ -483,6 +491,8 @@ public sealed partial class BusinessDraftTests : IDisposable
         Assert.Throws<WorkspaceException>(() => reopened.Apply(reconcile with { Digest = "wrong" }));
         reopened.Apply(reconcile);
         Assert.Equal("reconciled", reopened.BusinessDraft(uncertain.Id).State);
+        Assert.Equal("fictional-confirmed", reopened.BusinessDraft(uncertain.Id).ProviderReceipt);
+        Assert.Null(reopened.BusinessDraft(uncertain.Id).LocalRefusalReceipt);
         var budget = Items<CompanyBudget>(reopened, "budgets").Single(b => b.Id == "company-total");
         Assert.Equal(0, budget.Reserved);
         Assert.Equal(200, budget.Used);
@@ -501,6 +511,7 @@ public sealed partial class BusinessDraftTests : IDisposable
         Assert.Equal("unknown", reopened.BusinessDraft(prepared.Id).State);
         reopened.FinishBusinessDraft(prepared.Id, new(Answer(prepared.Call), 125, "fictional-late", new(100, 25)));
         Assert.Equal("withheld", reopened.BusinessDraft(prepared.Id).State);
+        Assert.Null(reopened.BusinessDraft(prepared.Id).RejectedResponse);
         Assert.Empty(Items<CompanyBusinessProfile>(reopened, "businessProfiles"));
         Assert.All(Items<CompanyBudget>(reopened, "budgets"), b => Assert.Equal(0, b.Reserved));
     }

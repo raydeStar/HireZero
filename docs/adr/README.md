@@ -160,3 +160,6 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0153](0153-reviewed-scheduled-time-context.md) | Include an approved calendar anchor in recurring employee work | Accepted; explicit definition option preserves older approvals and supplies immutable local occurrence times |
 | [0154](0154-clear-business-draft-preflight-and-review.md) | Explain business-draft model terms and local runtime refusals | Accepted; missing pins are confirmed pre-process refusals, never replayed |
 | [0155](0155-durable-local-codex-runtime.md) | Keep the reviewed Codex executable outside desktop update directories | Text preflight verified on the official candidate and standalone copy; no inferred approval transfer or coding qualification |
+| [0156](0156-explicit-local-refusal-reconciliation.md) | Record evidenced local refusals separately from provider receipts | Accepted; exact owner confirmation, zero usage only, no replay or output import |
+| [0157](0157-inspect-rejected-business-drafts.md) | Inspect rejected brief text and validation reasons | Accepted; bounded diagnostic text stays outside profiles and employee context |
+| [0158](0158-source-layout-and-owner-field-precedence.md) | Canonical source whitespace and captured owner-field precedence | Accepted; exact words retained, owner values preserved before model evidence validation |

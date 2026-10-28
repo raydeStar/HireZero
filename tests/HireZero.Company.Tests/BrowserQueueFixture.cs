@@ -948,7 +948,12 @@ static class BrowserQueueFixture
                     )
                 );
             }
-            if (++_calls > 1 && failAfterFirst)
+            var request = ++_calls;
+            if (request == 4 && failAfterFirst)
+                return Task.FromResult(
+                    new ModelReply("not JSON <script>fictional()</script>", 30, "fictional-rejected", new(20, 10))
+                );
+            if (request > 1 && failAfterFirst)
                 throw new HttpRequestException("Fictional unconfirmed provider outcome");
             if (job.State != "dispatched" || call.Context.Scope != "business-profile" || call.Context.EmployeeId != "")
                 throw new ModelTransportException("Unexpected fixture request", 0, usage: new(0, 0));

@@ -38,6 +38,8 @@ public sealed partial class CompanyStore
             draft.State == "completed" ? "A sourced brief draft is ready for review. It is not approved knowledge."
                 : draft.State == "unknown"
                     ? "The profile request is uncertain; its allowance is retained and no replay is allowed."
+                : draft.LocalRefusalReceipt is not null
+                    ? "Owner recorded local evidence that no request was sent; zero usage was settled without replay."
                 : "Profile output was withheld. Recorded usage remains visible."
         );
     }
@@ -108,22 +110,28 @@ public sealed partial class CompanyStore
                     );
                     if (
                         answer.Fields is null
+                        || answer.Fields.Length != BusinessProfileFields.Length
+                        || answer.Fields.Select(f => f?.Key).Order().SequenceEqual(BusinessProfileFields.Order())
+                            == false
                         || answer.Fields.Any(f =>
                             f is null
-                            || f.Verification == "owner"
-                            || f.Verification == "unknown" && f.Value != "Unknown"
-                            || (f.Citations?.Length ?? 0) > 1
-                            || (f.Citations ?? []).Any(c => c is null || !draft.SourceIds.Contains(c.SourceId))
+                            || !draft.OwnerFields.Any(o => o.Key == f.Key)
+                                && (
+                                    f.Verification == "owner"
+                                    || f.Verification == "unknown" && f.Value != "Unknown"
+                                    || (f.Citations?.Length ?? 0) > 1
+                                    || (f.Citations ?? []).Any(c => c is null || !draft.SourceIds.Contains(c.SourceId))
+                                )
                         )
                     )
                         throw new WorkspaceException(
                             "The model must return bounded source-supported facts or explicit unknowns, never owner authority.",
                             422
                         );
-                    var validated = ValidateProfile(db, new(draft.BusinessVersion, answer.Fields));
-                    var fields = validated
-                        .Select(f => draft.OwnerFields.SingleOrDefault(o => o.Key == f.Key) ?? f)
+                    var candidate = answer
+                        .Fields.Select(f => draft.OwnerFields.SingleOrDefault(o => o.Key == f.Key) ?? f)
                         .ToArray();
+                    var fields = ValidateProfile(db, new(draft.BusinessVersion, candidate));
                     var profile = (CompanyBusinessProfile)SaveBusinessProfile(
                         db,
                         new(
@@ -151,7 +159,16 @@ public sealed partial class CompanyStore
                         {
                             State = "invalid",
                             Error =
-                                "The response failed the structured evidence checks. No brief was imported. Review your sources and prepare a new request if needed.",
+                                "No brief was imported. "
+                                + (
+                                    error is WorkspaceException
+                                        ? ContentGuard.Clean(error.Message, 500).Text
+                                        : "The model response was not valid brief JSON. It must contain only the expected fields object."
+                                ),
+                            // Keep the rejected draft in the evidence tray, never in the employee's knowledge.
+                            RejectedResponse = ContentGuard
+                                .Clean(reply.Body, draft.Job.Policy.VisibleCharacterStop)
+                                .Text,
                         }
                     );
                 }
@@ -164,16 +181,18 @@ public sealed partial class CompanyStore
     {
         var draft = Need<CompanyBusinessDraft>(db, command.Id);
         Version(draft.Version, command.ExpectedVersion);
+        var evidence = CompanyJson.Decode<CompanyBusinessReconciliation>(command.Body ?? "null");
+        var localRefusal = evidence.Kind == "local-refusal";
         if (
             draft.State != "unknown"
             || command.Digest != draft.Job.Digest
-            || command.Decision != "confirmed-usage-and-termination"
+            || evidence.Kind is not ("provider" or "local-refusal")
+            || command.Decision != (localRefusal ? "confirmed-local-refusal" : "confirmed-usage-and-termination")
         )
             throw new WorkspaceException(
-                "Reconcile the exact uncertain request with its provider receipt and confirmed termination.",
+                "Reconcile the exact uncertain request with the selected evidence and explicit confirmation.",
                 409
             );
-        var evidence = CompanyJson.Decode<CompanyBusinessReconciliation>(command.Body ?? "null");
         var receipt = Text(evidence.Receipt, 160);
         if (
             evidence.Usage is null
@@ -185,6 +204,26 @@ public sealed partial class CompanyStore
                 422
             );
         var total = evidence.Usage.InputTokens + evidence.Usage.OutputTokens;
+        // A local diagnostic is not a provider bill. The owner must establish that nothing was sent.
+        if (
+            localRefusal
+            && (
+                total != 0
+                || evidence.Usage.ReasoningTokens is > 0
+                || evidence.Usage.BilledUsd is > 0
+                || draft.ProviderReceipt is not null
+                || draft.ReportedUsage is > 0
+                || draft.Usage
+                    is { InputTokens: > 0 }
+                        or { OutputTokens: > 0 }
+                        or { ReasoningTokens: > 0 }
+                        or { BilledUsd: > 0 }
+            )
+        )
+            throw new WorkspaceException(
+                "A local refusal requires evidence that no model request was sent. It cannot replace a provider receipt or observed usage.",
+                422
+            );
         if (
             !evidence.ProviderStopped
             || !evidence.Usage.Consistent(total)
@@ -237,8 +276,11 @@ public sealed partial class CompanyStore
                 State = "reconciled",
                 Usage = reconciledUsage,
                 ReportedUsage = total,
-                ProviderReceipt = receipt,
-                Error = "Owner reconciled provider usage and termination: " + note,
+                ProviderReceipt = localRefusal ? null : receipt,
+                LocalRefusalReceipt = localRefusal ? receipt : null,
+                Error = localRefusal
+                    ? "Owner recorded evidence that no model request was sent: " + note
+                    : "Owner reconciled provider usage and termination: " + note,
             }
         );
         return Need<CompanyBusinessDraft>(db, draft.Id);

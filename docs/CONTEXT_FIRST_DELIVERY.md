@@ -9,21 +9,33 @@ Existing capabilities below are source-inspected candidates for reuse, not blank
 
 ## Delivery checkpoints after the owner assessment
 
+The public-source onboarding recovery now distinguishes a proven local refusal from a provider receipt
+([ADR 0156](adr/0156-explicit-local-refusal-reconciliation.md)). The historical refusal is settled at zero usage,
+without replay. Two new Luna requests completed but failed brief validation, totaling 18,335 reported tokens.
+Inspectable rejected text ([ADR 0157](adr/0157-inspect-rejected-business-drafts.md)) revealed a quotation line-break
+mismatch and a false citation of the owner's goal. [ADR 0158](adr/0158-source-layout-and-owner-field-precedence.md)
+corrects source whitespace handling and applies captured owner values before model evidence validation. Forty
+focused facts and the expanded fictional browser journey pass. The editorial website brief remains an unapproved
+draft; successful fresh native generation and owner acceptance are still open. The exact two-run schedule has been
+re-reviewed for the repaired runtime, with its obsolete version canceled and no extra occurrences authorized.
+See [evaluation and recovery evidence](history/2026-10-28-local-refusal-reconciliation.md). All three phases remain
+in scope; no new model call or publishing is implied by this checkpoint.
+
 The local native runtime has been restored under [ADR 0155](adr/0155-durable-local-codex-runtime.md). Both
 installations now use a verified, versioned copy outside the desktop updater's package directories. Native
 preflight succeeds on both hosts with the existing account and Luna route; no inference was performed during
-recovery. The original records, accepted plan and schedule are preserved. The historical uncertain brief attempt
-still needs supported reconciliation, and the schedule needs review against the changed runtime binding before
-use. See [recovery evidence](history/2026-10-28-durable-runtime-recovery.md). This does not close the real generated
+recovery. The original records and accepted plan are preserved. At that checkpoint, the historical uncertain brief
+attempt still needed reconciliation and the schedule needed runtime review; those are resolved by the later
+checkpoint above. See [recovery evidence](history/2026-10-28-durable-runtime-recovery.md). This does not close the real generated
 brief, recurring usefulness or customer-validation gates.
 
 The real public-site onboarding walkthrough now confirms identity and imports three sourced pages in a separate
 company. The first native brief request exposed a missing pinned executable after a desktop package update;
 no generated brief or provider receipt resulted, and the uncertain saved request was not replayed.
 [ADR 0154](adr/0154-clear-business-draft-preflight-and-review.md) improves provider/limit disclosure, lookup progress
-and confirmed pre-process refusal accounting. The accepted pilot and its exact schedule remain intact, but native
-execution needs a separately reviewed runtime replacement before real onboarding or scheduled usefulness can be
-claimed. See [onboarding evidence](history/2026-10-28-real-website-onboarding.md). All three phases remain in scope.
+and confirmed pre-process refusal accounting. The accepted pilot was preserved; native execution at that checkpoint
+needed the runtime replacement recorded above. Real onboarding and scheduled usefulness remain separate gates.
+See [onboarding evidence](history/2026-10-28-real-website-onboarding.md). All three phases remain in scope.
 
 New recurring employee schedules can include a separately reviewed calendar anchor under
 [ADR 0153](adr/0153-reviewed-scheduled-time-context.md). Each immutable request gets its planned local date,

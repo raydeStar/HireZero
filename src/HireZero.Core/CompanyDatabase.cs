@@ -433,6 +433,8 @@ public sealed partial class CompanyStore
                             d.Usage,
                             d.ReportedUsage,
                             d.ProviderReceipt,
+                            d.LocalRefusalReceipt,
+                            d.RejectedResponse,
                         }),
                     businessLookups = All<CompanyBusinessLookup>(db),
                     businessSources = All<CompanyBusinessSource>(db)

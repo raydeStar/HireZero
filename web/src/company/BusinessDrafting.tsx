@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { providerName } from "./ModelChoice";
 import {
@@ -22,6 +22,8 @@ const status: Record<string, string> = {
   unknown: "Provider receipt needs reconciliation",
   reconciled: "Provider receipt reconciled",
 };
+const draftStatus = (job: BusinessDraftJob) =>
+  job.state === "reconciled" && job.localRefusalReceipt ? "Local refusal recorded" : status[job.state] || job.state;
 
 export function BusinessDrafting({
   snapshot,
@@ -44,6 +46,7 @@ export function BusinessDrafting({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [receipt, setReceipt] = useState(""),
+    [receiptKind, setReceiptKind] = useState("provider"),
     [input, setInput] = useState(""),
     [output, setOutput] = useState(""),
     [evidence, setEvidence] = useState(""),
@@ -51,6 +54,14 @@ export function BusinessDrafting({
   const locked = useRef(false);
   const jobs = (snapshot.data.businessDrafts || []).filter((d) => d.businessVersion === identity.version);
   const job = jobs.find((d) => d.id === selectedJob) || jobs.at(-1);
+  useEffect(() => {
+    setReceiptKind("provider");
+    setReceipt("");
+    setInput("");
+    setOutput("");
+    setEvidence("");
+    setStopped(false);
+  }, [job?.id]);
   const result = snapshot.data.businessProfiles?.find((p) => p.id === job?.profileId);
   const cents = snapshot.capabilities.allowanceUnit === "usd-cents";
   // modelExecution is automatic work; ADR 0036 leaves it off for every real provider.
@@ -159,6 +170,7 @@ export function BusinessDrafting({
               Draft request
               <select
                 value={job.id}
+                disabled={busy}
                 onChange={(e) => {
                   setSelectedJob(e.target.value);
                   setPacket(null);
@@ -167,16 +179,19 @@ export function BusinessDrafting({
               >
                 {jobs.map((j) => (
                   <option key={j.id} value={j.id}>
-                    {new Date(j.updatedAt).toLocaleString()} · {status[j.state] || j.state}
+                    {new Date(j.updatedAt).toLocaleString()} · {draftStatus(j)}
                   </option>
                 ))}
               </select>
             </label>
           )}
           <p role="status">
-            <b>{status[job.state] || job.state}</b>
+            <b>{draftStatus(job)}</b>
           </p>
           {job.error && <p role="alert">{job.error}</p>}
+          {job.localRefusalReceipt && (
+            <p>Local diagnostic receipt: {job.localRefusalReceipt}. No provider receipt was claimed.</p>
+          )}
           {job.usage && (
             <p className="co-muted">
               Recorded usage: {job.usage.inputTokens.toLocaleString()} input + {job.usage.outputTokens.toLocaleString()}{" "}
@@ -278,25 +293,35 @@ export function BusinessDrafting({
           )}
           {job.state === "unknown" && (
             <details>
-              <summary>Reconcile a provider receipt</summary>
-              <p>
-                Use the provider's actual receipt and confirm its request has stopped. This accounts for usage; it does
-                not rerun the request or import its response.
-              </p>
+              <summary>Reconcile request outcome</summary>
+              {receiptKind === "provider" && (
+                <p>
+                  Use the provider's actual receipt and confirm its request has stopped. This accounts for usage; it
+                  does not rerun the request or import its response.
+                </p>
+              )}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   void perform(async () => {
+                    setStopped(false);
                     await command(
                       "business.draft.reconcile",
                       {
                         id: job.id,
                         expectedVersion: job.version,
                         digest: job.job.digest,
-                        decision: "confirmed-usage-and-termination",
+                        decision:
+                          receiptKind === "local-refusal"
+                            ? "confirmed-local-refusal"
+                            : "confirmed-usage-and-termination",
                         body: JSON.stringify({
                           receipt,
-                          usage: { inputTokens: Number(input), outputTokens: Number(output) },
+                          kind: receiptKind,
+                          usage: {
+                            inputTokens: receiptKind === "local-refusal" ? 0 : Number(input),
+                            outputTokens: receiptKind === "local-refusal" ? 0 : Number(output),
+                          },
                           evidence,
                           providerStopped: stopped,
                         }),
@@ -308,46 +333,97 @@ export function BusinessDrafting({
               >
                 <fieldset disabled={busy}>
                   <label>
-                    Provider receipt
+                    Evidence type
+                    <select
+                      value={receiptKind}
+                      onChange={(e) => {
+                        setReceiptKind(e.target.value);
+                        setStopped(false);
+                        setReceipt("");
+                        setEvidence("");
+                      }}
+                    >
+                      <option value="provider">Provider receipt</option>
+                      <option
+                        value="local-refusal"
+                        disabled={
+                          !!job.providerReceipt ||
+                          (job.reportedUsage ?? 0) > 0 ||
+                          (job.usage?.inputTokens ?? 0) > 0 ||
+                          (job.usage?.outputTokens ?? 0) > 0 ||
+                          (job.usage?.billedUsd ?? 0) > 0
+                        }
+                      >
+                        Local refusal before dispatch
+                      </option>
+                    </select>
+                  </label>
+                  {receiptKind === "local-refusal" && (
+                    <p>
+                      Use local logs that establish no model request was sent. A timeout or interrupted request does not
+                      establish this. This records zero usage with a separate diagnostic receipt; it never reruns the
+                      request.
+                    </p>
+                  )}
+                  <label>
+                    {receiptKind === "local-refusal" ? "Local diagnostic receipt" : "Provider receipt"}
                     <input required maxLength={160} value={receipt} onChange={(e) => setReceipt(e.target.value)} />
                   </label>
-                  <label>
-                    Confirmed input tokens
-                    <input
-                      required
-                      type="number"
-                      min="0"
-                      max="1000000000"
-                      step="1"
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Confirmed output tokens
-                    <input
-                      required
-                      type="number"
-                      min="0"
-                      max="1000000000"
-                      step="1"
-                      value={output}
-                      onChange={(e) => setOutput(e.target.value)}
-                    />
-                  </label>
+                  {receiptKind === "provider" && (
+                    <>
+                      <label>
+                        Confirmed input tokens
+                        <input
+                          required
+                          type="number"
+                          min="0"
+                          max="1000000000"
+                          step="1"
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                        />
+                      </label>
+                      <label>
+                        Confirmed output tokens
+                        <input
+                          required
+                          type="number"
+                          min="0"
+                          max="1000000000"
+                          step="1"
+                          value={output}
+                          onChange={(e) => setOutput(e.target.value)}
+                        />
+                      </label>
+                    </>
+                  )}
                   <label>
                     How was this verified?
                     <textarea required maxLength={500} value={evidence} onChange={(e) => setEvidence(e.target.value)} />
                   </label>
                   <label className="co-business-check">
                     <input type="checkbox" checked={stopped} onChange={(e) => setStopped(e.target.checked)} />
-                    <span>I verified that the provider request has stopped and this is its complete usage.</span>
+                    <span>
+                      {receiptKind === "local-refusal"
+                        ? "I verified from local evidence that no model request was sent."
+                        : "I verified that the provider request has stopped and this is its complete usage."}
+                    </span>
                   </label>
                   <button disabled={!stopped} type="submit">
-                    Record reconciled usage
+                    {receiptKind === "local-refusal" ? "Record local refusal" : "Record reconciled usage"}
                   </button>
                 </fieldset>
               </form>
+            </details>
+          )}
+          {job.state === "invalid" && job.rejectedResponse && (
+            <details>
+              <summary>Inspect rejected model response</summary>
+              <p>
+                This response failed the brief checks. It is not approved knowledge. You can use the source evidence to
+                correct the brief below; another model request is optional.
+              </p>
+              <pre>{job.rejectedResponse}</pre>
             </details>
           )}
           <button disabled={busy} onClick={() => perform(async () => {})}>

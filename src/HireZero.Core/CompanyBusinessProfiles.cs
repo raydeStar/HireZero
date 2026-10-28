@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace HireZero.Core;
 
 public sealed partial class CompanyStore
@@ -21,7 +23,10 @@ public sealed partial class CompanyStore
                 var field = input.Fields.Single(f => f.Key == key);
                 var value = Text(field.Value, 600).Trim();
                 if (value.Length == 0 || field.Verification is not ("sourced" or "hypothesis" or "owner" or "unknown"))
-                    throw new WorkspaceException("Every field needs text and a recognized verification status.", 422);
+                    throw new WorkspaceException(
+                        $"The {key} field needs text and a recognized verification status.",
+                        422
+                    );
                 var citations = field.Citations ?? [];
                 if (
                     citations.Length > 5
@@ -30,7 +35,7 @@ public sealed partial class CompanyStore
                 )
                     throw new WorkspaceException("Use up to five distinct sources per field.", 422);
                 if (field.Verification is "sourced" or "hypothesis" && citations.Length == 0)
-                    throw new WorkspaceException("Extracted facts and hypotheses need source evidence.", 422);
+                    throw new WorkspaceException($"The {key} fact or hypothesis needs source evidence.", 422);
                 if (field.Verification is "owner" or "unknown" && citations.Length != 0)
                     throw new WorkspaceException(
                         "Owner corrections and unknown facts have their own provenance, not source citations.",
@@ -41,13 +46,33 @@ public sealed partial class CompanyStore
                     {
                         var source = Need<CompanyBusinessSource>(db, citation.SourceId);
                         var quote = Text(citation.Quote, 600).Trim();
+                        if (quote.Length > 0 && !source.Text.Contains(quote, StringComparison.Ordinal))
+                        {
+                            // Page layout may wrap a sentence. Match only whitespace; never mend a model's words.
+                            var pattern = string.Join(@"\s+", Regex.Split(quote, @"\s+").Select(Regex.Escape));
+                            try
+                            {
+                                var match = Regex.Match(
+                                    source.Text,
+                                    pattern,
+                                    RegexOptions.CultureInvariant,
+                                    TimeSpan.FromMilliseconds(100)
+                                );
+                                if (match.Success && match.Length <= 600)
+                                    quote = match.Value;
+                            }
+                            catch (RegexMatchTimeoutException)
+                            {
+                                // Leave it unmatched; uncertain quotations do not get the family seal.
+                            }
+                        }
                         if (
                             source.BusinessVersion != input.BusinessVersion
                             || quote.Length == 0
                             || !source.Text.Contains(quote, StringComparison.Ordinal)
                         )
                             throw new WorkspaceException(
-                                "A citation must quote a source from this confirmed business revision.",
+                                $"The {key} citation must exactly quote a source from this confirmed business revision.",
                                 422
                             );
                         return citation with { Quote = quote };
