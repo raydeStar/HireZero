@@ -80,6 +80,8 @@ public sealed partial class CompanyStore
             labels[draft.Id] = "Business profile draft";
         foreach (var analysis in All<CompanyMemoryAnalysis>(db))
             labels[analysis.Id] = "Memory check";
+        foreach (var decision in All<CompanyDecision>(db))
+            labels[decision.Id] = "Advisory decision";
         foreach (var schedule in All<CompanySchedule>(db))
             labels["schedule:" + schedule.Id] = "Recurring: " + schedule.Definition.Name;
         return labels;

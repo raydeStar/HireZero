@@ -240,7 +240,8 @@ public sealed partial class CompanyStore
         string? task,
         string? employee,
         string route,
-        long tokens
+        long tokens,
+        CompanyModelFunding? funding = null
     )
     {
         DemandWorkAdmission(db);
@@ -274,7 +275,7 @@ public sealed partial class CompanyStore
             tokens,
             UsagePrice(route),
             policy.Version,
-            Funding: UsageRouteFunding?.Invoke(kind, route) ?? UsageFunding(kind)
+            Funding: funding ?? UsageRouteFunding?.Invoke(kind, route) ?? UsageFunding(kind)
         );
         Save(db, entry, id, state: entry.State, version: entry.Version);
     }
@@ -290,20 +291,27 @@ public sealed partial class CompanyStore
         var attempt = Find<CompanyAttempt>(db, id);
         var draft = Find<CompanyBusinessDraft>(db, id);
         var analysis = Find<CompanyMemoryAnalysis>(db, id);
-        var usage = attempt?.Usage ?? draft?.Usage ?? analysis?.Usage;
-        var reported = attempt?.ReportedUsage ?? draft?.ReportedUsage ?? analysis?.ReportedUsage;
+        var decision = Find<CompanyDecision>(db, id);
+        var usage = attempt?.Usage ?? draft?.Usage ?? analysis?.Usage ?? decision?.Usage;
+        var reported =
+            attempt?.ReportedUsage ?? draft?.ReportedUsage ?? analysis?.ReportedUsage ?? decision?.ReportedUsage;
         var consistent = usage is not null && usage.Consistent(reported) && usage.BilledUsd is not < 0;
         var next = entry with
         {
             State = reservation.State,
-            Outcome = attempt?.Phase ?? draft?.State ?? analysis?.State ?? entry.Outcome,
+            Outcome = attempt?.Phase ?? draft?.State ?? analysis?.State ?? decision?.State ?? entry.Outcome,
             ActualTokens = reservation.Actual,
             ObservedTokens = reported is >= 0
                 ? Math.Max(reported.Value, entry.ObservedTokens ?? 0)
                 : entry.ObservedTokens,
-            ReportedUsd = consistent ? usage!.BilledUsd : entry.ReportedUsd,
+            ReportedUsd = decision?.ReportedCostUsd ?? (consistent ? usage!.BilledUsd : entry.ReportedUsd),
             EstimatedUsd = consistent ? entry.Price?.Cost(usage!) : entry.EstimatedUsd,
-            Receipt = attempt?.ProviderReceipt ?? draft?.ProviderReceipt ?? analysis?.ProviderReceipt ?? entry.Receipt,
+            Receipt =
+                attempt?.ProviderReceipt
+                ?? draft?.ProviderReceipt
+                ?? analysis?.ProviderReceipt
+                ?? decision?.ProviderReceipt
+                ?? entry.Receipt,
             SettledAt = entry.SettledAt ?? (reservation.State == "settled" ? Clock() : null),
         };
         if (next == entry)

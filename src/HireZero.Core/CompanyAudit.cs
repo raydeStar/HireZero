@@ -183,6 +183,7 @@ public sealed partial class CompanyStore
         {
             CompanyAttempt => ("model-call", "co_attempts"),
             CompanyMemoryAnalysis => ("memory-analysis", "co_memory_analyses"),
+            CompanyDecision => ("decision", "co_decisions"),
             CompanyExecutionGrant => ("coding-run", "co_execution_grants"),
             CompanySandboxJob => ("sandbox-run", "co_sandbox_jobs"),
             _ => (null, null),
@@ -214,6 +215,21 @@ public sealed partial class CompanyStore
         }
         object body = value switch
         {
+            CompanyDecision d => new
+            {
+                d.State,
+                d.Digest,
+                d.AuthorizedBy,
+                d.DispatchTaken,
+                d.Packet.Provider,
+                d.Packet.Model,
+                d.Packet.Funding,
+                d.AllowanceCents,
+                d.PlanningTokens,
+                d.ProviderReceipt,
+                d.ReportedUsage,
+                d.ReportedCostUsd,
+            },
             CompanyMemoryAnalysis a => new
             {
                 a.State,

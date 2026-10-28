@@ -154,3 +154,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0147](0147-usable-specialist-first-assignments.md) | Make specialist starters useful and open their exact saved work | Installed; native samples evaluated, CEO citations need an editorial copy, owner usefulness pending |
 | [0148](0148-action-receipts-survive-navigation.md) | Preserve employee action receipts through reload and navigation | Implemented; read-only status recovery preserves submitted inputs and prevents accidental redispatch |
 | [0149](0149-company-bound-jev-decision-transport.md) | Separate company-bound Jev decisions from text routing | Transport and protected-secret factory verified with fictional HTTP; durable admission and UI pending |
+| [0150](0150-durable-reviewed-advisory-decisions.md) | Reserve and reconcile reviewed advisory decisions durably | Core lifecycle and fictional checks; live provider binding, application review and acceptance pending |

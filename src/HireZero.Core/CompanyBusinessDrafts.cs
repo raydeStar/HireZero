@@ -205,7 +205,8 @@ public sealed partial class CompanyStore
 
     private bool OwnerModelProviderHeld(StoreConnection db) =>
         All<CompanyBusinessDraft>(db).Any(d => d.State is "running" or "unknown")
-        || All<CompanyMemoryAnalysis>(db).Any(d => d.State is "running" or "unknown");
+        || All<CompanyMemoryAnalysis>(db).Any(d => d.State is "running" or "unknown")
+        || All<CompanyDecision>(db).Any(d => d.State is "running" or "unknown");
 
     private object StartBusinessDraft(StoreConnection db, CompanyCommand command)
     {

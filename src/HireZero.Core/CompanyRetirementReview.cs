@@ -88,6 +88,12 @@ public sealed partial class CompanyStore
                     "Resolve memory analysis and its usage receipts."
                 );
                 Check(
+                    "advisory-decisions",
+                    "co_decisions",
+                    "state IN ('prepared','running','unknown')",
+                    "Cancel unstarted decisions or reconcile uncertain provider usage."
+                );
+                Check(
                     "budget-holds",
                     "co_reservations",
                     "state <> 'settled'",

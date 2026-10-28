@@ -106,7 +106,7 @@ public sealed class CompanyBillingDeliveryTests : IDisposable
                 r => r.GetString(0)
             );
             db.Execute(
-                "DROP TABLE co_task_cost_reviews; DROP TABLE co_memory_analyses; DROP TABLE co_billing_events; DROP TABLE co_billing_portals; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=26;"
+                "DROP TABLE IF EXISTS co_decisions; DROP TABLE co_task_cost_reviews; DROP TABLE co_memory_analyses; DROP TABLE co_billing_events; DROP TABLE co_billing_portals; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=26;"
             );
         }
         var reopened = Store();

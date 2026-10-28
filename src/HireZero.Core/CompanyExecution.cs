@@ -985,6 +985,7 @@ public sealed partial class CompanyStore
                 RecoverPublications(db);
                 RecoverBusinessDrafts(db);
                 RecoverMemoryAnalyses(db);
+                RecoverDecisions(db);
                 RecoverBusinessLookups(db);
                 RecoverBusinessRefreshes(db);
                 return true;

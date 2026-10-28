@@ -67,6 +67,7 @@ public sealed partial class CompanyStore
         [typeof(CompanyVerifiedEmail)] = "co_verified_emails",
         [typeof(CompanyMemoryItem)] = "co_memory",
         [typeof(CompanyMemoryAnalysis)] = "co_memory_analyses",
+        [typeof(CompanyDecision)] = "co_decisions",
         [typeof(CompanyTaskCostReview)] = "co_task_cost_reviews",
         [typeof(CompanyUsagePolicy)] = "co_usage_policy",
         [typeof(CompanyUsageEntry)] = "co_usage_entries",
@@ -169,6 +170,7 @@ public sealed partial class CompanyStore
                     BillingDeliverySchema,
                     MemoryAnalysisSchema,
                     TaskCostSchema,
+                    DecisionSchema,
                 ];
                 try
                 {
@@ -235,6 +237,7 @@ public sealed partial class CompanyStore
                         or "co_memory"
                         or "co_memory_analyses"
                         or "co_task_cost_reviews"
+                        or "co_decisions"
                         or "co_usage_policy"
                         or "co_usage_entries"
                         or "co_billing_checkouts"

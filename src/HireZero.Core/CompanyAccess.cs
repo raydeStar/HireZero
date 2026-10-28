@@ -34,6 +34,10 @@ public static class CompanyAccess
     // Structure, budgets, checkout grants, integrations and members are the owner's alone.
     private static readonly HashSet<string> OwnerOnly =
     [
+        "decision.prepare",
+        "decision.run",
+        "decision.cancel",
+        "decision.reconcile",
         "company.work.configure",
         "billing.prepare",
         "billing.checkout",

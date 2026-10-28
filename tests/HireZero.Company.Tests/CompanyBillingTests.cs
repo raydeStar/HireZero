@@ -663,7 +663,7 @@ public sealed class CompanyBillingTests : IDisposable
                 r => r.GetString(0)
             );
             db.Execute(
-                "DROP TABLE IF EXISTS co_task_cost_reviews; DROP TABLE IF EXISTS co_memory_analyses; DROP TABLE IF EXISTS co_billing_events; DROP TABLE IF EXISTS co_billing_portals; DROP TABLE co_billing_objects; DROP TABLE co_billing_checkouts; DROP TABLE co_billing_state; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=25;"
+                "DROP TABLE IF EXISTS co_decisions; DROP TABLE IF EXISTS co_task_cost_reviews; DROP TABLE IF EXISTS co_memory_analyses; DROP TABLE IF EXISTS co_billing_events; DROP TABLE IF EXISTS co_billing_portals; DROP TABLE co_billing_objects; DROP TABLE co_billing_checkouts; DROP TABLE co_billing_state; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=25;"
             );
         }
         var reopened = Store(configured: false);

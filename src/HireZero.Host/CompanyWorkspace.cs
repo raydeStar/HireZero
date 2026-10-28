@@ -1263,6 +1263,7 @@ public static class CompanyWorkspace
                     if (
                         Store().IsBillingOperation(id)
                         || Store().IsMemoryAnalysisOperation(id)
+                        || Store().IsDecisionOperation(id)
                         || Store().IsTaskCostOperation(id)
                     )
                         CompanyAccess.Demand(

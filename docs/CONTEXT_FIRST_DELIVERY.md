@@ -90,6 +90,14 @@ reconciliation and live usefulness remain unfinished. This advances the P2.5/P2.
 Luna/Codex OAuth, the accepted Marketing plan and recurring authority remain unchanged. See
 [the implementation evidence and next delivery step](history/2026-10-27-jev-decision-transport.md).
 
+The company-owned advisory decision lifecycle now persists exact review, owner authorization, company/monthly
+reservations, a one-shot dispatch claim and usage reconciliation under
+[ADR 0150](adr/0150-durable-reviewed-advisory-decisions.md). Fictional checks cover restart/cancellation,
+partial charges, late replies, company isolation and non-replaying outcomes. No advice can create downstream
+work or approve its own recommendation. This advances P2.5/P2.6 accounting groundwork; the host provider binding,
+review/status/reconciliation UI, fictional browser journey and real Jev acceptance remain pending. No live call,
+local installation or recurring run occurred. See [lifecycle evidence](history/2026-10-28-advisory-decision-ledger.md).
+
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
 example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
 it is 460 words with three complete posts and eleven passing format checks. The native result remains intact.

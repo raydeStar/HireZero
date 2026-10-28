@@ -6,6 +6,14 @@ public sealed partial class CompanyStore
     {
         switch (c.Action)
         {
+            case "decision.prepare":
+                return PrepareDecision(db, c);
+            case "decision.run":
+                return StartDecision(db, c);
+            case "decision.cancel":
+                return CancelDecision(db, c);
+            case "decision.reconcile":
+                return ReconcileDecision(db, c);
             case "company.work.configure":
                 return ConfigureWorkControl(db, c);
             case "billing.prepare":
