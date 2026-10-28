@@ -40,13 +40,16 @@ public sealed partial class OpenRouterDecisions : IDisposable
     )
     {
         if (
-            !VersionedModel().IsMatch(model)
+            model is null
+            || !VersionedModel().IsMatch(model)
             || string.IsNullOrWhiteSpace(instructions)
             || instructions.Length > 1000
+            || criteria is null
             || criteria.Count is < 2 or > 8
             || criteria.Any(c =>
                 !ChoiceName().IsMatch(c.Key) || string.IsNullOrWhiteSpace(c.Value) || c.Value.Length > 300
             )
+            || stateJson is null
             || Encoding.UTF8.GetByteCount(stateJson) > MaxStateBytes
         )
             throw new ArgumentException("Choose a versioned Jev decision model and a bounded choice question.");
@@ -75,6 +78,25 @@ public sealed partial class OpenRouterDecisions : IDisposable
         if (Encoding.UTF8.GetByteCount(json) > MaxRequestBytes)
             throw new ArgumentException("The serialized decision request exceeds its input limit.");
         return new(_companyId, model, json, choices.Keys.ToArray());
+    }
+
+    // Rebuild a saved packet through the same validator; the reviewed bytes must match exactly.
+    public JevChoiceRequest Restore(string model, string json, string reviewedDigest)
+    {
+        if (Encoding.UTF8.GetByteCount(json) > MaxRequestBytes)
+            throw new ArgumentException("The saved decision packet exceeds its input limit.");
+        using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 20 });
+        var root = document.RootElement;
+        var answer = root.GetProperty("questions").GetProperty("answer");
+        var restored = Prepare(
+            model,
+            root.GetProperty("state").GetRawText(),
+            answer.GetProperty("instructions").GetString()!,
+            answer.GetProperty("criteria").EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString()!)
+        );
+        if (restored.Json != json || restored.Digest != reviewedDigest)
+            throw new ArgumentException("The saved decision packet no longer matches its exact review.");
+        return restored;
     }
 
     public async Task<JevDecisionResult> SendAsync(

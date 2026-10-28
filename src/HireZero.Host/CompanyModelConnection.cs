@@ -34,12 +34,13 @@ public sealed record CompanyModelConnectionStatus(
 );
 
 // A company's key never falls back to a host secret. The butler keeps each purse in its own locked drawer.
-public sealed class CompanyModelConnection(
+public sealed partial class CompanyModelConnection(
     string companyId,
     IModelProvider platform,
     CompanyModelRouting platformRouting,
     Func<CompanyApiModel[]>? catalog = null,
-    HttpMessageHandler? handler = null
+    HttpMessageHandler? handler = null,
+    HttpMessageHandler? decisionHandler = null
 ) : IModelProvider, IMeasuredModelProvider
 {
     private sealed record Saved(

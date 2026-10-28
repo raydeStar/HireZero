@@ -1,0 +1,64 @@
+.co-decisions {
+  margin-block: 1.5rem;
+  max-width: 62rem;
+  overflow-wrap: anywhere;
+}
+.co-decisions article {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+.co-decisions fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+.co-decisions label {
+  display: grid;
+  gap: 0.4rem;
+  margin-block: 0.8rem;
+}
+.co-decisions input:not([type="checkbox"]),
+.co-decisions textarea,
+.co-decisions select {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.co-decisions textarea {
+  min-height: 6rem;
+}
+.co-decisions pre {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.co-decisions .co-decision-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.co-decision-situation {
+  white-space: pre-wrap;
+}
+.co-decisions h4 {
+  font-size: 1rem;
+  margin: 0 0 0.65rem;
+}
+.co-decision-check input {
+  flex: 0 0 auto;
+  margin-top: 0.25rem;
+}
+.co-decision-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+.co-decision-controls label {
+  min-width: 0;
+  flex: 1 1 18rem;
+}

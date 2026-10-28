@@ -55,7 +55,8 @@ public static class CompanyWorkspace
         IBrowserExecutor? fixtureBrowser = null,
         CompanyBillingRuntime? fixtureBilling = null,
         Func<CompanyApiModel[]>? fixtureCompanyModels = null,
-        Func<string, HttpMessageHandler?>? fixtureCompanyModelHandler = null
+        Func<string, HttpMessageHandler?>? fixtureCompanyModelHandler = null,
+        Func<string, HttpMessageHandler?>? fixtureCompanyDecisionHandler = null
     )
     {
         settings ??= CompanySettings.Load();
@@ -166,7 +167,8 @@ public static class CompanyWorkspace
                 platformModel,
                 routing,
                 fixtureUrl is null ? null : fixtureCompanyModels,
-                fixtureUrl is null ? null : fixtureCompanyModelHandler?.Invoke(CompanyStore.DefaultCompanyId)
+                fixtureUrl is null ? null : fixtureCompanyModelHandler?.Invoke(CompanyStore.DefaultCompanyId),
+                fixtureUrl is null ? null : fixtureCompanyDecisionHandler?.Invoke(CompanyStore.DefaultCompanyId)
             );
             var coding = fixtureCoding;
             if (coding is null && codex is not null && args.Contains(CodingFlag))
@@ -198,6 +200,8 @@ public static class CompanyWorkspace
                 CurrentMeasuredRuntimeIdentity = () => model.MeasuredIdentity,
                 UsageFunding = kind => model.FundingFor(kind),
                 UsageRouteFunding = (kind, route) => model.FundingFor(kind, route),
+                PrepareDecisionPacket = model.PrepareDecision,
+                CurrentDecisionPacket = model.DecisionCurrent,
                 MeasuredTerms = route => model.TermsFor(route),
                 UsagePrice = model.Price,
                 NotificationServiceIdentity = notificationSender?.Identity,
@@ -363,7 +367,8 @@ public static class CompanyWorkspace
                         platformModel,
                         routing,
                         fixtureUrl is null ? null : fixtureCompanyModels,
-                        fixtureUrl is null ? null : fixtureCompanyModelHandler?.Invoke(key)
+                        fixtureUrl is null ? null : fixtureCompanyModelHandler?.Invoke(key),
+                        fixtureUrl is null ? null : fixtureCompanyDecisionHandler?.Invoke(key)
                     );
                     companyModel.Initialize(root, protection);
                     var companyStore = new CompanyStore(
@@ -380,6 +385,8 @@ public static class CompanyWorkspace
                         CurrentMeasuredRuntimeIdentity = () => companyModel.MeasuredIdentity,
                         UsageFunding = kind => companyModel.FundingFor(kind),
                         UsageRouteFunding = (kind, route) => companyModel.FundingFor(kind, route),
+                        PrepareDecisionPacket = companyModel.PrepareDecision,
+                        CurrentDecisionPacket = companyModel.DecisionCurrent,
                         MeasuredTerms = route => companyModel.TermsFor(route),
                         UsagePrice = companyModel.Price,
                         NotificationServiceIdentity = notificationSender?.Identity,
@@ -1047,6 +1054,32 @@ public static class CompanyWorkspace
                 }
             );
             app.MapGet("/api/company/memory", () => Results.Ok(Store().Memories()));
+            app.MapGet(
+                "/api/company/decisions",
+                (HttpContext context) =>
+                {
+                    CompanyAccess.Demand(
+                        Store().Actor((string)context.Items["login"]!),
+                        CompanyRoles.Owner,
+                        "review decisions"
+                    );
+                    context.Response.Headers.CacheControl = "no-store";
+                    return Results.Ok(new { connection = Model().DecisionConnection(), items = Store().Decisions() });
+                }
+            );
+            app.MapGet(
+                "/api/company/decisions/{id}",
+                (string id, HttpContext context) =>
+                {
+                    CompanyAccess.Demand(
+                        Store().Actor((string)context.Items["login"]!),
+                        CompanyRoles.Owner,
+                        "review decisions"
+                    );
+                    context.Response.Headers.CacheControl = "no-store";
+                    return Results.Ok(Store().DecisionReview(id));
+                }
+            );
             app.MapGet("/api/company/memory/{id}", (string id) => Results.Ok(Store().Memory(id)));
             app.MapGet("/api/company/memory/work", () => Results.Ok(Store().MemoryWorks()));
             app.MapGet("/api/company/memory/work/{id}", (string id) => Results.Ok(Store().MemoryWork(id)));
@@ -1283,6 +1316,27 @@ public static class CompanyWorkspace
                 {
                     var command = CompanyJson.Decode<CompanyCommand>(body.GetRawText());
                     var subject = (string)context.Items["login"]!;
+                    if (command.Action == "decision.run")
+                    {
+                        var runtime = Runtime();
+                        CompanyAccess.Demand(
+                            runtime.Store.Actor(subject),
+                            CompanyRoles.Owner,
+                            "run a reviewed decision"
+                        );
+                        var receipt = await runtime.Scheduler.RunDecisionOnceAsync(
+                            command,
+                            subject,
+                            Model().SendDecisionAsync,
+                            app.Lifetime.ApplicationStopping
+                        );
+                        CompanyAccess.Demand(
+                            runtime.Store.Actor(subject),
+                            CompanyRoles.Owner,
+                            "read the decision outcome"
+                        );
+                        return Results.Content(receipt, "application/json");
+                    }
                     if (command.Action is "billing.prepare" or "billing.checkout" && billing?.PaymentsEnabled != true)
                         throw new WorkspaceException(
                             "New subscriptions are not enabled. Existing billing records remain available.",

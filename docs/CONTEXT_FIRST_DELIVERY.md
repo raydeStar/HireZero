@@ -98,6 +98,13 @@ work or approve its own recommendation. This advances P2.5/P2.6 accounting groun
 review/status/reconciliation UI, fictional browser journey and real Jev acceptance remain pending. No live call,
 local installation or recurring run occurred. See [lifecycle evidence](history/2026-10-28-advisory-decision-ledger.md).
 
+The application now binds that lifecycle to the existing company OpenRouter AI account under
+[ADR 0151](adr/0151-reviewed-jev-workflow-in-the-application.md). Owners can review a readable question/context/options
+summary and the exact external packet, authorize one decision, recover its status and reconcile uncertain usage.
+The complete fictional browser journey and 41 focused backend facts pass; a storage-refusal dead end in the shared
+command client is also fixed. Text routing is unchanged. This advances P2.5/P2.6 beyond transport groundwork;
+real Jev accounting and usefulness remain pending. See [workflow evidence](history/2026-10-28-reviewed-jev-workflow.md).
+
 Earlier concrete-workflow checkpoint (2026-10-27): one native Luna revision supplied a coherent fictional context/assignment/review
 example. An assistant-edited copy improves the correction and measures completed use rather than stated interest;
 it is 460 words with three complete posts and eleven passing format checks. The native result remains intact.

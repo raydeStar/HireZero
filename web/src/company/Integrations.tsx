@@ -4,6 +4,7 @@ import type { IntegrationStatus, Snapshot } from "./api";
 import { ConnectCard } from "./ConnectCard";
 import { GoogleConnect } from "./GoogleConnect";
 import { ModelConnection } from "./ModelConnection";
+import { Decisions } from "./Decisions";
 import { IntegrationSetup } from "./IntegrationSetup";
 
 type GitHub = { state: string; code: string; url: string; error: string; account?: string | null };
@@ -81,6 +82,7 @@ export function Integrations(props: Props) {
 }
 
 function OwnerIntegrations({ integrations, refresh, open, snapshot, run, role }: Props) {
+  const [connectionRevision, setConnectionRevision] = useState(0);
   const root = useRef<HTMLDetailsElement>(null);
   const otherHeading = useRef<HTMLHeadingElement>(null);
   const [microsoft, setMicrosoft] = useState<Microsoft | null>(null),
@@ -136,11 +138,25 @@ function OwnerIntegrations({ integrations, refresh, open, snapshot, run, role }:
       <p className="co-muted">
         Connections and saved credentials on this page belong to this company. Other companies connect separately.
       </p>
-      <ModelConnection role={role} refresh={refresh} />
-      <h3>Optional tools and data</h3>
+      <nav aria-label="Integration sections">
+        <a href="#company-model-connection">AI accounts</a> · <a href="#company-jev-decisions">Jev decisions</a> ·{" "}
+        <a href="#company-tool-connections">Tools and data</a>
+      </nav>
+      <ModelConnection
+        role={role}
+        refresh={async () => {
+          await refresh();
+          setConnectionRevision((v) => v + 1);
+        }}
+      />
+      <Decisions refresh={refresh} connectionRevision={connectionRevision} />
+      <h3 id="company-tool-connections" tabIndex={-1}>
+        Optional tools and data
+      </h3>
       <p className="co-muted">
         These connections let employees use specific tools. Their setup status is separate from the AI model accounts
-        above. Jev through OpenRouter uses the AI model connection; a direct Jev connection is optional.
+        above. Jev decisions use the reviewed workflow above and the saved OpenRouter AI account; a direct Jev
+        connection is optional.
       </p>
       {/* Connect cards an assistant raised through HireZero's MCP endpoint (docs/adr/0048). */}
       {snapshot && run && (snapshot.data.connections ?? []).some((c) => !c.threadId && c.state === "open") && (

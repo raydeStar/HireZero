@@ -134,7 +134,12 @@ export function ModelConnection({ role, refresh }: { role?: string; refresh: () 
     }
   }
   return (
-    <section className="co-model-connection" aria-label="Company model connection">
+    <section
+      className="co-model-connection"
+      id="company-model-connection"
+      tabIndex={-1}
+      aria-label="Company model connection"
+    >
       <h3>AI model connection</h3>
       {!owner ? (
         <p>A company owner can manage the model connection.</p>

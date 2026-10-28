@@ -69,6 +69,11 @@ function client(company = "", sessionStorage = browserStorage) {
   return exports;
 }
 const exports = client();
+await assert.rejects(exports.command("decision.prepare", {}, () => {
+  throw new Error("Fictional denied receipt storage");
+}), /denied receipt storage/);
+assert.equal(requests.length, 0, "Receipt storage refusal happens before any network call");
+assert.equal(storage.has(scopedKey), false, "A refused dispatch must not leave an impossible operation to reconcile");
 let attempted;
 await exports.command("department.create", { name: "Fictional" }, (id) => {
   attempted = id;

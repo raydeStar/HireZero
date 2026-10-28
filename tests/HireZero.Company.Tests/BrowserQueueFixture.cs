@@ -90,6 +90,10 @@ static class BrowserQueueFixture
             Environment.GetEnvironmentVariable("HIREZERO_BROWSER_COMPANY_KEY") == "1"
                 ? new CompanyModelFixture()
                 : null;
+        var decisions =
+            Environment.GetEnvironmentVariable("HIREZERO_BROWSER_DECISIONS") == "1"
+                ? new CompanyDecisionFixture()
+                : null;
         var usageMode = Environment.GetEnvironmentVariable("HIREZERO_BROWSER_USAGE") == "1";
         var premiumMode = Environment.GetEnvironmentVariable("HIREZERO_BROWSER_PREMIUM") == "1";
         var billing =
@@ -108,7 +112,8 @@ static class BrowserQueueFixture
                 : null;
         var clockTicks = DateTimeOffset.UtcNow.UtcTicks;
         IModelProvider? model =
-            memoryAnalysis is not null ? memoryAnalysis
+            decisions is not null ? new UsageModel()
+            : memoryAnalysis is not null ? memoryAnalysis
             : Environment.GetEnvironmentVariable("HIREZERO_BROWSER_TEAM") == "1" ? new TeamModel()
             : Environment.GetEnvironmentVariable("HIREZERO_BROWSER_PLANS") == "1" ? new PlanModel()
             : usageMode ? new UsageModel()
@@ -128,8 +133,11 @@ static class BrowserQueueFixture
             fixtureSandbox: sandbox,
             fixtureBrowser: publicBrowser,
             fixtureBilling: billing?.Runtime(),
-            fixtureCompanyModels: companyKeys is null ? null : CompanyModelFixture.Models,
+            fixtureCompanyModels: decisions is not null ? CompanyDecisionFixture.Models
+                : companyKeys is null ? null
+                : CompanyModelFixture.Models,
             fixtureCompanyModelHandler: companyKeys is null ? null : _ => companyKeys,
+            fixtureCompanyDecisionHandler: decisions is null ? null : _ => decisions,
             fixtureGoogle: drive is not null ? drive
                 : Environment.GetEnvironmentVariable("HIREZERO_BROWSER_CONNECTIONS") == "1" ? new GoogleConnection()
                 : null,
@@ -144,6 +152,27 @@ static class BrowserQueueFixture
                 }
                 : null
         )!;
+        if (decisions is not null)
+        {
+            ((CompanyModelConnection)app.Services.GetRequiredService<IModelProvider>()).Save(
+                new(
+                    0,
+                    "openrouter",
+                    CompanyDecisionFixture.Model,
+                    "fictional-browser-decision-key",
+                    "use-host-and-company-key"
+                )
+            );
+            app.MapGet("/__fixture/decisions", () => Results.Ok(new { calls = decisions.Requests.Count }));
+            app.MapPost(
+                "/__fixture/decision-mode",
+                (System.Text.Json.JsonElement body) =>
+                {
+                    decisions.Unknown = body.GetProperty("unknown").GetBoolean();
+                    return Results.Ok();
+                }
+            );
+        }
         if (Environment.GetEnvironmentVariable("HIREZERO_BROWSER_CONNECTION_MEMBERS") == "1")
             ConnectionMemberFixture.Map(app);
         if (memoryAnalysis is not null)

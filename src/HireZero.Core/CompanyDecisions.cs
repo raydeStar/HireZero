@@ -83,6 +83,36 @@ public sealed partial class CompanyStore
         return Need<CompanyDecision>(db, id);
     }
 
+    public object Decisions()
+    {
+        using var db = Open();
+        return All<CompanyDecision>(db)
+            .OrderByDescending(d => d.UpdatedAt)
+            .Take(100)
+            .Select(d => new
+            {
+                d.Id,
+                d.State,
+                d.Version,
+                d.UpdatedAt,
+                d.Packet.Model,
+            })
+            .ToArray();
+    }
+
+    public object DecisionReview(string id)
+    {
+        using var db = Open();
+        return Transaction(
+            db,
+            () =>
+            {
+                var decision = Need<CompanyDecision>(db, id);
+                return new { decision, current = decision.ExpiresAt > Clock() && DecisionCurrent(db, decision) };
+            }
+        );
+    }
+
     public bool DecisionIsCurrent(string id)
     {
         using var db = Open();

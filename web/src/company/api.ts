@@ -417,7 +417,13 @@ export async function command(
   // Guided multi-step saves opt into a durable pre-dispatch receipt; ordinary in-flight work remains cancelable.
   if (onAttempt) {
     remember(requestId);
-    onAttempt(requestId);
+    try {
+      onAttempt(requestId);
+    } catch (error) {
+      // A failed pre-dispatch receipt write is a known refusal, not a missing provider result.
+      forgetConfirmed(requestId);
+      throw error;
+    }
   }
   try {
     const result = await api<unknown>(endpoint, "POST", { requestId, action, ...fields });
