@@ -14,12 +14,12 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   and the service landing page is too repetitive and leaks an internal caveat. First-run usefulness remains open.
 - Web/Marketing builds, 56 focused backend facts and Marketing routing/check tests pass. Local updates have
   verified backups. The old weekly schedule remains saved but needs re-review after the role instruction change.
-- The owner extended the six-run evaluation allowance by 25; two new requests are consumed, 29 remain.
-  Exact private receipts stay outside Git. Usage accounting and first-run limits are in the history note.
+- Two [direct-asset comparisons](history/2026-10-28-direct-asset-quality-comparison.md) improve reader choices and remove an internal caveat, but repetition and an inferred service option remain.
+- The owner extended the evaluation allowance to 31 native runs: four consumed, 27 remain. Exact receipts and raw outputs stay private; reported usage is recorded in the history notes.
 
 ## Next acceptance gate
 
-1. Compare focused direct-asset improvements with the unchanged first results. Label later runs as comparisons,
+1. Evaluate usefulness on an unseen business before claiming the prompt change generalizes. Keep later runs labeled as comparisons,
    never as replacement acceptance evidence. No assistant editorial copies or automatic retries.
 2. Obtain owner usefulness assessment; do not equate complete sections or successful execution with useful work.
 3. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md). Local runs do not
