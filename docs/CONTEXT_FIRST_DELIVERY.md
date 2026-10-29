@@ -23,7 +23,10 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   A [rubric-scored iteration](history/2026-10-29-weekly-plan-rubric-iteration.md) revised the starter-plan
   instructions. Under strict blind grading, grounding, clean plain-text copy, realistic routines and voice now
   reach at least A- in every final sample. Craft depth, distinct value, offer phrasing and the next-week rule
-  still vary between B- and A. Owner acceptance remains open. Earlier
+  still vary between B- and A. Owner acceptance remains open. The
+  [model checks](history/2026-10-29-weekly-plan-rubric-iteration.md#model-checks) on that text returned no draft:
+  Sol at high effort hit Home's 90-second deadline, and DeepSeek V4.1 Flash, the company's planned model, spent
+  its whole 1,800-token OpenRouter output limit on reasoning. Earlier
   [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) were stronger by assistant assessment,
   but actually used default-low effort because the runtime ignored their requested effort. Saved model text
   remains unedited. Repeatable first-run usefulness remains open.
@@ -35,7 +38,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   direct review link. No replacement is active.
 - The 31-run Luna evaluation allowance is used up, with 220,397 reported input/output tokens; the rubric iteration
   took its last six runs, then fourteen more under the owner's instruction to cycle until confident (164,063 tokens
-  for all twenty). Both separately authorized Sol diagnostics completed, reporting 14,892 tokens; no Sol allowance remains.
+  for all twenty). Both separately authorized Sol diagnostics completed, reporting 14,892 tokens. Of two more Sol
+  runs approved for the final text, one was cancelled at the deadline with usage unknown and one was left unused.
+  OpenRouter test runs are limited to one a day; the first billed $0.0010.
   Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
   Three separately approved handoff diagnostics consumed their own grants: two completed with 15,833 reported
   tokens; the withheld request last reported 9,344 tokens, with final usage unknown. The latest cycle used

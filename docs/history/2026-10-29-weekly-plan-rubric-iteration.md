@@ -104,6 +104,31 @@ The target was not met on four criteria. Each varies between B- and A from run t
 Further instruction changes showed small, noisy effects. These two fictional businesses and four final samples
 support a narrower claim, not repeatable unedited quality across the market. Owner acceptance remains open.
 
+## Model checks
+
+The owner approved two runs of the final text on Sol 6.1 to see whether the remaining gaps come from the model.
+The owner then said the company will run on DeepSeek V4.1 Flash through OpenRouter. They asked for one run there,
+at most one a day while testing, because it costs money. Both checks used the frozen photography request and the
+same one-shot runner, with no retry. Neither returned a draft, so nothing was graded.
+
+- **Sol 6.1 at high effort:** Home's 90-second deadline cancelled the run before any reply or usage was
+  reported, so its usage is unknown. Earlier, Sol at low effort took 52–60 seconds on similar requests. The
+  second approved run was left unused, because it would most likely hit the same deadline. Under the v3
+  deliverable terms, Sol at high effort cannot show whether the gaps come from the model.
+- **DeepSeek V4.1 Flash through OpenRouter:** the run used the company's own API transport. Its terms:
+  - low reasoning effort;
+  - the listed price as OpenRouter's price ceiling: $0.045 input and $0.50 output per million tokens, checked
+    2026-10-29;
+  - a 1-cent cap.
+
+  The model spent all 1,800 output tokens on reasoning and returned no text, so after 8.5 seconds the transport
+  withheld the reply as truncated. OpenRouter billed $0.0010 for 2,231 input and 1,800 output tokens.
+
+The API path limits a deliverable to the low-effort output target of 1,800 tokens
+([ADR 0134](../adr/0134-high-effort-deliverables.md)). That target assumes low effort leaves room for the answer,
+and DeepSeek V4.1 Flash did not leave it on this request. Until that limit changes, the company's weekly plans on
+this route are likely to be withheld the same way.
+
 ## Usage
 
 Twenty runs, 164,063 reported input/output tokens, 24–43 seconds each, with 596–2,292 reasoning tokens.
@@ -112,8 +137,9 @@ None was withheld.
 - **The owner's further instruction:** the other fourteen ran under the owner's instruction to cycle until
   confident, after the owner said heavy Luna use was fine.
 
-Actual credit charges are unknown. Inputs, raw outputs, receipts, rubric and grades stay in the ignored private
-pilot directory.
+The model checks added one Sol run, whose usage is unknown, and one OpenRouter run billed at $0.0010. Actual
+credit charges for the Luna and Sol runs are unknown. Inputs, raw outputs, receipts, rubric and grades stay in the
+ignored private pilot directory.
 
 ## Verification
 
