@@ -152,6 +152,7 @@ ignored private pilot directory.
   - It was installed after a data backup.
   - Saved work, schedules, the model connection and the audit chain were unchanged afterwards.
   - The pilot install still runs the previous instructions.
-- Before the republish, the primary host had stopped on 2026-10-29. A "database is locked" error in the scheduler
-  ended the host, and the startup task did not restart it.
-  [ADR 0167](../adr/0167-a-locked-database-skips-a-scheduler-round.md) now logs such a round and tries it again.
+- On 2026-10-29 the primary host stopped twice, once before the republish and once after it. Each time a
+  "database is locked" error in the scheduler ended the host, and the startup task did not restart it.
+  [ADR 0167](../adr/0167-a-locked-database-skips-a-scheduler-round.md) now logs such a round and tries it again;
+  the primary install runs it from 655196a.
