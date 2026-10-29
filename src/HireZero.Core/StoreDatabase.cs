@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 
 namespace HireZero.Core;
@@ -23,6 +24,9 @@ public abstract class StoreDatabase
 
     // Starts a write transaction that excludes every other writer to the same scope until it ends.
     public abstract void Begin(StoreConnection db, string scope);
+
+    // Called once after the COMMIT or ROLLBACK of every transaction Begin started.
+    public virtual void End(StoreConnection db) { }
 
     public abstract bool TableExists(StoreConnection db, string table);
 
@@ -59,11 +63,44 @@ public sealed class SqliteStoreDatabase(string path) : StoreDatabase
             }.ToString()
         );
         db.Open();
+        // SQLite's own busy handler retries within milliseconds of a lock coming free; the driver's retry sleeps
+        // 150 ms at a time (docs/adr/0168-company-writers-queue-for-the-database.md).
+        using (var busy = db.CreateCommand())
+        {
+            busy.CommandText = $"PRAGMA busy_timeout = {BusyTimeoutSeconds * 1000}";
+            busy.ExecuteNonQuery();
+        }
         return db;
     }
 
-    // SQLite has one writer per file: BEGIN IMMEDIATE takes it for every scope at once.
-    public override void Begin(StoreConnection db, string scope) => db.Execute("BEGIN IMMEDIATE");
+    // Writers in this process take turns per file (docs/adr/0168-company-writers-queue-for-the-database.md). SQLite
+    // retries a locked write blindly, so with every company's scheduler writing each second a writer could miss its
+    // turn for the whole busy timeout; queued, each waits only for the writers ahead of it. Other processes still meet
+    // SQLite's own lock.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> Writers = new(
+        StringComparer.OrdinalIgnoreCase
+    );
+
+    private SemaphoreSlim Writer => Writers.GetOrAdd(Path, _ => new(1, 1));
+
+    // SQLite has one writer per file: BEGIN IMMEDIATE takes it for every scope at once. Waiting longer than the busy
+    // timeout for the writers ahead reports the database locked, as SQLite itself would.
+    public override void Begin(StoreConnection db, string scope)
+    {
+        if (!Writer.Wait(TimeSpan.FromSeconds(BusyTimeoutSeconds)))
+            throw new SqliteException("SQLite Error 5: 'database is locked' (waiting for writers in this process).", 5);
+        try
+        {
+            db.Execute("BEGIN IMMEDIATE");
+        }
+        catch
+        {
+            Writer.Release();
+            throw;
+        }
+    }
+
+    public override void End(StoreConnection db) => Writer.Release();
 
     // SQLITE_BUSY (5) or SQLITE_LOCKED (6), after the busy timeout has run out.
     public override bool IsBusy(Exception error) => error is SqliteException { SqliteErrorCode: 5 or 6 };
@@ -120,23 +157,44 @@ public sealed class StoreConnection(DbConnection connection, StoreDatabase datab
         return [.. rows];
     }
 
-    // A write transaction over the scope; measurements wait for its commit (docs/adr/0024).
+    // A write transaction over the scope; measurements wait for its commit (docs/adr/0024). Its own wait for the write
+    // lock and its hold time are recorded either way.
     public T Transaction<T>(string scope, Func<T> action)
     {
-        database.Begin(this, scope);
-        CompanyTelemetry.BeginTransaction();
+        var asked = Stopwatch.GetTimestamp();
         try
         {
-            var result = action();
-            Execute("COMMIT");
-            CompanyTelemetry.Commit();
-            return result;
+            database.Begin(this, scope);
         }
-        catch
+        catch (Exception error) when (database.IsBusy(error))
         {
-            CompanyTelemetry.Discard();
-            Execute("ROLLBACK");
+            CompanyTelemetry.StoreWrite(scope, "busy", Stopwatch.GetElapsedTime(asked), null);
             throw;
+        }
+        var locked = Stopwatch.GetTimestamp();
+        var wait = Stopwatch.GetElapsedTime(asked, locked);
+        try
+        {
+            CompanyTelemetry.BeginTransaction();
+            try
+            {
+                var result = action();
+                Execute("COMMIT");
+                CompanyTelemetry.Commit();
+                CompanyTelemetry.StoreWrite(scope, "committed", wait, Stopwatch.GetElapsedTime(locked));
+                return result;
+            }
+            catch
+            {
+                CompanyTelemetry.Discard();
+                Execute("ROLLBACK");
+                CompanyTelemetry.StoreWrite(scope, "rolled-back", wait, Stopwatch.GetElapsedTime(locked));
+                throw;
+            }
+        }
+        finally
+        {
+            database.End(this);
         }
     }
 

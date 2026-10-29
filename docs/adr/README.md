@@ -172,3 +172,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0165](0165-room-for-high-effort-reasoning.md) | Raise the high-effort deliverable output target to 6,000 tokens | Accepted; v2 approvals keep their limit until reviewed, API routes unchanged |
 | [0166](0166-openrouter-deliverables-get-their-output-target.md) | Give OpenRouter deliverables their policy's output target | Accepted; low effort and the cent cap kept, vendor APIs unchanged |
 | [0167](0167-a-locked-database-skips-a-scheduler-round.md) | Skip a scheduler round when the database is locked | Accepted; logged and retried, other faults still stop the host |
+| [0168](0168-company-writers-queue-for-the-database.md) | Queue company writers and use SQLite's busy handler | Accepted; longest measured wait 1.9 s to 75 ms, write wait and hold recorded |
