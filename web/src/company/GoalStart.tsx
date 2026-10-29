@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { ModelChoice, providerName } from "./ModelChoice";
 import { advanceGoal, type GoalFlow, type GoalTerms } from "./goalFlow";
+import { goalWebsite } from "./goalWebsite";
 import "./goalStart.css";
 
 type Draft = {
@@ -62,6 +63,7 @@ export function GoalStart({
   const [consent, setConsent] = useState(false);
   const [terms, setTerms] = useState<GoalTerms>();
   const [termsError, setTermsError] = useState("");
+  const website = goalWebsite(draft.website || "");
   const current = useRef(draft),
     locked = useRef(false);
   current.current = draft;
@@ -197,7 +199,8 @@ export function GoalStart({
   }
 
   async function generate() {
-    if (locked.current || (!current.current.flow && (!consent || !terms || !setup || !selected))) return;
+    if (locked.current || (!current.current.flow && (!consent || !terms || !setup || !selected || website.error)))
+      return;
     locked.current = true;
     setBusy(true);
     setError("");
@@ -222,7 +225,7 @@ export function GoalStart({
             businessName: current.current.name.trim() || "My business",
             businessDescription: current.current.business.trim(),
             goal: current.current.goal.trim(),
-            website: current.current.website?.trim() || null,
+            website: website.url,
             employeeName: selected!.onboarding?.name || selected!.name,
             departmentName: selected!.onboarding?.department || selected!.name,
             responsibility: setup!.responsibility,
@@ -373,18 +376,23 @@ export function GoalStart({
             <label>
               Website (optional)
               <input
-                type="url"
-                pattern="https://.+"
-                title="Use a public https:// address."
+                type="text"
+                inputMode="url"
+                autoComplete="url"
+                autoCapitalize="none"
+                spellCheck={false}
+                ref={(input) => input?.setCustomValidity(website.error)}
                 maxLength={800}
-                placeholder="https://your-business.example"
+                placeholder="your-business.example"
                 value={draft.website || ""}
                 onChange={(e) => change({ ...draft, website: e.target.value })}
               />
             </label>
             <p className="co-muted">
               {profile ? "Uses your approved brief." : "Uses your details; missing facts stay unknown."}
-              {draft.website ? " Reads up to three public pages as unverified references for this draft." : ""}
+              {website.url
+                ? ` Reads up to three public pages from ${website.url} as unverified references for this draft.`
+                : ""}
             </p>
             {terms ? (
               <div className="co-goal-terms">

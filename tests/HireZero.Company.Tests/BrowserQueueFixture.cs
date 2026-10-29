@@ -668,10 +668,13 @@ static class BrowserQueueFixture
 
         public Task<ModelReply> CompleteMeasuredAsync(ModelCall call, CompanyMeasuredJob job, CancellationToken token)
         {
+            var business =
+                call.Context.BusinessBrief?.Fields.FirstOrDefault(field => field.Key == "business")?.Value
+                ?? call.Context.CompanyKnowledge;
             if (
                 job.Policy != CompanyMeasuredPolicy.Deliverable
                 || job.State != "dispatched"
-                || !call.Context.CompanyKnowledge.Contains("Fictional team studio")
+                || !business.Contains("Fictional team studio")
                 || call.Context.Evidence.Length != 0
             )
                 throw new ModelTransportException(

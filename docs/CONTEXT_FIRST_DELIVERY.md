@@ -5,7 +5,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 
 ## Current checkpoint — 2026-10-29
 
-- Home accepts a business sentence, goal and optional website, then generates one disclosed draft. Results
+- Home accepts a business sentence, goal and optional website, including [ordinary pasted addresses](history/2026-10-29-home-website-addresses.md),
+  then generates one disclosed draft. Results
   open with Copy, Download and Refine, plus [section copying](history/2026-10-28-section-copy.md) beside individual
   post headings. [Section exports now keep nested headings and bold emphasis](history/2026-10-29-channel-aware-copy-and-complete-sections.md).
   Internal notes, receipts and administration are collapsed. Company knowledge and

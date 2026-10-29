@@ -206,8 +206,10 @@ try {
   await setField('What does your business do?','Fictional team studio sells paper craft kits.');
   await setField('Your goal','Improve website accessibility');
   await setField('Website (optional)','http://paper.example.invalid/');
-  assert.equal(await evaluate("document.querySelector('.co-goal-start input[type=url]').validity.valid"),false,'Only supported https addresses can be submitted');
-  await setField('Website (optional)','https://paper.example.invalid/');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start input[inputmode=url]').validity.valid"),false,'Only supported https addresses can be submitted');
+  await setField('Website (optional)','  paper.example.invalid/  ');
+  await text('Reads up to three public pages from https://paper.example.invalid/');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start input[inputmode=url]').validity.valid"),true,'A pasted hostname is accepted without another edit');
   await text('Your first technical plan');
   await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'run terms on Home');
   await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
@@ -261,9 +263,12 @@ try {
   assert.ok(result);
   assert.equal(state.businessLookups.length,1);
   assert.ok(state.businessSources.length > 0);
+  assert.equal(state.businessLookups[0].website,'https://paper.example.invalid/','The confirmed normalized destination reaches discovery');
   const packet = await fetch(url+'/api/company/measured/'+state.measured[0].id).then(r=>r.json());
   assert.match(packet.call.context.websiteResearch.sources[0].text,/folding guide/);
-  assert.equal(packet.call.context.businessBrief.fields.find(f=>f.key==='services').verification,'unknown');
+  assert.equal(packet.call.context.businessBrief.fields.some(f=>f.key==='services'),false);
+  assert.ok(packet.call.context.businessBrief.unfilledFields.includes('services'));
+  assert.equal(state.businessProfiles[0].fields.find(f=>f.key==='services').verification,'unknown','Website excerpts do not become approved company facts');
   assert.equal(state.measured.length,1,'Only one model run after a lost reply');
   assert.equal(await evaluate(`document.querySelector('[data-artifact-id="${result.id}"]')?.open===true`),true);
   await capture('goal-first-result');
@@ -302,12 +307,42 @@ try {
   assert.equal(state.artifacts.filter(a=>a.taskId===emailTask.id).length,1);
   assert.doesNotMatch(emailTask.input,/Monday|Wednesday|Friday/);
   assert.equal(await evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(emailTask.id)}`),true);
+  // A normal website-backed request must reach its raw draft from one Home consent, too.
+  await send('Page.navigate',{url:url+'/'});
+  await text('Start another goal');
+  await click('Start another goal');
+  await setField('Your goal','Write one welcome email using our website details.');
+  await setField('Website (optional)','paper.example.invalid/');
+  await text('Reads up to three public pages from https://paper.example.invalid/');
+  await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'website-backed run terms');
+  await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
+  await click('Generate my first draft');
+  await until(async()=>{
+    const current=(await dashboard()).data;
+    const task=current.tasks.find(t=>t.id!==emailTask.id && t.skill==='marketing-goal-draft');
+    return task && current.artifacts.some(a=>a.taskId===task.id);
+  },'new website-backed first result, not the earlier Home preview');
+  state=(await dashboard()).data;
+  const websiteTask=state.tasks.find(t=>t.id!==emailTask.id && t.skill==='marketing-goal-draft');
+  assert.ok(websiteTask);
+  await until(()=>evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(websiteTask.id)}`),'new website-backed work opens');
+  await text('Fictional welcome email');
+  assert.equal(state.businessLookups.length,2,'One new bounded lookup for the next website request');
+  assert.equal(state.measured.length,4,'One model dispatch for each consent');
+  assert.equal(state.artifacts.filter(a=>a.taskId===websiteTask.id).length,1);
+  const websitePacket=await fetch(url+'/api/company/measured/'+state.measured.find(m=>m.taskId===websiteTask.id).id).then(r=>r.json());
+  assert.equal(websitePacket.call.context.websiteResearch.website,'https://paper.example.invalid/');
+  assert.ok(websitePacket.call.context.websiteResearch.sources.length>0);
   assert.deepEqual(errors,[]);
-  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),singleHomeConsent:true,optionalWebsiteDiscovery:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
+  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
   console.log('PASS goal start: optional website, automatic setup, single Home consent and a requested email instead of a weekly plan. The butler handled the paperwork.');
   await send('Browser.close').catch(()=>{});
 } catch (error) {
   await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  try {
+    const failureState = await fetch(url + "/api/company", { signal: AbortSignal.timeout(5000) }).then(r => r.json());
+    await fs.writeFile(path.join(repo, "test-results/goal-start-browser-failure.json"), JSON.stringify(failureState, null, 2));
+  } catch { /* Retain the original failure if the fixture is already unavailable. */ }
   await fs.writeFile(
     path.join(repo, "test-results/goal-start-browser-host.log"),
     hostLog,
