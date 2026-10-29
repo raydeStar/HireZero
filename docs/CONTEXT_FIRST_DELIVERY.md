@@ -37,7 +37,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   The drafting, measured and schedules browser checks pass; selected mobile navigation stays visible.
   The primary company install was later republished at ff69ecf after a data backup; the pilot install was not.
   Before that, a "database is locked" error in the scheduler had stopped the primary host, and its startup task
-  did not restart it.
+  did not restart it. Since [ADR 0167](adr/0167-a-locked-database-skips-a-scheduler-round.md), such a round is
+  logged and tried again instead.
   The old weekly schedule remains saved under v2/3,000 and
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.

@@ -1259,33 +1259,55 @@ public sealed partial class CompanyScheduler(CompanyStore store, IModelProvider 
         catch { } // The persisted hold survives a fault, shutdown or missing late receipt.
     }
 
+    // Called when a round is skipped because another writer held the database (docs/adr/0167).
+    public Action<Exception>? SkippedRound { get; init; }
+
     protected override async Task ExecuteAsync(CancellationToken token)
     {
-        store.Recover();
-        store.RecoverNotificationDelivery();
+        var recovered = false;
         var nextMemoryReview = DateTimeOffset.MinValue;
         while (!token.IsCancellationRequested)
         {
-            if (store.Clock() >= nextMemoryReview)
+            try
             {
-                store.MaintainMemory();
-                store.MaintainDocumentRetention();
-                store.MaintainBrowserRetention();
-                nextMemoryReview = store.Clock().AddMinutes(1);
+                // Recovery runs at every start, so repeating it after a locked attempt is safe.
+                if (!recovered)
+                {
+                    store.Recover();
+                    store.RecoverNotificationDelivery();
+                    recovered = true;
+                }
+                nextMemoryReview = await RoundAsync(nextMemoryReview, token);
             }
-            var recurring = TickSchedulesAsync(token);
-            var notifications = TickNotificationsAsync(token);
-            var employees = store.ActiveEmployees();
-            if (employees.Length > 0)
+            // Another writer held the database past its busy timeout. The locked transaction rolled back, and work
+            // claimed earlier keeps its saved state, so the round is tried again instead of stopping the company
+            // (docs/adr/0167-a-locked-database-skips-a-scheduler-round.md). Any other fault still stops the host.
+            catch (Exception error) when (store.Database.IsBusy(error))
             {
-                var offset = _round++ % employees.Length;
-                await Task.WhenAll(
-                    employees.Skip(offset).Concat(employees.Take(offset)).Take(4).Select(e => TickAsync(e, token))
-                );
+                SkippedRound?.Invoke(error);
             }
-            await recurring;
-            await notifications;
             await Task.Delay(1000, token);
         }
+    }
+
+    // One pass over maintenance, schedules, notifications and up to four employees. Every tick it starts is awaited
+    // before it returns, even when one fails, so a skipped round never overlaps the next.
+    private async Task<DateTimeOffset> RoundAsync(DateTimeOffset nextMemoryReview, CancellationToken token)
+    {
+        if (store.Clock() >= nextMemoryReview)
+        {
+            store.MaintainMemory();
+            store.MaintainDocumentRetention();
+            store.MaintainBrowserRetention();
+            nextMemoryReview = store.Clock().AddMinutes(1);
+        }
+        var employees = store.ActiveEmployees();
+        var offset = employees.Length > 0 ? _round++ % employees.Length : 0;
+        await Task.WhenAll(
+            TickSchedulesAsync(token),
+            TickNotificationsAsync(token),
+            Task.WhenAll(employees.Skip(offset).Concat(employees.Take(offset)).Take(4).Select(e => TickAsync(e, token)))
+        );
+        return nextMemoryReview;
     }
 }

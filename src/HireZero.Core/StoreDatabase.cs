@@ -26,6 +26,10 @@ public abstract class StoreDatabase
 
     public abstract bool TableExists(StoreConnection db, string table);
 
+    // True when the error only means another writer held the database past the wait limit: the transaction rolled
+    // back, so the same work can simply be tried again later (docs/adr/0167-a-locked-database-skips-a-scheduler-round.md).
+    public virtual bool IsBusy(Exception error) => false;
+
     public virtual string Translate(string sql) => sql;
 
     public virtual string Parameter(int index) => "$" + index;
@@ -39,6 +43,9 @@ public sealed class SqliteStoreDatabase(string path) : StoreDatabase
 
     public override bool Exists => File.Exists(Path);
 
+    // How long a statement waits for another connection's lock before SQLite reports the database locked.
+    public int BusyTimeoutSeconds { get; init; } = 5;
+
     public override DbConnection Open()
     {
         Directory.CreateDirectory(KeyDirectory);
@@ -48,7 +55,7 @@ public sealed class SqliteStoreDatabase(string path) : StoreDatabase
                 DataSource = Path,
                 Pooling = false,
                 ForeignKeys = true,
-                DefaultTimeout = 5,
+                DefaultTimeout = BusyTimeoutSeconds,
             }.ToString()
         );
         db.Open();
@@ -57,6 +64,9 @@ public sealed class SqliteStoreDatabase(string path) : StoreDatabase
 
     // SQLite has one writer per file: BEGIN IMMEDIATE takes it for every scope at once.
     public override void Begin(StoreConnection db, string scope) => db.Execute("BEGIN IMMEDIATE");
+
+    // SQLITE_BUSY (5) or SQLITE_LOCKED (6), after the busy timeout has run out.
+    public override bool IsBusy(Exception error) => error is SqliteException { SqliteErrorCode: 5 or 6 };
 
     public override bool TableExists(StoreConnection db, string table) =>
         db.Scalar("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=$0", table) != "0";

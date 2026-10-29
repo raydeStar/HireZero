@@ -35,6 +35,16 @@ public static class CompanyWorkspace
 
     public static CompanyRole[] Definitions() => [.. HostEmployees.Modules.Select(CompanyRole.From)];
 
+    // A scheduler round skipped because another writer held the company database leaves a warning
+    // (docs/adr/0167-a-locked-database-skips-a-scheduler-round.md).
+    private static Action<Exception> LogSkippedRound(ILogger log, string company) =>
+        error =>
+            log.LogWarning(
+                "Skipped a scheduler round for company {Company}: {Error} It will be tried again.",
+                company,
+                error.Message
+            );
+
     public static WebApplication? TryCreate(
         string[] args,
         string owner,
@@ -255,8 +265,9 @@ public static class CompanyWorkspace
             );
             builder.Services.AddSingleton(tools);
             builder.Services.AddSingleton<IModelProvider>(model);
-            builder.Services.AddSingleton(_ => new CompanyScheduler(store, model)
+            builder.Services.AddSingleton(s => new CompanyScheduler(store, model)
             {
+                SkippedRound = LogSkippedRound(s.GetRequiredService<ILogger<CompanyScheduler>>(), store.CompanyId),
                 NotificationSender = notificationSender,
                 RefreshScheduledSources = (command, subject, token) =>
                     CompanyBusinessResearch.RunRefreshAsync(command, subject, store, tools, token),
@@ -406,6 +417,10 @@ public static class CompanyWorkspace
                     Connect(companyStore, registry);
                     var scheduler = new CompanyScheduler(companyStore, companyModel)
                     {
+                        SkippedRound = LogSkippedRound(
+                            app.Services.GetRequiredService<ILogger<CompanyScheduler>>(),
+                            companyStore.CompanyId
+                        ),
                         NotificationSender = notificationSender,
                         RefreshScheduledSources = (command, subject, token) =>
                             CompanyBusinessResearch.RunRefreshAsync(command, subject, companyStore, registry, token),
