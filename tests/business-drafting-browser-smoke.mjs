@@ -708,7 +708,7 @@ try {
     "Preparation opens the exact saved job review",
   );
   const firstMeasured = data.measured.find(
-    (m) => m.job.policy.version === "measured-deliverable-v2",
+    (m) => m.job.policy.version === "measured-deliverable-v3",
   );
   assert.ok(firstMeasured);
   assert.equal(firstMeasured.job.state, "completed");
@@ -1212,7 +1212,7 @@ try {
   assert.equal(revisionPacket.call.context.revision.request.feedback, latestFeedback);
   assert.equal(revisionPacket.call.context.revision.originalDraft, revisionCopy.body);
   assert.equal(preparedRevision.measured.policy.effort, "high");
-  assert.equal(preparedRevision.measured.policy.outputTarget, 3000);
+  assert.equal(preparedRevision.measured.policy.outputTarget, 6000);
   await send("Page.navigate", { url: `${url}/?view=employee&employee=${nextRevision.employeeId}&thread=${nextRevision.threadId}&work=${nextRevision.id}&mode=work` });
   await click("Review task and context");
   await bodyText("Earlier requested changes retained");
@@ -1220,7 +1220,7 @@ try {
   await bodyText(latestFeedback);
   await evaluate("document.querySelector('.co-work-window .co-safety summary').click()");
   await bodyText("Reasoning effort: high");
-  await bodyText("3,000 observed output tokens");
+  await bodyText("6,000 observed output tokens");
   assert.equal((await snapshot()).data.measured.find(m => m.id === preparedRevision.id).job.state, "proposed");
   // Same skill, repeated requests and separate conversations must remain distinguishable before opening a result.
   const measuredBeforeLabels = (await snapshot()).data.measured;
@@ -1330,7 +1330,7 @@ try {
         reviewLabelsIdentifyConversationAndRequest: true,
         reviewLabelOpensExactWorkAcrossReloadAndMobile: true,
         requestNumbersSurviveEarlierCancellation: true,
-        deliverableReviewShowsHighEffortAnd3000Tokens: true,
+        deliverableReviewShowsHighEffortAnd6000Tokens: true,
         draftCheckFeedbackIsEditableAndNeverAutoRuns: true,
         boundedDeliverablePolicy: true,
         resultBeforeCollapsedRequestAndReceipt: true,

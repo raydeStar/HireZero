@@ -13,8 +13,19 @@ public sealed class MeasuredEffortTests
         Assert.Equal(CompanyMeasuredPolicy.DeliverableV1, CompanyJson.Decode<CompanyMeasuredPolicy>(earlier));
         Assert.Contains("\"effort\":\"high\"", CompanyJson.Encode(CompanyMeasuredPolicy.Deliverable));
         Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.DeliverableV1));
+        Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.DeliverableV2));
         Assert.True(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Deliverable));
         Assert.False(CompanyMeasuredPolicy.Known(CompanyMeasuredPolicy.Deliverable with { Effort = "xhigh" }));
+        // The 3,000-token high-effort policy keeps the digest earlier approvals were granted under.
+        Assert.Equal(
+            """{"version":"measured-deliverable-v2","nativeRequests":1,"applicationBytes":24576,"baselineInputAllowance":4500,"packetHeadroom":8000,"outputTarget":3000,"planningTokens":22000,"localDeadlineSeconds":90,"visibleCharacterStop":9000,"providerHardTokenCap":false,"providerHardCreditCap":false,"admissionKind":"measured-oauth","effort":"high"}""",
+            CompanyJson.Encode(CompanyMeasuredPolicy.DeliverableV2)
+        );
+        Assert.Equal(6000, CompanyMeasuredPolicy.Deliverable.OutputTarget);
+        Assert.Equal(
+            CompanyMeasuredPolicy.DeliverableV2,
+            CompanyMeasuredPolicy.Kept(CompanyMeasuredPolicy.Deliverable, CompanyMeasuredPolicy.DeliverableV2)
+        );
         Assert.Equal(
             CompanyMeasuredPolicy.Deliverable,
             CompanyMeasuredPolicy.For("work", CompanyMeasuredPolicy.DeliverableProfile)
@@ -33,6 +44,7 @@ public sealed class MeasuredEffortTests
             CompanyMeasuredPolicy.Kept(CompanyMeasuredPolicy.Current, CompanyMeasuredPolicy.DeliverableV1)
         );
         Assert.Equal(1800, CompanyMeasuredPolicy.LowEffortOutputTarget(CompanyMeasuredPolicy.Deliverable));
+        Assert.Equal(1800, CompanyMeasuredPolicy.LowEffortOutputTarget(CompanyMeasuredPolicy.DeliverableV2));
         Assert.Equal(
             CompanyMeasuredPolicy.Current.OutputTarget,
             CompanyMeasuredPolicy.LowEffortOutputTarget(CompanyMeasuredPolicy.Current)
@@ -52,6 +64,7 @@ public sealed class MeasuredEffortTests
             return File.ReadAllText(Assert.Single(Efforts(root.Path).Except(before))).Trim();
         }
         Assert.Equal("high", await Effort(CompanyMeasuredPolicy.Deliverable));
+        Assert.Equal("high", await Effort(CompanyMeasuredPolicy.DeliverableV2));
         Assert.Equal("low", await Effort(CompanyMeasuredPolicy.DeliverableV1));
         Assert.Equal("low", await Effort(CompanyMeasuredPolicy.Current));
     }

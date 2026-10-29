@@ -41,3 +41,6 @@ for each of CEO and Developer, all at high effort. Both revised outputs include 
 the CEO sample still misses explicit brief-field citations. This closes the absence of any installed specialist
 sample; repeatable quality, other specialist tasks and owner usefulness acceptance remain unverified. It is
 not an effort comparison and does not change this policy.
+
+Once the pinned runtime applied the effort, reasoning reached 2,637 tokens and stopped a draft at the 3,000-token
+target. [ADR 0165](0165-room-for-high-effort-reasoning.md) raises the target to 6,000 in `measured-deliverable-v3`.

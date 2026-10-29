@@ -103,7 +103,7 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.DoesNotContain("at most 500 words", call.Instructions);
         Assert.DoesNotContain("at most 80 words", call.Instructions);
         Assert.Equal(CompanyMeasuredPolicy.Deliverable, prepared.Attempt.Measured!.Policy);
-        Assert.Equal(3000, prepared.Attempt.Measured.Policy.OutputTarget);
+        Assert.Equal(6000, prepared.Attempt.Measured.Policy.OutputTarget);
         Assert.Equal("high", prepared.Attempt.Measured.Policy.Effort);
         Assert.Equal(1, prepared.Attempt.Measured.Policy.NativeRequests);
         Assert.Empty(MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts"));

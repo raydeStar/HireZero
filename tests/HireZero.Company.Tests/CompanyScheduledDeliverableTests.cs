@@ -231,6 +231,27 @@ public sealed partial class CompanyScheduleTests
         Assert.Contains("500 words", model.Last!.Instructions);
     }
 
+    // A schedule approved under the 3,000-token high-effort policy keeps its approved limit until it is reviewed again
+    // (docs/adr/0165-room-for-high-effort-reasoning.md).
+    [Fact]
+    public async Task ARecurringDeliverableKeepsTheOutputTargetItWasApprovedWith()
+    {
+        var s = Store();
+        var current = Draft(s, Definition(Employee(s)) with { Skill = "marketing-starter-plan" });
+        Assert.Equal(6000, current.Authority.Policy!.OutputTarget);
+        var schedule = Approve(
+            s,
+            Stored(current with { Authority = current.Authority with { Policy = CompanyMeasuredPolicy.DeliverableV2 } })
+        );
+        Assert.Equal(CompanyMeasuredPolicy.DeliverableV2, schedule.Authority.Policy);
+        var model = new Model(policy: CompanyMeasuredPolicy.DeliverableV2);
+        using var scheduler = new CompanyScheduler(s, model);
+        _now = s.ScheduleDetail(schedule.Id).Schedule.NextRunAt!.Value;
+        Assert.True(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, model.Calls);
+        Assert.Contains("requested length", model.Last!.Instructions);
+    }
+
     // Saves a draft as an earlier release stored it.
     private CompanySchedule Stored(CompanySchedule draft)
     {
