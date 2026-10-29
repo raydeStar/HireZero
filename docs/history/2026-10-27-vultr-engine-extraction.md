@@ -33,7 +33,7 @@ These depend only on the small Core slice below, so they should move with namesp
 | Core slice | `Browser.cs`, `BrowserExecution.cs`, `BrowserResults.cs`, `Sandbox.cs`, `ContentGuard.cs`, `Contracts.cs`, plus `CompanyJson` copied out of `CompanyContracts.cs` (the only type the adapters use from it) |
 | Tests | `DockerRuntimeProfileTests`, `DockerBrowserTests`, `BrowserRuntimeTests`, `SandboxTests`, `SandboxRuntimeTests` (the last two use a company id and `CompanyJson` in a few places; swap in a plain id), and `browser-driver`, `browser-protocol`, `browser-runner`, `browser-worker-fixture`, `sandbox-image`, `sandbox-worker` under `tests/` |
 | Root files | `LICENSE`, `THIRD_PARTY_NOTICES.md` (trim to what ships), `global.json`, `Directory.Build.props`, `nuget.config` |
-| ADRs, as background | 0065, 0066, 0075 to 0077, 0095, 0100, 0109 to 0111, 0113, 0119, 0120 |
+| ADRs, as background | 0065, 0066, 0075 to 0077, 0095, 0100, 0109 to 0111, 0113, 0119, 0120, 0146 |
 
 ## Rewrite thin
 
@@ -64,6 +64,10 @@ These exist in HireZero but are tied to `CompanyStore` (the company database), s
   engine, so a receipt from the local WSL host will not carry over. Re-run qualification on the Vultr VM. The
   host wiring that reads the receipt from settings (`CompanyBrowserRuntime.cs`, `CompanySandboxRuntime.cs`) stays
   private; the engine needs a small replacement.
-- The script runtime still has no passing qualification receipt (ADR 0120's first case failed). Keep it out of the
-  engine's default path unless the Wednesday checkpoint is green.
+- Update (Oct 29): the script runtime now passes local qualification. After the task-accounting fix in ADR 0146
+  (`nproc` 31 inside the runtime, 32 actual workload tasks), all six standard and extended cases passed on the
+  local host and a protocol v3 receipt was issued (`docs/history/2026-10-27-script-task-accounting-correction.md`).
+  Lift the sandbox files from `main` at or after that commit, along with `SandboxQualificationTests`,
+  `SandboxTaskLimitFixture` and `SandboxResourceObserver`. The script runtime is a realistic stretch goal now,
+  but it still needs its own qualification run on the Vultr VM, and the browser stays the hero.
 - In the README, say plainly what came from HireZero and what was built Nov 3 to 8.
