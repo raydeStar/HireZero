@@ -31,4 +31,16 @@ public sealed class MarketingWeeklyPlanTests
         Assert.Contains("name an earlier tip in one short clause instead of repeating its steps", instructions);
         Assert.Contains("no numbered step repeats one from another post", instructions);
     }
+
+    // Responses that name the channel are a minimum and the week's total only an upper bound; one grammatical person and
+    // short paragraphs suit the channel; each post carries enough to act on (cycle 15).
+    [Fact]
+    public void TheTallyBoundsOffPostResponsesBothWaysAndPostsStayInOneVoice()
+    {
+        var instructions = MarketingText.StarterPlanInstructions;
+        Assert.Contains("the week's total off-post responses are only an upper bound", instructions);
+        Assert.Contains("keeping one person throughout", instructions);
+        Assert.Contains("short paragraphs of one to three sentences", instructions);
+        Assert.Contains("a one- or two-sentence tip is too thin", instructions);
+    }
 }

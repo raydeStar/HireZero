@@ -214,6 +214,52 @@ The same strict grader scored the four drafts blind, mixed with Luna's:
     streaming.
   - Vultr's own throughput is untested.
 
+### Iterating for both models
+
+The owner then asked to iterate on the offer line and on repeated third posts. Each cycle ran two samples per case
+on the stand-in and on Luna, within the $10 daily budget. The changes:
+- **Cycle 11:** a worked example names an earlier tip instead of repeating its steps. The business is introduced
+  once, near the end of a post, naming that post's problem. It reuses no run of more than four words from the
+  company sentence, and the self-check covers both rules.
+- **Cycle 13:** the offer must say which part of the business's supplied work removes the problem, and how. One
+  example from an unrelated business shows the shape.
+- **Cycle 15:**
+  - Responses that mention the channel are a minimum, and the week's total off-post responses only an upper
+    bound. The earlier wording had led models to call the total a minimum.
+  - Posts keep one grammatical person and use short paragraphs.
+  - Each post carries enough concrete steps to act on.
+
+**Grading:** the long-running grader drifted stricter. On its scale, Luna seemed to drop after cycle 11. A fresh
+grader then scored the committed and cycle 13 drafts together, and both models had improved. From then on, each
+cycle got a fresh grader, with the previous cycle's drafts mixed in as anchors.
+
+| Fresh grader, same batch | DeepSeek average | Luna average |
+| --- | --- | --- |
+| Committed text | 3.58 | 3.33 |
+| Cycle 13 | 3.79 | 3.51 |
+| Cycle 13 (second batch) | 3.76 | 3.38 |
+| Cycle 15 | 3.79 | 3.41 |
+
+Cycle 15 by criterion, on the second batch's scale:
+
+| Model | Grounding | Craft | Distinct | Offer | Clean | Routine | Learning | Voice |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| DeepSeek | 4.00 | 3.58 | 3.75 | 3.85 | 3.58 | 4.00 | 3.85 | 3.70 |
+| Luna | 4.00 | 2.60 | 3.10 | 3.33 | 3.92 | 3.92 | 3.00 | 3.40 |
+
+- **Offer:** across the cycles, the offer criterion rose from about B to A- for both models.
+- **DeepSeek:** reaches A- on six of eight criteria. Craft and clean copy are at the B+/A- border; two drafts let
+  the instructions' own wording into a post ("without repeating its steps").
+- **Luna:** improved on the offer and the tally, but its craft stayed around B- in every cycle. Its posts are
+  short and generic, and three rule changes did not fix that, which looks like a model limit.
+- **Stopping:** averages moved only 0.03 from cycle 13 to cycle 15, so the iteration stopped there, as the owner
+  had specified.
+
+**Cost and time:** DeepSeek reasoned longer under the stricter self-checks.
+- Cycle 13 and 15 drafts used 8,200–15,300 output tokens and took 100–290 seconds on the slow 4-bit host.
+- One draft reached 15,256 of its 16,000 tokens, so the room was raised to 24,000.
+- One request ended with a provider error after 797 tokens. It was billed $0 and replaced by a new sample.
+
 ## Usage
 
 Twenty runs, 164,063 reported input/output tokens, 24–43 seconds each, with 596–2,292 reasoning tokens.
@@ -222,8 +268,11 @@ None was withheld.
 - **The owner's further instruction:** the other fourteen ran under the owner's instruction to cycle until
   confident, after the owner said heavy Luna use was fine.
 
-The model checks added one Sol run, whose usage is unknown, and ten OpenRouter requests. Eight returned receipts,
-and two agency requests timed out with unknown outcomes. OpenRouter reported $0.0174 used that day.
+The model checks and the later iteration added:
+- one Sol run, whose usage is unknown;
+- twelve more Luna runs, under the owner's "Yes, iterate";
+- 22 OpenRouter requests. Two agency requests timed out with unknown outcomes, and one ended with a provider error
+  billed $0. OpenRouter reported $0.040 used that day.
 Actual credit charges for the Luna and Sol runs are unknown. Inputs, raw outputs, receipts, rubric and grades stay in the
 ignored private pilot directory.
 
