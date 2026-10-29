@@ -35,6 +35,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 - Both local installs now include confirmed thread-start effort and v3/6,000-token terms after
   [regression fixes and backed-up installation](history/2026-10-29-handoff-regressions-and-local-install.md).
   The drafting, measured and schedules browser checks pass; selected mobile navigation stays visible.
+  The primary company install was later republished at ff69ecf after a data backup; the pilot install was not.
+  Before that, a "database is locked" error in the scheduler had stopped the primary host, and its startup task
+  did not restart it.
   The old weekly schedule remains saved under v2/3,000 and
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.

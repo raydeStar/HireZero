@@ -148,4 +148,9 @@ ignored private pilot directory.
 - 56 Marketing, assignment and progress tests pass, including a new focused fact for the instruction changes.
 - CSharpier is clean.
 - No browser check or fixture depends on the instruction wording.
-- The installed apps still run the previous instructions until they are republished.
+- The primary company install was republished at ff69ecf, which carries the final instructions and ADR 0166.
+  - It was installed after a data backup.
+  - Saved work, schedules, the model connection and the audit chain were unchanged afterwards.
+  - The pilot install still runs the previous instructions.
+- Before the republish, the primary host had stopped on 2026-10-29. A "database is locked" error in the scheduler
+  ended the host, and the startup task did not restart it.
