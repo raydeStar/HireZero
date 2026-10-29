@@ -52,8 +52,11 @@ Luna's final photography drafts scored run 3. It averaged about B, against about
 
 The owner judged the reasoning-off draft unshippable. A
 [competition stand-in](../history/2026-10-29-weekly-plan-rubric-iteration.md#competition-stand-in) ran the 1017
-snapshot at low effort with room for 16,000 output tokens. It completed with 6,227 output tokens, 4,710 of them
-reasoning, and blind-graded about A-, level with Luna's best photography draft.
+snapshot at low effort with room for 16,000 output tokens. Two samples per case all completed:
+- photography drafts used 6,200–7,200 output tokens;
+- agency drafts used about 10,500, up to 9,416 of them reasoning.
+
+Blind-graded, the four averaged about A-, level with Luna's final samples.
 
 So reasoning off trades most of the plan's quality for fitting the 6,000-token deliverable limit. Using this model
 in HireZero with reasoning on would need a deliverable target above 6,000 tokens. That would be a further reviewed

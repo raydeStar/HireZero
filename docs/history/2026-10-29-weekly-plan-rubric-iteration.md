@@ -169,25 +169,50 @@ OpenAI-style request, never retried, used:
 - 4-bit hosts only, at no more than the listed $0.15 and $0.60 per million tokens;
 - the same frozen messages.
 
-OpenRouter served it from an MXFP4 host. It completed in 40 seconds with 6,227 output tokens, 4,710 of them
-reasoning, billed $0.0032. Its total use was only just above the 6,000-token limit that cut off the earlier
-low-effort run.
+The owner then set a $10 daily budget for these tests, and two samples per case were run. Every run completed with
+`stop`:
+
+| Run | Host | Output tokens | Reasoning | Seconds | Billed |
+| --- | --- | --- | --- | --- | --- |
+| Photo 1 | Wafer (MXFP4) | 6,227 | 4,710 | 40 | $0.0032 |
+| Photo 2 | Wafer | 7,150 | 5,594 | 27 | $0.0036 |
+| Agency 1 | Sail Research (FP4) | 10,265 | 8,937 | 139 | $0.0016 |
+| Agency 2 | Sail Research | 10,534 | 9,416 | 143 | $0.0016 |
+
+Two earlier agency requests reached OpenRouter but hit the runner's 180-second client timeout. Their outcome is
+unknown, they were not replayed, and the timeout was raised to six minutes. OpenRouter reported $0.0174 used that
+day for all the DeepSeek runs.
+
+The same strict grader scored the four drafts blind, mixed with Luna's:
 
 | Draft | Grounding | Craft | Distinct | Offer | Clean | Routine | Learning | Voice |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| DeepSeek V4.1 Flash 1017, low reasoning | A- | B+ | B | A- | A | A | A- | B+ |
+| DeepSeek photo 1 | A- | B+ | B | A- | A | A | A- | B+ |
+| DeepSeek photo 2 | A | A | B+ | C+ | A | A- | A- | B+ |
+| DeepSeek agency 1 | A | A | A- | B- | A | A | A | B+ |
+| DeepSeek agency 2 | A | A | B+ | B | A | A | A | A- |
 
-- **Ranking:** the same grader ranked it level with Luna's sample 1 at the top, then Luna's sample 2, then the
-  reasoning-off draft. It had the best offer and learning plan of the four, and no grade below B.
-- **What improved:** the time parts add up (15 + 30 + 15 = 60 minutes, including posting). The tally counts the
-  comment questions and Post 2's request, and treats form enquiries as a minimum.
-- **Weaknesses:**
-  - Post 3 repeats much of Post 1's setup.
-  - One tip is wrong: black card behind a dark glaze reduces separation.
-  - The review notes partly re-ask about the settled route.
-- **Scope:** one sample on one case.
-- **For the competition engine:** a deliverable needs more than 6,000 output tokens at low effort and about 40
-  seconds.
+- **Overall:** the four averaged about A-, level with Luna's four final samples. The grader put photo 1 level with
+  Luna's best photography draft and agency 2 first of all the agency drafts.
+- **Better than Luna:** craft (A in three of four) and the learning plan (A- to A).
+  - The tallies count only what the posts ask for, once per person.
+  - The next-week rules are concrete.
+- **Same as Luna:** grounding, clean copy and routine, at A- to A. Every time estimate adds up and includes
+  posting.
+- **Weaker:**
+  - **Offer:** varied from C+ to A-, as Luna's does. The model often pastes the brief's company sentence or
+    drops it in without tying it to the post.
+  - **Distinct value:** B to A-, because the third post re-runs the first post's setup.
+  - **Voice:** B+ in three drafts, from long review notes, mixed "I" and "we", and re-asking about settled
+    details.
+  - **One factual slip:** black card behind a dark glaze.
+- **For the competition engine:**
+  - A deliverable used 6,200–7,200 output tokens on the photography case and about 10,500 on the agency case, at
+    low effort.
+  - It took up to 2.5 minutes on a slow host.
+  - The client therefore needs room for at least 16,000 output tokens and a timeout of several minutes, or
+    streaming.
+  - Vultr's own throughput is untested.
 
 ## Usage
 
@@ -197,7 +222,8 @@ None was withheld.
 - **The owner's further instruction:** the other fourteen ran under the owner's instruction to cycle until
   confident, after the owner said heavy Luna use was fine.
 
-The model checks added one Sol run, whose usage is unknown, and four OpenRouter runs billed at $0.0080 in total.
+The model checks added one Sol run, whose usage is unknown, and ten OpenRouter requests. Eight returned receipts,
+and two agency requests timed out with unknown outcomes. OpenRouter reported $0.0174 used that day.
 Actual credit charges for the Luna and Sol runs are unknown. Inputs, raw outputs, receipts, rubric and grades stay in the
 ignored private pilot directory.
 

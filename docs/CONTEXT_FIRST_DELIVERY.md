@@ -31,8 +31,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   policy's 6,000-token target. DeepSeek still reasoned through it. With reasoning turned off
   ([ADR 0169](adr/0169-openrouter-reasoning-per-model.md)), it completed a plan. That plan blind-graded about B
   against about A- for Luna, and the owner judged it unshippable. Vultr serves the 1017 snapshot with reasoning
-  always on. A stand-in for it, with low reasoning and room for 16,000 tokens, graded about A-, level with Luna's
-  best. Earlier
+  always on. A stand-in for it used low reasoning and room for 16,000 tokens. Its two samples per case averaged
+  about A-, level with Luna's. Its offer line still varied from C+ to A-, and agency drafts needed about 10,500
+  tokens and up to 2.5 minutes. Earlier
   [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) were stronger by assistant assessment,
   but actually used default-low effort because the runtime ignored their requested effort. Saved model text
   remains unedited. Repeatable first-run usefulness remains open.
@@ -54,8 +55,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   took its last six runs, then fourteen more under the owner's instruction to cycle until confident (164,063 tokens
   for all twenty). Both separately authorized Sol diagnostics completed, reporting 14,892 tokens. Of two more Sol
   runs approved for the final text, one was cancelled at the deadline with usage unknown and one was left unused.
-  OpenRouter test runs are limited to one a day unless the owner approves more; the owner approved four on
-  2026-10-29, billed $0.0080 in total.
+  Paid model tests may spend up to $10 a day without asking. OpenRouter reported $0.0174 for the ten DeepSeek
+  requests on 2026-10-29.
   Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
   Three separately approved handoff diagnostics consumed their own grants: two completed with 15,833 reported
   tokens; the withheld request last reported 9,344 tokens, with final usage unknown. The latest cycle used
