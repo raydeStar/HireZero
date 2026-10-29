@@ -19,4 +19,16 @@ public sealed class MarketingWeeklyPlanTests
         Assert.Contains("The brief's company sentence is a source, not copy", instructions);
         Assert.Contains("without explaining the tracking to readers", instructions);
     }
+
+    // The offer names its post's problem and how the business addresses it, without the brief's wording, and a worked
+    // example adds only new steps (docs/history/2026-10-29-weekly-plan-rubric-iteration.md, cycles 11 and 13).
+    [Fact]
+    public void TheOfferSaysHowTheBusinessHelpsInItsOwnWordsAndNoPostRepeatsAnothersSteps()
+    {
+        var instructions = MarketingText.StarterPlanInstructions;
+        Assert.Contains("say which part of the business's supplied work removes it and how", instructions);
+        Assert.Contains("reuse no run of more than four of its words", instructions);
+        Assert.Contains("name an earlier tip in one short clause instead of repeating its steps", instructions);
+        Assert.Contains("no numbered step repeats one from another post", instructions);
+    }
 }
