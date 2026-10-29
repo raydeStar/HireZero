@@ -44,5 +44,9 @@ everything behind it waits too.
   Each figure comes from a single 90-second run on one machine.
 - **Unchanged:** the busy timeout, the rollback journal mode, the database schema and PostgreSQL behaviour. The
   write-ahead log remains a separate decision.
-- **Production evidence:** the installed host's "Skipped a scheduler round" warnings will show whether locks still
-  happen. Thirteen scheduler loops on one file remain a design worth revisiting as companies grow.
+- **Production evidence:**
+  - Before this change, the owner's host logged 42 skipped rounds in about 75 minutes. They came in bursts of 5–15
+    whenever builds or measurement runs loaded the machine.
+  - After installation, the same 90-second build-like load produced no skipped rounds, and the copy's longest wait
+    was 24 ms.
+  - Thirteen scheduler loops on one file remain a design worth revisiting as companies grow.
