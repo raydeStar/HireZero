@@ -18,8 +18,12 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   Home now also recognizes [natural requests for a week's content](history/2026-10-29-natural-weekly-goals-and-raw-comparison.md).
 - Raw quality remains uneven and Luna remains the default. After earlier rejected or generic results,
   the [latest agency comparison and fresh photography-studio run](history/2026-10-29-channel-aware-copy-and-complete-sections.md)
-  give practical guidance with less repetitive service copy and better channel attribution. Routine time estimates
-  and learning-note accuracy still need work; owner assessment of the fresh raw draft is pending. Earlier
+  give practical guidance with less repetitive service copy and better channel attribution. The owner found the
+  photography draft useful but noted that its routine omitted replies and its tally overstated per-post tracking.
+  A [rubric-scored iteration](history/2026-10-29-weekly-plan-rubric-iteration.md) revised the starter-plan
+  instructions. Under strict blind grading, grounding, clean plain-text copy, realistic routines and voice now
+  reach at least A- in every final sample. Craft depth, distinct value, offer phrasing and the next-week rule
+  still vary between B- and A. Owner acceptance remains open. Earlier
   [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) were stronger by assistant assessment,
   but actually used default-low effort because the runtime ignored their requested effort. Saved model text
   remains unedited. Repeatable first-run usefulness remains open.
@@ -29,8 +33,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   The old weekly schedule remains saved under v2/3,000 and
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
-- The Luna evaluation allowance is 31 native runs: twenty-five consumed, six remain, with 171,915 reported input/output
-  tokens. Both separately authorized Sol diagnostics completed, reporting 14,892 tokens; no Sol allowance remains.
+- The 31-run Luna evaluation allowance is used up, with 220,397 reported input/output tokens; the rubric iteration
+  took its last six runs, then fourteen more under the owner's instruction to cycle until confident (164,063 tokens
+  for all twenty). Both separately authorized Sol diagnostics completed, reporting 14,892 tokens; no Sol allowance remains.
   Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
   Three separately approved handoff diagnostics consumed their own grants: two completed with 15,833 reported
   tokens; the withheld request last reported 9,344 tokens, with final usage unknown. The latest cycle used
