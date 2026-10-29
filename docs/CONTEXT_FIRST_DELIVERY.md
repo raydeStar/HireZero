@@ -39,7 +39,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   pilot install was not updated. On 2026-10-29 "database is locked" errors in the scheduler stopped the primary
   host twice, and its startup task did not restart it. Since
   [ADR 0167](adr/0167-a-locked-database-skips-a-scheduler-round.md), such a round is logged and tried again
-  instead. What held the lock is not yet known.
+  instead. The install keeps thirteen companies in one database file, and the host runs a scheduler for each.
+  Timestamped warnings show rounds skipped across several of those companies, including at startup. The leading
+  explanation is the host's own schedulers competing for the single write lock; this is not yet confirmed.
   The old weekly schedule remains saved under v2/3,000 and
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.

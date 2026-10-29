@@ -34,7 +34,12 @@ replayed.
 
 - **Repeated locks:** a long-held lock delays scheduled work rather than ending the company. While the lock lasts,
   a round is tried about every six seconds and logs a warning each time.
-- **Unknown cause:** what held the lock on 2026-10-29 is still unknown. The warnings now record when it happens.
+- **Likely cause:** the lock holder on 2026-10-29 is not confirmed.
+  - The owner's install keeps thirteen companies in one SQLite file, and the host runs one scheduler loop for each,
+    every second.
+  - Once installed, timestamped warnings showed rounds skipped across several companies, including when all the
+    schedulers started together.
+  - The leading explanation is contention between the host's own schedulers.
 - **Not covered:**
   - other hosted services keep the stop-on-fault behaviour;
   - the owner's startup task still does not restart a stopped host;
