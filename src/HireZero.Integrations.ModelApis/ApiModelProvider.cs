@@ -22,18 +22,21 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
 
     private readonly Func<string, string?> _secret;
     private readonly Func<string, ModelPrice?> _price;
+    private readonly Func<string, string?> _reasoning;
     private readonly HttpClient _http;
 
     public ApiModelProvider(
         Func<string, string?>? secret = null,
         HttpMessageHandler? handler = null,
         Func<string, ModelPrice?>? price = null,
-        string? runtimeIdentity = null
+        string? runtimeIdentity = null,
+        Func<string, string?>? reasoning = null
     )
     {
         _secret = secret ?? SecretSource.Default.Read;
         RuntimeIdentity = runtimeIdentity ?? Identity;
         _price = price ?? ModelRoutes.Price;
+        _reasoning = reasoning ?? ModelRoutes.Reasoning;
         _http = new HttpClient(
             handler
                 ?? new SocketsHttpHandler
@@ -165,11 +168,12 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                     }
                 );
         // Through OpenRouter (docs/adr/0042-openrouter-low-effort-and-a-price-ceiling.md): reasoning stays at low effort,
+        // or off for a model the catalog says reasons too long even then (docs/adr/0169-openrouter-reasoning-per-model.md),
         // the reviewed price is the ceiling OpenRouter routes under, and the reply reports what was billed, so a route
         // whose price varies by request (a router such as Jev) is checked against the allowance either way.
         if (endpoint.Api == "openrouter")
         {
-            body["reasoning"] = new JsonObject { ["effort"] = "low" };
+            body["reasoning"] = new JsonObject { ["effort"] = _reasoning(route) ?? "low" };
             body["usage"] = new JsonObject { ["include"] = true };
             body["provider"] = new JsonObject
             {

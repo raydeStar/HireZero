@@ -17,7 +17,8 @@ public static partial class ModelRoutes
         Dictionary<string, string> Routes,
         Dictionary<string, string> Names,
         Dictionary<string, string> Runtimes,
-        Dictionary<string, ModelPrice> Prices
+        Dictionary<string, ModelPrice> Prices,
+        Dictionary<string, string> Reasoning
     );
 
     private static readonly Lazy<Catalog> Current = new(Load);
@@ -46,6 +47,11 @@ public static partial class ModelRoutes
     public static ModelPrice? Price(string model) =>
         Current.Value.Prices.TryGetValue(model, out var price) ? price : null;
 
+    // The reasoning effort a model is asked for through OpenRouter, "none" or "low", reviewed like a price
+    // (docs/adr/0169-openrouter-reasoning-per-model.md); null when the catalog names none.
+    public static string? Reasoning(string model) =>
+        Current.Value.Reasoning.TryGetValue(model, out var effort) ? effort : null;
+
     // What a call cost, in US dollars, or null when the model has no price.
     public static decimal? Cost(string model, ModelUsage usage) => Price(model)?.Cost(usage);
 
@@ -71,6 +77,8 @@ public static partial class ModelRoutes
                 catalog.Runtimes[purpose] = runtime;
             foreach (var (model, price) in overrides.Prices)
                 catalog.Prices[model] = price;
+            foreach (var (model, effort) in overrides.Reasoning)
+                catalog.Reasoning[model] = effort;
         }
         return catalog;
     }
@@ -95,7 +103,16 @@ public static partial class ModelRoutes
                         throw new InvalidOperationException("Invalid model price for '" + entry.Name + "'.");
                     prices[entry.Name] = new(input, output);
                 }
-            var catalog = new Catalog(Read("routes"), Read("names"), Read("runtimes"), prices);
+            var reasoning = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (document.RootElement.TryGetProperty("reasoning", out var efforts))
+                foreach (var entry in efforts.EnumerateObject().Where(e => !e.Name.StartsWith('$')))
+                {
+                    var effort = entry.Value.GetString();
+                    if (!RouteFormat().IsMatch(entry.Name) || effort is not ("none" or "low"))
+                        throw new InvalidOperationException("Invalid reasoning effort for '" + entry.Name + "'.");
+                    reasoning[entry.Name] = effort;
+                }
+            var catalog = new Catalog(Read("routes"), Read("names"), Read("runtimes"), prices, reasoning);
             foreach (var (purpose, route) in catalog.Routes)
                 if (!Purpose().IsMatch(purpose) || !RouteFormat().IsMatch(route))
                     throw new InvalidOperationException("Invalid model route '" + purpose + "': '" + route + "'.");

@@ -128,8 +128,33 @@ The API path limits a deliverable to the low-effort output target of 1,800 token
 ([ADR 0134](../adr/0134-high-effort-deliverables.md)). That target assumes low effort leaves room for the answer,
 and DeepSeek V4.1 Flash did not leave it on this request.
 [ADR 0166](../adr/0166-openrouter-deliverables-get-their-output-target.md) now gives OpenRouter deliverables their
-policy's output target, 6,000 tokens under v3. The next daily run will check whether that is enough and grade the
-draft.
+policy's output target, 6,000 tokens under v3.
+
+The owner approved two more DeepSeek requests that day:
+- **Second run, 6,000-token limit:** still withheld as truncated. The model reasoned through 5,533 of the 6,000
+  tokens and was billed $0.0031.
+- **Third run, reasoning off:** the owner chose to turn reasoning off.
+  [ADR 0169](../adr/0169-openrouter-reasoning-per-model.md) sets that per model, and the run completed in 11.5
+  seconds with 1,166 output tokens and no reasoning, billed $0.00068.
+
+The strict blind grader that scored Luna's final photography drafts (samples 1 and 2 above) graded that draft on
+the same scale, without knowing which model wrote it:
+
+| Draft | Grounding | Craft | Distinct | Offer | Clean | Routine | Learning | Voice |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| DeepSeek V4.1 Flash, reasoning off | B | A- | A | A- | A | C | D+ | C+ |
+
+- **Ranking:** the grader ranked both Luna drafts above it.
+- **Posts:** its posts were the strongest of the three, with a bounce card for dark glazes, a clear choice between
+  white card and a surface, and an offer tied to the post's problem.
+- **Plan:** it missed the plan's self-checks.
+  - Its time estimate left out posting.
+  - Its tally counted enquiries per post that no post asked readers to attribute.
+  - Its review notes asked the owner to confirm the contact form the brief already settles.
+  - Two posts were single dense paragraphs.
+  - Part of the grounding mark was for the app's own `[connect: …]` request line, which the app turns into a
+    Connect card.
+- **Scope:** this is one sample.
 
 ## Usage
 
@@ -139,8 +164,8 @@ None was withheld.
 - **The owner's further instruction:** the other fourteen ran under the owner's instruction to cycle until
   confident, after the owner said heavy Luna use was fine.
 
-The model checks added one Sol run, whose usage is unknown, and one OpenRouter run billed at $0.0010. Actual
-credit charges for the Luna and Sol runs are unknown. Inputs, raw outputs, receipts, rubric and grades stay in the
+The model checks added one Sol run, whose usage is unknown, and three OpenRouter runs billed at $0.0048 in total.
+Actual credit charges for the Luna and Sol runs are unknown. Inputs, raw outputs, receipts, rubric and grades stay in the
 ignored private pilot directory.
 
 ## Verification
@@ -155,4 +180,6 @@ ignored private pilot directory.
 - On 2026-10-29 the primary host stopped twice, once before the republish and once after it. Each time a
   "database is locked" error in the scheduler ended the host, and the startup task did not restart it.
   [ADR 0167](../adr/0167-a-locked-database-skips-a-scheduler-round.md) now logs such a round and tries it again;
-  the primary install runs it from 655196a.
+  the primary install runs it from 655196a. [ADR 0168](../adr/0168-company-writers-queue-for-the-database.md)
+  then measured the cause: the thirteen company schedulers sharing one SQLite file. It queued their writes and
+  turned on SQLite's busy handler.

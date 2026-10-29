@@ -28,7 +28,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   Sol at high effort hit Home's 90-second deadline, and DeepSeek V4.1 Flash, the company's planned model, spent
   its whole 1,800-token OpenRouter output limit on reasoning.
   [ADR 0166](adr/0166-openrouter-deliverables-get-their-output-target.md) gives OpenRouter deliverables their
-  policy's 6,000-token target; a DeepSeek rerun is pending. Earlier
+  policy's 6,000-token target. DeepSeek still reasoned through it. With reasoning turned off
+  ([ADR 0169](adr/0169-openrouter-reasoning-per-model.md)), it completed a plan. That plan blind-graded about B
+  against about A- for Luna: stronger posts, but a weaker routine, tally and review notes. Earlier
   [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) were stronger by assistant assessment,
   but actually used default-low effort because the runtime ignored their requested effort. Saved model text
   remains unedited. Repeatable first-run usefulness remains open.
@@ -40,8 +42,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   host twice, and its startup task did not restart it. Since
   [ADR 0167](adr/0167-a-locked-database-skips-a-scheduler-round.md), such a round is logged and tried again
   instead. The install keeps thirteen companies in one database file, and the host runs a scheduler for each.
-  Timestamped warnings show rounds skipped across several of those companies, including at startup. The leading
-  explanation is the host's own schedulers competing for the single write lock; this is not yet confirmed.
+  Timestamped warnings show rounds skipped across several of those companies, including at startup.
+  [ADR 0168](adr/0168-company-writers-queue-for-the-database.md) measured the cause on a copy: short transactions,
+  but blind 150 ms retries. Queued writers with SQLite's busy handler cut the longest wait from 1.9 s to 75 ms.
   The old weekly schedule remains saved under v2/3,000 and
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
@@ -49,7 +52,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   took its last six runs, then fourteen more under the owner's instruction to cycle until confident (164,063 tokens
   for all twenty). Both separately authorized Sol diagnostics completed, reporting 14,892 tokens. Of two more Sol
   runs approved for the final text, one was cancelled at the deadline with usage unknown and one was left unused.
-  OpenRouter test runs are limited to one a day; the first billed $0.0010.
+  OpenRouter test runs are limited to one a day unless the owner approves more; the owner approved three on
+  2026-10-29, billed $0.0048 in total.
   Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
   Three separately approved handoff diagnostics consumed their own grants: two completed with 15,833 reported
   tokens; the withheld request last reported 9,344 tokens, with final usage unknown. The latest cycle used

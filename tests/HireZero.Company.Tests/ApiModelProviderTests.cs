@@ -224,6 +224,29 @@ public sealed class ApiModelProviderTests
         Assert.False(openai.RootElement.TryGetProperty("provider", out _));
     }
 
+    // A model the catalog says reasons too long even at low effort runs without reasoning through OpenRouter; others
+    // keep low (docs/adr/0169-openrouter-reasoning-per-model.md).
+    [Fact]
+    public async Task OpenRouterAsksEachModelForItsReviewedReasoningEffort()
+    {
+        var fake = new Fake();
+        var provider = new ApiModelProvider(
+            name => name == ApiModelProvider.OpenRouterKey ? "fictional-router-key" : null,
+            fake,
+            _ => Price,
+            reasoning: route => route == "fictional/thinker" ? "none" : null
+        );
+        await provider.CompleteMeasuredAsync(Job("fictional/thinker").Call, Job("fictional/thinker").Job, Token);
+        await provider.CompleteMeasuredAsync(Job("fictional/router").Call, Job("fictional/router").Job, Token);
+
+        Assert.Equal(
+            ["none", "low"],
+            fake.Requests.Select(r => JsonNode.Parse(r.Body)!["reasoning"]!["effort"]!.GetValue<string>())
+        );
+        Assert.Equal("none", ModelRoutes.Reasoning("deepseek/deepseek-v4.1-flash"));
+        Assert.Null(ModelRoutes.Reasoning("openai/gpt-6-luna"));
+    }
+
     [Fact]
     public async Task AnthropicRoutesUseTheMessagesApiWithTheKeyAndLimits()
     {

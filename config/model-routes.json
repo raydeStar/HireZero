@@ -17,9 +17,14 @@
   "prices": {
     "$comment": "US dollars per million tokens, as {\"input\": n, \"output\": n}, for models served by an API provider. A route without a price cannot be used with one (docs/adr/0036-api-model-provider.md). Check each provider's price page; prices change."
   },
+  "reasoning": {
+    "$comment": "The reasoning effort a model is asked for through OpenRouter: \"none\" or \"low\". Unlisted models use low. DeepSeek V4.1 Flash spent a whole 6,000-token deliverable on reasoning at low, so it runs without reasoning (docs/adr/0169-openrouter-reasoning-per-model.md).",
+    "deepseek/deepseek-v4.1-flash": "none"
+  },
   "names": {
     "openai/gpt-6-luna": "Luna",
     "openai/gpt-6.1-sol": "Sol 6.1",
-    "openai/gpt-6-astra": "Astra"
+    "openai/gpt-6-astra": "Astra",
+    "deepseek/deepseek-v4.1-flash": "DeepSeek V4.1 Flash"
   }
 }
