@@ -642,7 +642,7 @@ public sealed partial class CompanySandboxTests : IDisposable
             db.Open();
             using var command = db.CreateCommand();
             command.CommandText =
-                "DROP TABLE IF EXISTS co_task_cost_reviews; DROP TABLE IF EXISTS co_memory_analyses; DROP TABLE IF EXISTS co_billing_events; DROP TABLE IF EXISTS co_billing_portals; DROP TABLE IF EXISTS co_billing_objects; DROP TABLE IF EXISTS co_billing_checkouts; DROP TABLE IF EXISTS co_billing_state; DROP TABLE IF EXISTS co_browser_retention; DROP TABLE IF EXISTS co_browser_jobs; DROP TABLE IF EXISTS co_document_retention; DROP TABLE co_sandbox_jobs; DROP TABLE co_compute_policy; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=21;";
+                "DROP TABLE IF EXISTS co_decisions; DROP TABLE IF EXISTS co_task_cost_reviews; DROP TABLE IF EXISTS co_memory_analyses; DROP TABLE IF EXISTS co_billing_events; DROP TABLE IF EXISTS co_billing_portals; DROP TABLE IF EXISTS co_billing_objects; DROP TABLE IF EXISTS co_billing_checkouts; DROP TABLE IF EXISTS co_billing_state; DROP TABLE IF EXISTS co_browser_retention; DROP TABLE IF EXISTS co_browser_jobs; DROP TABLE IF EXISTS co_document_retention; DROP TABLE co_sandbox_jobs; DROP TABLE co_compute_policy; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=21;";
             command.ExecuteNonQuery();
         }
         var upgraded = Store();

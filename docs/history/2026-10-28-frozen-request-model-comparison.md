@@ -9,8 +9,13 @@ diagnostics through the existing Codex OAuth account, with unchanged baseline re
 The private review froze the exact alterations and agency packets from the preceding baseline comparisons.
 File hashes, instructions, context, approved business facts and policies were checked before use. The calls
 changed only the model route and request identity in those packets. Both used the production native text
-transport, high effort, a 3,000-output-token target, a 90-second local deadline and one intended existing credit.
+transport, with high effort requested, a 3,000-output-token target, a 90-second local deadline and one intended existing credit.
 These are soft limits, not guaranteed charge caps. The existing account catalog listed the selected model.
+
+Correction, 2026-10-29: the [runtime effort investigation](2026-10-28-runtime-ignored-turn-effort.md)
+found that this runtime ignored the turn-only effort setting. These Sol calls ran at its default low effort,
+not the reviewed high effort. The outputs and receipts remain unchanged; this is not a controlled comparison
+of both models at high effort.
 
 These were transport diagnostics, not new Home acceptance runs. The transport now includes the completed-message
 fix installed after the earlier Luna samples. There is no evidence that fix affected those earlier outputs, but

@@ -127,6 +127,8 @@ public sealed partial class CompanyArtifactRevisionTests : IDisposable
         revision = store.Work(revision.Id);
         var prepared = Prepare(store, revision);
         var call = store.TextCall(prepared.Id);
+        Assert.Equal(CompanyMeasuredPolicy.Current, prepared.Measured!.Policy);
+        Assert.InRange(prepared.Measured.ApplicationBytes, 1, 4096);
         Assert.Equal(artifact.Body, call.Context.Revision!.OriginalDraft);
         Assert.Equal(request.Body, call.Context.Revision.Request.Feedback);
         Assert.Equal(revision.Revision, call.Context.Revision.Request);

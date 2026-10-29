@@ -606,7 +606,7 @@ public sealed partial class CompanyBrowserTests : IDisposable
             db.Open();
             using var command = db.CreateCommand();
             command.CommandText =
-                "DROP TABLE IF EXISTS co_task_cost_reviews; DROP TABLE IF EXISTS co_memory_analyses; DROP TABLE IF EXISTS co_billing_events; DROP TABLE IF EXISTS co_billing_portals; DROP TABLE IF EXISTS co_billing_objects; DROP TABLE IF EXISTS co_billing_checkouts; DROP TABLE IF EXISTS co_billing_state; DROP TABLE co_browser_retention; DROP TABLE co_browser_jobs; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=23;";
+                "DROP TABLE IF EXISTS co_decisions; DROP TABLE IF EXISTS co_task_cost_reviews; DROP TABLE IF EXISTS co_memory_analyses; DROP TABLE IF EXISTS co_billing_events; DROP TABLE IF EXISTS co_billing_portals; DROP TABLE IF EXISTS co_billing_objects; DROP TABLE IF EXISTS co_billing_checkouts; DROP TABLE IF EXISTS co_billing_state; DROP TABLE co_browser_retention; DROP TABLE co_browser_jobs; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=23;";
             command.ExecuteNonQuery();
         }
         var upgraded = Store();

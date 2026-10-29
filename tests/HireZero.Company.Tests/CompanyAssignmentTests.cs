@@ -227,7 +227,8 @@ public sealed class CompanyAssignmentTests : IDisposable
         Assert.DoesNotContain("at most 500 words", call.Instructions);
         Assert.Contains("skill's format guidance", call.Instructions);
         Assert.DoesNotContain("at most 80 words", call.Instructions);
-        Assert.Contains("observable learning target", call.Instructions);
+        Assert.Contains("observable learning signal", call.Instructions);
+        Assert.Contains("collectable from the actual CTAs", call.Instructions);
         Assert.Equal(knowledge.Body, call.Context.CompanyKnowledge);
         Assert.All(
             MeasuredQueueChecks.Items<CompanyBudget>(store, "budgets"),

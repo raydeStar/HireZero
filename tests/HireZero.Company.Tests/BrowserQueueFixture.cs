@@ -931,12 +931,11 @@ static class BrowserQueueFixture
             )
             {
                 if (
-                    !call.Context.CompanyKnowledge.Contains(
-                        "Paper craft kits for adult hobbyists",
-                        StringComparison.Ordinal
-                    )
+                    call.Context.BusinessBrief?.Fields.Any(f =>
+                        f.Key == "business" && f.Value == "Paper craft kits for adult hobbyists"
+                    ) != true
                     || !call.Context.DepartmentKnowledge.Contains("approved company brief", StringComparison.Ordinal)
-                    || !call.Context.Input.Contains("one-week marketing starter plan", StringComparison.Ordinal)
+                    || !call.Context.Input.Contains("one-week marketing plan", StringComparison.Ordinal)
                 )
                     throw new ModelTransportException(
                         "The first plan is missing its approved place settings.",

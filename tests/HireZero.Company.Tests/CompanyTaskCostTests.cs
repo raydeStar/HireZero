@@ -397,7 +397,7 @@ public sealed partial class CompanyTaskCostTests : IDisposable
                 r => r.GetString(0)
             );
             db.Execute(
-                "DROP TABLE co_task_cost_reviews; DELETE FROM module_schema_migrations WHERE owner='company' AND version=28;"
+                "DROP TABLE co_decisions; DROP TABLE co_task_cost_reviews; DELETE FROM module_schema_migrations WHERE owner='company' AND version>=28;"
             );
         }
         s = Store();

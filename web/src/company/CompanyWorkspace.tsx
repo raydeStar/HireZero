@@ -263,12 +263,15 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       ? "work"
       : (route.mode ?? "chat");
   const hubNavigation = useRef<HTMLElement>(null);
+  const knowledgeNavigation = useRef<HTMLElement>(null);
+  const advancedNavigation = useRef<HTMLElement>(null);
   const loaded = !!snapshot;
   useEffect(() => {
     if (compactHub && tab === "departments")
-      hubNavigation.current
-        ?.querySelector('[aria-current="page"]')
-        ?.scrollIntoView({ block: "nearest", inline: "center" });
+      for (const navigation of [hubNavigation, knowledgeNavigation, advancedNavigation])
+        navigation.current
+          ?.querySelector('[aria-current="page"]')
+          ?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [tab, section, compactHub, loaded]);
   const [cockpitOpen, setCockpitOpen] = useState(() => preference("cockpit-open", true)),
     [cockpitWidth, setCockpitWidth] = useState(() => Math.max(240, Math.min(480, preference("cockpit-width", 320)))),
@@ -1037,7 +1040,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
                 ))}
               </nav>
               {knowledgeSections.includes(section) && (
-                <nav className="co-hub-tabs co-knowledge-tabs" aria-label="Company knowledge">
+                <nav ref={knowledgeNavigation} className="co-hub-tabs co-knowledge-tabs" aria-label="Company knowledge">
                   {hubSections
                     .filter(([key]) => knowledgeSections.includes(key))
                     .map(([key, label]) => (
@@ -1054,7 +1057,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
               {inSettings && (
                 <details className="co-advanced-settings" open={!basicSettings.includes(section)}>
                   <summary>Advanced settings</summary>
-                  <nav className="co-hub-tabs" aria-label="Advanced settings">
+                  <nav ref={advancedNavigation} className="co-hub-tabs" aria-label="Advanced settings">
                     {hubSections
                       .filter(([key]) => settingsSections.includes(key) && !basicSettings.includes(key))
                       .map(([key, label]) => (

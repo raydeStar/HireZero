@@ -3,7 +3,7 @@
 Scope: all three phases of the [owner's proposal](product/context-first-vision.md).
 Priority: immediate usefulness. State a goal, receive useful work with minimal input and navigation.
 
-## Current checkpoint — 2026-10-28
+## Current checkpoint — 2026-10-29
 
 - Home accepts a business sentence, goal and optional website, then generates one disclosed draft. Results
   open with Copy, Download and Refine, plus [section copying](history/2026-10-28-section-copy.md) beside individual
@@ -15,16 +15,24 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   adds proposed posting days, batch preparation and recognition of internal-review headings for exact exports.
 - Raw quality remains uneven. The owner rejected the alterations plan; a later
   [reader-purpose candidate](history/2026-10-28-reader-purpose-comparison.md) failed grounding and was rolled back.
-  Two [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) are stronger by assistant assessment;
-  owner acceptance is pending and Luna remains the default. A fresh [minimal-input Home run](history/2026-10-28-minimal-input-first-draft.md)
+  Two [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) are stronger by assistant assessment,
+  but the runtime ignored their requested effort: Sol actually used its default low effort. Two later confirmed-high
+  Luna diagnostics still needed edits; a third request was withheld with uncertain final usage. Owner acceptance
+  remains open and Luna remains the default. A fresh [minimal-input Home run](history/2026-10-28-minimal-input-first-draft.md)
   produced grounded but generic landing-page copy. It also exposed and fixed first-goal conversations losing
   their goal title. Saved model text remains unedited. Repeatable first-run usefulness remains open.
-- Local updates have verified backups and focused checks. The old weekly schedule remains saved and now
+- Both local installs now include confirmed thread-start effort and v3/6,000-token terms after
+  [regression fixes and backed-up installation](history/2026-10-29-handoff-regressions-and-local-install.md).
+  The drafting, measured and schedules browser checks pass; selected mobile navigation stays visible.
+  The old weekly schedule remains saved under v2/3,000 and
   [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
   direct review link. No replacement is active.
 - The Luna evaluation allowance is 31 native runs: twenty-one consumed, ten remain, with 140,927 reported input/output
   tokens. Both separately authorized Sol diagnostics completed, reporting 14,892 tokens; no Sol allowance remains.
   Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
+  Three separately approved handoff diagnostics consumed their own grants: two completed with 15,833 reported
+  tokens; the withheld request last reported 9,344 tokens, with final usage unknown. No additional calls were made
+  while repairing the handoff regressions.
 
 ## Next acceptance gate
 

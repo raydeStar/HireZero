@@ -532,7 +532,7 @@ try {
     await evaluate(
       "document.querySelector('.co-first-assignment textarea').value",
     ),
-    /one-week marketing starter plan/,
+    /one-week marketing plan/,
   );
   await evaluate(
     "document.querySelector('.co-first-assignment').scrollIntoView({block:'start'})",
@@ -696,7 +696,13 @@ try {
     true,
   );
   await evaluate("window.releaseFirstPlan()");
-  await bodyText("DRAFT FOR INTERNAL REVIEW");
+  await bodyText("DRAFT FOR INTERNAL REVIEW").catch(async (error) => {
+    await fs.writeFile(
+      path.join(repo, "test-results/business-drafting-browser-failure.json"),
+      JSON.stringify({ text: await evaluate("document.body.innerText"), workspace: await snapshot() }, null, 2),
+    );
+    throw error;
+  });
   data = (await snapshot()).data;
   const firstTask = () =>
     data.tasks.find((t) => t.skill === "marketing-starter-plan");
@@ -887,7 +893,8 @@ try {
     ),
   );
   // Progress comes from the same persisted journey; a refresh cannot invent another completion or a lower cost.
-  await click("Company settings");
+  await click("Settings");
+  await evaluate("document.querySelector('.co-advanced-settings > summary').click()");
   await click("Progress");
   await bodyText("Average recorded model cost per completed task");
   const progress = await fetch(url + "/api/company/progress").then((r) =>
@@ -976,7 +983,7 @@ try {
   await until(
     () =>
       evaluate(
-        "(()=>{const n=document.querySelector('.co-hub-tabs'),a=n?.querySelector('[aria-current=page]');if(!a)return false;const nr=n.getBoundingClientRect(),ar=a.getBoundingClientRect();return nr.height<=60&&ar.left>=nr.left&&ar.right<=nr.right;})()",
+        "(()=>{const a=document.querySelector('.co-hub-tabs [aria-current=page]'),n=a?.closest('.co-hub-tabs');if(!a)return false;const nr=n.getBoundingClientRect(),ar=a.getBoundingClientRect();return nr.height<=60&&ar.left>=nr.left&&ar.right<=nr.right;})()",
       ),
     "Selected company section visible in a single mobile navigation row",
   );
@@ -985,7 +992,7 @@ try {
   await until(
     () =>
       evaluate(
-        "(()=>{const n=document.querySelector('.co-hub-tabs'),a=n?.querySelector('[aria-current=page]');if(!a)return false;const nr=n.getBoundingClientRect(),ar=a.getBoundingClientRect();return nr.height<=60&&ar.left>=nr.left&&ar.right<=nr.right;})()",
+        "(()=>{const a=document.querySelector('.co-hub-tabs [aria-current=page]'),n=a?.closest('.co-hub-tabs');if(!a)return false;const nr=n.getBoundingClientRect(),ar=a.getBoundingClientRect();return nr.height<=60&&ar.left>=nr.left&&ar.right<=nr.right;})()",
       ),
     "Mobile section restored after reload",
   );
@@ -1105,9 +1112,9 @@ try {
   assert.equal(await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"]').open`), true,
     "The earlier draft remains available for comparison");
   await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"] > summary').click()`);
-  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), "",
-    "Confirmed save clears this tab's recovery draft");
-  await click("Ask for changes");
+  assert.equal(await evaluate("!!document.querySelector('.co-artifact-editor textarea')"), false,
+    "Confirmed save clears this tab's recovery draft and leaves the editor collapsed after reload");
+  await click("Refine draft");
   const reviewFeedback = "Keep the checklist. Replace the vague Wednesday instruction with the full worked example.";
   await evaluate(`(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(reviewFeedback)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await send("Page.reload");
@@ -1129,7 +1136,7 @@ try {
   await fs.writeFile(path.join(repo, "test-results/content-revision-mobile.png"),
     Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
   await send("Page.navigate", { url: editorialUrl });
-  await bodyText("Earlier draft · not approved");
+  await bodyText("Draft ready");
   assert.equal(await evaluate("[...document.querySelectorAll('.co-work-window button')].some(b=>b.textContent.trim()==='Approve result')"), false,
     "Superseded work does not offer a review command the store refuses");
   await click("Review revision request");
@@ -1165,7 +1172,7 @@ try {
   await until(async () => (await snapshot()).data.tasks.find(t => t.id === completion.id).state === "completed",
     "Owner completes the task using the corrected copy");
   await send("Page.reload");
-  await bodyText("Earlier draft · not approved");
+  await bodyText("Draft ready");
   const completedState = (await snapshot()).data;
   assert.deepEqual(await taskNeeds(completion.id), [], "Completed work leaves no stale review request");
   assert.deepEqual(completedState.artifacts.find(a => a.id === original.id), original,
@@ -1186,9 +1193,9 @@ try {
   await send("Page.navigate", { url: `${url}/?view=employee&employee=${revision.employeeId}&thread=${revision.threadId}&work=${revision.id}&mode=work` });
   await until(() => evaluate(`!!document.querySelector('[data-artifact-id="${revisionCopy.id}"] .co-draft-checks')`), "Advisory checks for the latest draft");
   await evaluate(`(()=>{const checks=document.querySelector('[data-artifact-id="${revisionCopy.id}"] .co-draft-checks');if(!checks.open)checks.querySelector('summary').click();})()`);
-  await bodyText("about 500 suggested");
+  await bodyText("up to about 750–900");
   assert.equal(await evaluate("document.querySelector('.co-draft-checks').textContent.includes('Outside limit')"), false, "Modest length differences are not failures");
-  await click("Ask for changes");
+  await click("Refine draft");
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Use draft check findings')"), false);
   const repairText = "Make the opening more concrete and preserve earlier feedback.";
   await evaluate(`(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(repairText)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
