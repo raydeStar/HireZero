@@ -26,7 +26,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   still vary between B- and A. Owner acceptance remains open. The
   [model checks](history/2026-10-29-weekly-plan-rubric-iteration.md#model-checks) on that text returned no draft:
   Sol at high effort hit Home's 90-second deadline, and DeepSeek V4.1 Flash, the company's planned model, spent
-  its whole 1,800-token OpenRouter output limit on reasoning. Earlier
+  its whole 1,800-token OpenRouter output limit on reasoning.
+  [ADR 0166](adr/0166-openrouter-deliverables-get-their-output-target.md) gives OpenRouter deliverables their
+  policy's 6,000-token target; a DeepSeek rerun is pending. Earlier
   [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) were stronger by assistant assessment,
   but actually used default-low effort because the runtime ignored their requested effort. Saved model text
   remains unedited. Repeatable first-run usefulness remains open.

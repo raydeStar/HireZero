@@ -44,3 +44,7 @@ not an effort comparison and does not change this policy.
 
 Once the pinned runtime applied the effort, reasoning reached 2,637 tokens and stopped a draft at the 3,000-token
 target. [ADR 0165](0165-room-for-high-effort-reasoning.md) raises the target to 6,000 in `measured-deliverable-v3`.
+
+On OpenRouter, DeepSeek V4.1 Flash spent the whole 1,800-token API limit on reasoning at low effort.
+[ADR 0166](0166-openrouter-deliverables-get-their-output-target.md) gives OpenRouter deliverables their policy's own
+output target.

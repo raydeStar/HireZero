@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using HireZero.Core;
 using HireZero.Integrations.ModelApis;
 
@@ -126,19 +127,72 @@ public sealed class ApiModelProviderTests
         );
     }
 
+    // Through OpenRouter a deliverable gets its policy's own output target, because a model may reason at length even at
+    // low effort; a vendor API keeps the low-effort 1,800 (docs/adr/0166-openrouter-deliverables-get-their-output-target.md).
     [Fact]
     public async Task ADeliverableUsesItsReviewedOutputLimitAndRefusesAnUnboundedPolicy()
     {
         var (provider, fake) = Create(new() { ["HIREZERO_OPENROUTER_API_KEY"] = "fictional-router-key" });
         var (call, job) = Job("openai/fictional-luna");
-        job = job with { Policy = CompanyMeasuredPolicy.Deliverable };
-        await provider.CompleteMeasuredAsync(call with { MaxOutputTokens = 0 }, job, Token);
-        using var json = JsonDocument.Parse(Assert.Single(fake.Requests).Body);
-        Assert.Equal(1800, json.RootElement.GetProperty("max_completion_tokens").GetInt32());
-        await Assert.ThrowsAsync<WorkspaceException>(() =>
-            provider.CompleteMeasuredAsync(call, job with { Policy = job.Policy with { OutputTarget = 100000 } }, Token)
+        call = call with { MaxOutputTokens = 0 };
+        foreach (
+            var policy in new[]
+            {
+                CompanyMeasuredPolicy.Deliverable,
+                CompanyMeasuredPolicy.DeliverableV2,
+                CompanyMeasuredPolicy.DeliverableV1,
+            }
+        )
+            await provider.CompleteMeasuredAsync(call, job with { Policy = policy }, Token);
+        Assert.Equal(
+            [6000, 3000, 1800],
+            fake.Requests.Select(r => JsonNode.Parse(r.Body)!["max_completion_tokens"]!.GetValue<int>())
         );
-        Assert.Single(fake.Requests);
+        await Assert.ThrowsAsync<WorkspaceException>(() =>
+            provider.CompleteMeasuredAsync(
+                call,
+                job with
+                {
+                    Policy = CompanyMeasuredPolicy.Deliverable with { OutputTarget = 100000 },
+                },
+                Token
+            )
+        );
+        Assert.Equal(3, fake.Requests.Count);
+
+        var vendor = Create(new() { [ApiModelProvider.OpenAIKey] = "fictional-openai-key" });
+        await vendor.Provider.CompleteMeasuredAsync(
+            call,
+            job with
+            {
+                Policy = CompanyMeasuredPolicy.Deliverable,
+            },
+            Token
+        );
+        Assert.Equal(
+            1800,
+            JsonNode.Parse(Assert.Single(vendor.Fake.Requests).Body)!["max_completion_tokens"]!.GetValue<int>()
+        );
+    }
+
+    // The raised limit is part of the worst case: an allowance that covers 1,800 output tokens but not 6,000 is refused
+    // before anything is sent.
+    [Fact]
+    public async Task AnOpenRouterDeliverableAllowanceMustCoverItsFullOutputTarget()
+    {
+        var (provider, fake) = Create(new() { [ApiModelProvider.OpenRouterKey] = "fictional-router-key" });
+        var (call, job) = Job("fictional/router");
+        var low = ApiModelProvider.WorstCaseUsd(Price, job.ApplicationBytes, 1800) * 100;
+        var full = ApiModelProvider.WorstCaseUsd(Price, job.ApplicationBytes, 6000) * 100;
+        job = job with { Policy = CompanyMeasuredPolicy.Deliverable, CreditAllowance = (low + full) / 2 };
+
+        var refused = await Assert.ThrowsAsync<ModelTransportException>(() =>
+            provider.CompleteMeasuredAsync(call with { MaxOutputTokens = 0 }, job, Token)
+        );
+
+        Assert.Equal(0, refused.KnownUsage);
+        Assert.Contains("more than its allowance", refused.Message);
+        Assert.Empty(fake.Requests);
     }
 
     // OpenRouter gets low reasoning effort and the reviewed price as a ceiling, so a variably priced router cannot bill

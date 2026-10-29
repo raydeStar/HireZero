@@ -115,24 +115,28 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
         )
             throw new WorkspaceException("The exact consumed measured authorization is required.");
         var route = call.ModelRoute!;
+        var endpoint =
+            Endpoint(route) ?? throw NotSent($"No API key serves {route}. Set its vendor's key or an OpenRouter key.");
         var price =
             _price(route)
             ?? throw NotSent(
                 $"The route {route} has no reviewed price, so its spending cannot be capped. Add it to the model prices."
             );
-        // A measured call carries no output limit of its own (the store builds it with 0); its policy's low-effort output
-        // target is the limit, both for the worst case and for the request, so nothing is sent with a zero or unbounded
-        // limit (docs/adr/0134-high-effort-deliverables.md).
+        // A measured call carries no output limit of its own (the store builds it with 0); the policy sets it, both for the
+        // worst case and for the request, so nothing is sent with a zero or unbounded limit. Vendor APIs keep the
+        // low-effort deliverable target (docs/adr/0134-high-effort-deliverables.md). Through OpenRouter a model may still
+        // reason at length at low effort, so a deliverable gets its policy's full output target
+        // (docs/adr/0166-openrouter-deliverables-get-their-output-target.md).
         var maxOutput =
-            call.MaxOutputTokens > 0 ? call.MaxOutputTokens : CompanyMeasuredPolicy.LowEffortOutputTarget(job.Policy);
+            call.MaxOutputTokens > 0 ? call.MaxOutputTokens
+            : endpoint.Api == "openrouter" ? job.Policy.OutputTarget
+            : CompanyMeasuredPolicy.LowEffortOutputTarget(job.Policy);
         var worst = WorstCaseUsd(price, bytes, maxOutput);
         var allowance = job.CreditAllowance / 100m;
         if (worst > allowance)
             throw NotSent(
                 $"This job could cost up to ${worst:0.0000} on {route}, more than its allowance of {job.CreditAllowance:0.##} cents. Raise the allowance or narrow the context."
             );
-        var endpoint =
-            Endpoint(route) ?? throw NotSent($"No API key serves {route}. Set its vendor's key or an OpenRouter key.");
 
         var (url, body) =
             endpoint.Api == "anthropic"

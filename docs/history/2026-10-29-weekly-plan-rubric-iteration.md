@@ -126,8 +126,10 @@ same one-shot runner, with no retry. Neither returned a draft, so nothing was gr
 
 The API path limits a deliverable to the low-effort output target of 1,800 tokens
 ([ADR 0134](../adr/0134-high-effort-deliverables.md)). That target assumes low effort leaves room for the answer,
-and DeepSeek V4.1 Flash did not leave it on this request. Until that limit changes, the company's weekly plans on
-this route are likely to be withheld the same way.
+and DeepSeek V4.1 Flash did not leave it on this request.
+[ADR 0166](../adr/0166-openrouter-deliverables-get-their-output-target.md) now gives OpenRouter deliverables their
+policy's output target, 6,000 tokens under v3. The next daily run will check whether that is enough and grade the
+draft.
 
 ## Usage
 

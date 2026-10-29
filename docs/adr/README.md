@@ -170,3 +170,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0163](0163-goal-first-draft-start.md) | Replace setup chores with a goal-led first draft | Accepted; transactional setup, automatic review loading and results first on Home |
 | [0164](0164-single-consent-goal-generation.md) | Generate a first draft with one Home consent | Accepted; exact terms, optional unverified website references and durable non-replaying steps |
 | [0165](0165-room-for-high-effort-reasoning.md) | Raise the high-effort deliverable output target to 6,000 tokens | Accepted; v2 approvals keep their limit until reviewed, API routes unchanged |
+| [0166](0166-openrouter-deliverables-get-their-output-target.md) | Give OpenRouter deliverables their policy's output target | Accepted; low effort and the cent cap kept, vendor APIs unchanged |

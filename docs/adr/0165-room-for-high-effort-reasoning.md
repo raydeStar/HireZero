@@ -18,7 +18,9 @@ spend more Luna tokens over losing drafts.
 - `measured-deliverable-v2` stays known with its digest. A recurring schedule approved under it keeps it, and its
   3,000-token limit, until the owner reviews the schedule again; a raised limit is not granted without review. A
   prepared, undispatched v2 job is stale and is prepared again under v3.
-- API routes keep ADR 0042: low effort and the 1,800-token deliverable limit.
+- API routes keep ADR 0042: low effort and the 1,800-token deliverable limit. Since
+  [ADR 0166](0166-openrouter-deliverables-get-their-output-target.md), OpenRouter routes get the policy's own
+  target.
 
 ## Consequences
 
