@@ -5,64 +5,28 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 
 ## Current checkpoint — 2026-10-29
 
-- Home accepts a business sentence, goal and optional website, including [ordinary pasted addresses](history/2026-10-29-home-website-addresses.md),
-  then generates one disclosed draft. Results
-  open with Copy, Download and Refine, plus [section copying](history/2026-10-28-section-copy.md) beside individual
-  post headings. [Section exports now keep nested headings and bold emphasis](history/2026-10-29-channel-aware-copy-and-complete-sections.md).
-  Internal notes, receipts and administration are collapsed. Company knowledge and
-  Settings group the navigation; multi-employee tools stay secondary for a small workspace.
-- Weekly plans adapt to the business instead of prescribing an AI-workflow demonstration. The latest
-  [length and table follow-up](history/2026-10-28-deliverable-length-and-tables.md) removes a conflicting Core
-  word ceiling and renders readable tables. [Weekly-use follow-up](history/2026-10-28-weekly-use-and-review-notes.md)
-  adds proposed posting days, batch preparation and recognition of internal-review headings for exact exports.
-  Home now also recognizes [natural requests for a week's content](history/2026-10-29-natural-weekly-goals-and-raw-comparison.md).
-- Raw quality remains uneven and Luna remains the default. After earlier rejected or generic results,
-  the [latest agency comparison and fresh photography-studio run](history/2026-10-29-channel-aware-copy-and-complete-sections.md)
-  give practical guidance with less repetitive service copy and better channel attribution. The owner found the
-  photography draft useful but noted that its routine omitted replies and its tally overstated per-post tracking.
-  A [rubric-scored iteration](history/2026-10-29-weekly-plan-rubric-iteration.md) revised the starter-plan
-  instructions. Under strict blind grading, grounding, clean plain-text copy, realistic routines and voice now
-  reach at least A- in every final sample. Craft depth, distinct value, offer phrasing and the next-week rule
-  still vary between B- and A. Owner acceptance remains open. The
-  [model checks](history/2026-10-29-weekly-plan-rubric-iteration.md#model-checks) on that text returned no draft:
-  Sol at high effort hit Home's 90-second deadline, and DeepSeek V4.1 Flash, the model for the owner's Vultr competition build, spent
-  its whole 1,800-token OpenRouter output limit on reasoning.
-  [ADR 0166](adr/0166-openrouter-deliverables-get-their-output-target.md) gives OpenRouter deliverables their
-  policy's 6,000-token target. DeepSeek still reasoned through it. With reasoning turned off
-  ([ADR 0169](adr/0169-openrouter-reasoning-per-model.md)), it completed a plan. That plan blind-graded about B
-  against about A- for Luna, and the owner judged it unshippable. Vultr serves the 1017 snapshot with reasoning
-  always on. A stand-in for it used low reasoning and room for 16,000 tokens. Its two samples per case averaged
-  about A-, level with Luna's.
-  [Three more cycles](history/2026-10-29-weekly-plan-rubric-iteration.md#iterating-for-both-models) raised the
-  offer criterion from about B to A- for both models. They also fixed the tally's minimum and upper-bound logic.
-  DeepSeek now averages about A-. Luna stays near B+, held back by thin craft. Earlier
-  [Sol diagnostics](history/2026-10-28-frozen-request-model-comparison.md) were stronger by assistant assessment,
-  but actually used default-low effort because the runtime ignored their requested effort. Saved model text
-  remains unedited. Repeatable first-run usefulness remains open.
-- Both local installs now include confirmed thread-start effort and v3/6,000-token terms after
-  [regression fixes and backed-up installation](history/2026-10-29-handoff-regressions-and-local-install.md).
-  The drafting, measured and schedules browser checks pass; selected mobile navigation stays visible.
-  The primary company install was later republished at ff69ecf, then at 655196a, each after a data backup. The
-  pilot install was not updated. On 2026-10-29 "database is locked" errors in the scheduler stopped the primary
-  host twice, and its startup task did not restart it. Since
-  [ADR 0167](adr/0167-a-locked-database-skips-a-scheduler-round.md), such a round is logged and tried again
-  instead. The install keeps thirteen companies in one database file, and the host runs a scheduler for each.
-  Timestamped warnings show rounds skipped across several of those companies, including at startup.
-  [ADR 0168](adr/0168-company-writers-queue-for-the-database.md) measured the cause on a copy: short transactions,
-  but blind 150 ms retries. Queued writers with SQLite's busy handler cut the longest wait from 1.9 s to 75 ms.
-  The old weekly schedule remains saved under v2/3,000 and
-  [shows its outdated approval before the due date](history/2026-10-28-schedule-review-visibility.md), with a
-  direct review link. No replacement is active.
-- The 31-run Luna evaluation allowance is used up, with 220,397 reported input/output tokens; the rubric iteration
-  took its last six runs, then fourteen more under the owner's instruction to cycle until confident (164,063 tokens
-  for all twenty). Both separately authorized Sol diagnostics completed, reporting 14,892 tokens. Of two more Sol
-  runs approved for the final text, one was cancelled at the deadline with usage unknown and one was left unused.
-  Paid model tests may spend up to $10 a day without asking. OpenRouter reported $0.040 for the 22 DeepSeek
-  requests on 2026-10-29.
-  Exact receipts and untouched raw outputs stay private; actual credit charges are unavailable.
-  Three separately approved handoff diagnostics consumed their own grants: two completed with 15,833 reported
-  tokens; the withheld request last reported 9,344 tokens, with final usage unknown. The latest cycle used
-  two of the broader allowance's runs and 15,616 reported tokens.
+- Home turns a business sentence, goal and optional website into one disclosed draft with a single
+  consent and Generate action. Copy, Download, Refine and complete section exports are prominent;
+  internal notes and administration stay collapsed. The [latest Home walkthrough](history/2026-10-29-opus-integration-verification.md)
+  passed on desktop and mobile, including website discovery and lost-response recovery.
+- Both local installs now include the [combined handoff](history/2026-10-29-opus-integration-verification.md):
+  the latest Marketing instructions, confirmed native reasoning effort, v3/6,000-token terms,
+  per-model API reasoning settings and queued database writers. Backups and comparisons preserve all
+  fifteen companies. The regression suites account for 884 passes and eleven environment-dependent
+  skips after one comment-only architecture-check correction. Automatic execution remains disabled.
+- The [rubric iteration](history/2026-10-29-weekly-plan-rubric-iteration.md) improved routines, attribution,
+  offer connections and clean copy. The owner found the earlier photography draft useful with specific
+  shortcomings, which informed those changes. Raw first-run quality remains uneven: repeated tests on
+  two businesses and assistant grades do not establish general usefulness. Luna remains the default;
+  the DeepSeek competition stand-in is comparison evidence, not an installed model change.
+- The saved pilot schedule still has v2/3,000 terms and an outdated approval. It needs a new review
+  before recurring use; no replacement schedule is active. Hosted service acceptance, observed repeat
+  use and commercial validation remain open alongside the engineering gaps in the evidence map.
+- The original 31-run Luna allowance is consumed (220,397 reported input/output tokens). Additional
+  owner-authorized comparisons, uncertain outcomes and provider costs are recorded in the
+  [rubric history](history/2026-10-29-weekly-plan-rubric-iteration.md#usage) and private receipts.
+  This integration cycle made no model requests. Raw outputs remain unedited; actual subscription
+  credit charges are unavailable.
 
 ## Next acceptance gate
 

@@ -47,7 +47,7 @@ public static partial class ModelRoutes
     public static ModelPrice? Price(string model) =>
         Current.Value.Prices.TryGetValue(model, out var price) ? price : null;
 
-    // The reasoning effort a model is asked for through OpenRouter, "none" or "low", reviewed like a price
+    // The configured API reasoning effort, "none" or "low", reviewed like a price
     // (docs/adr/0169-openrouter-reasoning-per-model.md); null when the catalog names none.
     public static string? Reasoning(string model) =>
         Current.Value.Reasoning.TryGetValue(model, out var effort) ? effort : null;
