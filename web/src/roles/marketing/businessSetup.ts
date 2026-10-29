@@ -24,9 +24,9 @@ export function marketingRecommendation(profile: BusinessProfile) {
 export function marketingBusinessSetup(profile: BusinessProfile): BusinessSetup {
   const objective = approvedGoal(profile) ?? "Choose a useful first marketing experiment";
   const weekly = goalMatch(profile, [
-    /\b(?:weekly|one[- ]week|next week['’]s?)\s+(?:marketing|content|social(?:\s+media)?)\s+(?:plan|calendar)\b/i,
+    /\b(?:weekly|one[- ]week|next week['’]s?)\s+(?:marketing|content|social(?:\s+media)?)\s+(?:plan|calendar)\b|\b(?:write|draft|prepare|create|plan|need|give me)\s+(?:(?:a|one|this|next)\s+week['’]s|(?:a|one)\s+week\s+of)\s+(?:(?:linkedin|facebook|instagram|marketing|social(?:\s+media)?)\s+)?(?:content|posts)\b/i,
     /\b(?:content|social(?:\s+media)?)\s+(?:plan|calendar)\b/i,
-    /\b(?:three|3)\s+(?:\w+\s+){0,2}posts\b[^.!?\n]*\b(?:week|monday|wednesday|friday)\b/i,
+    /\b(?:three|3)\s+(?:[\w’'-]+\s+){0,2}posts\b[^.!?\n]*\b(?:week|monday|wednesday|friday)\b/i,
   ]);
   const assignment = weekly
     ? weeklyAssignment(objective)

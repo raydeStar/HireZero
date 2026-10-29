@@ -36,9 +36,23 @@ for (const goal of [
   assert.ok(marketing.marketingRecommendation(p).priority > (developer.developerRecommendation(p)?.priority ?? 0));
 }
 for (const goal of [
+  "Write a welcome email about a week's LinkedIn content.",
+  "Create next week’s newsletter.",
+  "Do not write a week's Facebook posts; draft homepage copy instead.",
+]) {
+  const assignment = marketing.marketingBusinessSetup(profile(goal)).firstAssignment;
+  assert.equal(assignment.skill, "marketing-goal-draft", goal);
+  assert.ok(assignment.prompt.includes(goal));
+}
+for (const goal of [
   "Prepare a useful weekly content plan.",
   "Create three useful posts for next week.",
   "Prepare a social media calendar.",
+  "Create a week's LinkedIn content: three ready-to-post posts that show how our studio helps.",
+  "We need a week’s social media posts for our paper studio.",
+  "Plan one week of Instagram posts for our paper kits.",
+  "Draft next week’s Facebook content.",
+  "Create three ready-to-post posts for next week.",
 ]) {
   const assignment = marketing.marketingBusinessSetup(profile(goal)).firstAssignment;
   assert.equal(assignment.skill, "marketing-starter-plan", goal);
