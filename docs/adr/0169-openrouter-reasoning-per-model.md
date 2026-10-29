@@ -5,8 +5,9 @@ Status: accepted, 2026-10-29. Amends [ADR 0042](0042-openrouter-low-effort-and-a
 
 ## Context
 
-The owner plans to run the company on DeepSeek V4.1 Flash through OpenRouter. "Production" testing runs this
-model; normal testing stays on Luna. Every OpenRouter request was sent with `reasoning.effort = "low"`.
+The owner's build for the Vultr Agent Rush competition will use DeepSeek V4.1 Flash, served by Vultr. Until the
+owner has a Vultr key, "production" tests of that model run through OpenRouter; normal testing stays on Luna. Every
+OpenRouter request was sent with `reasoning.effort = "low"`.
 
 Three owner-approved runs of the frozen photography weekly-plan request used the company's own API transport:
 
@@ -44,5 +45,18 @@ Luna's final photography drafts scored run 3. It averaged about B, against about
   high effort. Those self-checks cover time parts that add up, a tally limited to what the posts ask for, and
   settled routes left out of decisions. Instruction changes or a different effort may close that gap. Each further
   production test is one OpenRouter request a day unless the owner approves more.
-- **Not yet usable:** the company's model-routes override still has no price for this model, so the app refuses it
-  until the owner adds one.
+- **Not a competition setting:** Vultr serves the `deepseek-v4.1-flash-1017` snapshot, with efforts from minimal
+  to ultra and no "none". So reasoning off is not available there.
+
+## Subsequent evidence
+
+The owner judged the reasoning-off draft unshippable. A
+[competition stand-in](../history/2026-10-29-weekly-plan-rubric-iteration.md#competition-stand-in) ran the 1017
+snapshot at low effort with room for 16,000 output tokens. It completed with 6,227 output tokens, 4,710 of them
+reasoning, and blind-graded about A-, level with Luna's best photography draft.
+
+So reasoning off trades most of the plan's quality for fitting the 6,000-token deliverable limit. Using this model
+in HireZero with reasoning on would need a deliverable target above 6,000 tokens. That would be a further reviewed
+policy version. HireZero does not use this model today.
+- **Not yet usable in HireZero:** the owner's model-routes override has no price for this model, so the app refuses
+  it until one is added.

@@ -107,7 +107,8 @@ support a narrower claim, not repeatable unedited quality across the market. Own
 ## Model checks
 
 The owner approved two runs of the final text on Sol 6.1 to see whether the remaining gaps come from the model.
-The owner then said the company will run on DeepSeek V4.1 Flash through OpenRouter. They asked for one run there,
+The owner then said their Vultr Agent Rush competition build will use DeepSeek V4.1 Flash, served by Vultr. Until
+they have a Vultr key, it is tested through OpenRouter. They asked for one run there,
 at most one a day while testing, because it costs money. Both checks used the frozen photography request and the
 same one-shot runner, with no retry. Neither returned a draft, so nothing was graded.
 
@@ -154,7 +155,39 @@ the same scale, without knowing which model wrote it:
   - Two posts were single dense paragraphs.
   - Part of the grounding mark was for the app's own `[connect: …]` request line, which the app turns into a
     Connect card.
-- **Scope:** this is one sample.
+- **Scope:** this is one sample. The owner judged it unshippable.
+
+### Competition stand-in
+
+Vultr cannot turn this model's reasoning off. It serves the dated `deepseek-v4.1-flash-1017` snapshot at NVFP4,
+with reasoning efforts from minimal to ultra and output up to the full context. So the owner chose reasoning with
+more room, through OpenRouter until they have a Vultr key, copying Vultr as closely as possible. One direct
+OpenAI-style request, never retried, used:
+- the 1017 snapshot;
+- low effort;
+- room for 16,000 output tokens;
+- 4-bit hosts only, at no more than the listed $0.15 and $0.60 per million tokens;
+- the same frozen messages.
+
+OpenRouter served it from an MXFP4 host. It completed in 40 seconds with 6,227 output tokens, 4,710 of them
+reasoning, billed $0.0032. Its total use was only just above the 6,000-token limit that cut off the earlier
+low-effort run.
+
+| Draft | Grounding | Craft | Distinct | Offer | Clean | Routine | Learning | Voice |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| DeepSeek V4.1 Flash 1017, low reasoning | A- | B+ | B | A- | A | A | A- | B+ |
+
+- **Ranking:** the same grader ranked it level with Luna's sample 1 at the top, then Luna's sample 2, then the
+  reasoning-off draft. It had the best offer and learning plan of the four, and no grade below B.
+- **What improved:** the time parts add up (15 + 30 + 15 = 60 minutes, including posting). The tally counts the
+  comment questions and Post 2's request, and treats form enquiries as a minimum.
+- **Weaknesses:**
+  - Post 3 repeats much of Post 1's setup.
+  - One tip is wrong: black card behind a dark glaze reduces separation.
+  - The review notes partly re-ask about the settled route.
+- **Scope:** one sample on one case.
+- **For the competition engine:** a deliverable needs more than 6,000 output tokens at low effort and about 40
+  seconds.
 
 ## Usage
 
@@ -164,7 +197,7 @@ None was withheld.
 - **The owner's further instruction:** the other fourteen ran under the owner's instruction to cycle until
   confident, after the owner said heavy Luna use was fine.
 
-The model checks added one Sol run, whose usage is unknown, and three OpenRouter runs billed at $0.0048 in total.
+The model checks added one Sol run, whose usage is unknown, and four OpenRouter runs billed at $0.0080 in total.
 Actual credit charges for the Luna and Sol runs are unknown. Inputs, raw outputs, receipts, rubric and grades stay in the
 ignored private pilot directory.
 

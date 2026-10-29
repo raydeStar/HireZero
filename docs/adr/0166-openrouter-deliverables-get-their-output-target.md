@@ -8,7 +8,7 @@ Status: accepted, 2026-10-29. Amends [ADR 0134](0134-high-effort-deliverables.md
 ADR 0134 kept API deliverables at low effort with a 1,800-token output limit, assuming low effort leaves room for
 the answer. ADR 0165 kept that limit for API routes when the Codex path moved to 6,000.
 
-The owner plans to run the company on DeepSeek V4.1 Flash through OpenRouter. One run of the frozen
+The owner's Vultr competition build will use DeepSeek V4.1 Flash, tested through OpenRouter until then. One run of the frozen
 photography weekly-plan request used the company's own API transport
 ([note](../history/2026-10-29-weekly-plan-rubric-iteration.md#model-checks)). At low effort the model spent all
 1,800 output tokens on reasoning and returned no text. The transport withheld the reply as truncated, and
