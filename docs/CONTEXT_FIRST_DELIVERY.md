@@ -2,6 +2,8 @@
 
 Scope: all three phases of the [owner's proposal](product/context-first-vision.md).
 Priority: immediate usefulness. State a goal, receive useful work with minimal input and navigation.
+Delivery direction: [local-first](history/2026-10-30-local-first-readiness.md), using HireZero's public website
+for the next internal walkthrough. Hosted deployment follows owner satisfaction with the local experience.
 
 ## Current checkpoint — 2026-10-30
 
@@ -49,8 +51,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 
 ## Next acceptance gate
 
-1. Improve repeatable first-draft usefulness across more fresh businesses. Keep later runs labeled as comparisons,
-   never as replacement acceptance evidence. No assistant editorial copies or automatic retries.
+1. Walk through HireZero's own goal-to-draft experience locally, then broaden to fresh businesses. Keep later
+   runs labeled as comparisons, never as replacement acceptance evidence. No assistant editorial copies or
+   automatic retries; internal use is separate from prospective-customer validation.
 2. Preserve the recorded raw baseline and obtain owner judgments for the two completed prompt comparisons.
    Further calls need separate run authorization. Do not equate complete sections or successful execution with useful work.
 3. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md). Local runs do not
