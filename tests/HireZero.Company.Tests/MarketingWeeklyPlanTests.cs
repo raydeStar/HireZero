@@ -38,13 +38,16 @@ public sealed class MarketingWeeklyPlanTests
         Assert.DoesNotContain("no numbered step repeats one from another post", instructions);
     }
 
-    // Responses that name the channel are a minimum and the week's total only an upper bound; one grammatical person and
-    // short paragraphs suit the channel; each post carries enough to act on (cycle 15).
+    // Responses that name the channel are only a minimum; an "upper bound" beside them was read as describing them
+    // (bookshop comparison, 2026-10-30). One grammatical person and short paragraphs suit the channel; each post
+    // carries enough to act on (cycle 15).
     [Fact]
-    public void TheTallyBoundsOffPostResponsesBothWaysAndPostsStayInOneVoice()
+    public void TheChannelCountIsAMinimumAndPostsStayInOneVoice()
     {
         var instructions = MarketingText.StarterPlanInstructions;
-        Assert.Contains("the week's total off-post responses are only an upper bound", instructions);
+        Assert.Contains("many people who came because of a post will not say so", instructions);
+        Assert.Contains("calls the count of people who mention the channel a minimum", instructions);
+        Assert.DoesNotContain("upper bound", instructions);
         Assert.Contains("keeping one person throughout", instructions);
         Assert.Contains("short paragraphs of one to three sentences", instructions);
         Assert.Contains("a one- or two-sentence tip is too thin", instructions);

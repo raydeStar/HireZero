@@ -44,8 +44,13 @@ export function starterPlanChecks(body: string, task: Work, tasks: Work[]): Draf
   const min = lastRange ? Number(lastRange[1] ?? lastRange[3]) : undefined;
   const max = lastRange ? Number(lastRange[2] ?? lastRange[4]) : undefined;
   const knownRange = !!lastRange && min! > 0 && max! >= min!;
+  // A weekday or full date alone on its line labels a post too, as the draft view shows it (company/draftCopySections.ts).
+  const labelled = body.replace(
+    /^((?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,? (?:January|February|March|April|May|June|July|August|September|October|November|December) (?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?(?:,? \d{4})?)?)[ \t]*$/gim,
+    "**$1**",
+  );
   const posts = [
-    ...body.matchAll(
+    ...labelled.matchAll(
       /^(?:#{1,6}\s+|\*\*)(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Post\s+\d+)[^\n]*\n([\s\S]*?)(?=^(?:#{1,6}\s+|\*\*)(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Post\s+\d+)\b|^#{1,2}\s|$(?![\s\S]))/gim,
     ),
   ];

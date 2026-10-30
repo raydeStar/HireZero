@@ -24,7 +24,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   is one use-as-is (email), one useful with small edits (bookshop), and one needing expansion (service page).
   [Two raw comparisons](history/2026-10-30-prompt-usefulness-comparison.md) now show a developed service page
   within its requested range and standalone bookshop posts with natural business connections. The bookshop's
-  attribution notes still need an edit; owner judgments of both comparisons are pending.
+  attribution notes called a channel count an upper bound; the instructions now call it only a minimum, and all
+  eight [retest drafts](history/2026-10-30-tally-minimum-retest.md) got it right. Owner judgments of both comparisons
+  are pending.
   Paragraph spacing and copying individual dated or weekday-labeled posts were corrected
   on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.
