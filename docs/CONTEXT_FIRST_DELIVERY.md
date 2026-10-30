@@ -3,7 +3,7 @@
 Scope: all three phases of the [owner's proposal](product/context-first-vision.md).
 Priority: immediate usefulness. State a goal, receive useful work with minimal input and navigation.
 
-## Current checkpoint — 2026-10-29
+## Current checkpoint — 2026-10-30
 
 - Home turns a business sentence, goal and optional website into one disclosed draft with a single
   consent and Generate action. Copy, Download, Refine and complete section exports are prominent;
@@ -15,14 +15,15 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   evidence remain separate.
 - Both local installs now include the [combined handoff](history/2026-10-29-opus-integration-verification.md):
   the latest Marketing instructions, confirmed native reasoning effort, v3/6,000-token terms,
-  per-model API reasoning settings and queued database writers. Backups and comparisons preserve all
-  fifteen companies. The regression suites account for 884 passes and eleven environment-dependent
-  skips after one comment-only architecture-check correction. Automatic execution remains disabled.
+  per-model API reasoning settings and queued database writers. The October 30 Marketing update preserved all
+  eighteen companies and passed 23 focused tests. Earlier regression suites accounted for 884 passes and eleven
+  environment-dependent skips. Automatic execution remains disabled.
 - The [rubric iteration](history/2026-10-29-weekly-plan-rubric-iteration.md) improved routines, attribution,
   offer connections and clean copy. A [fresh three-business Home evaluation](history/2026-10-29-fresh-home-usefulness.md)
-  completed without retries or editorial copies: the welcome email was strongest, the bookshop plan
-  useful with a small edit, and the service page underdeveloped. These are assistant assessments;
-  owner acceptance is pending. Paragraph spacing and copying individual dated posts were corrected
+  completed without retries or editorial copies. The [owner's raw baseline](history/2026-10-30-owner-raw-usefulness-baseline.md)
+  is one use-as-is (email), one useful with small edits (bookshop), and one needing expansion (service page).
+  Targeted instruction corrections address those findings; their effect on new model output remains untested.
+  Paragraph spacing and copying individual dated posts were corrected
   on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.
 - The saved pilot schedule still has v2/3,000 terms and an outdated approval. It needs a new review
@@ -39,7 +40,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 
 1. Improve repeatable first-draft usefulness across more fresh businesses. Keep later runs labeled as comparisons,
    never as replacement acceptance evidence. No assistant editorial copies or automatic retries.
-2. Obtain owner usefulness assessment; do not equate complete sections or successful execution with useful work.
+2. Preserve the recorded raw baseline when evaluating the revised instructions; later comparisons need separate
+   run authorization and owner assessment. Do not equate complete sections or successful execution with useful work.
 3. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md). Local runs do not
    establish signup success, retention or consistent quality. Review a new weekly schedule before recurring use.
 
@@ -64,7 +66,7 @@ commercial and production acceptance. Earlier chronological detail is preserved 
 | P1.5 | Editable concise brief; confirm/correct/remove; corrections authoritative                             | Saved and unsaved corrections, exact review/unknown/revoke, immutable paged correction history and mobile source/date display verified locally with fictional fixtures                               | verified                 |
 | P1.6 | Persist isolated company knowledge, documents and identity; no model use before approval              | Identity, evidence, approved profiles and private text documents persist with tenant isolation. UTF-8 and bounded Word imports, draft recovery, separate approval and scoped retrieval have fictional proof under ADR 0089. Selected Drive document copies now have fictional owner/setup/read/approval proof under ADR 0090. Selectable PDF text now has a bounded parser process, page labels, missing-text notices and separately approved scoped retrieval with local proof under ADR 0098. OCR, visual fidelity, broader formats, live private-source acceptance and further connectors remain pending | partial                  |
 | P1.7 | Recommend and set up one Marketing employee from approved company knowledge                           | Role-owned setup and shared goal-specificity ranking reuse the approved brief. Ten contrasting goals, editable setup, existing-employee reuse, direct latest-result access and reviewed first assignments have fictional browser proof; broader customer recommendation relevance remains pending | partial                  |
-| P1.8 | First useful modest research/marketing deliverable, observations separate from hypotheses             | The owner accepted the 460-word editorial copy after a native revision, confirmed its claims, concrete examples and completed-use learning goal, and authorized approval unchanged. The exact copy is approved and its task completed. This verifies one owner pilot including human editing, not consistent unedited quality or broader customer acceptance | verified                 |
+| P1.8 | First useful modest research/marketing deliverable, observations separate from hypotheses             | The owner accepted an earlier 460-word editorial plan and, on October 30, one untouched first-run welcome email from the fresh Home batch. The other two raw results need small edits or expansion. This establishes individual owner usefulness, not consistent unedited quality or prospective-customer acceptance; raw assessment does not promote or publish a result | verified                 |
 | P1.9 | Minimal-assistance onboarding that customers recognize as useful                                      | Requires observed prospective-customer sessions, not synthetic fixtures                                                                                                                              | field validation pending |
 
 ## Phase 2 — persistent employee workflows

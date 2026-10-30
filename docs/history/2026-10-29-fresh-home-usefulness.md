@@ -77,8 +77,9 @@ This follow-up made no model requests or saved-draft edits.
 
 ## Next gate
 
-Owner usefulness assessment of these exact raw drafts is pending. The email demonstrates a
-promising immediate-use result; the service page demonstrates the remaining completeness gap.
+The [owner's October 30 assessment](2026-10-30-owner-raw-usefulness-baseline.md) now records
+one use-as-is, one useful with small edits and one needing expansion against these exact raw drafts.
+The email demonstrates an accepted immediate-use result; the service page demonstrates the remaining completeness gap.
 Three fictional examples do not establish consistent usefulness, prospective-customer onboarding,
 repeat use, or completion of the wider three-phase product goal. Keep any later revisions or
 comparisons separate from this evidence.
