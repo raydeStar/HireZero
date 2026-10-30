@@ -56,5 +56,12 @@ first drafts are useful in general. The owner's verdicts on the raw comparisons 
 - 60 Marketing, assignment and goal-preparation tests pass. The review-guide and section-copy checks pass, and the
   review guide now finds all three posts in the saved bookshop draft.
 - CSharpier and the frontend formatter are clean.
-- Requests, raw drafts, receipts and grades stay in the ignored private pilot directory. The installed apps still run
-  the previous instructions until they are republished.
+- Requests, raw drafts, receipts and grades stay in the ignored private pilot directory.
+- Both local installs now run this change, installed at the owner's "Yes, republish".
+  - Each update first made a complete data backup and kept the original binaries.
+  - Only the Marketing DLL and its symbols changed. All 198 staged files matched each install, and the 16 web files
+    were updated without a restart.
+  - All twenty companies kept their employees, threads, tasks, artifacts, knowledge, measured attempts and schedules.
+    Every audit chain verified.
+  - Home terms are unchanged and automatic execution stays disabled.
+  - The installed bookshop draft's review guide now reports three post headings.
