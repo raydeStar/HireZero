@@ -31,9 +31,10 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   Paragraph spacing and copying individual dated or weekday-labeled posts were corrected
   on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.
-- The saved pilot schedule still has v2/3,000 terms and an outdated approval. A separate current-policy
-  replacement is [prepared for owner review](history/2026-10-30-recurring-review-terms.md), with dated requests
-  and explicit saved output/soft-limit terms; neither replacement activation nor model spending occurred.
+- The owner-approved [replacement pilot schedule](history/2026-10-30-recurring-review-terms.md#owner-approved-activation)
+  is active for two private runs on November 2 and 9 at 09:00 Mountain time, using current high-effort
+  Luna/Codex OAuth terms with a 6,000-token target and dated requests. The stale original is canceled;
+  readback confirms one active schedule with a current review and no occurrences consumed.
   [Copied and selected reviews](history/2026-10-30-recurring-review-navigation.md) now retain the correct address
   through reload and browser Back/Forward, with consent cleared on return.
   Hosted service acceptance, observed repeat
@@ -53,7 +54,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 2. Preserve the recorded raw baseline and obtain owner judgments for the two completed prompt comparisons.
    Further calls need separate run authorization. Do not equate complete sections or successful execution with useful work.
 3. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md). Local runs do not
-   establish signup success, retention or consistent quality. Review a new weekly schedule before recurring use.
+   establish signup success, retention or consistent quality. Observe the two approved weekly occurrences
+   and assess their untouched results; activation alone does not establish repeat usefulness.
 
 Commit and push each completed cycle to `main`, without a PR. Reserve new ADRs for architectural decisions;
 put routine checkpoints in `docs/history/`. The repository is currently private; private pilot evidence and
