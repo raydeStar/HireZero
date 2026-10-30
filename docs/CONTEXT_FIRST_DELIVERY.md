@@ -33,7 +33,9 @@ for the next internal walkthrough. Hosted deployment follows owner satisfaction 
   within its requested range and standalone bookshop posts with natural business connections. The bookshop's
   attribution notes called a channel count an upper bound; the instructions now call it only a minimum, and all
   eight [retest drafts](history/2026-10-30-tally-minimum-retest.md) got it right. Owner judgments of both comparisons
-  are pending.
+  are pending. The internal HireZero Home plan ignored its approved department context. Deliverables are now
+  [told that context is approved](history/2026-10-30-department-context-retest.md). In retests, DeepSeek offered the
+  website and measured real use; Luna measured trials but still withheld the website. This is not yet installed.
   Paragraph spacing and copying individual dated or weekday-labeled posts were corrected
   on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.
@@ -51,7 +53,8 @@ for the next internal walkthrough. Hosted deployment follows owner satisfaction 
   The separately approved fresh-business batch used three requests and 23,541 reported input/output
   tokens, consuming that allowance. The two separately approved prompt comparisons used another 15,939
   reported tokens and consumed both requests. One separately authorized internal Home run used 9,903
-  reported input/output tokens and consumed its one-request allowance. Raw outputs remain unedited; actual subscription
+  reported input/output tokens and consumed its one-request allowance. The department-context retest used four
+  Luna requests (42,719 reported tokens) and four DeepSeek stand-in requests ($0.021). Raw outputs remain unedited; actual subscription
   credit charges are unavailable.
 
 ## Next acceptance gate

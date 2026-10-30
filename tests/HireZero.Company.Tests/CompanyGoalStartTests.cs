@@ -83,6 +83,43 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.True(store.VerifyAudit().Intact);
     }
 
+    // A weekly plan treated only the two-line brief as approved and ignored its department context (2026-10-30).
+    [Fact]
+    public void ApprovedDepartmentContextIsDescribedAsApproved()
+    {
+        var store = Store();
+        var prepared = A<Prepared>(store, Goal());
+        var call = store.TextCall(prepared.Attempt.Id);
+        Assert.Contains("\"voice\":\"Clear\"", call.Context.DepartmentKnowledge);
+        Assert.Contains(CompanyStore.DepartmentKnowledgeInstructions, call.Instructions);
+        Assert.Contains("departmentKnowledge is owner-approved context", call.Instructions);
+        Assert.Contains("may be used as stated and flagged for confirmation", call.Instructions);
+        Assert.True(
+            call.Instructions.IndexOf(CompanyStore.DepartmentKnowledgeInstructions, StringComparison.Ordinal)
+                < call.Instructions.IndexOf(" The approved businessBrief", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void SmallPacketsKeepTheirRoomWithoutTheDepartmentContextSentence()
+    {
+        var store = Store();
+        var draft = MeasuredQueueChecks.Seed(store);
+        var small = A<CompanyAttempt>(
+            store,
+            C("measured.prepare") with
+            {
+                Id = draft.Id,
+                ExpectedVersion = draft.Version,
+                CreditAllowance = 1,
+            }
+        );
+        var call = store.TextCall(small.Id);
+        Assert.Equal(CompanyMeasuredPolicy.Current, small.Measured!.Policy);
+        Assert.NotEmpty(call.Context.DepartmentKnowledge);
+        Assert.DoesNotContain("departmentKnowledge is owner-approved", call.Instructions);
+    }
+
     [Fact]
     public void WeeklyGoalKeepsItsRequestedLengthWithoutAConflictingGenericCeiling()
     {
