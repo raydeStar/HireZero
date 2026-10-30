@@ -19,9 +19,10 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   fifteen companies. The regression suites account for 884 passes and eleven environment-dependent
   skips after one comment-only architecture-check correction. Automatic execution remains disabled.
 - The [rubric iteration](history/2026-10-29-weekly-plan-rubric-iteration.md) improved routines, attribution,
-  offer connections and clean copy. The owner found the earlier photography draft useful with specific
-  shortcomings, which informed those changes. Raw first-run quality remains uneven: repeated tests on
-  two businesses and assistant grades do not establish general usefulness. Luna remains the default;
+  offer connections and clean copy. A [fresh three-business Home evaluation](history/2026-10-29-fresh-home-usefulness.md)
+  completed without retries or editorial copies: the welcome email was strongest, the bookshop plan
+  useful with a small edit, and the service page underdeveloped. These are assistant assessments;
+  owner acceptance is pending. Paragraph spacing was corrected on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.
 - The saved pilot schedule still has v2/3,000 terms and an outdated approval. It needs a new review
   before recurring use; no replacement schedule is active. Hosted service acceptance, observed repeat
@@ -29,7 +30,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 - The original 31-run Luna allowance is consumed (220,397 reported input/output tokens). Additional
   owner-authorized comparisons, uncertain outcomes and provider costs are recorded in the
   [rubric history](history/2026-10-29-weekly-plan-rubric-iteration.md#usage) and private receipts.
-  This integration cycle made no model requests. Raw outputs remain unedited; actual subscription
+  The separately approved fresh-business batch used three requests and 23,541 reported input/output
+  tokens, consuming that allowance. Raw outputs remain unedited; actual subscription
   credit charges are unavailable.
 
 ## Next acceptance gate
