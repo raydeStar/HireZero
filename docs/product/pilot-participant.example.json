@@ -8,6 +8,8 @@
     "assistance": "unobserved",
     "firstDeliverable": "unobserved",
     "firstTaskId": null,
+    "firstArtifactId": null,
+    "firstArtifactDigest": null,
     "followUpAt": null,
     "repeatUsefulWork": null,
     "repeatEvidence": null,

@@ -84,6 +84,31 @@ function checkProgress(progress) {
         !timestamp(w.firstAssignment.completedAt)))
   )
     fail("Progress export: invalid first assignment.");
+  const results = w.firstAssignment?.results;
+  if (results !== undefined && results !== null) {
+    if (
+      !Array.isArray(results) ||
+      results.some(
+        (r) =>
+          !object(r) ||
+          typeof r.artifactId !== "string" ||
+          !r.artifactId ||
+          typeof r.digest !== "string" ||
+          !/^[a-f0-9]{64}$/.test(r.digest) ||
+          typeof r.provenance !== "string" ||
+          !r.provenance ||
+          !timestamp(r.readyAt) ||
+          Date.parse(r.readyAt) < Date.parse(w.firstAssignment.preparedAt) ||
+          Date.parse(r.readyAt) > Date.parse(progress.generatedAt),
+      ) ||
+      new Set(results.map((r) => r.artifactId)).size !== results.length ||
+      results.some(
+        (r, i) =>
+          i > 0 && Date.parse(r.readyAt) < Date.parse(results[i - 1].readyAt),
+      )
+    )
+      fail("Progress export: invalid saved result references.");
+  }
   if (c === null || c === undefined) return;
   if (
     !object(c) ||
@@ -169,6 +194,8 @@ function checkObservation(o, progress) {
       "assistance",
       "firstDeliverable",
       "firstTaskId",
+      "firstArtifactId",
+      "firstArtifactDigest",
       "followUpAt",
       "repeatUsefulWork",
       "repeatEvidence",
@@ -204,6 +231,17 @@ function checkObservation(o, progress) {
       (typeof o.firstTaskId !== "string" || !o.firstTaskId))
   )
     fail("Observation: invalid dates or task reference.");
+  const artifactId = o.firstArtifactId ?? null;
+  const artifactDigest = o.firstArtifactDigest ?? null;
+  if (
+    (artifactId === null) !== (artifactDigest === null) ||
+    (artifactId !== null &&
+      (typeof artifactId !== "string" ||
+        !artifactId ||
+        typeof artifactDigest !== "string" ||
+        !/^[a-f0-9]{64}$/.test(artifactDigest)))
+  )
+    fail("Observation: provide both the exact saved artifact ID and digest.");
   if (
     (o.correctBusiness !== null ||
       o.assistance !== "unobserved" ||
@@ -217,14 +255,32 @@ function checkObservation(o, progress) {
       fail(
         "Observation: first-deliverable feedback must match the exported first assignment.",
       );
-    if (
-      o.firstDeliverable.startsWith("useful") &&
-      (first.state !== "completed" || !first.completedAt)
-    )
-      fail(
-        "Observation: useful completion requires a completed first assignment in the export.",
+    if (artifactId !== null) {
+      const result = first.results?.find(
+        (r) => r.artifactId === artifactId && r.digest === artifactDigest,
       );
-  } else if (o.firstTaskId !== null)
+      if (!result || Date.parse(o.observedAt) < Date.parse(result.readyAt))
+        fail(
+          "Observation: feedback must match a saved result available at the observation time.",
+        );
+      if (
+        o.firstDeliverable === "useful" &&
+        (result !== first.results[0] || result.provenance !== "model-output")
+      )
+        fail(
+          "Observation: only the first unedited model result can be useful as delivered; record useful-after-edits for a later or owner-authored copy.",
+        );
+    } else if (
+      o.firstDeliverable.startsWith("useful") &&
+      (first.results != null ||
+        first.state !== "completed" ||
+        !first.completedAt)
+    ) {
+      fail(
+        "Observation: useful feedback needs an exact saved result; legacy exports require a completed first assignment.",
+      );
+    }
+  } else if (o.firstTaskId !== null || artifactId !== null)
     fail(
       "Observation: an unobserved deliverable has no assessed task reference.",
     );
@@ -337,6 +393,12 @@ function groupReport(records) {
       ),
       usefulOnlyAfterEdits: observations.filter(
         (o) => o.firstDeliverable === "useful-after-edits",
+      ).length,
+      exactResultAssessments: observations.filter(
+        (o) => o.firstArtifactId != null,
+      ).length,
+      usefulFirstSavedModelDrafts: observations.filter(
+        (o) => o.firstDeliverable === "useful" && o.firstArtifactId != null,
       ).length,
       usefulRepeatWork: rate(
         observations.filter((o) => o.repeatUsefulWork === true).length,
@@ -487,6 +549,7 @@ export function buildPilotReport(
     interpretation: [
       "Evidence type and customer judgments are supplied by the observer; this command does not authenticate them.",
       "Saved completions, field edits and request days do not establish usefulness, error rate or retention.",
+      "Exact result feedback is independent of approval and completion. Legacy task-only feedback is not exact first-model-output evidence; saved outputs alone do not prove the first request succeeded.",
       "Payment outcomes are observer-recorded after receipt review; no provider is contacted and test payments are separate.",
       "Cost subtotals cover only reconciled completed tasks. Missing snapshots or costs withhold the cohort average.",
       "Costs may include model estimates and company-funded API keys; unallocated expenses and unfinished work are excluded.",

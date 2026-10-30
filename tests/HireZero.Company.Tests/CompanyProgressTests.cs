@@ -52,7 +52,8 @@ public sealed class CompanyProgressTests : IDisposable
 
     private static void Complete(CompanyStore store, CompanyTask task)
     {
-        var artifact = Items<CompanyArtifact>(store, "artifacts").Single(a => a.TaskId == task.Id);
+        var artifact = Items<CompanyArtifact>(store, "artifacts")
+            .Single(a => a.TaskId == task.Id && a.Provenance == "model-output");
         store.Apply(
             C("artifact.review") with
             {
@@ -277,16 +278,48 @@ public sealed class CompanyProgressTests : IDisposable
         store.Apply(prepare);
         var task = receipt.RootElement.GetProperty("task").Deserialize<CompanyTask>(CompanyJson.Options)!;
         var attempt = receipt.RootElement.GetProperty("attempt").Deserialize<CompanyAttempt>(CompanyJson.Options)!;
+        Assert.Empty(store.Progress("owner@example.invalid").Work.FirstAssignment!.Results!);
         Run(store, attempt);
         store.Finish(attempt.Id, new("A fictional starter plan", 30, "fictional-plan", new(20, 10, BilledUsd: 0.02m)));
         Assert.Equal("awaiting_review", store.Progress().Work.FirstAssignment!.State);
         Assert.Null(store.Progress().Work.FirstAssignment!.CompletedAt);
+        var rawResult = Items<CompanyArtifact>(store, "artifacts").Single(a => a.TaskId == task.Id);
+        var result = Assert.Single(store.Progress("owner@example.invalid").Work.FirstAssignment!.Results!);
+        Assert.Equal(new(rawResult.Id, rawResult.Digest, "model-output", _now), result);
+        Assert.Equal("needs_review", rawResult.State);
+        Assert.Equal(0, store.Progress().Work.Completed);
+        Assert.DoesNotContain(rawResult.Body, CompanyJson.Encode(store.Progress()));
+        Assert.DoesNotContain(rawResult.Id, CompanyJson.Encode(Store("co-neighbor").Progress()));
+        Assert.Null(store.Progress().Work.FirstAssignment!.Results);
+        foreach (var role in new[] { "viewer", "approver" })
+        {
+            var email = role + "@example.invalid";
+            store.Apply(C("member.invite") with { Body = email, Decision = role });
+            var member = store.SignIn("fictional-" + role, email, true, "Fictional member")!;
+            Assert.Null(store.Progress(member.Subject).Work.FirstAssignment!.Results);
+        }
+        _now = _now.AddSeconds(1);
+        var edited = A<CompanyArtifact>(
+            store,
+            C("artifact.create") with
+            {
+                Id = task.Id,
+                ExpectedVersion = store.Work(task.Id).Version,
+                Body = "A fictional editorial copy, never first-run acceptance evidence.",
+            }
+        );
+        var references = store.Progress("owner@example.invalid").Work.FirstAssignment!.Results!;
+        Assert.Equal(2, references.Length);
+        Assert.Equal(result, references[0]);
+        Assert.Equal(new(edited.Id, edited.Digest, "owner-authored", _now), references[1]);
+        Assert.DoesNotContain(edited.Body, CompanyJson.Encode(store.Progress("owner@example.invalid")));
         _now = _now.AddMinutes(2);
         Complete(store, task);
         var done = Store().Progress();
         Assert.Equal(task.Id, done.Work.FirstAssignment!.TaskId);
         Assert.Equal(_now, done.Work.FirstAssignment.CompletedAt);
         Assert.Equal("completed", done.Work.FirstAssignment.State);
+        Assert.Equal(references, Store().Progress("owner@example.invalid").Work.FirstAssignment!.Results!);
         Assert.Equal(0.03m, done.ModelCosts.ReportedUsd);
         Assert.Equal(0.02m, done.CompletedWorkModelCosts.ReportedUsd);
         Assert.Equal(0.02m, done.AverageRecordedModelUsdPerCompletion);

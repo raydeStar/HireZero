@@ -15,8 +15,11 @@ public sealed record CompanyProgressAssignment(
     string TaskId,
     string State,
     DateTimeOffset PreparedAt,
-    DateTimeOffset? CompletedAt
+    DateTimeOffset? CompletedAt,
+    CompanyProgressResult[]? Results = null
 );
+
+public sealed record CompanyProgressResult(string ArtifactId, string Digest, string Provenance, DateTimeOffset ReadyAt);
 
 public sealed record CompanyProgressWork(
     int Tasks,
@@ -115,6 +118,24 @@ public sealed partial class CompanyStore
                 var firstAssignment = events.FirstOrDefault(e =>
                     e.Type == "assignment.prepared" && taskIds.Contains(e.Id)
                 );
+                CompanyProgressResult[]? firstResults = null;
+                if (firstAssignment is not null && member?.Role == CompanyRoles.Owner)
+                {
+                    var artifacts = All<CompanyArtifact>(db)
+                        .Where(a => a.TaskId == firstAssignment.Id)
+                        .ToDictionary(a => a.Id);
+                    // Saved creation order survives approval and editorial copies. Export references, never the copy.
+                    firstResults = events
+                        .Where(e => e.Type == "artifact.ready" && artifacts.ContainsKey(e.Id))
+                        .Select(e => new CompanyProgressResult(
+                            e.Id,
+                            artifacts[e.Id].Digest,
+                            artifacts[e.Id].Provenance,
+                            e.At
+                        ))
+                        .DistinctBy(r => r.ArtifactId)
+                        .ToArray();
+                }
                 var usage = UsageEntries(db);
                 var completedUsage = usage
                     .Where(e => e.TaskId is not null && completedIds.Contains(e.TaskId))
@@ -165,7 +186,8 @@ public sealed partial class CompanyStore
                                 firstAssignment.Id,
                                 tasks.Single(t => t.Id == firstAssignment.Id).State,
                                 firstAssignment.At,
-                                completions.FirstOrDefault(e => e.Id == firstAssignment.Id)?.At
+                                completions.FirstOrDefault(e => e.Id == firstAssignment.Id)?.At,
+                                firstResults
                             )
                     ),
                     ProgressCosts(usage),

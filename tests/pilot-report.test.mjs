@@ -219,6 +219,103 @@ test("duplicate companies, unsupported classifications and fabricated completion
   assert.throws(() => run([record], [["P01.json", p]]), /precede/);
 });
 
+test("useful saved drafts need no completion but must bind the exact first model output", () => {
+  const record = participant("P01");
+  const p = progress("P01");
+  p.work.completed = 0;
+  p.work.scheduledTasks = 0;
+  p.taskCosts = null;
+  const first = p.work.firstAssignment;
+  first.state = "awaiting_review";
+  first.completedAt = null;
+  const raw = {
+    artifactId: "raw-first",
+    digest: "a".repeat(64),
+    provenance: "model-output",
+    readyAt: observedAt,
+  };
+  const edited = {
+    artifactId: "owner-copy",
+    digest: "b".repeat(64),
+    provenance: "owner-authored",
+    readyAt: observedAt,
+  };
+  first.results = [raw, edited];
+  record.observation = {
+    ...observation(),
+    observedAt,
+    firstDeliverable: "useful",
+    firstTaskId: first.taskId,
+    firstArtifactId: raw.artifactId,
+    firstArtifactDigest: raw.digest,
+  };
+  const report = run([record], [["P01.json", p]]).evidenceGroups.customer;
+  assert.equal(report.observerReported.usefulFirstDeliverable.positive, 1);
+  assert.equal(report.observerReported.usefulFirstSavedModelDrafts, 1);
+  assert.equal(report.observerReported.exactResultAssessments, 1);
+  assert.equal(report.savedWorkflow.completedTasks, 0);
+  assert.equal(report.completedTaskCosts.averageUsdPerCompletion, null);
+  assert.doesNotMatch(JSON.stringify(report), /raw-first|owner-copy|aaaaaaaa/);
+  assert.equal(first.state, "awaiting_review");
+  for (const change of [
+    (o) => (o.firstArtifactDigest = "c".repeat(64)),
+    (o) => (o.firstArtifactId = "another-company-result"),
+    (o) => (o.observedAt = "2026-09-30T12:00:00Z"),
+  ]) {
+    const altered = structuredClone(record);
+    change(altered.observation);
+    assert.throws(() => run([altered], [["P01.json", p]]), /saved result/);
+  }
+  record.observation.firstArtifactId = edited.artifactId;
+  record.observation.firstArtifactDigest = edited.digest;
+  assert.throws(
+    () => run([record], [["P01.json", p]]),
+    /first unedited model result/,
+  );
+  record.observation.firstDeliverable = "useful-after-edits";
+  const after = run([record], [["P01.json", p]]).evidenceGroups.customer;
+  assert.equal(after.observerReported.usefulFirstSavedModelDrafts, 0);
+  assert.equal(after.observerReported.usefulOnlyAfterEdits, 1);
+});
+
+test("unrun work and missing or invalid result references cannot become useful raw evidence", () => {
+  const record = participant("P01"),
+    p = progress("P01");
+  const first = p.work.firstAssignment;
+  record.observation = {
+    ...observation(),
+    observedAt,
+    firstTaskId: first.taskId,
+    firstDeliverable: "useful",
+  };
+  first.results = [];
+  assert.throws(() => run([record], [["P01.json", p]]), /exact saved result/);
+  record.observation.firstArtifactId = "missing";
+  assert.throws(() => run([record], [["P01.json", p]]), /both/);
+  record.observation.firstArtifactDigest = "a".repeat(64);
+  assert.throws(() => run([record], [["P01.json", p]]), /saved result/);
+  record.observation.firstDeliverable = "unobserved";
+  record.observation.firstTaskId = null;
+  assert.throws(() => run([record], [["P01.json", p]]), /unobserved/);
+  const raw = {
+    artifactId: "raw",
+    digest: "a".repeat(64),
+    provenance: "model-output",
+    readyAt: observedAt,
+  };
+  for (const results of [
+    [raw, raw],
+    [{ ...raw, digest: "invalid" }],
+    [{ ...raw, readyAt: "2027-01-01T00:00:00Z" }],
+  ]) {
+    first.results = results;
+    assert.throws(
+      () => run([record], [["P01.json", p]]),
+      /invalid saved result/,
+    );
+  }
+});
+
 test("inconsistent costs and unknown-filled totals are rejected instead of generating misleading prices", () => {
   const record = participant("P01"),
     source = progress("P01");

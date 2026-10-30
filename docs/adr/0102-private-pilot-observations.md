@@ -4,6 +4,10 @@ Date: 2026-10-26
 
 Status: Accepted; preparation and fictional verification only. No customer pilot is claimed.
 
+The [2026-10-29 first-draft reporting correction](../history/2026-10-29-first-draft-usefulness-evidence.md)
+separates exact saved-result usefulness from workflow completion. The completed-state requirement below
+now applies only to compatibility with older task-only exports; it is not a new approval step for using a draft.
+
 ## Context
 
 The product proposal requires observed onboarding usefulness, useful recurring work and paid value. Saved workflow

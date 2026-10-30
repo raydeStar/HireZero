@@ -10,7 +10,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   internal notes and administration stay collapsed. The [latest Home walkthrough](history/2026-10-29-opus-integration-verification.md)
   passed on desktop and mobile, including website discovery and lost-response recovery. A failed
   disclosure lookup now has an [in-place retry](history/2026-10-29-home-terms-recovery.md) that preserves
-  inputs and cannot dispatch work.
+  inputs and cannot dispatch work. [Exact saved-result feedback](history/2026-10-29-first-draft-usefulness-evidence.md)
+  can now enter the private pilot report without requiring approval or task completion; raw-model and edited-copy
+  evidence remain separate.
 - Both local installs now include the [combined handoff](history/2026-10-29-opus-integration-verification.md):
   the latest Marketing instructions, confirmed native reasoning effort, v3/6,000-token terms,
   per-model API reasoning settings and queued database writers. Backups and comparisons preserve all

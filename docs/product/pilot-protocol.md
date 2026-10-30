@@ -83,17 +83,20 @@ content belongs in fixtures, commits or screenshots checked into source control.
    [pilot-participant.example.json](pilot-participant.example.json) to `participants`. Choose `customer` or
    `fictional` explicitly; the template's `unclassified` value is deliberately rejected. Keep dropouts and
    unobserved outcomes in the cohort.
-3. As that company's owner, open **Company → Progress → Download metrics**. Save the latest snapshot beside
+3. As that company's owner, open **Settings → Advanced → Progress → Download metrics**. Save the latest snapshot beside
    `pilot.json` under a pseudonymous filename such as `P01-progress.json`, and set `progressFile` to that basename.
    Use null while no export is available. Retain earlier exports privately for longitudinal comparison, but list
    only one snapshot per company in a given report. Distinct installations with reused local company IDs require
    separate reports; do not rename exported IDs to bypass duplicate detection.
 4. Fill the observation choices below. Preserve unknowns as null or `unobserved`. Initial and follow-up dates use
    ISO 8601 timestamps with a timezone. Useful first-deliverable feedback must name the exported first assignment
-   and that assignment must be completed. This checks the saved workflow link, not the truth of a human judgment.
-   Keep the raw-result assessment and intervention/timing notes alongside the manifest; the reporter does not
-   independently verify them. A useful opinion before task completion remains a private observation until the
-   workflow is actually completed; do not complete the task just to make the reporter accept the opinion.
+   and bind the assessed draft with `firstArtifactId` and `firstArtifactDigest` from that assignment's `results`.
+   These owner-exported references include provenance and creation time, without the draft text. Set `observedAt`
+   to the assessment time, after the result was available. Usefulness does not require approving the result or
+   completing its task. Keep the raw-result assessment and intervention/timing notes alongside the manifest;
+   the reporter checks the reference, not the truth of the judgment. Never complete a task merely to count feedback.
+   Old exports without result references retain their completed-task compatibility path, but do not enter the
+   exact-result or first-saved-model-draft counts. An unrun task with no result cannot be useful-draft evidence.
 5. Record each completed task's costs in its **Task costs** panel. Use zero only for known zero expenses, retain
    receipt/allocation evidence, then download a fresh Progress snapshot. Company-key model funding and estimates
    are separately labeled. Allocate shared costs deliberately; this report cannot infer business profitability.
@@ -103,6 +106,7 @@ content belongs in fixtures, commits or screenshots checked into source control.
 | `correctBusiness` | true, false or null; the observer's assessment of identity matching |
 | `assistance` | `none`, `some`, `substantial`, `unobserved`; count any coaching needed |
 | `firstDeliverable` | `useful`, `useful-after-edits`, `not-useful`, `unobserved`; set `firstTaskId` only when assessed |
+| `firstArtifactId`, `firstArtifactDigest` | Exact assessed result from the owner export; both null when unobserved or no draft was produced. `useful` with an exact reference requires the first saved model output; a later or owner-authored copy must be `useful-after-edits` |
 | `repeatUsefulWork` | true, false or null; a dated follow-up assessment of useful return, not a scheduled-task count |
 | `repeatEvidence` | `observed-session`, `customer-report`, or null for unobserved repeat use |
 | `payment` | `unobserved`, `not-offered`, `declined`, `test-only`, `paid`, `renewed` |
@@ -124,7 +128,10 @@ Use a generic cohort label, not a customer name. The digest identifies these inp
 
 Customer and fictional evidence have separate sections and no combined success rate. Each assessed outcome shows
 its numerator, assessed denominator, unobserved count, rate among assessed participants and rate across the whole
-cohort. Zero assessments yield no rate, not 0% success. Field edits can be preferences as well as corrections.
+cohort. Zero assessments yield no rate, not 0% success. `exactResultAssessments` counts judgments bound to saved
+drafts. `usefulFirstSavedModelDrafts` counts those marked useful for the first saved model output. It does not prove
+that the first request succeeded: retain the initial attempt and failure receipts separately. Owner edits and
+later outputs cannot enter that count. Field edits can be preferences as well as corrections.
 Multiple request days and scheduled tasks show activity, not useful retention. Historical gaps remain counted.
 The report includes initial/follow-up/export date ranges and median follow-up days so different observation
 windows stay visible. These summaries still do not establish renewal eligibility or a retention denominator.
