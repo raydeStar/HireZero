@@ -22,7 +22,8 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   offer connections and clean copy. A [fresh three-business Home evaluation](history/2026-10-29-fresh-home-usefulness.md)
   completed without retries or editorial copies: the welcome email was strongest, the bookshop plan
   useful with a small edit, and the service page underdeveloped. These are assistant assessments;
-  owner acceptance is pending. Paragraph spacing was corrected on desktop and mobile. Luna remains the default;
+  owner acceptance is pending. Paragraph spacing and copying individual dated posts were corrected
+  on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.
 - The saved pilot schedule still has v2/3,000 terms and an outdated approval. It needs a new review
   before recurring use; no replacement schedule is active. Hosted service acceptance, observed repeat

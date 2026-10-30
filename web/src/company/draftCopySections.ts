@@ -4,11 +4,52 @@ function isBoldTitle(node: RootContent) {
   return node.type === "paragraph" && node.children.length === 1 && node.children[0].type === "strong";
 }
 
-// Read Markdown's actual sections, not a guessed list of weekdays or role-specific labels.
+function isDateTitle(node: RootContent) {
+  return (
+    node.type === "paragraph" &&
+    node.children.length === 1 &&
+    node.children[0].type === "text" &&
+    /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),? (January|February|March|April|May|June|July|August|September|October|November|December) ([1-9]|[12]\d|3[01])(st|nd|rd|th)?(,? \d{4})?$/.test(
+      node.children[0].value.trim(),
+    )
+  );
+}
+
+// A sequence must begin with a full date label. A date mentioned inside prose is still prose.
+function datedSections(tree: Root) {
+  const parents = new Map<RootContent, number>();
+  const children = new Map<RootContent, number>();
+  for (let i = -1; i < tree.children.length; i++) {
+    const parent = tree.children[i];
+    if (parent && parent.type !== "heading") continue;
+    const depth = parent?.type === "heading" ? parent.depth : 0;
+    const candidates: RootContent[] = [];
+    const childHeadings: RootContent[] = [];
+    let atStart = true;
+    for (let j = i + 1; j < tree.children.length; j++) {
+      const node = tree.children[j];
+      if (node.type === "heading" && (depth === 0 || node.depth <= depth)) break;
+      if (node.type === "thematicBreak") continue;
+      if (atStart && !isDateTitle(node)) break;
+      atStart = false;
+      if (isDateTitle(node)) candidates.push(node);
+      if (node.type === "heading") childHeadings.push(node);
+    }
+    // One isolated date is not enough evidence to divide the owner's copy.
+    if (candidates.length >= 2) {
+      for (const node of candidates) if (!parents.has(node)) parents.set(node, depth);
+      for (const node of childHeadings) if (!children.has(node)) children.set(node, depth);
+    }
+  }
+  return { parents, children };
+}
+
+// Read Markdown sections and conservative repeated date labels without rewriting the saved text.
 export function draftCopySections() {
   return (tree: Root, file: { value: unknown }) => {
     const source = String(file.value);
     const titles = new Set<RootContent>();
+    const { parents: dates, children: datedChildren } = datedSections(tree);
     let atSectionStart = true;
     let boldTitles = false;
     for (const node of tree.children) {
@@ -23,6 +64,7 @@ export function draftCopySections() {
         if (boldTitles && isBoldTitle(node)) titles.add(node);
       }
     }
+    for (const node of dates.keys()) titles.add(node);
     for (let i = 0; i < tree.children.length; i++) {
       const heading = tree.children[i];
       if (!titles.has(heading)) continue;
@@ -30,8 +72,15 @@ export function draftCopySections() {
       while (end < tree.children.length) {
         const next = tree.children[end];
         // A real heading owns its nested content, including bold text and child headings.
+        const dateParent = dates.get(heading);
         const boundary =
-          heading.type === "heading" ? next.type === "heading" && next.depth <= heading.depth : titles.has(next);
+          heading.type === "heading"
+            ? (next.type === "heading" && next.depth <= heading.depth) ||
+              (datedChildren.has(heading) && dates.get(next) === datedChildren.get(heading))
+            : dateParent !== undefined
+              ? dates.get(next) === dateParent ||
+                (next.type === "heading" && (dateParent === 0 || next.depth <= dateParent))
+              : titles.has(next);
         if (boundary) break;
         end++;
       }

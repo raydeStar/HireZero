@@ -58,6 +58,23 @@ page overflow. Both web frontends were backed up and updated, with all sixteen b
 verified per install and both health endpoints healthy. No server restart or data change was
 needed for this CSS update. No new architecture decision or broad regression rerun was needed.
 
+## Follow-up: copy one post
+
+The raw bookshop plan used standalone dates, not Markdown headings, for its three posts.
+Only the parent group initially had a copy button. The renderer now recognizes repeated
+full English weekday/month/day labels when they begin a section and offers a copy action
+for each dated item. One isolated date, dates after introductory prose, quoted text and
+fenced examples do not become inferred sections. Whole-section copying remains available.
+
+The existing focused section-copy tests now cover dated items, exact body preservation,
+nested checklists, emphasis, year-bearing dates, CRLF input and exclusion of later posts
+and owner notes. The tests, frontend build and formatters pass. The original installed
+bookshop draft shows all three new controls and reports success when copying Monday;
+native clipboard readback retains the tooling limitation described above. Desktop and
+390-pixel mobile views were inspected without horizontal overflow. Both frontends were
+backed up and updated with sixteen file hashes verified per install, without restart.
+This follow-up made no model requests or saved-draft edits.
+
 ## Next gate
 
 Owner usefulness assessment of these exact raw drafts is pending. The email demonstrates a
