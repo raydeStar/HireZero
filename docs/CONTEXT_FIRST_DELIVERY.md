@@ -35,7 +35,7 @@ for the next internal walkthrough. Hosted deployment follows owner satisfaction 
   eight [retest drafts](history/2026-10-30-tally-minimum-retest.md) got it right. Owner judgments of both comparisons
   are pending. The internal HireZero Home plan ignored its approved department context. Deliverables are now
   [told that context is approved](history/2026-10-30-department-context-retest.md). In retests, DeepSeek offered the
-  website and measured real use; Luna measured trials but still withheld the website. This is not yet installed.
+  website and measured real use; Luna measured trials but still withheld the website. Both installs now include it.
   Paragraph spacing and copying individual dated or weekday-labeled posts were corrected
   on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.

@@ -65,4 +65,12 @@ A fresh blind grader scored them with five earlier drafts: the untouched Home pl
   deliverable and its absence from a 4 KiB general work packet that carries department context.
 - CSharpier is clean.
 - Requests, raw drafts, receipts and grades stay in the ignored private pilot directory.
-- The local installs do not yet include this change.
+- Both local installs now run this change, installed at the owner's "Yes, republish".
+  - Each update first made a complete data backup and kept the original binaries.
+  - Only Core and its symbols changed; all 227 staged files matched each install, and the web files were left as
+    installed.
+  - All twenty companies kept their employees, threads, tasks, artifacts, knowledge, measured attempts and schedules.
+    Every audit chain verified.
+  - Home terms are unchanged and automatic execution stays disabled. The approved pilot schedule's review is still
+    current, because its approval covers the role's instructions rather than Core's shared text; its November runs will
+    carry the new sentence.
