@@ -63,6 +63,7 @@ export function GoalStart({
   const [consent, setConsent] = useState(false);
   const [terms, setTerms] = useState<GoalTerms>();
   const [termsError, setTermsError] = useState("");
+  const [termsRequest, setTermsRequest] = useState(0);
   const website = goalWebsite(draft.website || "");
   const current = useRef(draft),
     locked = useRef(false);
@@ -144,7 +145,13 @@ export function GoalStart({
     return () => {
       active = false;
     };
-  }, [selected?.id, setup?.firstAssignment.skill, draft.modelRoute, snapshot.capabilities.measuredOneJob]);
+  }, [
+    selected?.id,
+    setup?.firstAssignment.skill,
+    draft.modelRoute,
+    snapshot.capabilities.measuredOneJob,
+    termsRequest,
+  ]);
   useEffect(() => setConsent(false), [draft.goal, draft.business, draft.name, draft.website, draft.allowance]);
 
   async function prepare() {
@@ -418,8 +425,17 @@ export function GoalStart({
                   </span>
                 </label>
               </div>
+            ) : termsError ? (
+              <div>
+                <p className="co-error" role="alert">
+                  Couldn’t load the model and run terms. {termsError}
+                </p>
+                <button type="button" onClick={() => setTermsRequest((request) => request + 1)}>
+                  Retry loading terms
+                </button>
+              </div>
             ) : (
-              <p role="status">{termsError || "Loading the model and run terms…"}</p>
+              <p role="status">Loading the model and run terms…</p>
             )}
             {unfinished ? (
               <button type="button" className="co-primary" onClick={() => onResumeHire?.(unfinished)}>

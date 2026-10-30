@@ -202,8 +202,17 @@ try {
     Object.getOwnPropertyDescriptor(el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(el,${JSON.stringify(value)});
     el.dispatchEvent(new Event('input',{bubbles:true}));
   })()`);
+  await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
+  const capture=async name=>fs.writeFile(path.join(repo,'test-results/'+name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
   assert.equal(await evaluate("!!document.querySelector('[aria-label=\"Getting started\"]')"),false);
   await setField('What does your business do?','Fictional team studio sells paper craft kits.');
+  await idle();
+  await evaluate(`(()=>{const original=window.fetch;window.termsLookups=0;window.termsRecoveryCommands=0;window.fetch=async(input,options)=>{
+    if(String(input)==='/api/company/commands') window.termsRecoveryCommands++;
+    if(String(input).includes('/company/goals/terms?') && ++window.termsLookups===1)
+      return new Response(JSON.stringify({error:'Fictional temporary terms failure'}),{status:503,headers:{'Content-Type':'application/json'}});
+    return original(input,options);
+  };})()`);
   await setField('Your goal','Improve website accessibility');
   await setField('Website (optional)','http://paper.example.invalid/');
   assert.equal(await evaluate("document.querySelector('.co-goal-start input[inputmode=url]').validity.valid"),false,'Only supported https addresses can be submitted');
@@ -211,10 +220,21 @@ try {
   await text('Reads up to three public pages from https://paper.example.invalid/');
   assert.equal(await evaluate("document.querySelector('.co-goal-start input[inputmode=url]').validity.valid"),true,'A pasted hostname is accepted without another edit');
   await text('Your first technical plan');
+  await text('Couldn’t load the model and run terms.');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start button[type=submit]').disabled"),true,'No dispatch without the run terms');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await evaluate("document.querySelector('.co-goal-start [role=alert]').scrollIntoView({block:'center'})");
+  assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
+  await capture('goal-terms-recovery-mobile');
+  await click('Retry loading terms');
   await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'run terms on Home');
+  assert.equal(await evaluate('window.termsLookups'),2,'The retry only reloads the terms once');
+  assert.equal(await evaluate('window.termsRecoveryCommands'),0,'Reloading terms cannot prepare or run work');
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('.co-goal-start textarea')].map(el=>el.value)"),['Fictional team studio sells paper craft kits.','Improve website accessibility'],'The owner keeps both inputs');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start input[inputmode=url]').value"),'  paper.example.invalid/  ');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start .co-check input').checked"),false,'Recovered terms require the owner’s consent');
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
-  await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
-  const capture=async name=>fs.writeFile(path.join(repo,'test-results/'+name+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
   await capture('goal-start-desktop');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
@@ -334,7 +354,7 @@ try {
   assert.equal(websitePacket.call.context.websiteResearch.website,'https://paper.example.invalid/');
   assert.ok(websitePacket.call.context.websiteResearch.sources.length>0);
   assert.deepEqual(errors,[]);
-  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
+  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),termsRecoveryWithoutDispatch:true,singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
   console.log('PASS goal start: optional website, automatic setup, single Home consent and a requested email instead of a weekly plan. The butler handled the paperwork.');
   await send('Browser.close').catch(()=>{});
 } catch (error) {

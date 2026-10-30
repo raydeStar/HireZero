@@ -8,7 +8,9 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
 - Home turns a business sentence, goal and optional website into one disclosed draft with a single
   consent and Generate action. Copy, Download, Refine and complete section exports are prominent;
   internal notes and administration stay collapsed. The [latest Home walkthrough](history/2026-10-29-opus-integration-verification.md)
-  passed on desktop and mobile, including website discovery and lost-response recovery.
+  passed on desktop and mobile, including website discovery and lost-response recovery. A failed
+  disclosure lookup now has an [in-place retry](history/2026-10-29-home-terms-recovery.md) that preserves
+  inputs and cannot dispatch work.
 - Both local installs now include the [combined handoff](history/2026-10-29-opus-integration-verification.md):
   the latest Marketing instructions, confirmed native reasoning effort, v3/6,000-token terms,
   per-model API reasoning settings and queued database writers. Backups and comparisons preserve all
