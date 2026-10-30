@@ -118,6 +118,45 @@ const rootDates = copies(
 );
 assert.equal(rootDates[0].text, "First complete post.");
 assert.equal(rootDates[1].text, "Second complete post.");
+const weekdays = copies(
+  `## Posts\n\nTuesday\n\n${datedBody}\n\nThursday\n\nA complete second post.\n\nSaturday\n\nA complete third post.\n\n## Using the week\n\nOwner routine.`,
+);
+assert.equal(
+  weekdays.find((section) => section.title === "Tuesday").text,
+  datedBody,
+);
+assert.equal(
+  weekdays.find((section) => section.title === "Thursday").text,
+  "A complete second post.",
+);
+assert.equal(
+  weekdays.find((section) => section.title === "Saturday").text,
+  "A complete third post.",
+);
+assert.ok(
+  weekdays
+    .find((section) => section.title === "## Posts")
+    .text.includes("Saturday"),
+);
+assert.ok(
+  !weekdays
+    .find((section) => section.title === "## Posts")
+    .text.includes("Owner routine."),
+);
+assert.ok(
+  !copies("## Copy\n\nTuesday\n\nAn isolated day.").some(
+    (section) => section.title === "Tuesday",
+  ),
+);
+assert.ok(
+  !copies(
+    "## Copy\n\nA diary introduction.\n\nTuesday\n\nFirst entry.\n\nThursday\n\nSecond entry.",
+  ).some((section) => section.title === "Tuesday"),
+);
+assert.equal(
+  copies("> Tuesday\n>\n> Quoted text.\n\n```text\nThursday\n```").length,
+  0,
+);
 assert.ok(
   !copies(
     "## Copy\n\nAn introduction to our diary.\n\nMonday, November 2\n\nFirst entry.\n\nWednesday, November 4\n\nSecond entry.",

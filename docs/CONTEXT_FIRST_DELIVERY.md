@@ -22,8 +22,10 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   offer connections and clean copy. A [fresh three-business Home evaluation](history/2026-10-29-fresh-home-usefulness.md)
   completed without retries or editorial copies. The [owner's raw baseline](history/2026-10-30-owner-raw-usefulness-baseline.md)
   is one use-as-is (email), one useful with small edits (bookshop), and one needing expansion (service page).
-  Targeted instruction corrections address those findings; their effect on new model output remains untested.
-  Paragraph spacing and copying individual dated posts were corrected
+  [Two raw comparisons](history/2026-10-30-prompt-usefulness-comparison.md) now show a developed service page
+  within its requested range and standalone bookshop posts with natural business connections. The bookshop's
+  attribution notes still need an edit; owner judgments of both comparisons are pending.
+  Paragraph spacing and copying individual dated or weekday-labeled posts were corrected
   on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.
 - The saved pilot schedule still has v2/3,000 terms and an outdated approval. It needs a new review
@@ -33,15 +35,16 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   owner-authorized comparisons, uncertain outcomes and provider costs are recorded in the
   [rubric history](history/2026-10-29-weekly-plan-rubric-iteration.md#usage) and private receipts.
   The separately approved fresh-business batch used three requests and 23,541 reported input/output
-  tokens, consuming that allowance. Raw outputs remain unedited; actual subscription
+  tokens, consuming that allowance. The two separately approved prompt comparisons used another 15,939
+  reported tokens and consumed both requests. Raw outputs remain unedited; actual subscription
   credit charges are unavailable.
 
 ## Next acceptance gate
 
 1. Improve repeatable first-draft usefulness across more fresh businesses. Keep later runs labeled as comparisons,
    never as replacement acceptance evidence. No assistant editorial copies or automatic retries.
-2. Preserve the recorded raw baseline when evaluating the revised instructions; later comparisons need separate
-   run authorization and owner assessment. Do not equate complete sections or successful execution with useful work.
+2. Preserve the recorded raw baseline and obtain owner judgments for the two completed prompt comparisons.
+   Further calls need separate run authorization. Do not equate complete sections or successful execution with useful work.
 3. Observe prospective users with the [goal-first pilot protocol](product/pilot-protocol.md). Local runs do not
    establish signup success, retention or consistent quality. Review a new weekly schedule before recurring use.
 

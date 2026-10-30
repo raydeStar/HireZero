@@ -9,13 +9,13 @@ function isDateTitle(node: RootContent) {
     node.type === "paragraph" &&
     node.children.length === 1 &&
     node.children[0].type === "text" &&
-    /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),? (January|February|March|April|May|June|July|August|September|October|November|December) ([1-9]|[12]\d|3[01])(st|nd|rd|th)?(,? \d{4})?$/.test(
+    /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(,? (January|February|March|April|May|June|July|August|September|October|November|December) ([1-9]|[12]\d|3[01])(st|nd|rd|th)?(,? \d{4})?)?$/.test(
       node.children[0].value.trim(),
     )
   );
 }
 
-// A sequence must begin with a full date label. A date mentioned inside prose is still prose.
+// A sequence must begin with a weekday or full date label. Dates inside prose stay prose.
 function datedSections(tree: Root) {
   const parents = new Map<RootContent, number>();
   const children = new Map<RootContent, number>();
@@ -35,7 +35,7 @@ function datedSections(tree: Root) {
       if (isDateTitle(node)) candidates.push(node);
       if (node.type === "heading") childHeadings.push(node);
     }
-    // One isolated date is not enough evidence to divide the owner's copy.
+    // One isolated day is not enough evidence to divide the owner's copy.
     if (candidates.length >= 2) {
       for (const node of candidates) if (!parents.has(node)) parents.set(node, depth);
       for (const node of childHeadings) if (!children.has(node)) children.set(node, depth);
