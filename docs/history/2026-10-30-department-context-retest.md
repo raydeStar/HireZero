@@ -51,11 +51,35 @@ A fresh blind grader scored them with five earlier drafts: the untouched Home pl
   tips, a repeated offer line, and first and third posts sharing a method. One DeepSeek bookshop draft promised a
   recommendation service the facts do not support; the same request used 19,960 output tokens and 336 seconds.
 
+## Confirmed department context
+
+Luna's drafts withheld the trial route because HireZero's own department context marked its claims "owner to confirm"
+and named the website only in passing. At the owner's request a confirmed version was saved as a draft. It removed
+those hedges, named hirezero.app and its Get started link as the place to start, and set the posting voice: HireZero as
+"we", named in every post, describing what it does for the reader. The owner approved it unchanged. Only company data
+changed, not code.
+
+The owner approved a Luna retest ("Yes, retest after"). Two runs repeated the frozen HireZero request with only its
+department context replaced by the approved version. Both completed on the first attempt and reported 21,870 tokens. A
+fresh blind grader scored them with the untouched Home plan, the two earlier Luna retests and one DeepSeek draft:
+
+| Drafts | Offer connection | Learning signal | Voice | Average of 8 criteria |
+| --- | ---: | ---: | ---: | ---: |
+| Luna, untouched Home plan | 2.30 | 2.00 | 2.70 | 3.00 |
+| Luna, instructions fix only | 2.35 | 3.20 | 2.35 | 3.09 |
+| Luna, confirmed context | 3.15 | 3.15 | 3.85 | 3.39 |
+| DeepSeek, instructions fix (reference) | 3.30 | 3.30 | 3.30 | 3.41 |
+
+Both confirmed-context drafts name HireZero in every post, say "for your review", give hirezero.app once, and count
+readers who report using it on a real task separately from ideas. Neither mentions the free offer; one draft's notes
+say it was not needed. The remaining weaknesses are craft and distinctness: posts repeat the same briefing method, some
+tips are thin, the next-week rules say "several" without a number, and both propose a Saturday post on LinkedIn. In one
+draft, the post with the website gives readers no way to report a trial.
+
 ## Still open
 
-- Luna still withholds the trial route. HireZero's department context marks its own claims "owner to confirm" and names
-  the website only in passing. Confirming those claims, and naming the website as the place to start, would address
-  this in company data without another instruction change; it has not been tested.
+- Every HireZero draft in both batches teaches writing a brief in more than one post. Distinct value, not facts, is now
+  the main gap for this request.
 - Two samples per model and case, graded once, show direction rather than consistent quality. The owner's judgment of
   the Home plan remains the acceptance measure.
 
