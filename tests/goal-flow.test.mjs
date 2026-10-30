@@ -29,7 +29,7 @@ function harness({ lost, drift } = {}) {
       },
     },
   });
-  return { calls, run: flow => exports.advanceGoal(flow || initial(), next => { saved = structuredClone(next); }), saved: () => saved };
+  return { calls, run: flow => exports.advanceGoal(flow || initial(), next => { saved = structuredClone(next); }), saved: () => saved, currentWork: exports.currentGoalWork };
 }
 const normal = harness();
 assert.equal((await normal.run()).id, "task");
@@ -49,4 +49,19 @@ assert.equal(changed.saved().stopped, true);
 const noWebsite = harness();
 await noWebsite.run({ ...initial(), input: {} });
 assert.equal(noWebsite.calls.filter(c => c.action === "goal.lookup.start").length, 0);
+const original = { id: "original", employeeId: "employee", threadId: "thread", state: "superseded" };
+const revision = { ...original, id: "revision", revision: { sourceTaskId: original.id } };
+const latest = { ...original, id: "latest", state: "blocked", reason: "revision-awaiting-approval", revision: { sourceTaskId: revision.id } };
+assert.equal(normal.currentWork([latest, original, revision], original.id), latest, "Saved Home work follows multiple revisions regardless of snapshot order");
+const delivered = { ...latest, state: "awaiting_review", reason: null };
+assert.equal(normal.currentWork([original, revision, delivered], original.id), delivered, "The same saved goal opens its delivered revision");
+const canceled = { ...latest, state: "canceled", reason: null };
+assert.equal(normal.currentWork([original, revision, canceled], original.id), canceled, "Cancellation does not send the owner back to an obsolete draft");
+assert.equal(normal.currentWork([original], original.id), original, "A missing replacement preserves access to the saved task");
+assert.equal(normal.currentWork([original], "unknown"), undefined);
+assert.equal(normal.currentWork([original, { ...revision, threadId: "other-thread" }], original.id), original, "Do not cross conversation boundaries");
+assert.equal(normal.currentWork([original, { ...revision, employeeId: "other-employee" }], original.id), original, "Do not follow another employee's work");
+assert.equal(normal.currentWork([original, revision, { ...revision, id: "ambiguous" }], original.id), original, "Do not guess between conflicting successors");
+const cycle = { ...original, revision: { sourceTaskId: revision.id } };
+assert.equal(normal.currentWork([cycle, revision], original.id), cycle, "Malformed cycles retain the original destination");
 console.log("PASS goal flow: one consent, exact terms, optional discovery and recovery at every boundary without replay. The butler kept every receipt.");

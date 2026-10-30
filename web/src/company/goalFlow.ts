@@ -24,6 +24,28 @@ export type GoalFlow = {
   stopped?: boolean;
 };
 
+// Follow the saved request's revisions; the butler should not bring back the rejected draft.
+export function currentGoalWork(tasks: readonly Work[], taskId?: string): Work | undefined {
+  const original = tasks.find((task) => task.id === taskId);
+  if (!original) return undefined;
+  let current = original;
+  const seen = new Set([current.id]);
+  while (current.state === "superseded") {
+    const revisions = tasks.filter(
+      (task) =>
+        task.revision?.sourceTaskId === current.id &&
+        task.employeeId === original.employeeId &&
+        task.threadId === original.threadId,
+    );
+    if (revisions.length !== 1) break;
+    const next = revisions[0];
+    if (seen.has(next.id) || seen.size >= 16) return original;
+    seen.add(next.id);
+    current = next;
+  }
+  return current;
+}
+
 export function sameGoalTerms(job: GoalTerms, approved: GoalTerms) {
   return (
     job.route === approved.route &&

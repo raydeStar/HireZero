@@ -353,8 +353,38 @@ try {
   const websitePacket=await fetch(url+'/api/company/measured/'+state.measured.find(m=>m.taskId===websiteTask.id).id).then(r=>r.json());
   assert.equal(websitePacket.call.context.websiteResearch.website,'https://paper.example.invalid/');
   assert.ok(websitePacket.call.context.websiteResearch.sources.length>0);
+  // Returning Home after feedback should continue the replacement request, not the superseded draft.
+  await click('Refine draft');
+  await evaluate(`(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,'Keep the folding example and make the reply invitation clearer.');el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await click('Create revision request');
+  const revisionTask = await until(async()=>{
+    const current=(await dashboard()).data;
+    return current.tasks.find(t=>t.revision?.sourceTaskId===websiteTask.id);
+  },'saved revision request');
+  await send('Page.navigate',{url:url+'/'});
+  await text('Continue my work');
+  await text('Your revision request is ready. Review its model and allowance before running.');
+  await click('Continue my work');
+  assert.equal(await evaluate("new URLSearchParams(location.search).get('work')"),revisionTask.id,'Home continues the current revision rather than the superseded original');
+  // Synthetic results exercise a second revision without calling any model provider.
+  const firstRevisionResult = await command('artifact.create',{id:revisionTask.id,expectedVersion:revisionTask.version,body:'Fictional first revision for navigation only.'});
+  const latestRevision = await command('artifact.revise',{id:firstRevisionResult.id,expectedVersion:firstRevisionResult.version,digest:firstRevisionResult.digest,body:'Keep the example and shorten the opening.'});
+  await send('Page.navigate',{url:url+'/'});
+  await text('Continue my work');
+  await click('Continue my work');
+  assert.equal(await evaluate("new URLSearchParams(location.search).get('work')"),latestRevision.id,'Home follows the full revision chain after reload');
+  await command('artifact.create',{id:latestRevision.id,expectedVersion:latestRevision.version,body:'Fictional latest revision, ready to read.'});
+  await send('Page.navigate',{url:url+'/'});
+  await text('Your draft is ready to read, copy or refine.');
+  assert.equal(await evaluate("document.querySelectorAll('[aria-label=\"Recent results\"] li').length"),3,'Earlier superseded drafts do not crowd out distinct results');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await capture('goal-current-revision-mobile');
+  await click('Continue my work');
+  await text('Fictional latest revision, ready to read.');
+  assert.equal(await evaluate("new URLSearchParams(location.search).get('work')"),latestRevision.id,'The delivered revision opens from Home on mobile');
+  assert.equal((await dashboard()).data.measured.length,4,'Following the revision does not authorize a model request');
   assert.deepEqual(errors,[]);
-  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),termsRecoveryWithoutDispatch:true,singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
+  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),termsRecoveryWithoutDispatch:true,singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,currentRevisionFromHome:true,revisionChainAfterReload:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
   console.log('PASS goal start: optional website, automatic setup, single Home consent and a requested email instead of a weekly plan. The butler handled the paperwork.');
   await send('Browser.close').catch(()=>{});
 } catch (error) {

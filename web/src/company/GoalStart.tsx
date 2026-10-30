@@ -10,7 +10,7 @@ import {
   type Work,
 } from "./api";
 import { ModelChoice, providerName } from "./ModelChoice";
-import { advanceGoal, type GoalFlow, type GoalTerms } from "./goalFlow";
+import { advanceGoal, currentGoalWork, type GoalFlow, type GoalTerms } from "./goalFlow";
 import { goalWebsite } from "./goalWebsite";
 import "./goalStart.css";
 
@@ -114,7 +114,7 @@ export function GoalStart({
     !employee && snapshot.data.employees.find((e) => e.roleId === selected?.id && e.state === "onboarding");
   const knowledge = snapshot.data.knowledge.find((k) => k.id === profile?.knowledgeId);
   const partialBrief = !profile && (!!snapshot.data.business || snapshot.data.knowledge.some((k) => !k.departmentId));
-  const saved = snapshot.data.tasks.find((t) => t.id === draft.taskId);
+  const saved = currentGoalWork(snapshot.data.tasks, draft.taskId);
   const activeJob = snapshot.data.tasks.find(
     (t) =>
       t.employeeId === employee?.id &&
@@ -327,9 +327,11 @@ export function GoalStart({
           <p>
             {saved && ["completed", "awaiting_review"].includes(saved.state)
               ? "Your draft is ready to read, copy or refine."
-              : saved
-                ? "Your request is ready. Open it to review the run or follow its progress."
-                : "Your work was saved. Reload the saved view to open it."}
+              : saved?.reason === "revision-awaiting-approval"
+                ? "Your revision request is ready. Review its model and allowance before running."
+                : saved
+                  ? "Your request is ready. Open it to review the run or follow its progress."
+                  : "Your work was saved. Reload the saved view to open it."}
           </p>
           <button
             className="co-primary"
