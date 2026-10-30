@@ -1292,6 +1292,11 @@
   box-shadow: none;
   background: var(--fe-surface);
 }
+.co-workspace .co-conversation-body > .co-work-window {
+  flex: 1 1 auto;
+  max-width: 840px;
+  margin-inline: auto;
+}
 .co-workspace .co-work-window .co-job-card {
   border: 0;
   background: transparent;

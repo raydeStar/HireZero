@@ -9,6 +9,8 @@ for the next internal walkthrough. Hosted deployment follows owner satisfaction 
 
 - Home turns a business sentence, goal and optional website into one disclosed draft with a single
   consent and Generate action. Copy, Download, Refine and complete section exports are prominent;
+  the [native Home walkthrough](history/2026-10-30-native-home-walkthrough.md) also verified download and return-to-result,
+  with proposed-day Copy controls, a centered Work view and meaningful Home previews now installed.
   internal notes and administration stay collapsed. An [unrelated unapproved note](history/2026-10-30-home-unapproved-note.md)
   no longer blocks that form; the installed fix preserves the note and excludes it from the draft context.
   The [combined Home walkthrough](history/2026-10-29-opus-integration-verification.md)
@@ -48,12 +50,14 @@ for the next internal walkthrough. Hosted deployment follows owner satisfaction 
   [rubric history](history/2026-10-29-weekly-plan-rubric-iteration.md#usage) and private receipts.
   The separately approved fresh-business batch used three requests and 23,541 reported input/output
   tokens, consuming that allowance. The two separately approved prompt comparisons used another 15,939
-  reported tokens and consumed both requests. Raw outputs remain unedited; actual subscription
+  reported tokens and consumed both requests. One separately authorized internal Home run used 9,903
+  reported input/output tokens and consumed its one-request allowance. Raw outputs remain unedited; actual subscription
   credit charges are unavailable.
 
 ## Next acceptance gate
 
-1. Walk through HireZero's own goal-to-draft experience locally, then broaden to fresh businesses. Keep later
+1. Assess the completed internal Home draft; the owner is obtaining a separate content review. Then broaden
+   the local walkthrough to fresh businesses. Keep later
    runs labeled as comparisons, never as replacement acceptance evidence. No assistant editorial copies or
    automatic retries; internal use is separate from prospective-customer validation.
 2. Preserve the recorded raw baseline and obtain owner judgments for the two completed prompt comparisons.

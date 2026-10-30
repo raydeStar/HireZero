@@ -4,14 +4,18 @@ function isBoldTitle(node: RootContent) {
   return node.type === "paragraph" && node.children.length === 1 && node.children[0].type === "strong";
 }
 
+export function isDraftDayLabel(value: string) {
+  return /^(?:(?:Proposed|Suggested)[ \t]+)?(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(,? (January|February|March|April|May|June|July|August|September|October|November|December) ([1-9]|[12]\d|3[01])(st|nd|rd|th)?(,? \d{4})?)?$/i.test(
+    value.trim(),
+  );
+}
+
 function isDateTitle(node: RootContent) {
   return (
     node.type === "paragraph" &&
     node.children.length === 1 &&
     node.children[0].type === "text" &&
-    /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(,? (January|February|March|April|May|June|July|August|September|October|November|December) ([1-9]|[12]\d|3[01])(st|nd|rd|th)?(,? \d{4})?)?$/.test(
-      node.children[0].value.trim(),
-    )
+    isDraftDayLabel(node.children[0].value)
   );
 }
 

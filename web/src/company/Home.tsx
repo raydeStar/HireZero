@@ -10,6 +10,7 @@ import { useMemberAccess } from "./MemberAccess";
 import { WorkContext } from "./WorkContext";
 import { GoalStart } from "./GoalStart";
 import { optionalDraftReview, readyDraft } from "./readyDrafts";
+import { isDraftDayLabel } from "./draftCopySections";
 
 export function initials(name: string) {
   return (
@@ -28,7 +29,7 @@ export function firstLine(body: string, max = 140) {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  const line = (lines.find((l) => !/^#{1,6}\s|^```|^[-*_]{3,}$/.test(l)) ?? lines[0] ?? "")
+  const line = (lines.find((l) => !/^#{1,6}\s|^```|^[-*_]{3,}$/.test(l) && !isDraftDayLabel(l)) ?? lines[0] ?? "")
     .replace(/^(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)/, "")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/\*\*|__|`/g, "");

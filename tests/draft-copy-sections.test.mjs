@@ -118,6 +118,36 @@ const rootDates = copies(
 );
 assert.equal(rootDates[0].text, "First complete post.");
 assert.equal(rootDates[1].text, "Second complete post.");
+const proposed = copies(
+  `## Proposed posts\n\nProposed Monday\n\n${datedBody}\n\nProposed Wednesday, November 4\n\nComplete second post.\n\nSuggested friday\n\nComplete third post.\n\n## Using the week\n\nOwner routine.`,
+);
+assert.equal(
+  proposed.find((section) => section.title === "Proposed Monday").text,
+  datedBody,
+);
+assert.equal(
+  proposed.find((section) => section.title === "Proposed Wednesday, November 4")
+    .text,
+  "Complete second post.",
+);
+assert.equal(
+  proposed.find((section) => section.title === "Suggested friday").text,
+  "Complete third post.",
+);
+assert.ok(!copies("Proposed Monday\n\nAn isolated suggestion.").length);
+assert.ok(
+  !copies("Proposed Monday is best.\n\nSuggested Wednesday might work.").length,
+);
+assert.ok(
+  !copies(
+    "> Proposed Monday\n>\n> Quoted text.\n\n```text\nSuggested Wednesday\n```",
+  ).length,
+);
+assert.ok(
+  !copies(
+    "## Copy\n\nKeep the introduction.\n\nProposed Monday\n\nFirst entry.\n\nSuggested Wednesday\n\nSecond entry.",
+  ).some((section) => section.title === "Proposed Monday"),
+);
 const weekdays = copies(
   `## Posts\n\nTuesday\n\n${datedBody}\n\nThursday\n\nA complete second post.\n\nSaturday\n\nA complete third post.\n\n## Using the week\n\nOwner routine.`,
 );
