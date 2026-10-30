@@ -1179,7 +1179,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             <Schedules
               key={route.repeatWorkId || "schedules"}
               initialTaskId={route.repeatWorkId}
-              onDraftSaved={(id) => navigate({ ...routeRef.current, repeatWorkId: undefined, noticeTarget: id })}
+              onReviewSchedule={(id) => navigate({ ...routeRef.current, repeatWorkId: undefined, noticeTarget: id })}
               initialId={route.noticeTarget}
               snapshot={snapshot}
               role={memberRole}

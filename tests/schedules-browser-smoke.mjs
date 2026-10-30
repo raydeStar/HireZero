@@ -716,6 +716,46 @@ try {
       ),
     "Scheduled source result opens evidence review",
   );
+  await send("Page.navigate", { url: `${url}/?view=departments&section=schedules&schedule=${id}` });
+  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'"),
+    "Original completed schedule opens");
+  const beforeNavigation = (await snapshot()).data.measured;
+  await click("Copy into a new draft");
+  await field("Schedule name", "Fictional revised rhythm");
+  const copyStart = new Date(after);
+  copyStart.setUTCDate(copyStart.getUTCDate() + 1);
+  await field("First date", copyStart.toISOString().slice(0, 10));
+  await click("Save schedule draft");
+  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'"),
+    "Copied schedule saved for review");
+  const copied = (await schedules()).find(s => s.definition.name === "Fictional revised rhythm");
+  assert.equal(copied.state, "draft");
+  assert.equal(await evaluate("new URLSearchParams(location.search).get('schedule')"), copied.id,
+    "The copied draft owns the address, not the earlier approval");
+  await send("Page.reload");
+  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'"),
+    "Reload keeps the copied review");
+  await consent();
+  await evaluate("[...document.querySelectorAll('.co-schedule-list button')].find(b=>b.textContent.includes('Fictional weekly outline')).click()");
+  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'"),
+    "Selection opens the original schedule");
+  assert.equal(await evaluate("new URLSearchParams(location.search).get('schedule')"), id);
+  await evaluate("history.back()");
+  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'"),
+    "Back restores the copied review");
+  assert.equal(await evaluate("document.querySelector('.co-schedule-review input[type=checkbox]').checked"), false,
+    "Returning to a review never carries consent from a different selection");
+  await evaluate("history.forward()");
+  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'"),
+    "Forward restores the original review");
+  await evaluate("history.back()");
+  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'"),
+    "Copied review remains reachable on mobile");
+  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
+  await evaluate("document.querySelector('.co-schedule-review').scrollIntoView({block:'start'})");
+  await screenshot("recurring-review-navigation-mobile.png");
+  assert.deepEqual((await snapshot()).data.measured, beforeNavigation, "Review navigation never dispatches a model");
+  assert.equal((await detail(copied.id)).schedule.state, "draft");
   assert.deepEqual(errors, []);
   await fs.writeFile(
     path.join(repo, "test-results/schedules-browser.json"),
@@ -750,6 +790,9 @@ try {
         finiteAllowanceSettled: true,
         backgroundSourceRefresh: true,
         inboxScheduleLink: true,
+        copiedReviewAddress: true,
+        reviewSelectionBackForward: true,
+        consentClearedOnReviewReturn: true,
         sourceFactsUnchanged: true,
         mobileOverflow: false,
         liveModelCalls: 0,

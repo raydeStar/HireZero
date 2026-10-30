@@ -110,7 +110,7 @@ export function Schedules({
   onSources,
   initialId,
   initialTaskId,
-  onDraftSaved,
+  onReviewSchedule,
 }: {
   snapshot: Snapshot;
   role?: string;
@@ -119,7 +119,7 @@ export function Schedules({
   onSources: () => void;
   initialId?: string;
   initialTaskId?: string;
-  onDraftSaved?: (id: string) => void;
+  onReviewSchedule?: (id: string) => void;
 }) {
   const sourceTask = snapshot.data.tasks.find((t) => t.id === initialTaskId && canRepeatWork(snapshot, t));
   const key = `hirezero-schedule-draft-v1:${company() || "local-company"}${initialTaskId ? ":repeat:" + initialTaskId : ""}`,
@@ -247,6 +247,10 @@ export function Schedules({
     };
   }, []);
   useEffect(() => {
+    // The address and the visible approval must tell the same story, even after Back.
+    if ((initialId || "") !== selection.current) void choose(initialId || "", false);
+  }, [initialId]);
+  useEffect(() => {
     if (!list.some((s) => s.state === "active")) return;
     const timer = window.setTimeout(() => {
       void load().catch(() => setError("Schedule status could not refresh. Check saved status before changing it."));
@@ -295,10 +299,12 @@ export function Schedules({
           ? "Schedule draft saved. Review its dates, context and limits before authorizing."
           : `Schedule ${result.state}.`,
       );
-      if (result.state === "draft" && initialTaskId && onDraftSaved) {
-        onDraftSaved(result.id);
-        await refresh();
-        return;
+      if (result.state === "draft" && onReviewSchedule && (initialTaskId || result.id !== initialId)) {
+        onReviewSchedule(result.id);
+        if (initialTaskId) {
+          await refresh();
+          return;
+        }
       }
       await load(result.id);
       await refresh();
@@ -310,7 +316,7 @@ export function Schedules({
       setBusy(false);
     }
   }
-  async function choose(id: string) {
+  async function choose(id: string, updateRoute = true) {
     setNotice("");
     statusNotice.current = null;
     setSelected(id);
@@ -318,6 +324,7 @@ export function Schedules({
     setDetail(null);
     setConsent(false);
     setError("");
+    if (updateRoute && id !== initialId) onReviewSchedule?.(id);
     try {
       await load(id);
     } catch (e) {
