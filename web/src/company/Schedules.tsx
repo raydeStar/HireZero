@@ -43,6 +43,7 @@ type Schedule = {
     terms?: { provider: string; allowanceUnit: "credits" | "usd-cents" } | null;
     policy: {
       planningTokens: number;
+      outputTarget: number;
       localDeadlineSeconds: number;
       applicationBytes: number;
       visibleCharacterStop: number;
@@ -907,8 +908,10 @@ export function Schedules({
               {schedule.authority.terms?.allowanceUnit === "usd-cents"
                 ? "low"
                 : (schedule.authority.policy.effort ?? "low")}{" "}
-              reasoning effort, up to {schedule.authority.policy.localDeadlineSeconds} seconds locally. Planning
-              allowance: {schedule.authority.policy.planningTokens.toLocaleString()} tokens per run;{" "}
+              reasoning effort, with a {schedule.authority.policy.outputTarget.toLocaleString()} observed output-token
+              target per run. Reasoning tokens count toward that target. Local deadline:{" "}
+              {schedule.authority.policy.localDeadlineSeconds} seconds. Planning allowance:{" "}
+              {schedule.authority.policy.planningTokens.toLocaleString()} tokens per run;{" "}
               {(schedule.authority.policy.planningTokens * schedule.definition.occurrences).toLocaleString()} across
               this schedule.{" "}
               {(schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)
@@ -918,7 +921,10 @@ export function Schedules({
               {(schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)
                 ? "US cents"
                 : "credits"}{" "}
-              per run. Provider limits remain subject to the configured provider's enforcement.
+              per run.{" "}
+              {(schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)
+                ? "Time and observed token targets are local soft stops; spending is checked before dispatch."
+                : "Time, token and existing-credit allowances are soft limits; a run may exceed them."}
             </p>
           )}
           <details>

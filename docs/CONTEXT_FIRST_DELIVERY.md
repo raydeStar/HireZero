@@ -31,8 +31,10 @@ Priority: immediate usefulness. State a goal, receive useful work with minimal i
   Paragraph spacing and copying individual dated or weekday-labeled posts were corrected
   on desktop and mobile. Luna remains the default;
   the DeepSeek competition stand-in is comparison evidence, not an installed model change.
-- The saved pilot schedule still has v2/3,000 terms and an outdated approval. It needs a new review
-  before recurring use; no replacement schedule is active. Hosted service acceptance, observed repeat
+- The saved pilot schedule still has v2/3,000 terms and an outdated approval. A separate current-policy
+  replacement is [prepared for owner review](history/2026-10-30-recurring-review-terms.md), with dated requests
+  and explicit saved output/soft-limit terms; neither replacement activation nor model spending occurred.
+  Hosted service acceptance, observed repeat
   use and commercial validation remain open alongside the engineering gaps in the evidence map.
 - The original 31-run Luna allowance is consumed (220,397 reported input/output tokens). Additional
   owner-authorized comparisons, uncertain outcomes and provider costs are recorded in the
