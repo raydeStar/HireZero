@@ -96,6 +96,9 @@ try {
     false,
     "No model provider",
   );
+  const oldDraft = await command("knowledge.save", {
+    body: "Unverified fictional note: every kit includes a free workshop.",
+  });
   browser = spawn(
     chrome,
     [
@@ -285,6 +288,8 @@ try {
   assert.ok(state.businessSources.length > 0);
   assert.equal(state.businessLookups[0].website,'https://paper.example.invalid/','The confirmed normalized destination reaches discovery');
   const packet = await fetch(url+'/api/company/measured/'+state.measured[0].id).then(r=>r.json());
+  assert.deepEqual(state.knowledge.find(k=>k.id===oldDraft.id),oldDraft,'The old unapproved note is preserved without blocking Home');
+  assert.equal(JSON.stringify(packet.call).includes('free workshop'),false,'Unapproved notes do not become model context');
   assert.match(packet.call.context.websiteResearch.sources[0].text,/folding guide/);
   assert.equal(packet.call.context.businessBrief.fields.some(f=>f.key==='services'),false);
   assert.ok(packet.call.context.businessBrief.unfilledFields.includes('services'));
@@ -385,7 +390,7 @@ try {
   assert.equal((await dashboard()).data.measured.length,4,'Following the revision does not authorize a model request');
   assert.deepEqual(errors,[]);
   await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),termsRecoveryWithoutDispatch:true,singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,currentRevisionFromHome:true,revisionChainAfterReload:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
-  console.log('PASS goal start: optional website, automatic setup, single Home consent and a requested email instead of a weekly plan. The butler handled the paperwork.');
+  console.log('PASS goal start: old knowledge draft preserved and excluded, optional website, automatic setup, single Home consent and a requested email instead of a weekly plan. The butler handled the paperwork.');
   await send('Browser.close').catch(()=>{});
 } catch (error) {
   await fs.mkdir(path.join(repo, "test-results"), { recursive: true });

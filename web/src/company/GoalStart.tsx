@@ -113,7 +113,9 @@ export function GoalStart({
   const unfinished =
     !employee && snapshot.data.employees.find((e) => e.roleId === selected?.id && e.state === "onboarding");
   const knowledge = snapshot.data.knowledge.find((k) => k.id === profile?.knowledgeId);
-  const partialBrief = !profile && (!!snapshot.data.business || snapshot.data.knowledge.some((k) => !k.departmentId));
+  const partialBrief =
+    !profile &&
+    (!!snapshot.data.business || snapshot.data.knowledge.some((k) => !k.departmentId && k.state === "approved"));
   const saved = currentGoalWork(snapshot.data.tasks, draft.taskId);
   const activeJob = snapshot.data.tasks.find(
     (t) =>

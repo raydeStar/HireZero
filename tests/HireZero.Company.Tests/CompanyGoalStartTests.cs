@@ -215,6 +215,47 @@ public sealed class CompanyGoalStartTests : IDisposable
     }
 
     [Fact]
+    public void UnapprovedKnowledgeDoesNotBlockOwnerGoalOrEnterItsContext()
+    {
+        var store = Store();
+        var oldDraft = A<CompanyKnowledge>(
+            store,
+            C("knowledge.save") with
+            {
+                Body = "Unverified fictional note: every kit includes a free workshop.",
+            }
+        );
+        var contextCommand = Goal() with { Action = "goal.context" };
+        var context = A<GoalContext>(store, contextCommand);
+        Assert.Equal(CompanyJson.Encode(context), store.Apply(contextCommand));
+        Assert.NotEqual(oldDraft.Id, context.Knowledge.Id);
+        Assert.Equal("confirmed", context.Business.State);
+        Assert.Empty(MeasuredQueueChecks.Items<CompanyTask>(store, "tasks"));
+        var prepared = A<Prepared>(
+            store,
+            Goal() with
+            {
+                Id = context.Knowledge.Id,
+                ExpectedVersion = context.Knowledge.Version,
+                Digest = context.Knowledge.Digest,
+            }
+        );
+        Assert.Equal(
+            oldDraft,
+            MeasuredQueueChecks.Items<CompanyKnowledge>(store, "knowledge").Single(k => k.Id == oldDraft.Id)
+        );
+        var call = store.TextCall(prepared.Attempt.Id);
+        Assert.DoesNotContain("free workshop", CompanyJson.Encode(call));
+        Assert.Equal(
+            "We sell paper craft kits.",
+            call.Context.BusinessBrief!.Fields.Single(f => f.Key == "business").Value
+        );
+        Assert.Equal("proposed", prepared.Attempt.Measured!.State);
+        Assert.Empty(MeasuredQueueChecks.Items<CompanyArtifact>(store, "artifacts"));
+        Assert.True(store.VerifyAudit().Intact);
+    }
+
+    [Fact]
     public void ExistingUnapprovedBusinessResearchIsNeverAutomaticallyConfirmed()
     {
         var store = Store();

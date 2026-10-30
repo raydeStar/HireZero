@@ -9,7 +9,9 @@ for the next internal walkthrough. Hosted deployment follows owner satisfaction 
 
 - Home turns a business sentence, goal and optional website into one disclosed draft with a single
   consent and Generate action. Copy, Download, Refine and complete section exports are prominent;
-  internal notes and administration stay collapsed. The [latest Home walkthrough](history/2026-10-29-opus-integration-verification.md)
+  internal notes and administration stay collapsed. An [unrelated unapproved note](history/2026-10-30-home-unapproved-note.md)
+  no longer blocks that form; the installed fix preserves the note and excludes it from the draft context.
+  The [combined Home walkthrough](history/2026-10-29-opus-integration-verification.md)
   passed on desktop and mobile, including website discovery and lost-response recovery. A failed
   disclosure lookup now has an [in-place retry](history/2026-10-29-home-terms-recovery.md) that preserves
   inputs and cannot dispatch work. Returning from Refine, Home now [continues the current revision](history/2026-10-30-home-current-revision.md)

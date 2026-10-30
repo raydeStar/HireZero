@@ -83,10 +83,8 @@ public sealed partial class CompanyStore
         if (knowledge is null && command.Id is null)
         {
             // Only owner-entered facts are confirmed here. The butler never approves his own research.
-            if (
-                Find<CompanyBusinessIdentity>(db, BusinessIdentityId) is not null
-                || All<CompanyKnowledge>(db).Any(k => k.DepartmentId is null)
-            )
+            // An unrelated knowledge draft is not a business brief; leave it safely on its own shelf.
+            if (Find<CompanyBusinessIdentity>(db, BusinessIdentityId) is not null)
                 throw new WorkspaceException(
                     "Finish reviewing the existing business brief before starting this work.",
                     409
