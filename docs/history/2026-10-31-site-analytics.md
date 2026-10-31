@@ -48,9 +48,19 @@ JSON with no Content-Length, and the site's server reads exactly Content-Length 
 provider now sends a sized body, and the fake site rejects an unsized one: the fact failed on the old code and passes
 on the new.
 
+## Installed
+
+At the owner's "Ship both", both local installs moved to 5baef00 through the usual backup routine:
+- The host, the analytics tool contracts, the Marketing role and the web app were replaced. The Site analytics
+  assembly was added, and the dependency manifest was checked to differ only by it. Core and every other assembly
+  kept their installed files. Each install verified 183 files.
+- All 20 companies kept their work, readings, schedules and connections, and every audit chain is intact. The active
+  morning shift and the pilot's schedule still match their approvals.
+- With no site connected, the daily read refuses without sending anything. Site analytics shows "not set up" until
+  the owner adds the address and a key.
+- No model calls were made.
+
 ## Not done
 
-- The installs on 5065 and 5066 are not updated. The new integration adds an assembly, so the next republish stages a
-  new file.
 - Only visitors are mapped to a step. Sign-ups and accounts are shown for the owner to place.
 - Filling readings with no owner step would override ADR 0029 and is not proposed.
