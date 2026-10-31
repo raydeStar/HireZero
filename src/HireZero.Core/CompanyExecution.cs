@@ -288,6 +288,8 @@ public sealed partial class CompanyStore
             WebsiteResearch = t.GoalWebsiteLookupId is null ? null : GoalWebsite(db, t.GoalWebsiteLookupId),
         };
         context = CompactBusinessPacket(context);
+        if (t.MeetingId is null && Role(e.RoleId).ShiftSkills.Contains(t.Skill))
+            context = context with { Scorecard = ShiftScorecard(db, e.Id), RecentWork = RecentWork(db, e.Id, t.Id) };
         // A reply knows what is connected, so it can ask for a connection it needs (docs/adr/0046-connect-cards.md).
         if (t.MeetingId is null && t.Kind is not (ContextDraftKind or ActionKind))
             context = context with { Connections = ConnectionsLine() };

@@ -51,6 +51,16 @@ public sealed class MarketingModule : IEmployeeModule
                     MeasuredProfile = CompanyMeasuredPolicy.DeliverableProfile,
                 },
                 new(
+                    MarketingShift.Skill,
+                    "Morning round",
+                    "On an owner-approved shift: read the goal ladder, weekly numbers and recent work, choose up to three jobs for the day and draft the first.",
+                    SkillMode.Measured
+                )
+                {
+                    MeasuredProfile = CompanyMeasuredPolicy.DeliverableProfile,
+                    ShiftContext = true,
+                },
+                new(
                     Draft,
                     "Campaign draft",
                     "Draft an asset from a versioned campaign brief for internal review.",
@@ -145,7 +155,9 @@ public sealed class MarketingModule : IEmployeeModule
                 "business-setup",
                 "draft-checks:" + StarterPlan,
                 "draft-checks:" + MarketingLadder.Skill,
+                "draft-checks:" + MarketingShift.Skill,
                 "home-card",
+                "home-lead",
             ],
             DisplayOrder = 10,
         };
@@ -160,6 +172,7 @@ public sealed class MarketingModule : IEmployeeModule
             StarterPlan => MarketingText.StarterPlanInstructions,
             GoalDraft => MarketingText.GoalDraftInstructions,
             MarketingLadder.Skill => MarketingLadder.Instructions,
+            MarketingShift.Skill => MarketingShift.Instructions,
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
             MarketingExperiments.Skill => MarketingExperiments.Instructions,
             MarketingAds.Review => MarketingAds.ReviewInstructions,

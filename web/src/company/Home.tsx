@@ -281,6 +281,9 @@ export function Home({
           </>
         )}
       </header>
+      {homeCards(d.roles, "home-lead").map(({ roleId, Card }) => (
+        <Card key={roleId} snapshot={snapshot} refresh={refresh} openWork={onOpenWork} openChat={onChat} />
+      ))}
       {results.length > 0 && (
         <section className="co-home-section" aria-label="Recent results">
           <h2>Your results</h2>
@@ -309,7 +312,7 @@ export function Home({
         </section>
       )}
       {homeCards(d.roles).map(({ roleId, Card }) => (
-        <Card key={roleId} snapshot={snapshot} refresh={refresh} openWork={onOpenWork} />
+        <Card key={roleId} snapshot={snapshot} refresh={refresh} openWork={onOpenWork} openChat={onChat} />
       ))}
       {goalStart && (
         <GoalStart

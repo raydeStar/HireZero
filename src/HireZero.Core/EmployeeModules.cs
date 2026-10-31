@@ -105,6 +105,10 @@ public sealed record EmployeeSkill(string Id, string Name, string Description, S
     )]
     public string? ModelProfile { get; init; }
 
+    // A shift round (docs/adr/0171-an-owner-approved-shift.md): its requests also carry the employee's recorded weekly
+    // numbers and where its recent work stands, so each round can move unfinished work forward.
+    public bool ShiftContext { get; init; }
+
     // A skill whose reviewed result the module can publish: an execution's changes or a measured skill's approved
     // artifact (docs/adr/0012-company-publication.md, docs/adr/0015-publishing-an-approved-artifact.md).
     public bool Publishes { get; init; }

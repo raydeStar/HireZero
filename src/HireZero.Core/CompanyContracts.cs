@@ -21,6 +21,7 @@ public sealed record CompanyRole(
     public string[] PublishingSkills { get; init; } = [];
     public string[] PublishingActions { get; init; } = [];
     public string[] OptionalOnboardingFields { get; init; } = [];
+    public string[] ShiftSkills { get; init; } = [];
     public EmployeeManifest? Manifest { get; init; }
 
     // A skill's or action's name as the module declares it, so the owner never reads an id.
@@ -55,6 +56,7 @@ public sealed record CompanyRole(
             ],
             PublishingActions = [.. manifest.Actions.Where(a => a.Publishes).Select(a => a.Id)],
             OptionalOnboardingFields = [.. manifest.Onboarding.Fields.Where(f => f.Optional).Select(f => f.Id)],
+            ShiftSkills = [.. manifest.Skills.Where(s => s.ShiftContext).Select(s => s.Id)],
             Manifest = manifest,
         };
     }
@@ -258,8 +260,21 @@ public sealed record CompanyContext(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        CompanyGoalWebsite? WebsiteResearch = null
+        CompanyGoalWebsite? WebsiteResearch = null,
+    // A shift round's evidence (docs/adr/0171-an-owner-approved-shift.md): the employee's latest weekly numbers, oldest
+    // first, and where its recent requests stand.
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )] CompanyReading[]? Scorecard = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyRecentWork[]? RecentWork = null
 );
+
+// One of an employee's recent requests as a shift round sees it: its title, the kind of work, where it stands and when
+// it last moved. Results themselves stay out; the owner reviews them separately.
+public sealed record CompanyRecentWork(string Title, string Work, string Status, string Updated);
 
 public sealed record CompanyAttempt(
     string Id,

@@ -717,6 +717,37 @@ static class BrowserQueueFixture
                     ## Notes for you
                     - Fictional ladder for a browser check.
                     """,
+                // A morning round sees the owner's numbers and recent work (docs/adr/0171-an-owner-approved-shift.md).
+                "marketing"
+                    when call.Instructions.Contains("'## Jobs for today', '## Draft for job 1'")
+                        && call.Context.Scorecard is { Length: > 0 } scorecard
+                        && call.Context.RecentWork is { Length: > 0 } => $"""
+                    ## What I looked at
+                    The goal ladder, {scorecard.Length} weeks of numbers and recent work.
+
+                    ## What changed
+                    - Visit to Order fell from 1 in 50 to 1 in 100.
+
+                    ## Today's focus
+                    Order: the shop page hides the starter kit.
+
+                    ## Jobs for today
+                    ### 1. Rewrite the shop page's opening lines
+                    Why: visitors need to see the starter kit first.
+                    Your time: 10 minutes
+                    Ask: Write three opening lines for the shop page that put the starter kit first.
+
+                    ### 2. Write one welcome email for new kit buyers
+                    Why: a warm first email brings buyers back for a second kit.
+                    Your time: 5 minutes
+                    Ask: Write one welcome email for new paper-kit buyers, under 120 words.
+
+                    ## Draft for job 1
+                    Start here: the starter kit has everything for your first fold.
+
+                    ## One question
+                    Do people need a card to order? (yes / no)
+                    """,
                 _ => throw new ModelTransportException(
                     "The fictional team has no such assignment.",
                     0,

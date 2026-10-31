@@ -90,6 +90,64 @@ public sealed partial class CompanyStore
         return reading;
     }
 
+    public const int ShiftWeeks = 8;
+    public const int ShiftRecentWork = 12;
+
+    // A shift round's numbers: the employee's latest weeks, oldest first, or none when nothing is recorded.
+    private CompanyReading[]? ShiftScorecard(StoreConnection db, string employeeId)
+    {
+        var weeks = All<CompanyReading>(db)
+            .Where(r => r.EmployeeId == employeeId)
+            .OrderBy(r => r.Week, StringComparer.Ordinal)
+            .TakeLast(ShiftWeeks)
+            .ToArray();
+        return weeks.Length == 0 ? null : weeks;
+    }
+
+    // Where the employee's recent requests stand, newest first. Conversations, context drafts and the current request
+    // are left out; so are result bodies, which the owner reviews on their own.
+    private CompanyRecentWork[] RecentWork(StoreConnection db, string employeeId, string currentTask)
+    {
+        var times = TaskTimes(db);
+        var artifacts = All<CompanyArtifact>(db);
+        var threads = All<CompanyThread>(db).ToDictionary(t => t.Id);
+        var role = Role(Need<CompanyEmployee>(db, employeeId).RoleId);
+        return
+        [
+            .. All<CompanyTask>(db)
+                .Where(t =>
+                    t.EmployeeId == employeeId
+                    && t.Id != currentTask
+                    && t.Kind is not ("conversation" or ContextDraftKind)
+                    && t.State is not "superseded"
+                )
+                .Reverse()
+                .Take(ShiftRecentWork)
+                .Select(t =>
+                {
+                    var latest = artifacts.LastOrDefault(a =>
+                        a.TaskId == t.Id && a.State is not ("superseded" or "revoked")
+                    );
+                    var status = t.State switch
+                    {
+                        "completed" => "done",
+                        "canceled" => "canceled",
+                        "failed" => "failed",
+                        _ when latest?.State == "approved" => "approved, not yet marked done",
+                        _ when latest?.State == "needs_review" => "draft waiting for the owner's review",
+                        _ => "in progress",
+                    };
+                    var title = threads.TryGetValue(t.ThreadId, out var thread) ? thread.Title : "";
+                    return new CompanyRecentWork(
+                        Text(string.IsNullOrWhiteSpace(title) ? t.Input : title, 120),
+                        role.WorkName(t.Skill),
+                        status,
+                        times.TryGetValue(t.Id, out var time) ? time.Updated.ToString("yyyy-MM-dd") : ""
+                    );
+                }),
+        ];
+    }
+
     // The latest weeks of each employee's numbers, oldest first.
     private CompanyReading[] RecentReadings(StoreConnection db) =>
         [

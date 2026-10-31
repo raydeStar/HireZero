@@ -1,5 +1,6 @@
 /* Marketing's goal ladder card on Home (docs/adr/0170-goal-ladder-and-weekly-numbers.md). */
-.co-workspace .co-home > section.co-ladder {
+.co-workspace .co-home > section.co-ladder,
+.co-workspace .co-home > section.co-shift {
   margin-top: 28px;
   padding: 22px 26px;
   border-radius: 16px;
@@ -7,7 +8,8 @@
   background: var(--fe-surface);
   box-shadow: var(--fe-shadow);
 }
-.co-ladder h2 {
+.co-ladder h2,
+.co-shift h2 {
   font-size: var(--fe-t-l);
   letter-spacing: -0.01em;
   margin: 0 0 6px;
@@ -165,6 +167,7 @@
   margin-top: 12px;
 }
 @media (max-width: 640px) {
+  .co-workspace .co-home > section.co-shift,
   .co-workspace .co-home > section.co-ladder {
     padding: 18px 16px;
   }
@@ -176,7 +179,8 @@
     margin-bottom: 8px;
   }
 }
-.co-workspace .co-ladder .co-check {
+.co-workspace .co-ladder .co-check,
+.co-workspace .co-shift .co-check {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -185,8 +189,92 @@
   margin-top: 12px;
   text-align: left;
 }
-.co-workspace .co-ladder input[type="checkbox"] {
+.co-workspace .co-ladder input[type="checkbox"],
+.co-workspace .co-shift input[type="checkbox"] {
   width: 18px;
   flex: 0 0 18px;
   margin-top: 3px;
+}
+
+/* Chip's shift (docs/adr/0171-an-owner-approved-shift.md). */
+.co-shift-live {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--hz-live);
+  box-shadow: 0 0 0 4px var(--hz-live-soft);
+}
+.co-shift-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin: 8px 0 4px;
+}
+.co-shift-form label {
+  display: grid;
+  gap: 4px;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-2);
+}
+.co-shift-form input[type="number"] {
+  width: 90px;
+}
+.co-shift-when {
+  margin: 14px 0 8px;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-3);
+}
+.co-shift-report > .co-ladder-md {
+  margin-bottom: 12px;
+}
+.co-shift-report > .co-ladder-md > b {
+  display: block;
+}
+.co-shift-jobs {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  counter-reset: job;
+}
+.co-shift-jobs li {
+  padding: 14px 16px;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  background: var(--fe-surface-2);
+  counter-increment: job;
+}
+.co-shift-jobs li > b::before {
+  content: counter(job) ". ";
+  color: var(--fe-fg-4);
+}
+.co-shift-jobs li p {
+  margin: 4px 0;
+}
+.co-shift-jobs li small {
+  color: var(--fe-fg-3);
+}
+.co-shift-jobs .co-ladder-actions {
+  margin-top: 8px;
+}
+.co-shift-question {
+  padding: 12px 14px;
+  border: 1px dashed var(--fe-line-2);
+  border-radius: 12px;
+}
+.co-shift-question p {
+  margin: 4px 0 8px;
+}
+.co-shift-again {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--fe-line);
+}
+.co-shift-again h3 {
+  margin: 0 0 6px;
+  font-size: var(--fe-t-m);
 }

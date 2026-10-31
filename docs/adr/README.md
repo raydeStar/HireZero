@@ -175,3 +175,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0168](0168-company-writers-queue-for-the-database.md) | Queue company writers and use SQLite's busy handler | Accepted; longest measured wait 1.9 s to 75 ms, write wait and hold recorded |
 | [0169](0169-openrouter-reasoning-per-model.md) | Set OpenRouter reasoning effort per model | Accepted; DeepSeek V4.1 Flash runs without reasoning, others keep low |
 | [0170](0170-goal-ladder-and-weekly-numbers.md) | Give Marketing a goal ladder and weekly numbers | Accepted; optional department fields, one-consent draft, owner-recorded weeks compared by code |
+| [0171](0171-an-owner-approved-shift.md) | Put Marketing on an owner-approved shift of morning rounds | Accepted; recurring rounds read numbers and recent work, jobs start with one click, no new authority |

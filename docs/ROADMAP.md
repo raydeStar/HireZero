@@ -209,8 +209,11 @@ Unknown costs, estimates, usage changes and corrections remain explicit; desktop
 proof. Actual invoices, shared-cost allocations and sustainable pricing still require operational observations.
 Marketing now has a goal ladder and weekly numbers: one number to grow, the steps customers take, the step to work
 on first, and a weekly scorecard ([ADR 0170](adr/0170-goal-ladder-and-weekly-numbers.md),
-[notes](history/2026-10-30-goal-ladder.md)). It is the first of three steps toward an owner-approved Marketing shift;
-the morning shift with its stepped queue, then measuring, deciding and weekly learning, follow.
+[notes](history/2026-10-30-goal-ladder.md)). It is the first of three steps toward an owner-approved Marketing shift.
+The second puts Marketing on shift: a finite run of morning rounds that read the ladder, the numbers and recent work,
+come back with up to three jobs and draft the first, with the rest one click away
+([ADR 0171](adr/0171-an-owner-approved-shift.md), [notes](history/2026-10-30-marketing-shift.md)). Measuring, deciding
+and weekly learning follow.
 Actual usefulness, identification accuracy and commercial retention still require observed customer trials.
 The full product goal remains in progress.
 

@@ -10,11 +10,18 @@ export type SkillInput = {
   Editor: ComponentType<{ value: Record<string, string>; onChange: (value: Record<string, string>) => void }>;
 };
 // A card on Home for a role's standing work with the owner, such as Marketing's goal ladder.
-export type HomeCardProps = { snapshot: Snapshot; refresh: () => Promise<void>; openWork: (task: Work) => void };
+export type HomeCardProps = {
+  snapshot: Snapshot;
+  refresh: () => Promise<void>;
+  openWork: (task: Work) => void;
+  openChat: (employee: Snapshot["data"]["employees"][number]) => void;
+};
 export type CompanyRoleUi = {
   skillInputs?: Record<string, SkillInput>;
   panels?: Record<string, ComponentType>;
   homeCard?: ComponentType<HomeCardProps>;
+  // Shown right after Home's greeting, before results: for what matters most today, such as a shift's morning round.
+  homeLead?: ComponentType<HomeCardProps>;
   businessSetup?: (profile: BusinessProfile) => BusinessSetup;
   // Shared specificity: 3 requested work, 2 named deliverable, 1 topic, 0 general starting option.
   recommendation?: (profile: BusinessProfile) => { reason: string; priority: number; position?: number } | undefined;
@@ -101,10 +108,14 @@ export function panels(roles: Role[], slot: string): { roleId: string; Panel: Co
   });
 }
 
-// Each role's Home card, for roles whose manifest declares the "home-card" slot, in role order.
-export function homeCards(roles: Role[]): { roleId: string; Card: ComponentType<HomeCardProps> }[] {
+// Each role's Home card ("home-card" slot) or lead ("home-lead" slot), in role order.
+export function homeCards(
+  roles: Role[],
+  slot: "home-card" | "home-lead" = "home-card",
+): { roleId: string; Card: ComponentType<HomeCardProps> }[] {
   return roles.flatMap((role) => {
-    const Card = role.uiSlots?.includes("home-card") ? byRole[role.id]?.homeCard : undefined;
+    const ui = byRole[role.id];
+    const Card = role.uiSlots?.includes(slot) ? (slot === "home-lead" ? ui?.homeLead : ui?.homeCard) : undefined;
     return Card ? [{ roleId: role.id, Card }] : [];
   });
 }
