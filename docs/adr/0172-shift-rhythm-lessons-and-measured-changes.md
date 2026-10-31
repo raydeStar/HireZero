@@ -36,7 +36,8 @@ at most three one-sentence lessons, grounded in the numbers, recent work or the 
   lesson does not stop the shift.
 
 **Changes judged by a fixed rule.** A Marketing draft the owner marks done counts as a change from that week. The
-ladder card measures it by code, at the share of people who move on from the focus step to the next one:
+ladder card measures it by code, at the share of people who reach the focus step (the step too few people reach)
+from the step before it:
 - **Working:** the share rose by a fifth or more.
 - **Not working:** the share fell by a fifth or more. The card suggests changing it back.
 - **Unclear:** the share moved by less than that.

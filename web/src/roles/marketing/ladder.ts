@@ -172,3 +172,17 @@ export function measureChange(steps: LadderStep[], step: number, readings: Readi
   const change = d / c / (b / a) - 1;
   return { verdict: change >= 0.2 ? "working" : change <= -0.2 ? "not working" : "unclear", before, after };
 }
+
+// The focus's step: the one it names first ("Order: few visitors order…"), else the earliest whole-word mention.
+export function focusOf(steps: LadderStep[], focus: string): LadderStep | undefined {
+  const lead = plain(focus.split(/\r?\n/)[0].split(/[:—]/)[0]).toLowerCase();
+  const named = steps.find((s) => s.name.toLowerCase() === lead);
+  if (named) return named;
+  const text = focus.toLowerCase();
+  const at = (s: LadderStep) =>
+    text.search(new RegExp(`\\b${s.name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`));
+  return steps
+    .map((s) => ({ s, i: at(s) }))
+    .filter((x) => x.i >= 0)
+    .sort((a, b) => a.i - b.i)[0]?.s;
+}

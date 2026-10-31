@@ -711,7 +711,7 @@ static class BrowserQueueFixture
                     - Order: starter kits ordered a week
 
                     ## Focus
-                    Visit: few visitors order, and the shop page does not show the starter kit first. Show it at the top of the shop page. A best guess until the weekly numbers confirm it.
+                    Order: few visitors order, and the shop page does not show the starter kit first. Show it at the top of the shop page. A best guess until the weekly numbers confirm it.
                     Leave alone for now: paid ads.
 
                     ## Notes for you

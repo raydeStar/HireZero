@@ -195,7 +195,7 @@ try {
   await click("Use this ladder");
   await text("Your goal ladder");
   await until(() => evaluate("document.querySelectorAll('.co-ladder-steps li').length === 3"), "three steps");
-  assert.equal(await evaluate("document.querySelector('.co-ladder-steps li.focus b').textContent"), "Visit");
+  assert.equal(await evaluate("document.querySelector('.co-ladder-steps li.focus b').textContent"), "Order");
   await text("Leave alone for now");
   assert.equal(await evaluate("document.querySelector('.co-ladder-focus .co-muted').innerText.includes('paid ads')"), true);
   state = (await dashboard()).data;
@@ -283,7 +283,7 @@ try {
   assert.equal(lesson.memory.state, "approved");
   assert.equal(lesson.memory.definition.employeeId, round.employeeId);
 
-  // A finished job is a change; the ladder judges it at the focus step by the fixed rule, once enough weeks exist.
+  // A finished job is a change; the ladder judges the share reaching the focus step by the fixed rule, once enough weeks exist.
   state = (await dashboard()).data;
   const jobDraft = state.artifacts.find((a) => a.taskId === job.id);
   await command("artifact.review", { id: jobDraft.id, expectedVersion: jobDraft.version, digest: jobDraft.digest, decision: "approve" });

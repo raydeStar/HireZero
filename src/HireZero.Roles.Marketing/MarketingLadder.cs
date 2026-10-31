@@ -27,7 +27,7 @@ public static class MarketingLadder
         },
         new(
             "focus",
-            "The step that loses the most people now and why, what to work on there first, and what to leave alone for now"
+            "The step too few people reach from the step before it and why, what to work on first, and what to leave alone for now"
         )
         {
             Optional = true,
@@ -42,7 +42,7 @@ public static class MarketingLadder
         + "Goal: one number the owner can count every week that marketing should grow, such as new paying customers a week, and one or two sentences on how growing it leads to what the owner wants. Use the owner's own number if their goal names one. "
         + "First step: the one thing a new customer does first, and where, using the supplied customer route; if none is supplied, propose one and say it is a proposal. "
         + "Steps: three to five steps from first hearing about the business to the goal's number, in order, each on its own line as '- Step name: the number that shows it each week'. Keep step names to two to four plain words. Choose numbers the owner can see for free; where one needs a tool such as website analytics, name it briefly in parentheses. The last step's number is the goal's number. "
-        + "Focus: the step that most likely loses the most people right now and why, using only the supplied evidence, such as a homepage that never says who it is for or no clear way to start. Then give one to three first things to work on at that step, each with the reason. Call it a best guess until the weekly numbers confirm it, and say which numbers would. End the section with a line that starts 'Leave alone for now:' and names work that would not help yet. "
+        + "Focus: start with the name of the step too few people reach from the step before it, the most likely biggest loss right now, and say why, using only the supplied evidence, such as a homepage that never says who it is for or no clear way to start. Then give one to three first things to work on at that step, each with the reason. Call it a best guess until the weekly numbers confirm it, and say which numbers would. End the section with a line that starts 'Leave alone for now:' and names work that would not help yet. "
         + "Notes for you: at most three short bullets on what you assumed or what the owner should check. "
         + "Do not invent current numbers, targets, results, benchmarks, customers or company facts; a supplied unknown stays unknown. Keep it to about 400 words. Return a private draft for the owner's approval; do not perform actions.";
 }

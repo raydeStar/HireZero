@@ -10,6 +10,7 @@ import type { HomeCardProps } from "../company";
 import {
   addWeeks,
   biggestDrop,
+  focusOf,
   ladderSkill,
   measureChange,
   parseLadderDraft,
@@ -482,11 +483,11 @@ function Scorecard({
   const before = latest && readings.find((r) => r.week === addWeeks(latest.week, -1));
   const drop = biggestDrop(steps, latest, before);
   const [focusText, leave] = splitLeave(ladder.focus);
-  const focusStep = steps.find((s) => ladder.focus.toLowerCase().includes(s.name.toLowerCase()));
+  const focusStep = focusOf(steps, ladder.focus);
   // Done Marketing drafts are the changes; each is judged at the focus step by the fixed rule (docs/adr/0172).
   const d = snapshot.data;
-  // The focus step is where people should move on, so a change is judged on the share reaching the step after it.
-  const judged = Math.max(1, focusStep ? Math.min(steps.indexOf(focusStep) + 1, steps.length - 1) : steps.length - 1);
+  // The focus step is the one too few people reach, so a change is judged on its share of the step before it.
+  const judged = Math.max(1, focusStep ? steps.indexOf(focusStep) : steps.length - 1);
   const changes = readings.length
     ? d.tasks
         .filter((t) => t.employeeId === employee.id && t.skill === "marketing-goal-draft" && t.state === "completed")

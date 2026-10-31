@@ -5,7 +5,7 @@ import ts from "../web/node_modules/typescript/lib/typescript.js";
 const source = fs.readFileSync(new URL("../web/src/roles/marketing/ladder.ts", import.meta.url), "utf8");
 const exports = {};
 vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports });
-const { parseLadderDraft, parseSteps, weekOf, addWeeks, shareText, biggestDrop, ladderChecks, measureChange } = exports;
+const { parseLadderDraft, parseSteps, weekOf, addWeeks, shareText, biggestDrop, ladderChecks, measureChange, focusOf } = exports;
 // Values from the sandbox's own realm compare by content.
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
@@ -89,4 +89,9 @@ assert.equal(measureChange(pair, 1, around(10, 7), "2026-11-02").verdict, "not w
 assert.equal(measureChange(pair, 1, around(10, 11), "2026-11-02").verdict, "unclear", "A tenth is within the rule's band");
 assert.deepEqual(plain(measureChange(pair, 1, around(10, 13).slice(0, 4), "2026-11-02")), { verdict: "too early", judgeFrom: "2026-11-23" });
 assert.equal(measureChange(pair, 0, around(10, 13), "2026-11-02").verdict, "too early", "The first step has no step before it");
+// The focus names the step too few people reach: the step it names first, not a word that merely contains another step.
+assert.equal(focusOf(steps, "Order: few visitors order, and the shop page hides the kit.").name, "Order");
+assert.equal(focusOf(steps, "**Visit**: few people come to the site.").name, "Visit");
+assert.equal(focusOf(steps, "Work on the step from website visit to order.").name, "Visit");
+assert.equal(focusOf(steps, "Nothing named here."), undefined);
 console.log("marketing goal ladder: ok");

@@ -176,7 +176,7 @@ try {
   await click("Use this ladder");
   await text("Your goal ladder");
   await until(() => evaluate("document.querySelectorAll('.co-ladder-steps li').length === 3"), "three steps");
-  assert.equal(await evaluate("document.querySelector('.co-ladder-steps li.focus b').textContent"), "Visit");
+  assert.equal(await evaluate("document.querySelector('.co-ladder-steps li.focus b').textContent"), "Order");
   await text("Leave alone for now");
   assert.equal(await evaluate("document.querySelector('.co-ladder-focus .co-muted').innerText.includes('paid ads')"), true);
   state = (await dashboard()).data;

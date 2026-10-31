@@ -19,7 +19,7 @@ loop: measure, decide, learn, inside a weekly rhythm.
   has Keep. A kept lesson becomes approved memory addressed to the employee and reaches every later round. It is
   editable under Memory, and keeping it does not stop the shift.
 - **Changes being measured.** On the ladder card, each Marketing draft the owner marked done is a change from that
-  week, judged by code at the share of people moving on from the focus step:
+  week, judged by code at the share of people reaching the focus step from the step before it:
   - **Working:** the share rose by a fifth or more.
   - **Not working:** it fell by a fifth or more, with a suggestion to change it back.
   - **No clear change:** it moved by less than that.
