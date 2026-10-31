@@ -271,6 +271,54 @@ public sealed partial class CompanyStore
             )
         );
 
+    private object KeepLesson(StoreConnection db, CompanyCommand command)
+    {
+        var source = Need<CompanyArtifact>(db, command.Id);
+        var lesson = Text(command.Body ?? "", 1200).Trim();
+        if (source.Digest != command.Digest)
+            throw new WorkspaceException("The report changed. Read the current lesson before keeping it.", 409);
+        if (command.Decision != "keep" || lesson.Length == 0 || !FeedbackSourceContains(source, lesson))
+            throw new WorkspaceException("Choose the exact lesson from this report to keep.", 422);
+        var existing = All<CompanyMemoryItem>(db)
+            .FirstOrDefault(m =>
+                m.State == "approved"
+                && m.Definition.EmployeeId == source.EmployeeId
+                && m.Definition.Kind == "feedback"
+                && m.Definition.Statement == lesson
+                && MemoryExclusion(db, m) is null
+            );
+        if (existing is not null)
+            return existing;
+        var saved = (CompanyMemoryItem)SaveMemory(
+            db,
+            command with
+            {
+                Id = null,
+                ExpectedVersion = 0,
+                Body = CompanyJson.Encode(
+                    new CompanyMemoryInput(
+                        "feedback",
+                        "Lesson: " + lesson[..Math.Min(140, lesson.Length)],
+                        lesson,
+                        "Owner kept this lesson from an employee report; this does not verify the report's other claims.",
+                        EmployeeId: source.EmployeeId
+                    )
+                ),
+            }
+        );
+        // One transaction: a lost reply must never leave half a lesson on the butler's tray.
+        return ReviewMemory(
+            db,
+            command with
+            {
+                Id = saved.Id,
+                ExpectedVersion = saved.Version,
+                Digest = saved.Digest,
+                Decision = "approve",
+            }
+        );
+    }
+
     private object SaveMemory(StoreConnection db, CompanyCommand command)
     {
         var input = CompanyJson.Decode<CompanyMemoryInput>(command.Body ?? "null");

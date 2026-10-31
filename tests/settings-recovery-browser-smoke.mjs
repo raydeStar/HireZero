@@ -72,8 +72,9 @@ try{
   const fault=(path,kind,action='')=>evaluate(`window.__settingsFault=${JSON.stringify({path,kind,action})}`);
   const count=(path,action='')=>evaluate(`JSON.parse(sessionStorage.getItem('settings-smoke-requests')||'[]').filter(r=>r.path===${JSON.stringify(path)}&&(!${JSON.stringify(action)}||r.action===${JSON.stringify(action)})).length`);
   const section=async label=>{
-    await evaluate("document.querySelector('.co-navigation button[aria-label=\"Company\"]').click()");
-    await until(()=>evaluate("!!document.querySelector('.co-hub-tabs')"),'company sections');
+    await evaluate("document.querySelector('.co-navigation button[aria-label=\"Company settings\"]').click()");
+    await until(()=>evaluate("!!document.querySelector('.co-advanced-settings')"),'settings sections');
+    await evaluate("document.querySelector('.co-advanced-settings').open=true");
     await evaluate(`[...document.querySelectorAll('.co-hub-tabs button')].find(b=>b.textContent===${JSON.stringify(label)}).click()`);await idle();
   };
   const alert=part=>until(()=>evaluate(`document.body.innerText.includes(${JSON.stringify(part)})`),'visible '+part);

@@ -40,7 +40,7 @@ try{
   const write=async(label,value)=>{await evaluate("(()=>{const el=document.querySelector('textarea[aria-label='+CSS.escape("+JSON.stringify(label)+")+']');if(!el)throw Error('Missing composer');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,"+JSON.stringify(value)+");el.dispatchEvent(new Event('input',{bubbles:true}));})()");};
   const composerValue=()=>evaluate("document.querySelector('.fe-composer textarea')?.value");
   const submitTwice=async()=>{await idle();await evaluate("(()=>{const form=document.querySelector('.co-conversation-composer form');form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");}
-  const company=async()=>{await evaluate("document.querySelector('button[aria-label=\"Chat\"]').click()");await until(()=>evaluate("!!document.querySelector('textarea[aria-label=\"Company message\"]')"),'company composer');};
+  const company=async()=>{await evaluate("[...document.querySelectorAll('.co-conversations button')].find(b=>b.textContent.includes('Company conversation')).click()");await until(()=>evaluate("!!document.querySelector('textarea[aria-label=\"Company message\"]')"),'company composer');};
   const value=(label,text)=>write(label,text);
   // The same synchronous UI event cannot create duplicate owner notes.
   await company();await value('Company message','Owner keeps final authority over employee work.');await submitTwice();

@@ -67,7 +67,7 @@ try{
   await evaluate("document.querySelector('.co-private-context').open=false");await fieldReady('Message action','save');await write('Message to '+marketing.name,'ONLY_PRIVATE_BROWSER_HISTORY');await twice();
   await until(()=>evaluate("document.querySelector('.fe-thread').textContent.includes('ONLY_PRIVATE_BROWSER_HISTORY')"),'saved-only history');assert.equal((await dashboard()).data.tasks.length,0,'Saving alone creates no autonomous task');assert.equal(await starts(),0);
   // Main company reply gets a separate transcript and a smaller context.
-  await evaluate("document.querySelector('button[aria-label=\"Chat\"]').click()");await fieldReady('Reply as',marketing.id);await fieldReady('Credit allowance','1');await write('Company message','COMPANY_BROWSER_QUESTION: Which shared facts are approved?');await twice();
+  await evaluate("[...document.querySelectorAll('.co-conversations button')].find(b=>b.textContent.includes('Company conversation')).click()");await fieldReady('Reply as',marketing.id);await fieldReady('Credit allowance','1');await write('Company message','COMPANY_BROWSER_QUESTION: Which shared facts are approved?');await twice();
   await until(async()=>(await dashboard()).data.measured.length===1,'one prepared company reply');
   await fieldReady('Reply as','');await openPreparedNeed(marketing);
   assert.equal(await evaluate("[...document.querySelectorAll('.co-main label')].find(l=>l.childNodes[0]?.textContent.trim()==='Reply as').querySelector('select').value"),marketing.id,'company need restores the correct reply recipient');

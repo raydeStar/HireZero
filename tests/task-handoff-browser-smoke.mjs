@@ -69,7 +69,7 @@ try{
   await field('Task instructions and acceptance criteria','Prepare an unpublished implementation proposal from the approved paper-crane copy. Acceptance: preserve the approved facts; no publishing.');
   await evaluate("window.__handoffFetch=window.fetch.bind(window);window.fetch=async(...args)=>{const result=await window.__handoffFetch(...args);if(typeof args[1]?.body==='string'&&JSON.parse(args[1].body).action==='handoff.assign')await new Promise(resolve=>window.__releaseHandoff=resolve);return result;};");
   await click('Share this artifact and assign work');await until(async()=>(await dashboard()).data.handoffs.length===1,'explicit assigned handoff');
-  await until(()=>evaluate("typeof window.__releaseHandoff==='function'"),'delayed handoff HTTP response');await evaluate("document.querySelector('button[aria-label=\"Chat\"]').click()");await evaluate('window.__releaseHandoff()');await delay(300);
+  await until(()=>evaluate("typeof window.__releaseHandoff==='function'"),'delayed handoff HTTP response');await evaluate("[...document.querySelectorAll('.co-conversations button')].find(b=>b.textContent.includes('Company conversation')).click()");await evaluate('window.__releaseHandoff()');await delay(300);
   assert.equal(await evaluate("new URLSearchParams(location.search).get('view')"),'company','A late handoff does not override owner navigation');
   await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Browser Developer fixture')).click()");
   state=await dashboard();const handoff=state.data.handoffs[0],assigned=state.data.tasks.find(t=>t.id===handoff.targetTaskId);

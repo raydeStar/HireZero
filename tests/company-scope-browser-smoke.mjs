@@ -45,7 +45,7 @@ try{
   const field=async(label,value,scope='.co-main')=>{await evaluate(`(()=>{const label=[...document.querySelectorAll(${JSON.stringify(scope+' label')})].find(l=>l.childNodes[0]?.textContent.trim()===${JSON.stringify(label)});if(!label)throw Error('Field missing: '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);await delay(70);};
   const guide=async()=>{await click('People');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Guided hiring\"]')"),'hiring guide loaded');};
   const reloadGuide=async()=>{await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Guided hiring\"]')"),'hiring guide reloaded');};
-  const switchCompany=async id=>{await click('Company');await click('Companies');await until(()=>evaluate("!!document.querySelector('.co-companies select')"),'company switcher loaded');await field('Switch to',id,'.co-companies');await until(()=>evaluate("!!document.querySelector('.co-home')"),'selected company loaded');await guide();};
+  const switchCompany=async id=>{await click('Settings');await evaluate("document.querySelector('.co-advanced-settings').open=true");await click('Companies');await until(()=>evaluate("!!document.querySelector('.co-companies select')"),'company switcher loaded');await field('Switch to',id,'.co-companies');await until(()=>evaluate("!!document.querySelector('.co-home')"),'selected company loaded');await guide();};
   const snapshot=id=>fetch(url+'/api/company',{headers:id?{'X-HireZero-Company':id}:{}}).then(r=>r.json());
   const create=await evaluate("fetch('/api/companies',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({name:'Fictional second studio'})}).then(async r=>{if(!r.ok)throw Error(await r.text());return r.json();})");
   const companyA='local-company',companyB=create.id;
@@ -68,7 +68,7 @@ try{
   await second.evaluate(`localStorage.setItem('dev-ui:company',JSON.stringify(${JSON.stringify(companyB)}))`);
   await second.send('Page.reload');await until(()=>second.evaluate("!!document.querySelector('.co-home')"),'second tab switched to second company');
   assert.equal(await evaluate("JSON.parse(localStorage.getItem('dev-ui:company'))"),companyB,'The second tab changed shared browser storage');
-  await click('Company');await click('Departments');await field('New department','First-tab-only department');await click('Create department');
+  await click('Settings');await evaluate("document.querySelector('.co-advanced-settings').open=true");await click('Departments');await field('New department','First-tab-only department');await click('Create department');
   await until(async()=>(await snapshot(companyA)).data.departments.some(d=>d.name==='First-tab-only department'),'first tab writes to its loaded company');
   assert.equal((await snapshot(companyB)).data.departments.length,0,'Shared preference changes cannot redirect another tab’s command');
   await guide();assert.equal(await name(),'First company candidate','The original tab also keeps its draft scope');

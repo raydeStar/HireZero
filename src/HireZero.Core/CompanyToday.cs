@@ -161,7 +161,8 @@ public sealed partial class CompanyStore
                 // A knowledge draft is named by its department and, when one hire waits on it, that hire (real-use
                 // batch, 2026-10-20): "Marketing: approve Chip's context", never a generic "Department knowledge".
                 var departments = All<CompanyDepartment>(db).ToDictionary(d => d.Id);
-                foreach (var k in All<CompanyKnowledge>(db).Where(k => k.State == "draft"))
+                var knowledge = All<CompanyKnowledge>(db).ToArray();
+                foreach (var k in knowledge.Where(k => k.State == "draft"))
                 {
                     var waiting = employees
                         .Values.Where(e => e.State == "onboarding" && e.DepartmentId == k.DepartmentId)
@@ -170,22 +171,29 @@ public sealed partial class CompanyStore
                         k.DepartmentId is { } id && departments.TryGetValue(id, out var department)
                             ? department.Name
                             : "Company";
+                    var proposedUpdate = knowledge.Any(other =>
+                        other.DepartmentId == k.DepartmentId && other.State == "approved"
+                    );
                     needs.Add(
                         new(
                             "knowledge",
                             place
-                                + ": approve "
+                                + (proposedUpdate ? ": review proposed changes to " : ": approve ")
                                 + (
                                     waiting.Length == 1 ? waiting[0].Name + "'s context"
                                     : k.DepartmentId is null ? "company facts"
                                     : "department context"
                                 ),
-                            waiting.Length == 1
-                                ? "A context draft waits for your approval to finish this hire."
+                            waiting.Length == 1 ? "A context draft waits for your approval to finish this hire."
+                                : proposedUpdate
+                                    ? "Your approved context is already available. A separate draft waits for review."
                                 : "A knowledge draft waits for your approval.",
                             waiting.Length == 1 ? waiting[0].Id : null,
                             null
                         )
+                        {
+                            TargetId = k.Id,
+                        }
                     );
                 }
                 // An unfinished hire waits on the owner too (UX round 6), unless its department's draft context, listed

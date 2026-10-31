@@ -193,19 +193,26 @@ export function BusinessBrief({
   function editField(key: string, patch: Partial<ProfileField>) {
     change({ ...draft, fields: draft.fields.map((f) => (f.key === key ? { ...f, ...patch } : f)) });
   }
+  const setupComplete = confirmed && !editingIdentity && profile?.state === "approved" && !editingProfile;
   return (
     <section className="co-business" aria-label="Business brief">
-      <div className="co-business-intro">
-        <p className="co-eyebrow">Your business, understood first</p>
-        <h2>Give your team a shared starting point.</h2>
-        <p>Confirm the right business, review the facts, then choose an employee. Unknown details can stay unknown.</p>
-      </div>
-      <ol className="co-business-steps">
-        <li aria-current={!confirmed ? "step" : undefined}>1. Confirm business</li>
-        <li aria-current={confirmed && profile?.state !== "approved" ? "step" : undefined}>2. Review brief</li>
-        <li aria-current={profile?.state === "approved" ? "step" : undefined}>3. Set up your team</li>
-      </ol>
-      {confirmed && !editingIdentity && profile?.state === "approved" && !editingProfile && (
+      {!setupComplete && (
+        <>
+          <div className="co-business-intro">
+            <p className="co-eyebrow">Your business, understood first</p>
+            <h2>Give your team a shared starting point.</h2>
+            <p>
+              Confirm the right business, review the facts, then choose an employee. Unknown details can stay unknown.
+            </p>
+          </div>
+          <ol className="co-business-steps">
+            <li aria-current={!confirmed ? "step" : undefined}>1. Confirm business</li>
+            <li aria-current={confirmed && profile?.state !== "approved" ? "step" : undefined}>2. Review brief</li>
+            <li aria-current={profile?.state === "approved" ? "step" : undefined}>3. Set up your team</li>
+          </ol>
+        </>
+      )}
+      {setupComplete && (
         <TeamRecommendations
           snapshot={snapshot}
           disabled={busy || !owner}

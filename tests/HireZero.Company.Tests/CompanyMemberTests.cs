@@ -70,6 +70,20 @@ public sealed class CompanyMemberTests : IDisposable
         Assert.Equal("Ops", department.Name);
         Assert.Equal(CompanyAccess.Steps, CompanyRoles.Approver);
         Assert.Equal(CompanyRoles.Owner, CompanyAccess.Required("workspace.grant"));
+        Assert.Equal(CompanyRoles.Owner, CompanyAccess.Required("memory.keep"));
+        var lessonRefusal = Assert.Throws<WorkspaceException>(() =>
+            store.Apply(
+                Cmd("memory.keep") with
+                {
+                    Id = "fictional-report",
+                    Decision = "keep",
+                    Body = "A lesson",
+                },
+                approver,
+                out _
+            )
+        );
+        Assert.Contains("needs owner", lessonRefusal.Message);
         Assert.Equal(CompanyRoles.Approver, CompanyAccess.Required("publication.review"));
     }
 

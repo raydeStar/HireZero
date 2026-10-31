@@ -268,8 +268,58 @@ try {
   await text("Do people need a card to order? (yes / no)");
 
   // Job 2 starts with one click: one more private draft, in its own conversation.
+  const unavailableTerms = await send("Page.addScriptToEvaluateOnNewDocument", { source: `(()=>{
+    const original=window.fetch;window.fetch=(input,options)=>{
+      if(!window.allowRunDetails&&String(input).includes('/company/goals/terms?')&&String(input).includes('marketing-goal-draft')){
+        return Promise.reject(new TypeError('Fictional unavailable run details'));
+      }return original(input,options);
+    };
+  })()` });
+  await send("Page.reload");
+  await text("Reload run details");
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-shift-jobs button')].find(b=>b.textContent==='Do it').disabled"), true);
+  await evaluate("window.allowRunDetails=true");
+  await click("Reload run details");
+  await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: unavailableTerms.identifier });
+  await text("Intended allowance: 1 existing subscription credit");
+  const beforeStorageRefusal = (await dashboard()).data.tasks.length;
+  await evaluate(`window.originalStorageSet=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){
+    if(k.startsWith('hirezero-shift-job-v1:'))throw new Error('Fictional storage refusal');
+    return window.originalStorageSet.call(this,k,v);
+  };`);
   await click("Do it");
+  await text("Fictional storage refusal");
+  assert.equal((await dashboard()).data.tasks.length, beforeStorageRefusal, "No mutation before the recovery receipt is saved");
+  await evaluate("Storage.prototype.setItem=window.originalStorageSet");
+  await evaluate(`(()=>{const original=window.fetch;window.fetch=async(input,options)=>{
+    if(String(input).includes('/company/operations/')) throw new TypeError('Fictional unavailable lookup');
+    if(String(input)==='/api/company/commands'&&JSON.parse(options?.body||'{}').action==='goal.prepare'){
+      await original(input,options);throw new TypeError('Fictional lost prepare reply');
+    }
+    return original(input,options);
+  };})()`);
+  await click("Do it");
+  await text("Check saved request");
+  await until(()=>evaluate("!document.querySelector('.co-shift-recovery button')?.disabled"), "uncertain preparation stopped");
+  const preparedCount = (await dashboard()).data.tasks.length;
+  await send("Page.reload");
+  await text("Check saved request");
+  // Reconcile the preparation, then lose the run reply too. Neither uncertainty permits a second dispatch.
+  await evaluate(`(()=>{const original=window.fetch;let runSent=false;window.fetch=async(input,options)=>{
+    if(runSent&&String(input).includes('/company/operations/')) throw new TypeError('Fictional unavailable run lookup');
+    if(String(input)==='/api/company/commands'&&JSON.parse(options?.body||'{}').action==='measured.run'){
+      runSent=true;await original(input,options);throw new TypeError('Fictional lost run reply');
+    }
+    return original(input,options);
+  };})()`);
+  await click("Check saved request");
+  await until(()=>evaluate("!!document.querySelector('.co-shift-report [role=alert]') && !document.querySelector('.co-shift-recovery button')?.disabled"), "uncertain dispatch stopped");
+  await send("Page.reload");
+  await text("Check saved request");
+  await click("Check saved request");
+  await until(()=>evaluate("!document.querySelector('.co-shift-recovery')"), "saved dispatch reconciled");
   await text("Started · open it");
+  assert.equal((await dashboard()).data.tasks.length, preparedCount, "Recovery never creates another task");
   state = (await dashboard()).data;
   const job = state.tasks.find((t) => t.skill === "marketing-goal-draft" && state.threads.find((h) => h.id === t.threadId)?.title === "Write one welcome email for new kit buyers");
   assert.ok(job, "The job keeps its title");
@@ -278,12 +328,22 @@ try {
 
   // A lesson the owner keeps reaches every later round, without stopping the shift.
   await text("Lessons from this week");
+  await evaluate(`(()=>{const original=window.fetch;window.fetch=async(input,options)=>{
+    if(String(input).includes('/company/operations/')) throw new TypeError('Fictional unavailable lesson lookup');
+    if(String(input)==='/api/company/commands'&&JSON.parse(options?.body||'{}').action==='memory.keep'){
+      await original(input,options);throw new TypeError('Fictional lost lesson reply');
+    }
+    return original(input,options);
+  };})()`);
   await click("Keep");
+  await until(()=>evaluate("!!document.querySelector('.co-shift-report [role=alert]')"), "uncertain lesson receipt");
+  await send("Page.reload");
   await text("Kept");
   const memory = await fetch(url + "/api/company/memory").then((r) => r.json());
   const lesson = memory.find((v) => v.memory.definition.statement === "Posts that name the starter kit brought the most questions this week.");
   assert.equal(lesson.memory.state, "approved");
   assert.equal(lesson.memory.definition.employeeId, round.employeeId);
+  assert.equal(memory.filter(v => v.memory.definition.statement === lesson.memory.definition.statement).length, 1);
 
   // A finished job is a change; the ladder judges the share reaching the focus step by the fixed rule, once enough weeks exist.
   state = (await dashboard()).data;
@@ -352,6 +412,7 @@ try {
         roundReadsNumbersAndRecentWork: true,
         jobsAndFirstDraft: true,
         oneClickJob: true,
+        lostPrepareAndRunRepliesRecoverAcrossReload: true,
         weekdayCadence: true,
         keptLessonReachesNextRound: true,
         optedInReadPlan: true,

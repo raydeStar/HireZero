@@ -20,7 +20,7 @@ public sealed partial class CompanyStore
         if (command.Decision is not ("veto" or "correction"))
             throw new WorkspaceException("Choose a veto or a correction.", 422);
         var subject = Text(command.Name ?? "", 160).Trim();
-        if (subject.Length < 4 || !artifact.Body.Contains(subject, StringComparison.Ordinal))
+        if (subject.Length < 4 || !FeedbackSourceContains(artifact, subject))
             throw new WorkspaceException("Select the exact proposal title or inaccurate text from this result.", 422);
         var statement =
             command.Decision == "veto"
@@ -109,6 +109,14 @@ public sealed partial class CompanyStore
 
     private static string ProposalKey(string text) =>
         Regex.Replace(text.ToLowerInvariant(), @"[^\p{L}\p{N}]+", " ").Trim();
+
+    // The card removes Markdown emphasis. Its visible words still belong to the exact digest-bound report.
+    private static bool FeedbackSourceContains(CompanyArtifact source, string text) =>
+        source.Body.Contains(text, StringComparison.Ordinal)
+        || source
+            .Body.Replace("**", "", StringComparison.Ordinal)
+            .Replace("__", "", StringComparison.Ordinal)
+            .Contains(text, StringComparison.Ordinal);
 
     private bool ProposalVetoed(StoreConnection db, CompanyTask task)
     {

@@ -111,7 +111,7 @@ export function ContextEditor({
         .map((k) => {
           const saved = valuesOf(k);
           return (
-            <article className="co-card" key={k.id}>
+            <article className="co-card" key={k.id} id={"co-knowledge-" + k.id} tabIndex={-1}>
               <b>
                 {k.state === "approved" ? "Approved" : k.state === "draft" ? "Draft" : humanize(k.state)} · version{" "}
                 {k.version}

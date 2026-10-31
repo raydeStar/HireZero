@@ -14,6 +14,8 @@ replacement hosted signup remains deferred.
   puts the first goal form first, focuses Refine and keeps review notes out of copied customer text.
   [Returning Home](history/2026-10-31-return-visit-work.md) leads with saved work, searchable older results
   and open requests; New task reuses business details without repeating the old goal or consent.
+  The [local E2E handoff](history/2026-10-31-local-e2e-handoff.md) verifies 18 browser journeys and adds durable
+  proposal recovery, atomic kept lessons, source-bound formatted feedback and clearer mobile next steps.
   [Proactive proposals](history/2026-10-31-proactive-proposals.md) add persistent corrections/vetoes and
   an explicitly reviewed, bounded site-read step for morning shifts. The owner activated the replacement for
   fourteen weekday mornings starting November 2 at 08:00 Mountain; the original is ended. Exact vetoes are blocked;

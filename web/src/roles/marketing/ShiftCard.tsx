@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../../lib/api";
-import { command, type Employee, type Snapshot, type Work } from "../../company/api";
+import { api, company, memberStorage } from "../../lib/api";
+import {
+  command,
+  reconcileCompanyOperation,
+  UnconfirmedCompanyOperation,
+  type Employee,
+  type Snapshot,
+  type Work,
+} from "../../company/api";
 import { valuesOf } from "../../company/contextDraft";
 import { DraftMarkdown } from "../../company/DraftMarkdown";
-import { advanceGoal, type GoalFlow, type GoalTerms } from "../../company/goalFlow";
+import { advanceGoal, currentGoalWork, type GoalFlow, type GoalTerms } from "../../company/goalFlow";
 import { useMemberAccess } from "../../company/MemberAccess";
 import { providerName } from "../../company/ModelChoice";
 import type { HomeCardProps } from "../company";
@@ -194,6 +201,7 @@ function ShiftCard({
         )
       ) : (
         <Report
+          key={employee.id}
           snapshot={snapshot}
           employee={employee}
           roleId={roleId}
@@ -431,9 +439,68 @@ function Report({
   const feedback = useProposalFeedback(employee.id, d.cursor, changed);
   const source = d.artifacts.filter((a) => a.taskId === round.id && a.body === body).at(-1);
   const [terms, setTerms] = useState<GoalTerms>();
+  const [termsError, setTermsError] = useState("");
+  const [termsRequest, setTermsRequest] = useState(0);
   const [starting, setStarting] = useState("");
   const [error, setError] = useState("");
   const locked = useRef(false);
+  const storageKey = "hirezero-shift-job-v1:" + (company() || "local-company") + ":" + employee.id;
+  const lessonKey = storageKey + ":lesson";
+  const [lessonReceipt, setLessonReceipt] = useState(() => {
+    try {
+      return memberStorage.getItem(lessonKey);
+    } catch {
+      return null;
+    }
+  });
+  function rememberLesson(id: string | null) {
+    if (id) memberStorage.setItem(lessonKey, id);
+    else memberStorage.removeItem(lessonKey);
+    setLessonReceipt(id);
+  }
+  async function checkLesson(id: string) {
+    try {
+      await reconcileCompanyOperation(id);
+      rememberLesson(null);
+      setError("");
+      await changed();
+    } catch {
+      setError("The saved lesson could not be confirmed yet. Check its receipt before keeping another.");
+    }
+  }
+  useEffect(() => {
+    // Read an existing receipt on return; never replay the owner's Keep command.
+    if (lessonReceipt) void checkLesson(lessonReceipt);
+  }, []);
+  type SavedJob = { roundId: string; title: string; flow: GoalFlow };
+  const [saved, setSaved] = useState<SavedJob | undefined>(() => {
+    try {
+      const value = JSON.parse(memberStorage.getItem(storageKey) || "null");
+      if (value && typeof value.roundId === "string" && typeof value.title === "string" && value.flow?.stage)
+        return value;
+    } catch {
+      /* The company operation receipt still protects an uncertain request. */
+    }
+    return undefined;
+  });
+  const savedRef = useRef(saved);
+  function remember(value: SavedJob) {
+    // Put the receipt away before sending the request; even a butler cannot recall an unsaved promise.
+    memberStorage.setItem(storageKey, JSON.stringify(value));
+    savedRef.current = value;
+    setSaved(value);
+  }
+  function dismissStopped() {
+    if (!savedRef.current?.flow.stopped || savedRef.current.flow.pending) return;
+    try {
+      memberStorage.removeItem(storageKey);
+      savedRef.current = undefined;
+      setSaved(undefined);
+      setError("");
+    } catch {
+      setError("The saved request could not be cleared. Reload before starting another proposal.");
+    }
+  }
   // Lessons already in the employee's memory, by statement (docs/adr/0172).
   const [kept, setKept] = useState<Set<string>>();
   const [keeping, setKeeping] = useState("");
@@ -460,14 +527,16 @@ function Report({
   }, [employee.id, d.cursor]);
   useEffect(() => {
     let active = true;
+    setTerms(undefined);
+    setTermsError("");
     if (canManage && snapshot.capabilities.measuredOneJob)
       void api<GoalTerms>("/company/goals/terms?" + new URLSearchParams({ roleId, skill: "marketing-goal-draft" }))
         .then((value) => active && setTerms(value))
-        .catch(() => undefined);
+        .catch(() => active && setTermsError("Run details could not be loaded. Your proposals are still saved."));
     return () => {
       active = false;
     };
-  }, [roleId, canManage, snapshot.capabilities.measuredOneJob]);
+  }, [roleId, canManage, snapshot.capabilities.measuredOneJob, termsRequest]);
   if (!report)
     return (
       <p>
@@ -485,6 +554,8 @@ function Report({
   const roundStarted = d.taskTimes?.[round.id]?.started ?? "";
   // A job started from this report is the goal-path conversation named after it, opened after the round.
   const started = (job: ShiftJob) => {
+    if (saved?.roundId === round.id && saved.title === job.title && saved.flow.prepared)
+      return currentGoalWork(d.tasks, saved.flow.prepared.task.id);
     const thread = d.threads.find(
       (t) =>
         t.employeeId === employee.id &&
@@ -494,6 +565,8 @@ function Report({
     return thread && d.tasks.filter((w) => w.threadId === thread.id).at(-1);
   };
   const brief = d.knowledge.filter((k) => !k.departmentId && k.state === "approved").at(-1);
+  const recovering = saved && saved.flow.stage !== "done";
+  const savedTask = saved?.flow.prepared && currentGoalWork(d.tasks, saved.flow.prepared.task.id);
   const question = openQuestion(report.question);
   const when = roundStarted
     ? new Date(roundStarted).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
@@ -501,28 +574,25 @@ function Report({
 
   // Keeping a lesson is the owner's approval of one memory record addressed to this employee; later rounds follow it.
   async function keep(lesson: string) {
-    if (keeping) return;
+    if (keeping || lessonReceipt || !source) return;
     setKeeping(lesson);
     setError("");
     try {
-      const saved = (await command("memory.save", {
-        body: JSON.stringify({
-          kind: "feedback",
-          title: "Lesson: " + (lesson.length > 140 ? lesson.slice(0, 139) + "…" : lesson),
-          statement: lesson,
-          rationale: `Kept from ${employee.name}’s ${when || "morning"} round.`,
-          employeeId: employee.id,
-        }),
-      })) as { id: string; version: number; digest: string };
-      await command("memory.review", {
-        id: saved.id,
-        expectedVersion: saved.version,
-        digest: saved.digest,
-        decision: "approve",
-      });
+      await command(
+        "memory.keep",
+        {
+          id: source.id,
+          digest: source.digest,
+          body: lesson,
+          decision: "keep",
+        },
+        rememberLesson,
+      );
+      rememberLesson(null);
       setKept(new Set([...(kept ?? []), lesson]));
       await changed();
     } catch (e) {
+      if (!(e instanceof UnconfirmedCompanyOperation)) rememberLesson(null);
       setError((e as Error).message);
     } finally {
       setKeeping("");
@@ -531,13 +601,13 @@ function Report({
 
   // One click is the owner's consent to one private draft, through the same one-consent path as Home's goals.
   async function doIt(job: ShiftJob) {
-    if (locked.current || !terms || !brief || !feedback.ready || feedback.veto(job.title)) return;
+    if (locked.current || !terms || !brief || !feedback.ready || feedback.veto(job.title) || recovering) return;
     locked.current = true;
     setStarting(job.title);
     setError("");
     try {
       const allowance = snapshot.capabilities.allowanceUnit === "usd-cents" ? 5 : 1;
-      let flow: GoalFlow = {
+      const flow: GoalFlow = {
         stage: "context",
         terms,
         fields: {
@@ -563,7 +633,26 @@ function Report({
           prompt: `${job.title}.\n${job.ask}\nWhy it matters now: ${job.why}`,
         },
       };
-      await advanceGoal(flow, (next) => (flow = next));
+      const request = { roundId: round.id, title: job.title, flow };
+      remember(request);
+      await advanceGoal(flow, (next) => remember({ ...request, flow: next }));
+      await changed();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      locked.current = false;
+      setStarting("");
+    }
+  }
+
+  async function recover() {
+    const request = savedRef.current;
+    if (locked.current || !request || request.flow.stopped) return;
+    locked.current = true;
+    setStarting(request.title);
+    setError("");
+    try {
+      await advanceGoal(request.flow, (flow) => remember({ ...request, flow }));
       await changed();
     } catch (e) {
       setError((e as Error).message);
@@ -584,6 +673,28 @@ function Report({
         <b>Today’s focus</b>
         <DraftMarkdown>{report.focus}</DraftMarkdown>
       </div>
+      {recovering && canManage && (
+        <div className="co-shift-recovery" role="status">
+          <p>
+            <b>{saved.title}</b>:{" "}
+            {starting
+              ? "Starting your saved request…"
+              : saved.flow.stopped
+                ? "This request stopped. Review its saved work before starting another proposal."
+                : "Your request is saved. Check it to continue the same run."}
+          </p>
+          {saved.flow.stopped ? (
+            <div className="co-ladder-actions">
+              {savedTask && <button onClick={() => openWork(savedTask)}>Review saved work</button>}
+              {!saved.flow.pending && <button onClick={dismissStopped}>Dismiss stopped request</button>}
+            </div>
+          ) : (
+            <button disabled={!!starting} onClick={() => void recover()}>
+              Check saved request
+            </button>
+          )}
+        </div>
+      )}
       <ol className="co-shift-jobs" aria-label="Jobs for today">
         {report.jobs.map((job, i) => {
           const task = i === 0 ? round : started(job);
@@ -611,7 +722,9 @@ function Report({
                   <button onClick={() => openWork(task)}>Started · open it</button>
                 ) : canManage ? (
                   <button
-                    disabled={!terms || !brief || !!starting || busy || !feedback.ready || feedback.busy}
+                    disabled={
+                      !terms || !brief || !!starting || !!recovering || busy || !feedback.ready || feedback.busy
+                    }
                     title={busy ? `${employee.name} is finishing another draft` : undefined}
                     onClick={() => void doIt(job)}
                   >
@@ -632,13 +745,41 @@ function Report({
         })}
       </ol>
       {canManage && report.jobs.length > 1 && (
-        <p className="co-muted">
-          Do it asks {employee.name} for one private draft with your {providerName(terms?.terms?.provider || "host")}.
-          Nothing is posted, sent or bought.
-          {busy ? ` ${employee.name} is finishing another draft first.` : ""}
-        </p>
+        <div className="co-muted">
+          {terms ? (
+            <>
+              <p>
+                Do it approves one private draft from {employee.name} through{" "}
+                {providerName(terms.terms?.provider || "host")} · {terms.route}.
+                {terms.terms?.allowanceUnit === "usd-cents"
+                  ? " Allowance: 5 US cents."
+                  : " Intended allowance: 1 existing subscription credit."}
+                {busy ? ` ${employee.name} is finishing another draft first.` : ""}
+              </p>
+              <details>
+                <summary>Run limits and scope</summary>
+                <p>
+                  Reasoning effort: {terms.policy.effort || "low"}. {terms.policy.outputTarget.toLocaleString()}{" "}
+                  output-token target · {terms.policy.localDeadlineSeconds}s local deadline. Credit, time and token
+                  limits are soft. No automatic retry, publishing, outreach or purchase.
+                </p>
+              </details>
+            </>
+          ) : termsError ? (
+            <p role="alert">
+              {termsError} <button onClick={() => setTermsRequest((n) => n + 1)}>Reload run details</button>
+            </p>
+          ) : (
+            <p>Loading run details…</p>
+          )}
+        </div>
       )}
       {error && <p role="alert">{error}</p>}
+      {lessonReceipt && (
+        <button disabled={!!keeping} onClick={() => void checkLesson(lessonReceipt)}>
+          Check saved lesson
+        </button>
+      )}
       {source && canManage && <ProposalFeedback artifact={source} employeeName={employee.name} feedback={feedback} />}
       {report.lookedAt && (
         <details>
@@ -662,8 +803,8 @@ function Report({
                 <span>{lesson}</span>
                 {kept?.has(lesson) ? (
                   <em>Kept</em>
-                ) : canManage && kept ? (
-                  <button disabled={!!keeping} onClick={() => void keep(lesson)}>
+                ) : canManage && kept && source ? (
+                  <button disabled={!!keeping || !!lessonReceipt} onClick={() => void keep(lesson)}>
                     {keeping === lesson ? "Keeping…" : "Keep"}
                   </button>
                 ) : null}

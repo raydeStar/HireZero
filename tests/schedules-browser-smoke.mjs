@@ -531,6 +531,9 @@ try {
   assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), originalOccurrenceArtifact.body);
   const correctedOccurrence = originalOccurrenceArtifact.body + "\n\nOwner correction: show the completed paper-folding example before asking readers to try it.";
   await evaluate(`(()=>{const el=document.querySelector('.co-artifact-editor textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(correctedOccurrence)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  // Split chat deliberately starts at 1600px; narrower desktops keep the copy readable in one pane.
+  await send("Emulation.setDeviceMetricsOverride", { width: 1700, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await until(() => evaluate("innerWidth >= 1600"), "wide desktop for explicit split chat");
   await evaluate("document.querySelector('[aria-label=\"Show in chat\"]').click()");
   await until(() => evaluate("!!document.querySelector('.co-chat-and-work') && !!document.querySelector('[aria-label=\"Expand work\"]')"), "Split chat remains an explicit choice");
   assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), correctedOccurrence,

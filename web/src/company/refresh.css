@@ -776,7 +776,8 @@
     max-height: 40dvh;
   }
   .co-workspace .co-conversation-context {
-    max-height: 18dvh;
+    /* Keep secondary context controls scrollable so the message and allowance clear the bottom navigation. */
+    max-height: 12dvh;
   }
   .co-workspace .fe-chat-scroll {
     min-height: min(160px, 18dvh);

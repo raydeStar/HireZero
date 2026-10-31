@@ -89,6 +89,7 @@ type ConversationRoute = {
   work?: string;
   section?: HubSection;
   noticeTarget?: string;
+  knowledgeId?: string;
   memoryId?: string;
   memoryWorkId?: string;
   memoryMeetingId?: string;
@@ -110,6 +111,7 @@ function readRoute(): ConversationRoute {
     work: query.get("work") || "",
     section: hubSections.find(([key]) => key === section)?.[0] ?? "business",
     noticeTarget: query.get("schedule") || undefined,
+    knowledgeId: query.get("knowledge") || undefined,
     memoryId: query.get("memory") || undefined,
     memoryWorkId: query.get("memoryWork") || undefined,
     memoryMeetingId: query.get("memoryMeeting") || undefined,
@@ -190,6 +192,8 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       if (next.work) query.set("work", next.work);
     }
     if (next.tab === "departments") query.set("section", next.section ?? "today");
+    if (next.tab === "departments" && next.section === "departments" && next.knowledgeId)
+      query.set("knowledge", next.knowledgeId);
     if (next.tab === "departments" && next.section === "schedules" && next.noticeTarget)
       query.set("schedule", next.noticeTarget);
     if (next.tab === "departments" && next.section === "schedules" && next.repeatWorkId)
@@ -214,6 +218,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       section,
       work: "",
       noticeTarget: undefined,
+      knowledgeId: undefined,
       memoryId: undefined,
       memoryWorkId: undefined,
       memoryMeetingId: undefined,
@@ -362,7 +367,15 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       // An unfinished hire, or the context draft that finishes it, resumes in the hiring guide (UX round 6).
       setResumeHire(need.employeeId);
       setTab("employees");
-    } else openHub(need.kind === "knowledge" ? "departments" : "today");
+    } else if (need.kind === "knowledge" && need.targetId)
+      navigate({
+        ...routeRef.current,
+        tab: "departments",
+        section: "departments",
+        knowledgeId: need.targetId,
+        work: "",
+      });
+    else openHub(need.kind === "knowledge" ? "departments" : "today");
   }
   useEffect(() => {
     const pop = () => {
@@ -397,6 +410,18 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
     [department, setDepartment] = useState(""),
     [responsibility, setResponsibility] = useState("");
   const [departmentName, setDepartmentName] = useState("");
+  useEffect(() => {
+    if (route.tab === "departments" && route.section === "departments" && route.knowledgeId) {
+      const target = snapshot?.data.knowledge.find((k) => k.id === route.knowledgeId);
+      if (target) setDepartment(target.departmentId || "");
+    }
+  }, [route.tab, route.section, route.knowledgeId, hasSnapshot]);
+  useEffect(() => {
+    if (route.tab !== "departments" || route.section !== "departments" || !route.knowledgeId) return;
+    const card = document.getElementById("co-knowledge-" + route.knowledgeId);
+    card?.focus({ preventScroll: true });
+    card?.scrollIntoView({ block: "start" });
+  }, [route.tab, route.section, route.knowledgeId, department, hasSnapshot]);
   const [planText, setPlanText] = useState(""),
     [planTasks, setPlanTasks] = useState<TaskSpec[]>([]),
     [meetingTitle, setMeetingTitle] = useState(""),

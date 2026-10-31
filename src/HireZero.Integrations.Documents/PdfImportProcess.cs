@@ -85,8 +85,19 @@ public static class PdfImportProcess
             while (!process.HasExited)
             {
                 deadline.Token.ThrowIfCancellationRequested();
-                process.Refresh();
-                if (process.PrivateMemorySize64 > 256L * 1024 * 1024 || stdout.IsFaulted || stderr.IsFaulted)
+                long privateBytes;
+                try
+                {
+                    process.Refresh();
+                    privateBytes = process.PrivateMemorySize64;
+                }
+                catch (Exception e)
+                    when (e is InvalidOperationException or System.ComponentModel.Win32Exception && process.HasExited)
+                {
+                    // The worker can finish between HasExited and the memory probe. Still validate its reply below.
+                    break;
+                }
+                if (privateBytes > 256L * 1024 * 1024 || stdout.IsFaulted || stderr.IsFaulted)
                     throw new DocumentImportException(
                         "This PDF exceeded the reader's processing limit. Import a smaller PDF or reviewed text copy.",
                         413

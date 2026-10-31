@@ -23,6 +23,7 @@ export function useProposalFeedback(employeeId: string, cursor: number, changed:
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [status, setStatus] = useState("");
   const locked = useRef(false);
   useEffect(() => {
@@ -39,8 +40,9 @@ export function useProposalFeedback(employeeId: string, cursor: number, changed:
             .map((v) => v.memory),
         );
         setReady(true);
+        setLoadError("");
       })
-      .catch(() => active && setError("Saved decisions could not be loaded. Refresh before starting a proposal."));
+      .catch(() => active && setLoadError("Saved decisions could not be loaded. Refresh before starting a proposal."));
     return () => {
       active = false;
     };
@@ -101,7 +103,7 @@ export function useProposalFeedback(employeeId: string, cursor: number, changed:
     directions,
     ready,
     busy,
-    error,
+    error: error || loadError,
     status,
     save,
     undo,

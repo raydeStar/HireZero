@@ -29,7 +29,7 @@ public sealed partial class CompanyScheduleTests
                 Id = task.Id,
                 ExpectedVersion = task.Version,
                 Body =
-                    "## Jobs for today\n### 1. Write a gift guide\nWhy: Help new customers.\n### 2. Draft a launch email\nThe studio sells online.",
+                    "## Jobs for today\n### 1. Write a **gift guide**\nWhy: Help new customers.\n### 2. Draft a launch email\nThe studio **sells** online.",
             }
         );
     }
@@ -43,6 +43,30 @@ public sealed partial class CompanyScheduleTests
             Name = kind == "veto" ? "Write a gift guide" : "The studio sells online.",
             Body = kind == "veto" ? null : "The studio serves local customers only; it does not sell online.",
         };
+
+    [Fact]
+    public void KeepingALessonIsOneSourceBoundApprovalAndReplayDoesNotDuplicateIt()
+    {
+        var store = Store();
+        var employee = Employee(store);
+        var source = ProposalSource(store, employee);
+        var keep = C("memory.keep") with
+        {
+            Id = source.Id,
+            Digest = source.Digest,
+            Decision = "keep",
+            Body = "The studio sells online.",
+        };
+        Assert.Throws<WorkspaceException>(() => store.Apply(keep with { Digest = "old-report" }));
+        Assert.Throws<WorkspaceException>(() => store.Apply(keep with { Body = "Invented lesson" }));
+        var lesson = A<CompanyMemoryItem>(store, keep);
+        Assert.Equal("approved", lesson.State);
+        Assert.Equal(employee, lesson.Definition.EmployeeId);
+        Assert.Equal(lesson, A<CompanyMemoryItem>(store, keep));
+        Assert.Equal(lesson, A<CompanyMemoryItem>(store, keep with { RequestId = Guid.NewGuid().ToString("D") }));
+        Assert.Single(store.Memories());
+        Assert.Empty(MeasuredQueueChecks.Items<System.Text.Json.JsonElement>(store, "measured"));
+    }
 
     [Fact]
     public async Task VetoSurvivesNewerLessonsAndReopeningWithoutChangingTheShiftApproval()

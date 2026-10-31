@@ -152,6 +152,40 @@ public sealed class CompanyTodayTests : IDisposable
     }
 
     [Fact]
+    public void SeparateKnowledgeDraftDoesNotMakeApprovedCompanyFactsLookMissing()
+    {
+        var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
+        var approved = Apply<CompanyKnowledge>(
+            store,
+            Cmd("knowledge.save") with
+            {
+                Body = "Fictional studio makes paper kits.",
+            }
+        );
+        Apply<CompanyKnowledge>(
+            store,
+            Cmd("knowledge.review") with
+            {
+                Id = approved.Id,
+                ExpectedVersion = approved.Version,
+                Digest = approved.Digest,
+                Decision = "approve",
+            }
+        );
+        var proposal = Apply<CompanyKnowledge>(
+            store,
+            Cmd("knowledge.save") with
+            {
+                Body = "Proposed fictional shop expansion.",
+            }
+        );
+        var now = DateTimeOffset.UtcNow;
+        var need = Assert.Single(store.Today("today", now.AddHours(-1), now.AddHours(1)).NeedsYou);
+        Assert.Equal("Company: review proposed changes to company facts", need.Title);
+        Assert.Equal(proposal.Id, need.TargetId);
+    }
+
+    [Fact]
     public void TodayListsWhatWaitsOnTheOwnerAndCountsOnlyThatDay()
     {
         var store = new CompanyStore(Path.Combine(_root.Path, "company.sqlite"), Owner, CompanyWorkspace.Definitions());
