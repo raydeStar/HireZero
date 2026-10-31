@@ -10,7 +10,7 @@ The owner asked to improve the Marketing shift's morning rounds with their metho
 This ran eight cycles on the pinned Luna connection. The runs went through a private runner, which sends a real captured
 morning-round request with its context replaced by a fixed scenario and the working tree's instructions. Every run was
 marked before dispatch and none was replayed. The owner authorized 36 runs for cycles 1 to 6, then 18 more to try
-drafting job 1 in its own request. All 54 were used. One was refused by Codex at its usage-limit check before anything
+drafting job 1 in its own request, then 6 for a full-brief test. All 60 were used. One was refused by Codex at its usage-limit check before anything
 was sent.
 
 ## Rubric and scenarios
@@ -124,5 +124,40 @@ What is still holding it back:
 - **Overlap with waiting work.** New work still sometimes repeats approved work that is waiting to be posted.
 - **Business results on Friday.** Friday reports judge the share but rarely say the goal number itself moved, for
   example that enquiries doubled from 3 to 6 a week.
+
+## A full brief (cycle 9)
+
+The owner then asked whether a full brief lifts the drafts. Six more Luna runs used the committed cycle 8 text with
+HireZero's full approved Marketing department context: product facts, audience, positioning, voice, approved claims
+and the start route, with the goal ladder added. That context is about 3,900 characters, against one sentence before.
+There were three rounds on a Monday and three on a Wednesday.
+
+One fresh grader saw these next to the four thin-brief Monday rounds from cycles 5 and 8:
+
+| Criterion | Monday, one-sentence brief (4) | Monday, full context (3) | Wednesday, full context (3) |
+| --- | --- | --- | --- |
+| Evidence and accuracy | 3.53 | 3.80 | 3.47 |
+| Prioritization | 3.42 | 3.57 | 3.10 |
+| Jobs | 2.90 | 3.33 | 3.10 |
+| Draft quality | 2.72 | 3.13 | 3.00 |
+| Continuity and judgment | 2.67 | 3.00 | 2.67 |
+| Timeliness | 3.08 | 3.30 | 3.00 |
+| Clarity | 3.08 | 3.33 | 3.03 |
+| Overall | 3.06 | 3.35 | 3.05 |
+
+The full brief lifts the same Monday round by about a third of a grade, the draft by about four tenths and the jobs by
+the same. That supports the view that the drafts were held back by thin facts. It is still short of A-, and one of the
+three Wednesday rounds was weak (C+).
+
+The grader's remaining complaints are about what the round does, not the facts it has:
+- **The waiting draft.** Every round says "review it" again. It does not say what the draft is, recommend approving,
+  changing or holding it, or note how long it has waited.
+- **Asking for numbers.** The ask is boilerplate: five counts, including people who heard of the business. It should
+  ask for the two counts the focus step needs, say they come from website analytics, use the question to find out
+  whether analytics can be connected, and say plainly that a test cannot be judged until those counts exist.
+- **Placing the copy.** Homepage copy never says where it goes, what it replaces, or what the headline and button
+  say. Some drafts also repeat claims the context says the homepage already carries.
+
+These are the next changes to test.
 
 No customer validation, and nothing about real usefulness, follows from these fictional scenarios.
