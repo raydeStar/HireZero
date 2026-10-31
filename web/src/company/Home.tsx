@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Check } from "lucide-react";
 import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workState, workTitle, type Need } from "./Cockpit";
@@ -34,6 +35,42 @@ export function firstLine(body: string, max = 140) {
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/\*\*|__|`/g, "");
   return line.length > max ? line.slice(0, max - 1) + "…" : line;
+}
+
+// A steady colour per name, so each employee is recognisable at a glance (UX round 10).
+export function avatarStyle(name: string) {
+  let hue = 0;
+  for (const c of name) hue = (hue * 31 + c.charCodeAt(0)) % 360;
+  return { "--hz-hue": String(hue) } as CSSProperties;
+}
+
+// One line on what an employee is doing now (UX round 2), shared with the sidebar since round 10.
+export function teamStatus(snapshot: Snapshot, needs: Need[], e: Employee, canWork: boolean) {
+  if (e.state !== "active") return employeeState(e.state);
+  const d = snapshot.data;
+  const mine = d.tasks.filter((t) => t.employeeId === e.id);
+  const review = needs.filter(
+    (n) => n.employeeId === e.id && n.kind === "review" && !optionalDraftReview(snapshot, n),
+  ).length;
+  const drafts = mine.filter((task) => readyDraft(snapshot, task)).length;
+  const completion = needs.filter((n) => n.employeeId === e.id && n.kind === "completion").length;
+  const authorizing = mine.some((t) => workState(snapshot, t) === "awaiting_authorization");
+  const running = mine.find((t) => (workGroups.progress as readonly string[]).includes(workState(snapshot, t)));
+  const queued = mine.filter((t) => (workGroups.next as readonly string[]).includes(t.state)).length;
+  if (running) return "Working on " + workTitle(snapshot, running);
+  if (authorizing) return canWork ? "Waiting for your authorization" : "Waiting for authorization";
+  if (review)
+    return review + (review === 1 ? " task waits" : " tasks wait") + (canWork ? " for your review" : " for review");
+  if (completion) return completion + (completion === 1 ? " task is" : " tasks are") + " ready to complete";
+  if (queued) return queued + " queued";
+  if (drafts) return drafts + (drafts === 1 ? " draft ready" : " drafts ready");
+  return "Idle";
+}
+
+export function isWorking(snapshot: Snapshot, e: Employee) {
+  return snapshot.data.tasks.some(
+    (t) => t.employeeId === e.id && (workGroups.progress as readonly string[]).includes(workState(snapshot, t)),
+  );
 }
 
 // Home (UX round 2, docs/history/2026-10-20-ux-audit.md): the company at a glance. What needs you, what the team is
@@ -85,24 +122,7 @@ export function Home({
     ["Up next", count(workGroups.next), false],
     ["Done", count(workGroups.done), false],
   ] as const;
-  const status = (e: Employee) => {
-    if (e.state !== "active") return employeeState(e.state);
-    const mine = d.tasks.filter((t) => t.employeeId === e.id);
-    const review = attentionNeeds.filter((n) => n.employeeId === e.id && n.kind === "review").length;
-    const drafts = ready.filter((task) => task.employeeId === e.id).length;
-    const completion = needs.filter((n) => n.employeeId === e.id && n.kind === "completion").length;
-    const authorizing = mine.some((t) => workState(snapshot, t) === "awaiting_authorization");
-    const running = mine.find((t) => (workGroups.progress as readonly string[]).includes(workState(snapshot, t)));
-    const queued = mine.filter((t) => (workGroups.next as readonly string[]).includes(t.state)).length;
-    if (running) return "Working on " + workTitle(snapshot, running);
-    if (authorizing) return canWork ? "Waiting for your authorization" : "Waiting for authorization";
-    if (review)
-      return review + (review === 1 ? " task waits" : " tasks wait") + (canWork ? " for your review" : " for review");
-    if (completion) return completion + (completion === 1 ? " task is" : " tasks are") + " ready to complete";
-    if (queued) return queued + " queued";
-    if (drafts) return drafts + (drafts === 1 ? " draft ready" : " drafts ready");
-    return "Idle";
-  };
+  const status = (e: Employee) => teamStatus(snapshot, needs, e, canWork);
   const results = [...d.artifacts]
     .reverse()
     .filter((a) => !["superseded", "revoked"].includes(a.state))
@@ -204,8 +224,46 @@ export function Home({
       attentionNeeds.length &&
       attentionNeeds.length + (attentionNeeds.length === 1 ? " waits for you" : " wait for you"),
   ].filter(Boolean);
+  const hour = new Date(now).getHours();
+  // The first layer of status (UX round 10): a plain summary and live counts, each opening the place to look.
+  const pulse = [
+    ["Needs you", attentionNeeds.length, attentionNeeds[0] && (() => onOpenNeed(attentionNeeds[0]!))],
+    ["Drafts ready", ready.length, ready.at(-1) && (() => onOpenWork(ready.at(-1)!))],
+    ["Working", count(workGroups.progress), undefined],
+    ["Up next", count(workGroups.next), undefined],
+  ] as const;
   return (
     <div className="co-home">
+      <header className="co-home-hello">
+        <p className="co-home-date">
+          {new Date(now).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        </p>
+        <h2>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}</h2>
+        {d.employees.length > 0 && (
+          <>
+            <p className="co-home-today" aria-label="Today so far">
+              <b>Today so far:</b> {todayParts.length ? todayParts.join(" · ") : "nothing has happened yet."}
+            </p>
+            <div className="co-home-pulse" aria-label="Right now">
+              {pulse.map(([label, value, open]) =>
+                open ? (
+                  <button
+                    key={label}
+                    className={"co-pulse" + (label === "Needs you" ? " attention" : "")}
+                    onClick={open}
+                  >
+                    <strong>{label === "Needs you" && needsError ? "?" : value}</strong> {label}
+                  </button>
+                ) : (
+                  <span key={label} className={"co-pulse" + (label === "Working" && value ? " live" : "")}>
+                    <strong>{value}</strong> {label}
+                  </span>
+                ),
+              )}
+            </div>
+          </>
+        )}
+      </header>
       {results.length > 0 && (
         <section className="co-home-section" aria-label="Recent results">
           <h2>Your results</h2>
@@ -275,11 +333,7 @@ export function Home({
               )}
             </p>
           </section>
-        ) : (
-          <p className="co-home-today" aria-label="Today so far">
-            <b>Today so far:</b> {todayParts.length ? todayParts.join(" · ") : "nothing has happened yet."}
-          </p>
-        ))}
+        ) : null)}
       {!goalStart && onBusiness && d.employees.length > 0 && (
         <section className="co-home-welcome" aria-label="Business knowledge">
           <h2>
@@ -394,7 +448,7 @@ export function Home({
             {d.employees.map((e) => (
               <article className="co-team-card" key={e.id}>
                 <header>
-                  <span className="co-avatar" aria-hidden="true">
+                  <span className="co-avatar" aria-hidden="true" style={avatarStyle(e.name)}>
                     {initials(e.name)}
                     <i className={"co-presence " + e.state} />
                   </span>

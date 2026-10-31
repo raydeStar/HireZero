@@ -301,7 +301,8 @@ try {
   await send('Page.navigate',{url:url+'/'});
   await text('Your results');
   assert.equal(await evaluate("document.querySelectorAll('[aria-label=\"Recent results\"] li').length"),1);
-  assert.equal(await evaluate("document.querySelector('.co-home').firstElementChild.getAttribute('aria-label')"),'Recent results');
+  // Results lead Home's sections; only the greeting and its live status sit above them (UX round 10).
+  assert.equal(await evaluate("document.querySelector('.co-home > .co-home-hello + section').getAttribute('aria-label')"),'Recent results');
   await text('Fictional revised accessibility draft.');
   await click('Start another goal');
   await setField('Your goal','Improve keyboard navigation.');

@@ -215,7 +215,16 @@ export type Meeting = {
   outcome: string | null;
   outcomeDigest: string | null;
 };
-export type Event = { sequence: number; type: string; id: string; employeeId: string | null; text: string; at: string };
+export type Event = {
+  sequence: number;
+  type: string;
+  id: string;
+  employeeId: string | null;
+  text: string;
+  at: string;
+  // The member who acted, or "system".
+  actor?: string;
+};
 // Hiring copy from the employee module's manifest (docs/adr/0002-employee-module-contract.md).
 export type RoleOnboarding = {
   department: string;

@@ -25,7 +25,8 @@ import {
   Sun,
   LogOut,
 } from "lucide-react";
-import { Home, initials } from "./Home";
+import { avatarStyle, Home, initials, isWorking, teamStatus } from "./Home";
+import { LiveStrip } from "./LiveStrip";
 import { BusinessBrief } from "./BusinessBrief";
 import { Documents } from "./Documents";
 import { Memory } from "./Memory";
@@ -45,6 +46,7 @@ import { Audit } from "./Audit";
 import "@fontsource-variable/inter/wght.css";
 import "./company.css";
 import "./refresh.css";
+import "./studio.css";
 import { employeeState, humanize, roleName, taskState } from "./labels";
 // A conversation's mode (Chat or Work) and its open work are part of the address (docs/adr/0040-the-muse-layout.md).
 const hubSections = [
@@ -256,7 +258,8 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
   }
   // The cockpit: docked on wide screens, resizable and hideable, otherwise a sheet (docs/adr/0040-the-muse-layout.md).
   const roomy = useWide("(min-width: 1280px)"),
-    splitWide = useWide("(min-width: 1440px)"),
+    // Chat and work side by side only when both get a readable column beside the cockpit (UX round 10).
+    splitWide = useWide("(min-width: 1600px)"),
     compactHub = useWide("(max-width: 640px)");
   const visibleMode =
     !splitWide && snapshot?.data.tasks.some((task) => task.id === route.work && task.kind !== "conversation")
@@ -673,6 +676,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
       onOpenPlans={() => setTab("plans")}
       onRememberResult={rememberResult}
       onRepeatWork={repeatWork}
+      events={events}
     />
   );
   const cockpit = (
@@ -764,14 +768,15 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
               aria-current={tab === "employee" && person.id === selected ? "page" : undefined}
               onClick={() => chooseEmployee(person)}
             >
-              <span className="co-avatar" aria-hidden="true">
+              <span className="co-avatar" aria-hidden="true" style={avatarStyle(person.name)}>
                 {initials(person.name)}
-                <i className={"co-presence " + person.state} />
+                <i className={"co-presence " + person.state + (isWorking(snapshot, person) ? " working" : "")} />
               </span>
               <span className="co-person-text">
                 <b>{person.name}</b>
+                {/* What they are doing now, not only whether they are active (UX round 10). */}
                 <small>
-                  {roleName(snapshot.data.roles, person.roleId)} · {employeeState(person.state)}
+                  {roleName(snapshot.data.roles, person.roleId)} · {teamStatus(snapshot, needs, person, canWork)}
                 </small>
               </span>
             </button>
@@ -894,6 +899,13 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             </button>
           )}
         </header>
+        <LiveStrip
+          snapshot={snapshot}
+          needs={needs.filter((need) => !optionalDraftReview(snapshot, need))}
+          showNeeds={!docked && !needsError && tab !== "home"}
+          onOpenWork={(task) => openWork(task)}
+          onOpenNeed={openNeed}
+        />
         {(loadError || threadError) && (
           <div className="co-error co-refresh-error" role="status">
             {loadError ? "Workspace updates are unavailable. " : "This conversation could not refresh. "}

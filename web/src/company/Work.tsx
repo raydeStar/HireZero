@@ -1,7 +1,8 @@
 import { Maximize2, MessageSquareText, X } from "lucide-react";
 import { useState } from "react";
-import type { Snapshot, Work } from "./api";
+import type { Event, Snapshot, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
+import { WorkTrail } from "./WorkTrail";
 import { workGroups, workState, workTitle } from "./Cockpit";
 import { taskState } from "./labels";
 import { ago, useNow } from "./time";
@@ -108,6 +109,7 @@ export function WorkWindow({
   onOpenPlans,
   onRememberResult,
   onRepeatWork,
+  events,
 }: {
   snapshot: Snapshot;
   task: Work;
@@ -122,6 +124,8 @@ export function WorkWindow({
   onOpenPlans?: () => void;
   onRememberResult?: (artifactId: string) => void;
   onRepeatWork?: (taskId: string) => void;
+  // The workspace's activity feed, for this work's trail.
+  events?: Event[];
 }) {
   const { canWork } = useMemberAccess();
   const employee = snapshot.data.employees.find((e) => e.id === task.employeeId);
@@ -155,6 +159,7 @@ export function WorkWindow({
         </button>
       </header>
       <div className="co-work-window-body">
+        {events && task.kind !== "conversation" && <WorkTrail snapshot={snapshot} task={task} events={events} />}
         {task.kind === "conversation" ? (
           <p className="fe-muted">This is a reply in the conversation. Its review and send steps are in Chat.</p>
         ) : employee ? (

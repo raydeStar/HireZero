@@ -1,0 +1,733 @@
+/* Studio (UX round 10, docs/history/2026-10-30-studio-ux.md): a calmer, more enterprise look in the spirit of personal
+   agents such as Muse and Dot, with full transparency kept in layers. A plain status is always visible; what happened
+   and the raw receipts are one and two clicks away. Loaded after refresh.css; tokens first. */
+
+:root {
+  --fe-t-xs: 12px;
+  --fe-t-s: 13px;
+  --fe-t-m: 14.5px;
+  --fe-t-l: 16px;
+  --fe-t-xl: 20px;
+  --fe-t-2xl: 28px;
+}
+
+:root,
+:root[data-theme="light"] {
+  --fe-bg: #f6f6f3;
+  --fe-surface: #ffffff;
+  --fe-surface-2: #f3f3f0;
+  --fe-surface-3: #e9e9e5;
+  --fe-hover: rgba(24, 24, 20, 0.045);
+  --fe-line: rgba(24, 24, 20, 0.075);
+  --fe-line-2: rgba(24, 24, 20, 0.13);
+  --fe-fg: #18181b;
+  --fe-fg-2: #3f3f46;
+  --fe-fg-3: #6b6b74;
+  --fe-fg-4: #a0a0a8;
+  --fe-accent: #4f46e5;
+  --fe-accent-hover: #4338ca;
+  --fe-accent-soft: #eef0ff;
+  --fe-accent-line: #d4d6fb;
+  --fe-accent-ink: #ffffff;
+  --fe-user-bubble: #f1f1ee;
+  --fe-shadow: 0 1px 2px rgba(24, 24, 20, 0.05);
+  --fe-shadow-lg: 0 18px 40px -20px rgba(24, 24, 20, 0.25), 0 2px 6px rgba(24, 24, 20, 0.05);
+  /* The primary action is ink, as in Dot; the accent marks selection and attention. */
+  --hz-ink: #18181b;
+  --hz-ink-hover: #2e2e33;
+  --hz-on-ink: #ffffff;
+  --hz-side: #f6f6f3;
+  --hz-live: #16a34a;
+  --hz-live-soft: #ecf7f0;
+}
+
+:root[data-theme="dark"] {
+  --fe-bg: #0f0f11;
+  --fe-surface: #161619;
+  --fe-surface-2: #1c1c20;
+  --fe-surface-3: #26262b;
+  --fe-hover: rgba(255, 255, 255, 0.05);
+  --fe-line: rgba(255, 255, 255, 0.075);
+  --fe-line-2: rgba(255, 255, 255, 0.13);
+  --fe-fg: #ededf0;
+  --fe-fg-2: #c8c8ce;
+  --fe-fg-3: #8f8f99;
+  --fe-fg-4: #64646d;
+  --fe-accent: #8b8cff;
+  --fe-accent-hover: #a2a3ff;
+  --fe-accent-soft: rgba(139, 140, 255, 0.12);
+  --fe-accent-line: rgba(139, 140, 255, 0.32);
+  --fe-accent-ink: #0f0f11;
+  --fe-user-bubble: #202025;
+  --fe-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --fe-shadow-lg: 0 20px 44px -20px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --hz-ink: #ededf0;
+  --hz-ink-hover: #ffffff;
+  --hz-on-ink: #0f0f11;
+  --hz-side: #0f0f11;
+  --hz-live: #34d27b;
+  --hz-live-soft: rgba(52, 210, 123, 0.1);
+}
+
+@keyframes hz-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--hz-live) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* Shell: the rail, conversations and cockpit share one calm surface; the main panel is the sheet you work on. */
+.co-workspace {
+  background: var(--hz-side);
+  font-size: var(--fe-t-m);
+}
+.co-workspace .fe-rail,
+.co-workspace .co-conversations,
+.co-workspace .fe-cockpit,
+.co-workspace .co-cockpit {
+  background: var(--hz-side);
+}
+@media (min-width: 900px) {
+  .co-workspace .co-main.fe-main {
+    border-radius: 14px;
+    border-color: var(--fe-line);
+    background: var(--fe-surface);
+    box-shadow:
+      0 1px 2px rgba(24, 24, 20, 0.04),
+      0 0 0 1px var(--fe-line);
+  }
+}
+.co-workspace .fe-rail-button[aria-current="page"] {
+  background: var(--fe-surface);
+  color: var(--fe-fg);
+  box-shadow:
+    var(--fe-shadow),
+    0 0 0 1px var(--fe-line);
+}
+
+/* Conversations: the company name, a quiet group label, round avatars with a live status line. */
+.co-workspace .co-conversations {
+  padding: 14px 10px 10px;
+}
+.co-workspace .co-conversations h2 {
+  font-size: var(--fe-t-m);
+  font-weight: 650;
+  color: var(--fe-fg);
+  padding: 2px 9px 8px;
+  margin: 0;
+}
+.co-workspace .co-conversations h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fe-fg-4);
+  padding: 0 9px;
+  margin: 18px 0 6px;
+}
+.co-workspace .co-conversations .co-list {
+  padding: 8px 9px;
+  border-radius: 10px;
+}
+.co-workspace .co-conversations .co-list b {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.co-workspace .co-conversations .co-person-text {
+  min-width: 0;
+}
+.co-workspace .co-conversations .co-person-text small {
+  display: block;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.co-workspace .co-conversations .co-list[aria-current="page"] {
+  background: var(--fe-surface);
+  box-shadow:
+    var(--fe-shadow),
+    0 0 0 1px var(--fe-line);
+}
+.co-workspace .co-thread-list button {
+  font-size: 12.5px;
+  border-radius: 8px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-thread-list button[aria-pressed="true"] {
+  color: var(--fe-fg);
+  background: var(--fe-hover);
+}
+.co-workspace .co-avatar {
+  border-radius: 50%;
+}
+.co-workspace .co-avatar[style*="--hz-hue"] {
+  background: hsl(var(--hz-hue) 62% 92%);
+  color: hsl(var(--hz-hue) 48% 30%);
+}
+:root[data-theme="dark"] .co-workspace .co-avatar[style*="--hz-hue"] {
+  background: hsl(var(--hz-hue) 32% 22%);
+  color: hsl(var(--hz-hue) 70% 80%);
+}
+.co-workspace .co-presence {
+  border: 2px solid var(--hz-side);
+  box-sizing: content-box;
+}
+.co-workspace .co-presence.working {
+  background: var(--hz-live);
+  animation: hz-pulse 1.8s ease-out infinite;
+}
+
+/* Top bar: a clear title, a segmented Chat | Work switch. */
+.co-workspace .fe-topbar {
+  min-height: 56px;
+  padding-inline: 20px;
+}
+.co-workspace .fe-topbar h1 {
+  font-size: var(--fe-t-l);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.co-workspace .fe-topbar > div > small {
+  font-size: 12.5px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-mode {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--fe-surface-2);
+  border: 1px solid var(--fe-line);
+}
+.co-workspace .co-mode > button {
+  min-height: 28px;
+  padding: 3px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fe-fg-3);
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-mode > button[aria-current="page"] {
+  background: var(--fe-surface);
+  color: var(--fe-fg);
+  border-bottom: 0;
+  box-shadow:
+    var(--fe-shadow),
+    0 0 0 1px var(--fe-line);
+}
+
+/* Buttons: one height and corner, ink for the primary action. */
+.co-workspace button,
+.co-workspace .fe-button {
+  min-height: 34px;
+  border-radius: 9px;
+  box-shadow: none;
+}
+.co-workspace .co-primary,
+.co-workspace button.primary,
+.co-workspace button.co-primary,
+.co-workspace .fe-send {
+  background: var(--hz-ink);
+  color: var(--hz-on-ink);
+  border-color: transparent;
+  box-shadow: none;
+}
+.co-workspace .co-primary:hover:not(:disabled),
+.co-workspace button.primary:hover:not(:disabled),
+.co-workspace .fe-send:hover:not(:disabled) {
+  background: var(--hz-ink-hover);
+  color: var(--hz-on-ink);
+}
+.co-workspace .co-primary:disabled,
+.co-workspace .fe-send:disabled {
+  background: var(--fe-surface-3);
+  color: var(--fe-fg-4);
+}
+.co-workspace input:not([type="checkbox"]):not([type="radio"]),
+.co-workspace textarea,
+.co-workspace select {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+/* The first layer of status: what is happening now, on every page. */
+.co-workspace .co-live-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 20px;
+  border-bottom: 1px solid var(--fe-line);
+  background: var(--hz-live-soft);
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-2);
+  flex: none;
+}
+.co-workspace .co-live-strip.attention {
+  background: var(--fe-accent-soft);
+}
+.co-workspace .co-live-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hz-live);
+  animation: hz-pulse 1.8s ease-out infinite;
+}
+.co-workspace .co-live-strip.attention .co-live-dot {
+  background: var(--fe-accent);
+  animation: none;
+}
+.co-workspace .co-live-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.co-workspace .co-live-text b {
+  color: var(--fe-fg);
+  font-weight: 600;
+}
+.co-workspace .co-live-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--fe-fg);
+  font-weight: 600;
+}
+.co-workspace .co-live-open:hover:not(:disabled) {
+  background: var(--fe-hover);
+}
+
+/* Home: a greeting, a plain summary and live counts, then results, the goal and the team. */
+.co-workspace .co-home {
+  max-width: 880px;
+  padding: 40px 40px 64px;
+}
+.co-workspace .co-main .co-home-hello {
+  display: block;
+  height: auto;
+  min-height: 0;
+  margin: 0 0 30px;
+  padding: 0;
+  border: 0;
+  background: none;
+  position: static;
+}
+.co-workspace .co-home-date {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-home-hello h2 {
+  margin: 0 0 8px;
+  font-size: var(--fe-t-2xl);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.co-workspace .co-home-hello .co-home-today {
+  margin: 0 0 16px;
+  font-size: 15px;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-home-hello .co-home-today b {
+  font-weight: 500;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-home-pulse {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.co-workspace .co-pulse,
+.co-workspace button.co-pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid var(--fe-line-2);
+  background: var(--fe-surface);
+  color: var(--fe-fg-3);
+  font-size: var(--fe-t-s);
+  font-weight: 500;
+}
+.co-workspace .co-pulse strong {
+  color: var(--fe-fg);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.co-workspace .co-pulse.attention,
+.co-workspace button.co-pulse.attention {
+  border-color: var(--fe-accent-line);
+  background: var(--fe-accent-soft);
+  color: var(--fe-accent);
+}
+.co-workspace .co-pulse.attention strong {
+  color: var(--fe-accent);
+}
+.co-workspace .co-pulse.live::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hz-live);
+  animation: hz-pulse 1.8s ease-out infinite;
+}
+.co-workspace .co-home-section > h2,
+.co-workspace .co-home-section > summary {
+  font-size: var(--fe-t-s);
+  font-weight: 600;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-home-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+.co-workspace .co-home-row {
+  width: 100%;
+  min-height: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--fe-line);
+  background: var(--fe-surface);
+  text-align: left;
+}
+.co-workspace .co-home-row:hover:not(:disabled) {
+  border-color: var(--fe-line-2);
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow-lg);
+}
+.co-workspace .co-home-row b {
+  font-size: var(--fe-t-m);
+  font-weight: 600;
+}
+.co-workspace .co-goal-start,
+.co-workspace .co-home > .co-goal-start {
+  max-width: none;
+  margin-top: 28px;
+  padding: 26px 28px;
+  border-radius: 16px;
+  border: 1px solid var(--fe-line);
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow-lg);
+}
+.co-workspace .co-goal-start h2 {
+  font-size: var(--fe-t-xl);
+  letter-spacing: -0.02em;
+  margin: 2px 0 4px;
+}
+.co-workspace .co-goal-start .co-eyebrow {
+  margin: 0;
+}
+.co-workspace .co-goal-terms {
+  border-radius: 12px;
+  border: 1px solid var(--fe-line);
+  background: var(--fe-surface-2);
+  padding: 12px 14px;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.co-workspace .co-team-card {
+  border-radius: 14px;
+  padding: 16px;
+}
+.co-workspace .co-team-card .co-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+}
+.co-workspace .co-home-status {
+  color: var(--fe-fg-2);
+  font-size: var(--fe-t-s);
+}
+
+/* The second layer: what happened to a piece of work, step by step. */
+.co-workspace .co-trail {
+  margin: 0 0 14px;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  background: var(--fe-surface);
+}
+.co-workspace .co-trail > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-trail > summary::-webkit-details-marker {
+  display: none;
+}
+.co-workspace .co-trail > summary::before {
+  content: none;
+  display: none;
+}
+.co-workspace .co-trail > summary::after {
+  content: "›";
+  margin-left: auto;
+  color: var(--fe-fg-4);
+  transition: transform 120ms var(--fe-ease);
+}
+.co-workspace .co-trail[open] > summary::after {
+  transform: rotate(90deg);
+}
+.co-workspace .co-trail > summary b {
+  font-weight: 600;
+  flex: none;
+}
+.co-workspace .co-trail-summary {
+  flex: 1;
+  min-width: 0;
+  color: var(--fe-fg-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.co-workspace .co-trail-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fe-fg-4);
+}
+.co-workspace .co-trail-dot.live {
+  background: var(--hz-live);
+  animation: hz-pulse 1.8s ease-out infinite;
+}
+.co-workspace .co-trail ol {
+  list-style: none;
+  margin: 0;
+  padding: 6px 14px;
+  border-top: 1px solid var(--fe-line);
+}
+.co-workspace .co-trail li {
+  display: grid;
+  grid-template-columns: 6.5em minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: var(--fe-t-s);
+  border-bottom: 1px dashed var(--fe-line);
+}
+.co-workspace .co-trail li:last-child {
+  border-bottom: 0;
+}
+.co-workspace .co-trail time,
+.co-workspace .co-trail li small {
+  color: var(--fe-fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.co-workspace .co-trail li small {
+  color: var(--fe-fg-4);
+}
+.co-workspace .co-trail li b {
+  font-weight: 600;
+}
+.co-workspace .co-trail > .co-muted {
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px solid var(--fe-line);
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-trail-foot {
+  margin: 0;
+  padding: 8px 14px 12px;
+  font-size: 12px;
+  color: var(--fe-fg-4);
+}
+
+/* The work window and drafts: a readable column, quiet copy controls, receipts as drill-in rows. */
+.co-workspace .co-work-window-head strong {
+  font-size: var(--fe-t-l);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.co-workspace .co-report-content {
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 72ch;
+}
+.co-workspace .co-report-content p {
+  margin: 0 0 12px;
+}
+.co-workspace .co-copy-heading-row > p {
+  font-size: var(--fe-t-s);
+  font-weight: 650;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-report-tools {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--fe-surface);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--fe-line);
+}
+.co-workspace .co-copy-heading-row button,
+.co-workspace .co-copy-section {
+  min-height: 26px;
+  padding: 2px 9px;
+  font-size: 12px;
+  color: var(--fe-fg-3);
+  background: transparent;
+  border-color: var(--fe-line);
+}
+.co-workspace .co-job-card > details > summary,
+.co-workspace .co-report > details > summary {
+  font-size: var(--fe-t-s);
+  font-weight: 500;
+  color: var(--fe-fg-2);
+}
+
+/* Reply settings stay visible as compact chips, so what a message will do is never hidden. */
+.co-workspace .co-composer-tools {
+  gap: 6px;
+}
+.co-workspace .co-composer-tools > label:not(.co-model-choice) {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 2px 0 11px;
+  border: 1px solid var(--fe-line);
+  border-radius: 999px;
+  background: var(--fe-surface-2);
+  font-size: 12px;
+  color: var(--fe-fg-3);
+  white-space: nowrap;
+}
+.co-workspace .co-composer-tools > label select,
+.co-workspace .co-composer-tools > label input {
+  width: auto;
+  min-width: 0;
+  max-width: 220px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 500;
+  color: var(--fe-fg);
+}
+.co-workspace .co-composer-tools > label input[type="number"] {
+  width: 84px;
+  min-width: 84px;
+}
+.co-workspace .co-composer-tools > .co-model-choice {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-composer-tools > .co-model-choice select {
+  min-height: 28px;
+  padding: 2px 24px 2px 8px;
+  border-radius: 999px;
+  background: var(--fe-surface-2);
+}
+.co-workspace .co-composer-tools > .co-model-choice small {
+  font-size: 11.5px;
+  color: var(--fe-fg-4);
+}
+.co-workspace .co-conversation-composer .fe-composer {
+  border-radius: 16px;
+}
+/* The employee's actions keep their row of buttons whatever the window height. */
+.co-workspace .co-action-strip {
+  min-height: 50px;
+}
+
+/* Cockpit: lists under quiet labels; live work carries a pulse. */
+.co-workspace .fe-cockpit-head h2 {
+  font-size: var(--fe-t-m);
+  font-weight: 650;
+  color: var(--fe-fg);
+}
+.co-workspace .fe-cockpit-section h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fe-fg-4);
+}
+.co-workspace .fe-working-on.active h3::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--hz-live);
+  vertical-align: 1px;
+  animation: hz-pulse 1.8s ease-out infinite;
+}
+.co-workspace .fe-up-next-title span {
+  font-weight: 550;
+}
+.co-workspace .fe-up-next-title small {
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .co-workspace .co-home {
+    padding: 24px 16px 48px;
+  }
+  .co-workspace .co-home-hello h2 {
+    font-size: 24px;
+  }
+  .co-workspace .co-goal-start,
+  .co-workspace .co-home > .co-goal-start {
+    padding: 18px 16px;
+  }
+  .co-workspace .co-home-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .co-workspace .co-home-row > span {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .co-workspace .co-live-strip {
+    padding: 7px 12px;
+  }
+  .co-workspace .co-trail li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .co-workspace .co-trail time {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .co-workspace .co-live-dot,
+  .co-workspace .co-trail-dot.live,
+  .co-workspace .co-pulse.live::before,
+  .co-workspace .co-presence.working,
+  .co-workspace .fe-working-on.active h3::before {
+    animation: none;
+  }
+}
