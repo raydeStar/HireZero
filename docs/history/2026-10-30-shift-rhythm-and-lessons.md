@@ -73,4 +73,16 @@ rounds were seen piling up under Needs you, which led to the change above.
 - **Filling the numbers from connected analytics.** No company has analytics connected yet.
 - **Tuning the rounds' quality.** One job and thin drafts come from a one-sentence brief. The upcoming-dates wording
   needs fixing, and the usual blind-graded iteration still has to happen.
-- **Republishing.** The installs on 5065 and 5066 are not updated.
+
+## Installed
+
+At the owner's "Alright let's do it" on 2026-10-31, both local installs moved to 2e9c54c through the usual backup
+routine:
+- Only Core, the Marketing role and their symbols changed, and the web app was replaced whole. The host and every
+  other assembly kept their installed files. Each install verified 181 files.
+- All 20 companies kept their work, schedules and model connections, and every audit chain is intact. Home terms are
+  unchanged. The weekly numbers table was added, empty, on startup.
+- Marketing now offers the goal ladder and the morning round, and installed Home shows the ladder offer. No ladder is
+  approved and no shift is on, so the November pilot schedule still matches its approval.
+- No model calls were made. Backups, receipts and the old apps are kept privately. Going back to the old app would
+  also need the data backup restored, because the new table is created on startup.
