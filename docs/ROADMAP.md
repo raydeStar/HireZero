@@ -207,6 +207,10 @@ The [private pilot protocol](product/pilot-protocol.md) and offline cohort repor
 explicit observer assessments ([ADR 0102](adr/0102-private-pilot-observations.md)); real customer validation remains pending.
 Unknown costs, estimates, usage changes and corrections remain explicit; desktop/mobile recovery has fictional
 proof. Actual invoices, shared-cost allocations and sustainable pricing still require operational observations.
+Marketing now has a goal ladder and weekly numbers: one number to grow, the steps customers take, the step to work
+on first, and a weekly scorecard ([ADR 0170](adr/0170-goal-ladder-and-weekly-numbers.md),
+[notes](history/2026-10-30-goal-ladder.md)). It is the first of three steps toward an owner-approved Marketing shift;
+the morning shift with its stepped queue, then measuring, deciding and weekly learning, follow.
 Actual usefulness, identification accuracy and commercial retention still require observed customer trials.
 The full product goal remains in progress.
 

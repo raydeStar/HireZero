@@ -9,9 +9,12 @@ export type SkillInput = {
   fields: readonly string[];
   Editor: ComponentType<{ value: Record<string, string>; onChange: (value: Record<string, string>) => void }>;
 };
+// A card on Home for a role's standing work with the owner, such as Marketing's goal ladder.
+export type HomeCardProps = { snapshot: Snapshot; refresh: () => Promise<void>; openWork: (task: Work) => void };
 export type CompanyRoleUi = {
   skillInputs?: Record<string, SkillInput>;
   panels?: Record<string, ComponentType>;
+  homeCard?: ComponentType<HomeCardProps>;
   businessSetup?: (profile: BusinessProfile) => BusinessSetup;
   // Shared specificity: 3 requested work, 2 named deliverable, 1 topic, 0 general starting option.
   recommendation?: (profile: BusinessProfile) => { reason: string; priority: number; position?: number } | undefined;
@@ -95,5 +98,13 @@ export function panels(roles: Role[], slot: string): { roleId: string; Panel: Co
   return roles.flatMap((role) => {
     const Panel = role.uiSlots?.includes(slot) ? byRole[role.id]?.panels?.[slot] : undefined;
     return Panel ? [{ roleId: role.id, Panel }] : [];
+  });
+}
+
+// Each role's Home card, for roles whose manifest declares the "home-card" slot, in role order.
+export function homeCards(roles: Role[]): { roleId: string; Card: ComponentType<HomeCardProps> }[] {
+  return roles.flatMap((role) => {
+    const Card = role.uiSlots?.includes("home-card") ? byRole[role.id]?.homeCard : undefined;
+    return Card ? [{ roleId: role.id, Card }] : [];
   });
 }

@@ -1292,7 +1292,11 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
                       <ContextEditor
                         snapshot={snapshot}
                         departmentId={dept.id}
-                        fields={deptRole.onboardingFields.map((id) => ({ id, help: deptRole.onboarding?.help[id] }))}
+                        fields={deptRole.onboardingFields.map((id) => ({
+                          id,
+                          help: deptRole.onboarding?.help[id],
+                          optional: deptRole.onboarding?.optional?.includes(id),
+                        }))}
                         drafter={guide}
                         busy={busy}
                         run={run}

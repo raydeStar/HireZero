@@ -42,6 +42,15 @@ public sealed class MarketingModule : IEmployeeModule
                     MeasuredProfile = CompanyMeasuredPolicy.DeliverableProfile,
                 },
                 new(
+                    MarketingLadder.Skill,
+                    "Goal ladder",
+                    "Work out what to grow, the steps customers take and where to focus first, for owner approval.",
+                    SkillMode.Measured
+                )
+                {
+                    MeasuredProfile = CompanyMeasuredPolicy.DeliverableProfile,
+                },
+                new(
                     Draft,
                     "Campaign draft",
                     "Draft an asset from a versioned campaign brief for internal review.",
@@ -87,6 +96,7 @@ public sealed class MarketingModule : IEmployeeModule
                         "Which claims are approved, and what supports them? State unknown if none are approved."
                     ),
                     new("constraints", "What boundaries must all Marketing employees follow?"),
+                    .. MarketingLadder.Fields,
                 ],
                 "Draft for internal owner review. Treat missing facts as unknown. Do not invent claims, publish, send outreach, or spend."
             )
@@ -129,7 +139,14 @@ public sealed class MarketingModule : IEmployeeModule
                 new("drafts-approved", "Drafts approved", "count", "Drafts the owner approved without revision."),
                 new("review-rounds", "Review rounds", "rounds", "Average owner review rounds per approved draft."),
             ],
-            UiSlots = ["skill-input:" + Draft, "business-setup", "draft-checks:" + StarterPlan],
+            UiSlots =
+            [
+                "skill-input:" + Draft,
+                "business-setup",
+                "draft-checks:" + StarterPlan,
+                "draft-checks:" + MarketingLadder.Skill,
+                "home-card",
+            ],
             DisplayOrder = 10,
         };
 
@@ -142,6 +159,7 @@ public sealed class MarketingModule : IEmployeeModule
             Draft => MarketingText.DraftInstructions,
             StarterPlan => MarketingText.StarterPlanInstructions,
             GoalDraft => MarketingText.GoalDraftInstructions,
+            MarketingLadder.Skill => MarketingLadder.Instructions,
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
             MarketingExperiments.Skill => MarketingExperiments.Instructions,
             MarketingAds.Review => MarketingAds.ReviewInstructions,

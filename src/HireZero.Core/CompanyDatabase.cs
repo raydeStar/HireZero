@@ -68,6 +68,7 @@ public sealed partial class CompanyStore
         [typeof(CompanyMemoryItem)] = "co_memory",
         [typeof(CompanyMemoryAnalysis)] = "co_memory_analyses",
         [typeof(CompanyDecision)] = "co_decisions",
+        [typeof(CompanyReading)] = "co_readings",
         [typeof(CompanyTaskCostReview)] = "co_task_cost_reviews",
         [typeof(CompanyUsagePolicy)] = "co_usage_policy",
         [typeof(CompanyUsageEntry)] = "co_usage_entries",
@@ -171,6 +172,7 @@ public sealed partial class CompanyStore
                     MemoryAnalysisSchema,
                     TaskCostSchema,
                     DecisionSchema,
+                    ReadingSchema,
                 ];
                 try
                 {
@@ -248,6 +250,7 @@ public sealed partial class CompanyStore
                         or "co_browser_retention"
                         or "co_compute_policy"
                         or "co_document_retention"
+                        or "co_readings"
                     )
             )
         )
@@ -514,6 +517,7 @@ public sealed partial class CompanyStore
                                 name = o.DefaultName,
                                 responsibility = o.Responsibility,
                                 help = o.Fields.ToDictionary(f => f.Id, f => f.Help),
+                                optional = o.Fields.Where(f => f.Optional).Select(f => f.Id),
                                 boundaries = o.Boundaries,
                             }
                             : null,
@@ -530,6 +534,8 @@ public sealed partial class CompanyStore
                     taskTimes = TaskTimes(db),
                     // Connect cards, open and closed (docs/adr/0046-connect-cards.md).
                     connections = All<CompanyConnectionRequest>(db),
+                    // Weekly scorecard numbers (docs/adr/0170-goal-ladder-and-weekly-numbers.md).
+                    readings = RecentReadings(db),
                     // The company-wide fact fields and their help, in order (real-use batch, 2026-10-20).
                     companyFields = CompanyFactFields.Select(f => new { id = f.Id, help = f.Help }),
                     cursor = long.Parse(

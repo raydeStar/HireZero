@@ -20,7 +20,8 @@ export function ContextEditor({
   snapshot: Snapshot;
   // null for the company-wide facts.
   departmentId: string | null;
-  fields: { id: string; help?: string }[];
+  // Optional fields may stay blank; they are saved only when filled.
+  fields: { id: string; help?: string; optional?: boolean }[];
   // The employee who drafts from sources; none hides Fill from sources.
   drafter?: Employee;
   busy: boolean;
@@ -40,7 +41,7 @@ export function ContextEditor({
     setSourcesOpen(false);
     setError("");
   }, [departmentId, latest?.id, latest?.version]);
-  const missing = fields.filter((f) => !values[f.id]?.trim());
+  const missing = fields.filter((f) => !f.optional && !values[f.id]?.trim());
   const review = (k: Knowledge, decision: "approve" | "revoke") =>
     void run("knowledge.review", { id: k.id, expectedVersion: k.version, digest: k.digest, decision });
 
@@ -77,7 +78,9 @@ export function ContextEditor({
             // A pending draft is revised in place; otherwise this becomes a new draft beside the approved version.
             void run("knowledge.save", {
               departmentId,
-              body: JSON.stringify(Object.fromEntries(fields.map((f) => [f.id, values[f.id].trim()]))),
+              body: JSON.stringify(
+                Object.fromEntries(fields.filter((f) => values[f.id]?.trim()).map((f) => [f.id, values[f.id].trim()])),
+              ),
               ...(draft ? { id: draft.id, expectedVersion: draft.version } : {}),
             });
           }}
@@ -85,6 +88,7 @@ export function ContextEditor({
           {fields.map((f) => (
             <label key={f.id}>
               {humanize(f.id)}
+              {f.optional ? " (optional)" : ""}
               {f.help && <small className="co-muted">{f.help}</small>}
               <textarea value={values[f.id] || ""} onChange={(e) => setValues({ ...values, [f.id]: e.target.value })} />
             </label>

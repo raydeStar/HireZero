@@ -20,6 +20,7 @@ public sealed record CompanyRole(
     public string[] MeasuredSkills { get; init; } = [];
     public string[] PublishingSkills { get; init; } = [];
     public string[] PublishingActions { get; init; } = [];
+    public string[] OptionalOnboardingFields { get; init; } = [];
     public EmployeeManifest? Manifest { get; init; }
 
     // A skill's or action's name as the module declares it, so the owner never reads an id.
@@ -53,6 +54,7 @@ public sealed record CompanyRole(
                 .. manifest.Actions.Where(a => a.Publishes).Select(a => a.Id),
             ],
             PublishingActions = [.. manifest.Actions.Where(a => a.Publishes).Select(a => a.Id)],
+            OptionalOnboardingFields = [.. manifest.Onboarding.Fields.Where(f => f.Optional).Select(f => f.Id)],
             Manifest = manifest,
         };
     }

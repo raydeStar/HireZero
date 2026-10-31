@@ -5,7 +5,7 @@ import { workGroups, workState, workTitle, type Need } from "./Cockpit";
 import { artifactState, employeeState, roleName } from "./labels";
 import { isToday, useNow } from "./time";
 import { dollars } from "./money";
-import { approvedBusinessProfile, businessSetup } from "../roles/company";
+import { approvedBusinessProfile, businessSetup, homeCards } from "../roles/company";
 import { FirstAssignment } from "./FirstAssignment";
 import { useMemberAccess } from "./MemberAccess";
 import { WorkContext } from "./WorkContext";
@@ -308,6 +308,9 @@ export function Home({
           </ul>
         </section>
       )}
+      {homeCards(d.roles).map(({ roleId, Card }) => (
+        <Card key={roleId} snapshot={snapshot} refresh={refresh} openWork={onOpenWork} />
+      ))}
       {goalStart && (
         <GoalStart
           snapshot={snapshot}

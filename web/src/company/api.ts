@@ -231,7 +231,19 @@ export type RoleOnboarding = {
   name: string;
   responsibility: string;
   help: Record<string, string>;
+  // Fields that may be left blank when department context is saved.
+  optional?: string[];
   boundaries: string;
+};
+// One week's scorecard numbers for an employee (docs/adr/0170-goal-ladder-and-weekly-numbers.md).
+export type Reading = {
+  id: string;
+  employeeId: string;
+  week: string;
+  values: { name: string; value: number }[];
+  recordedBy: string;
+  recordedAt: string;
+  version: number;
 };
 export type Role = {
   id: string;
@@ -344,6 +356,7 @@ export type Snapshot = {
     spend?: Spend;
     // Connect cards, open and closed (docs/adr/0046-connect-cards.md).
     connections?: ConnectionRequest[];
+    readings?: Reading[];
     // When each task's first and latest events happened, by task id.
     taskTimes?: Record<string, { started: string; updated: string }>;
     // The company-wide fact fields every employee inherits, in order.

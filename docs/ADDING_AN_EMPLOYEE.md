@@ -106,8 +106,9 @@ export const companyUi: CompanyRoleUi = {
 };
 ```
 
-Slots in use: `skill-input:<skill>` (a structured input editor for that skill) and named panels such as
-`plan-guidance`. `web/src/roles/company.ts` picks the file up automatically.
+Slots in use: `skill-input:<skill>` (a structured input editor for that skill), named panels such as
+`plan-guidance`, and `home-card`, a card on Home such as Marketing's goal ladder (`homeCard`, given the snapshot,
+`refresh` and `openWork`). `web/src/roles/company.ts` picks the file up automatically.
 
 ## 4. Check
 

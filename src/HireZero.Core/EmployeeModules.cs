@@ -166,7 +166,11 @@ public sealed record EmployeeOnboarding(
     string Boundaries
 );
 
-public sealed record OnboardingField(string Id, string Help);
+public sealed record OnboardingField(string Id, string Help)
+{
+    // An optional field may be left out or blank when department context is saved; drafts still ask for it.
+    public bool Optional { get; init; }
+}
 
 public sealed record EmployeeCapabilities
 {

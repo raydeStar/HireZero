@@ -1,0 +1,192 @@
+/* Marketing's goal ladder card on Home (docs/adr/0170-goal-ladder-and-weekly-numbers.md). */
+.co-workspace .co-home > section.co-ladder {
+  margin-top: 28px;
+  padding: 22px 26px;
+  border-radius: 16px;
+  border: 1px solid var(--fe-line);
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow);
+}
+.co-ladder h2 {
+  font-size: var(--fe-t-l);
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+}
+.co-ladder-head {
+  display: flex;
+  margin-bottom: 4px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.co-ladder-head .co-goal-terms {
+  flex: 1 1 100%;
+}
+.co-ladder-goal {
+  margin: 4px 0 14px;
+  color: var(--fe-fg);
+}
+.co-ladder-md p,
+.co-ladder-md ul,
+.co-ladder-md ol {
+  margin: 4px 0;
+}
+.co-ladder-md ul,
+.co-ladder-md ol {
+  padding-left: 20px;
+}
+.co-ladder-goal > b,
+.co-ladder-focus > b,
+.co-ladder-focus .co-muted > b {
+  display: block;
+}
+.co-ladder-steps {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 8px;
+  counter-reset: ladder;
+}
+.co-ladder-steps li {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  padding: 12px;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  background: var(--fe-surface-2);
+  counter-increment: ladder;
+  overflow-wrap: anywhere;
+}
+.co-ladder-steps li::before {
+  content: counter(ladder);
+  font-size: var(--fe-t-xs);
+  color: var(--fe-fg-4);
+}
+.co-ladder-steps li.focus {
+  border-color: var(--fe-accent-line);
+  background: var(--fe-accent-soft);
+}
+.co-ladder-steps b {
+  color: var(--fe-fg);
+}
+.co-ladder-steps small,
+.co-ladder-steps em {
+  color: var(--fe-fg-3);
+  font-size: var(--fe-t-s);
+  font-style: normal;
+}
+.co-ladder-steps strong {
+  font-size: var(--fe-t-xl);
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+}
+.co-ladder-tag {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--fe-t-xs);
+  color: var(--fe-accent);
+  background: var(--fe-surface);
+  border: 1px solid var(--fe-accent-line);
+}
+.co-ladder-focus {
+  padding: 12px 14px;
+  border-left: 3px solid var(--fe-accent);
+  background: var(--fe-surface-2);
+  margin-bottom: 12px;
+}
+.co-ladder-focus p {
+  margin: 4px 0 0;
+}
+.co-ladder-drop {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--fe-accent-soft);
+  border: 1px solid var(--fe-accent-line);
+  color: var(--fe-fg);
+}
+.co-ladder-draft {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 1fr;
+  gap: 8px 16px;
+  margin: 12px 0;
+}
+.co-ladder-draft dt {
+  color: var(--fe-fg-3);
+  font-size: var(--fe-t-s);
+}
+.co-ladder-draft dd {
+  margin: 0;
+}
+.co-ladder-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+.co-ladder-list small {
+  display: block;
+  color: var(--fe-fg-3);
+}
+.co-ladder-edit,
+.co-ladder-numbers {
+  margin: 10px 0;
+}
+.co-ladder-edit summary,
+.co-ladder-numbers summary {
+  cursor: pointer;
+  color: var(--fe-accent);
+}
+.co-ladder-edit label,
+.co-ladder-numbers label {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-2);
+}
+.co-ladder-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0 12px;
+}
+.co-ladder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+@media (max-width: 640px) {
+  .co-workspace .co-home > section.co-ladder {
+    padding: 18px 16px;
+  }
+  .co-ladder-draft {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .co-ladder-draft dd {
+    margin-bottom: 8px;
+  }
+}
+.co-workspace .co-ladder .co-check {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  text-align: left;
+}
+.co-workspace .co-ladder input[type="checkbox"] {
+  width: 18px;
+  flex: 0 0 18px;
+  margin-top: 3px;
+}

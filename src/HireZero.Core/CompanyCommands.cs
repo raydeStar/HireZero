@@ -66,6 +66,8 @@ public sealed partial class CompanyStore
                 return CloseNoticeDelivery(db, c);
             case "schedule.save":
                 return SaveScheduleDraft(db, c);
+            case "reading.record":
+                return RecordReading(db, c);
             case "schedule.review":
                 return ReviewSchedule(db, c);
             case "document.save":
@@ -208,14 +210,22 @@ public sealed partial class CompanyStore
                 {
                     using var json = System.Text.Json.JsonDocument.Parse(body);
                     var role = Role(Need<CompanyEmployee>(db, guide).RoleId);
+                    if (json.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+                        throw new WorkspaceException(
+                            "Complete onboarding field: " + role.OnboardingFields.FirstOrDefault(),
+                            422
+                        );
                     foreach (var field in role.OnboardingFields)
+                    {
+                        var present = json.RootElement.TryGetProperty(field, out var v);
+                        if (present && v.ValueKind != System.Text.Json.JsonValueKind.String)
+                            throw new WorkspaceException("Complete onboarding field: " + field, 422);
                         if (
-                            json.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object
-                            || !json.RootElement.TryGetProperty(field, out var v)
-                            || v.ValueKind != System.Text.Json.JsonValueKind.String
-                            || string.IsNullOrWhiteSpace(v.GetString())
+                            !role.OptionalOnboardingFields.Contains(field)
+                            && (!present || string.IsNullOrWhiteSpace(v.GetString()))
                         )
                             throw new WorkspaceException("Complete onboarding field: " + field, 422);
+                    }
                 }
                 var k = new CompanyKnowledge(
                     prior?.Id ?? Id(),

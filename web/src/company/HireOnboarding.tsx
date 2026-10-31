@@ -191,7 +191,8 @@ export function HireOnboarding({
   const guide = data.employees.find((e) => e.id === department?.guide),
     role = data.roles.find((r) => r.id === (guide?.roleId || draft.role));
   const fields = role?.onboardingFields || [],
-    defaults = role?.onboarding;
+    defaults = role?.onboarding,
+    optional = defaults?.optional ?? [];
   const setup = businessSetup(snapshot, person?.roleId || draft.role);
   const thread = data.threads.find((t) => t.employeeId === person?.id && (t.scope ?? "employee") === "employee");
   useEffect(() => {
@@ -606,13 +607,17 @@ export function HireOnboarding({
           )}
           <form
             onSubmit={submit(async () => {
-              if (fields.some((field) => !draft.values[field]?.trim())) {
+              if (fields.some((field) => !optional.includes(field) && !draft.values[field]?.trim())) {
                 setError("Complete every context field. If a fact is unknown, say so explicitly.");
                 return;
               }
               await save("knowledge.save", {
                 departmentId: person.departmentId,
-                body: JSON.stringify(Object.fromEntries(fields.map((field) => [field, draft.values[field].trim()]))),
+                body: JSON.stringify(
+                  Object.fromEntries(
+                    fields.filter((field) => draft.values[field]?.trim()).map((f) => [f, draft.values[f].trim()]),
+                  ),
+                ),
                 ...(saved?.state === "draft" ? { id: saved.id, expectedVersion: saved.version } : {}),
               });
             })}
@@ -636,9 +641,10 @@ export function HireOnboarding({
               {fields.map((field) => (
                 <label key={field}>
                   {humanize(field)}
+                  {optional.includes(field) ? " (optional)" : ""}
                   {defaults?.help[field] && <small className="co-muted">{defaults.help[field]}</small>}
                   <textarea
-                    required
+                    required={!optional.includes(field)}
                     maxLength={1500}
                     value={draft.values[field] || ""}
                     placeholder="Enter verified facts, or mark what is unknown."

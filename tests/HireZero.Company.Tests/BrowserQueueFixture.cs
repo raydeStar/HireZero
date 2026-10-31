@@ -696,6 +696,27 @@ static class BrowserQueueFixture
                     when call.Context.Input.Contains("Write one welcome email")
                         && call.Instructions.Contains("finished marketing deliverable") =>
                     "Fictional welcome email: Welcome to our paper studio. Explore your kit's folding guide and choose your first project. Draft for internal review.",
+                "marketing"
+                    when call.Context.Input.Contains("Work out my goal ladder")
+                        && call.Instructions.Contains("'## Goal', '## First step', '## Steps', '## Focus'") => """
+                    ## Goal
+                    New paper-kit orders a week. More orders mean more money for the studio.
+
+                    ## First step
+                    Order a starter kit on the website.
+
+                    ## Steps
+                    - See us: people who see a post a week
+                    - Visit: website visits a week (website analytics)
+                    - Order: starter kits ordered a week
+
+                    ## Focus
+                    Visit: few visitors order, and the shop page does not show the starter kit first. Show it at the top of the shop page. A best guess until the weekly numbers confirm it.
+                    Leave alone for now: paid ads.
+
+                    ## Notes for you
+                    - Fictional ladder for a browser check.
+                    """,
                 _ => throw new ModelTransportException(
                     "The fictional team has no such assignment.",
                     0,
