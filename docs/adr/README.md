@@ -178,3 +178,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0171](0171-an-owner-approved-shift.md) | Put Marketing on an owner-approved shift of morning rounds | Accepted; recurring rounds read numbers and recent work, jobs start with one click, no new authority |
 | [0172](0172-shift-rhythm-lessons-and-measured-changes.md) | Give the shift a weekly rhythm, kept lessons and measured changes | Accepted; weekday cadence, lessons as owner-approved memory in every round, a fixed before-and-after rule |
 | [0173](0173-site-analytics.md) | Let a site's own counts fill the weekly numbers | Accepted; neutral daily read, site analytics over MCP, the owner checks and saves |
+| [0174](0174-retire-the-competition-workspace-provider.md) | Retire the competition workspace provider | Accepted; site integration disabled, records preserved, replacement signup deferred |

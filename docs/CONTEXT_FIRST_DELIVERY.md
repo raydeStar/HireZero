@@ -4,6 +4,8 @@ Scope: all three phases of the [owner's proposal](product/context-first-vision.m
 Priority: immediate usefulness. State a goal, receive useful work with minimal input and navigation.
 Delivery direction: [local-first](history/2026-10-30-local-first-readiness.md), using HireZero's public website
 for the next internal walkthrough. Hosted deployment follows owner satisfaction with the local experience.
+The [competition-era Plow connection](history/2026-10-31-plow-retirement.md) is retired on the public site;
+replacement hosted signup remains deferred.
 
 ## Current checkpoint — 2026-10-30
 
