@@ -45,7 +45,9 @@ of an existing untouched fictional draft showed the new correction button; openi
 and Cancel closed it without changing the draft or starting a run. Automated browser journeys, installed-file
 hashes, API health, audit and authority readback provide the broader verification.
 
-Adding research to the existing morning shift is a separate reviewed replacement, prepared but not activated
-while its owner decision is pending. The current finite shift continues with its prior read scope. The separate
-weekly pilot retains its existing approval. Model usefulness and avoiding paraphrased vetoes still need real
-acceptance evidence under an authorized run allowance.
+The owner approved and activated the separate research-enabled replacement. The original morning shift is
+canceled. Readback confirms exactly one active replacement, current approval, zero occurrences consumed and
+the first of fourteen weekday mornings due November 2 at 08:00 Mountain. The model, high effort, 6,000-token
+target, ninety-second local deadline and intended one existing credit per run are unchanged soft limits.
+The separate weekly pilot retains its existing approval. Model usefulness and avoiding paraphrased vetoes
+still need real acceptance evidence; activation did not perform an immediate model request.
