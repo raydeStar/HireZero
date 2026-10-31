@@ -372,7 +372,13 @@ export type Snapshot = {
 };
 export type ThreadDetail = {
   thread: Thread;
-  messages: { id: string; author: string; body: string; sequence: number }[];
+  messages: {
+    id: string;
+    author: string;
+    body: string;
+    sequence: number;
+    attachments?: import("./conversationAttachments").ConversationAttachment[];
+  }[];
   notes: { body: string; version: number };
 };
 const operationKey = "hirezero-company-operation-v2:" + (company() || "local-company");

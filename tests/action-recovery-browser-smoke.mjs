@@ -171,6 +171,7 @@ try {
     "employee actions loaded",
   );
   const click = clicker(evaluate, until);
+  await evaluate("document.querySelector('.co-action-strip summary').click()");
   await evaluate(`(() => {
     const button = [...document.querySelectorAll('.co-action-chip')].find(b => b.textContent === ${JSON.stringify(action.name)});
     if (button) button.click();

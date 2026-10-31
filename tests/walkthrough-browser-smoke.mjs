@@ -41,6 +41,7 @@ try{
   await send('Page.navigate',{url:url+route});await until(()=>evaluate("!!document.querySelector('button[aria-label=\"Prepare reply for review\"]')"),'Support conversation');
 
   // P0 2: a long action field is multi-line, so separated messages stay separate.
+  await evaluate("document.querySelector('.co-action-strip summary').click()");
   await evaluate("[...document.querySelectorAll('.co-action-strip button')].find(b=>b.textContent==='Prepare customer messages').click()");await until(()=>evaluate("!!document.querySelector('[aria-label^=\"Customer messages\"]')"),'action form opened from its button');
   assert.equal(await evaluate("document.querySelector('[aria-label^=\"Customer messages\"]').tagName"),'TEXTAREA','Customer messages take several lines');
   await evaluate(`(()=>{const f=document.querySelector('[aria-label^="Customer messages"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(f,${JSON.stringify(messages)});f.dispatchEvent(new Event('input',{bubbles:true}));})()`);await delay(100);
@@ -52,14 +53,14 @@ try{
   assert.ok(!intake.input.includes('4111')&&!intake.input.includes('jo@example.invalid'),'Stored action input is redacted');
   assert.equal(await evaluate("document.body.innerText.includes('4111')||document.body.innerText.includes('jo@example.invalid')"),false,'No raw card or email on screen');
 
-  // P0 3: a locked authorization says why and unlocks where it is.
+  // P0 3: a prepared reply loads its exact review without another click; consent stays unchecked.
+  await evaluate("document.querySelector('.co-action-strip summary').click()");
   await evaluate(`(()=>{const set=(el,v)=>{const p=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));};set(document.querySelector('.co-conversation-composer input[type=number]'),'5');set(document.querySelector('textarea[placeholder^="Message"]'),'What do customers ask most often?');})()`);await delay(100);
   await evaluate("document.querySelector('button[aria-label=\"Prepare reply for review\"]').click()");
-  await until(()=>evaluate("!!document.querySelector('.co-locked-hint')&&document.querySelector('.co-locked-hint').textContent.includes('first')"),'locked authorization explains itself');
   const box="[...document.querySelectorAll('input[type=checkbox]')].find(c=>c.closest('label')?.textContent.includes('I authorize'))";
-  assert.equal(await evaluate(box+'.disabled'),true,'Unread context cannot be authorized');
-  await until(()=>evaluate("(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent==='Review reply and context');if(!b||b.disabled)return false;b.click();return true;})()"),'review button ready');
+  await until(()=>evaluate("!!document.querySelector('.co-reply-turn .co-packet')"),'reply review loaded automatically');
   await until(()=>evaluate(box+'.disabled===false'),'reviewing the context unlocks the box');
+  assert.equal(await evaluate(box+'.checked'),false,'Loading the review does not authorize it');
   assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.includes('to unlock'))"),false,'The hint goes once the context is shown');
 
   // P0 4: the conversation keeps room to read, and nothing overlaps, at 1024x768.

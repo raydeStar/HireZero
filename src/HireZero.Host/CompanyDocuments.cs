@@ -18,6 +18,7 @@ public static class CompanyDocuments
                         context.Request.Path == "/api/company/documents/save"
                         || context.Request.Path == "/api/company/documents/extract-word"
                         || context.Request.Path == "/api/company/documents/extract-pdf"
+                        || context.Request.Path == "/api/company/documents/extract-image"
                     )
                 )
                 {
@@ -101,6 +102,45 @@ public static class CompanyDocuments
                 catch (FormatException)
                 {
                     throw new WorkspaceException("The PDF upload is incomplete. Select the file again.", 422);
+                }
+                catch (DocumentImportException error)
+                {
+                    throw new WorkspaceException(error.Message, error.Status);
+                }
+            }
+        );
+        app.MapPost(
+            "/api/company/documents/extract-image",
+            async (WordImportRequest request, HttpContext context) =>
+            {
+                if (
+                    string.IsNullOrWhiteSpace(request.Name)
+                    || request.Name.Length > 160
+                    || request.Name.IndexOfAny(['/', '\\', ':']) >= 0
+                    || !new[] { ".png", ".jpg", ".jpeg" }.Contains(Path.GetExtension(request.Name).ToLowerInvariant())
+                )
+                    throw new WorkspaceException("Choose a PNG or JPEG filename without a folder path.", 422);
+                if (string.IsNullOrEmpty(request.ContentBase64))
+                    throw new WorkspaceException("Choose a screenshot to read.", 422);
+                if (request.ContentBase64.Length > 4 * ((ImageTextImport.FileByteLimit + 2) / 3))
+                    throw new WorkspaceException("Choose an image of at most 2 MiB.", 413);
+                context.Response.Headers.CacheControl = "no-store";
+                try
+                {
+                    var preview = await ImageTextImport.ExtractAsync(
+                        Convert.FromBase64String(request.ContentBase64),
+                        context.RequestAborted
+                    );
+                    CompanyAccess.Demand(
+                        store().Actor((string)context.Items["login"]!),
+                        CompanyRoles.Owner,
+                        "read private screenshots"
+                    );
+                    return Results.Ok(preview);
+                }
+                catch (FormatException)
+                {
+                    throw new WorkspaceException("The image upload is incomplete. Select it again.", 422);
                 }
                 catch (DocumentImportException error)
                 {

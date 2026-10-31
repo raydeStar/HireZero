@@ -16,8 +16,7 @@ const visibleActions = 4;
 
 // Read-only, tool-backed actions an employee's manifest declares (docs/adr/0011-employee-actions.md). The output
 // arrives as an artifact for owner review; only approved artifacts can be attached as evidence. They sit in a strip
-// above the composer, one button per action, so what an employee can do is visible without opening anything (owner
-// feedback, 2026-10-20); a button opens that action's form in place.
+// behind one tools disclosure. A saved recovery receipt keeps that disclosure open until the owner checks it.
 export function EmployeeActions({
   role,
   employeeName,
@@ -176,11 +175,12 @@ export function EmployeeActions({
   };
   const more = actions.slice(visibleActions);
   return (
-    <section className="co-action-strip" aria-label="Actions">
+    <details className="co-action-strip" aria-label="Actions" open={!!picked || !!restored.error || undefined}>
+      <summary>
+        <Zap size={14} aria-hidden="true" /> Tools
+      </summary>
       <div className="co-action-buttons">
-        <span className="co-action-strip-label">
-          <Zap size={14} aria-hidden="true" /> {employeeName} can
-        </span>
+        <span className="co-action-strip-label">{employeeName} can</span>
         {actions.slice(0, visibleActions).map((action) => (
           <button
             key={action.id}
@@ -365,7 +365,7 @@ export function EmployeeActions({
           {restored.error || error}
         </p>
       )}
-    </section>
+    </details>
   );
 }
 

@@ -543,11 +543,97 @@
 .co-workspace .co-action-strip {
   flex: 0 1 auto;
   min-height: 0;
+  overflow: auto;
+  border: 0;
+  padding: 4px 20px;
+}
+.co-workspace .co-action-strip > summary {
+  width: fit-content;
+  color: var(--fe-fg-3);
+  cursor: pointer;
+  font-size: 12px;
+}
+.co-workspace .co-action-strip:not([open]) > :not(summary) {
+  display: none;
+}
+.co-workspace .co-action-strip[open] {
+  max-height: 30dvh;
+}
+.co-workspace .co-action-strip .co-action-buttons {
+  margin-top: 8px;
+}
+.co-workspace .co-composer-footer {
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-top: 1px solid var(--fe-line);
-  padding: 10px 20px 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 6px;
+}
+.co-workspace .co-attach-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 0;
+  padding: 5px 0;
+  color: var(--fe-fg-3);
+  font-size: 12px;
+}
+.co-workspace .co-composer-options {
+  font-size: 12px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-composer-options > summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.co-workspace .co-composer-options:not([open]) > .co-composer-tools {
+  display: none;
+}
+.co-workspace .co-composer-options[open] {
+  flex-basis: 100%;
+  order: 3;
+  padding: 8px 0;
+}
+.co-workspace .co-composer-options .co-composer-tools {
+  padding: 12px 0 0;
+  max-height: 30dvh;
+  overflow: auto;
+}
+.co-workspace .co-composer-disclosure {
+  margin-left: auto;
+  color: var(--fe-fg-3);
+  font-size: 11px;
+}
+.co-workspace .co-attachments {
+  max-height: 26dvh;
+  overflow: auto;
+  margin: 8px 0;
+}
+.co-workspace .co-attachments small {
+  display: block;
+  color: var(--fe-fg-3);
+  font-size: 12px;
+}
+.co-workspace .co-attachment {
+  margin: 8px 0;
+  padding: 8px;
+  border: 1px solid var(--fe-line);
+  border-radius: 8px;
+}
+.co-workspace .co-attachment summary,
+.co-workspace .co-message-attachment summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.co-workspace .co-attachment textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 70px;
+}
+.co-workspace .co-message-attachment {
+  margin-top: 8px;
+  font-size: 13px;
 }
 .co-workspace .co-action-strip > .co-action-buttons {
   flex: none;
@@ -783,8 +869,8 @@
     min-height: min(160px, 18dvh);
   }
   .co-workspace .co-action-strip {
-    min-height: 60px;
-    padding: 8px 12px;
+    min-height: 28px;
+    padding: 4px 12px;
   }
   .co-workspace .co-action-buttons {
     flex-wrap: nowrap;

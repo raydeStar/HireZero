@@ -290,6 +290,13 @@ public sealed partial class CompanyStore
             WebsiteResearch = t.GoalWebsiteLookupId is null ? null : GoalWebsite(db, t.GoalWebsiteLookupId),
             OwnerDirections = OwnerDirections(db, e.Id),
         };
+        if (t.Kind == "conversation")
+            context = context with
+            {
+                Attachments = All<CompanyMessage>(db)
+                    .FirstOrDefault(m => m.ThreadId == t.ThreadId && m.Sequence == t.Watermark && m.Author == "owner")
+                    ?.Attachments,
+            };
         context = CompactBusinessPacket(context);
         if (t.MeetingId is null && Role(e.RoleId).ShiftSkills.Contains(t.Skill))
             context = context with

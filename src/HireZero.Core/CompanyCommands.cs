@@ -303,7 +303,7 @@ public sealed partial class CompanyStore
                 if (Need<CompanyEmployee>(db, t.EmployeeId).State == "retired")
                     throw new WorkspaceException("Retired employee history is read-only.");
                 var body = Text(c.Body);
-                var message = Message(db, t, "owner", body);
+                var message = Message(db, t, "owner", body, ConversationAttachments(c, t));
                 return new
                 {
                     message,
@@ -630,11 +630,17 @@ public sealed partial class CompanyStore
         }
     }
 
-    private CompanyMessage Message(StoreConnection db, CompanyThread t, string author, string body)
+    private CompanyMessage Message(
+        StoreConnection db,
+        CompanyThread t,
+        string author,
+        string body,
+        CompanyAttachment[]? attachments = null
+    )
     {
         var seq =
             All<CompanyMessage>(db).Where(m => m.ThreadId == t.Id).Select(m => m.Sequence).DefaultIfEmpty(0).Max() + 1;
-        var m = new CompanyMessage(Id(), t.Id, t.EmployeeId, author, body, seq);
+        var m = new CompanyMessage(Id(), t.Id, t.EmployeeId, author, body, seq, attachments);
         Save(db, m, m.Id, t.Id, t.EmployeeId);
         return m;
     }

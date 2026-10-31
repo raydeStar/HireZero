@@ -23,6 +23,7 @@ type Packet = {
       departmentKnowledge: string;
       notes: string;
       history: unknown[];
+      attachments?: import("./conversationAttachments").ConversationAttachment[];
       evidence: unknown[];
       scheduledOccurrence?: {
         scheduledFor: string;
@@ -125,7 +126,7 @@ export function MeasuredJob({
     setError("");
     setReviewing(false);
     setContextOpen(false);
-    if (entry?.job.state === "proposed" && !conversational) void review(false);
+    if (entry?.job.state === "proposed") void review(false);
     return () => {
       reviewRequest.current++;
     };
@@ -286,13 +287,15 @@ export function MeasuredJob({
                   : `intended allowance ${entry.job.creditAllowance} ${entry.job.creditAllowance === 1 ? "credit" : "credits"}`}{" "}
                 · expires {new Date(entry.job.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
               </p>
-              <button disabled={busy || running || reviewing} aria-busy={reviewing} onClick={() => void review()}>
-                {reviewing
-                  ? "Loading review…"
-                  : conversational
-                    ? "Review reply and context"
-                    : "Review task and context"}
-              </button>
+              {(!conversational || !packet) && (
+                <button disabled={busy || running || reviewing} aria-busy={reviewing} onClick={() => void review()}>
+                  {reviewing
+                    ? "Loading review…"
+                    : conversational
+                      ? "Review reply and context"
+                      : "Review task and context"}
+                </button>
+              )}
               {packet && (
                 <div className="co-packet">
                   {/* A revision leads with the owner's own words; the full request is below (dogfood, 2026-10-30). */}
@@ -319,6 +322,14 @@ export function MeasuredJob({
                     <Contents body={packet.call.context.responsibility} />
                     <h4>Requested work</h4>
                     <Contents body={packet.call.context.input} />
+                    {packet.call.context.attachments?.map((file, index) => (
+                      <section key={index} aria-label="Attached reference text">
+                        <h4>
+                          {file.name} · {file.kind === "image-ocr" ? "OCR text only" : "document text"}
+                        </h4>
+                        <Contents body={file.text} />
+                      </section>
+                    ))}
                     {packet.call.context.revision && (
                       <section aria-label="Revision context">
                         {!!packet.call.context.revision.priorFeedback?.length && (

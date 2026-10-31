@@ -98,8 +98,15 @@ public sealed record CompanyMessage(
     string EmployeeId,
     string Author,
     string Body,
-    long Sequence
+    long Sequence,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyAttachment[]? Attachments = null
 );
+
+// Extracted text belongs to its conversation, never silently to shared company knowledge.
+public sealed record CompanyAttachment(string Name, string Text, string Kind);
 
 public sealed record CompanyNotes(string Id, string Body, int Version = 1);
 
@@ -281,7 +288,11 @@ public sealed record CompanyContext(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        CompanyFreshSignals? FreshSignals = null
+        CompanyFreshSignals? FreshSignals = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyAttachment[]? Attachments = null
 );
 
 // Owner-approved memory addressed to one employee, as a shift round sees it (docs/adr/0172): what it has learned.
@@ -420,7 +431,11 @@ public sealed record CompanyCommand(
     decimal CreditAllowance = 0,
     string? Scope = null,
     bool AllowNetwork = false,
-    string? ModelRoute = null
+    string? ModelRoute = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyAttachment[]? Attachments = null
 );
 
 // Runtime selection and task purpose are independent of employee role: a conversation is ordinary text work; only
