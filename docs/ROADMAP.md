@@ -216,6 +216,8 @@ come back with up to three jobs and draft the first, with the rest one click awa
 the shift a weekday rhythm, lessons the owner keeps for every later round, and done changes judged against the
 numbers by a fixed rule ([ADR 0172](adr/0172-shift-rhythm-lessons-and-measured-changes.md),
 [notes](history/2026-10-30-shift-rhythm-and-lessons.md)).
+A site that counts its own visitors can now fill the weekly numbers form for the owner to check and save
+([ADR 0173](adr/0173-site-analytics.md), [notes](history/2026-10-31-site-analytics.md)).
 Actual usefulness, identification accuracy and commercial retention still require observed customer trials.
 The full product goal remains in progress.
 

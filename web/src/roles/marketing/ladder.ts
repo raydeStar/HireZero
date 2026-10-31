@@ -68,6 +68,40 @@ export function addWeeks(week: string, weeks: number): string {
 const isoDate = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
+// A connected site's daily counts (docs/adr/0173-site-analytics.md): null where the site keeps no count for that day.
+export type SiteDay = {
+  day: string;
+  visitors: number | null;
+  pageViews: number | null;
+  signUps: number | null;
+  accounts: number | null;
+};
+export type SiteWeek = { visitors?: number; pageViews?: number; signUps?: number; accounts?: number };
+
+// A week's totals: a count is left out unless the site kept it for every day asked for.
+export function siteWeek(days: SiteDay[]): SiteWeek {
+  const total = (key: keyof SiteWeek) =>
+    days.length && days.every((d) => typeof d[key] === "number")
+      ? days.reduce((sum, d) => sum + (d[key] as number), 0)
+      : undefined;
+  return {
+    visitors: total("visitors"),
+    pageViews: total("pageViews"),
+    signUps: total("signUps"),
+    accounts: total("accounts"),
+  };
+}
+
+// The ladder step a site's visitor count fills: the first that names a visit, such as "Visit" or "Site visits".
+export function visitStep(steps: string[]): string | undefined {
+  return steps.find((s) => /\bvisit/i.test(s));
+}
+
+export function addDays(day: string, days: number): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return isoDate(new Date(y, m - 1, d + days));
+}
+
 export function valueIn(reading: Reading | undefined, name: string): number | undefined {
   return reading?.values.find((v) => v.name.toLowerCase() === name.toLowerCase())?.value;
 }

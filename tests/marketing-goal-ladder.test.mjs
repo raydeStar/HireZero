@@ -5,7 +5,7 @@ import ts from "../web/node_modules/typescript/lib/typescript.js";
 const source = fs.readFileSync(new URL("../web/src/roles/marketing/ladder.ts", import.meta.url), "utf8");
 const exports = {};
 vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports });
-const { parseLadderDraft, parseSteps, weekOf, addWeeks, shareText, biggestDrop, ladderChecks, measureChange, focusOf } = exports;
+const { parseLadderDraft, parseSteps, weekOf, addWeeks, addDays, shareText, biggestDrop, ladderChecks, measureChange, focusOf, siteWeek, visitStep } = exports;
 // Values from the sandbox's own realm compare by content.
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
@@ -94,4 +94,14 @@ assert.equal(focusOf(steps, "Order: few visitors order, and the shop page hides 
 assert.equal(focusOf(steps, "**Visit**: few people come to the site.").name, "Visit");
 assert.equal(focusOf(steps, "Work on the step from website visit to order.").name, "Visit");
 assert.equal(focusOf(steps, "Nothing named here."), undefined);
+// A connected site's daily counts fill a week only when the site kept the count every day (docs/adr/0173-site-analytics.md).
+const day = (d, visitors, signUps = 0) => ({ day: d, visitors, pageViews: visitors === null ? null : visitors + 1, signUps, accounts: 0 });
+assert.deepEqual(plain(siteWeek([day("2026-10-19", 2), day("2026-10-20", 3, 1)])), { visitors: 5, pageViews: 7, signUps: 1, accounts: 0 });
+assert.deepEqual(plain(siteWeek([day("2026-10-19", null), day("2026-10-20", 3)])), { signUps: 0, accounts: 0 });
+assert.deepEqual(plain(siteWeek([])), {});
+assert.equal(visitStep(["See HireZero", "Visit the site", "Start signup"]), "Visit the site");
+assert.equal(visitStep(["Reach", "Site visits", "Order"]), "Site visits");
+assert.equal(visitStep(["Reach", "Order"]), undefined);
+assert.equal(addDays("2026-10-26", 6), "2026-11-01");
+assert.equal(addDays("2026-12-28", 6), "2027-01-03");
 console.log("marketing goal ladder: ok");

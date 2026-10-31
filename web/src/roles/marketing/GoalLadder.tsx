@@ -8,6 +8,7 @@ import { useMemberAccess } from "../../company/MemberAccess";
 import { providerName } from "../../company/ModelChoice";
 import type { HomeCardProps } from "../company";
 import {
+  addDays,
   addWeeks,
   biggestDrop,
   focusOf,
@@ -16,9 +17,13 @@ import {
   parseLadderDraft,
   parseSteps,
   shareText,
+  siteWeek,
   valueIn,
+  visitStep,
   weekOf,
   type Ladder,
+  type SiteDay,
+  type SiteWeek,
 } from "./ladder";
 import "./ladder.css";
 
@@ -613,12 +618,53 @@ function Numbers({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
+  // A connected site's own counts for the week (docs/adr/0173-site-analytics.md). They fill the visit step when it is
+  // blank and are shown beside the form; nothing is saved until the owner saves. Without a connection the form is as
+  // it was.
+  const [site, setSite] = useState<{ source: string; totals: SiteWeek; soFar: boolean }>();
+  const step = visitStep(steps);
   useEffect(() => {
     setValues(Object.fromEntries(steps.map((s) => [s, valueIn(existing, s)?.toString() ?? ""])));
     setSaved("");
   }, [week, existing?.version]);
+  useEffect(() => {
+    let active = true;
+    setSite(undefined);
+    const last = addDays(week, 6),
+      today = new Date().toISOString().slice(0, 10),
+      end = last < today ? last : today;
+    if (end < week) return;
+    void api<{ source: string; rows: SiteDay[] }>(
+      `/company/employees/${encodeURIComponent(employee.id)}/analytics/daily?` +
+        new URLSearchParams({ start: week, end }),
+    )
+      .then((report) => {
+        if (!active) return;
+        const totals = siteWeek(report.rows);
+        setSite({ source: report.source, totals, soFar: end < last });
+        // Only a finished week fills a number: a part week would read as the whole week.
+        if (step && totals.visitors !== undefined && end === last)
+          setValues((v) => (v[step]?.trim() ? v : { ...v, [step]: String(totals.visitors) }));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [week, employee.id, existing?.version]);
   const label = (w: string) =>
     new Date(w + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const counts = site
+    ? (
+        [
+          [site.totals.visitors, "visitor"],
+          [site.totals.pageViews, "page view"],
+          [site.totals.signUps, "sign-up"],
+          [site.totals.accounts, "new account"],
+        ] as const
+      )
+        .filter(([n]) => n !== undefined)
+        .map(([n, noun]) => `${n} ${noun}${n === 1 ? "" : "s"}`)
+    : [];
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -673,6 +719,17 @@ function Numbers({
             </label>
           ))}
         </div>
+        {site && counts.length > 0 && (
+          <p className="co-ladder-site">
+            From {site.source}
+            {site.soFar ? ", so far this week" : ""}: {counts.join(" · ")}.
+            {site.soFar
+              ? " Add the week once it’s over."
+              : (step && site.totals.visitors !== undefined
+                  ? ` “${step}” uses its visitors unless you change it.`
+                  : "") + " Check them, then save."}
+          </p>
+        )}
         <p className="co-muted">Leave a number blank if you don’t know it yet. Only you and your team see these.</p>
         {error && <p role="alert">{error}</p>}
         <div className="co-ladder-actions">

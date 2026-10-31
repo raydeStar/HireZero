@@ -29,6 +29,7 @@ public static class CompanySecrets
         HireZero.Integrations.Google.GoogleAdsProvider.ClientSecretSecret,
         HireZero.Integrations.Google.GoogleAdsProvider.RefreshTokenSecret,
         HireZero.Integrations.Google.GoogleAdsProvider.ChangeRefreshTokenSecret,
+        HireZero.Integrations.SiteAnalytics.SiteAnalyticsProvider.KeySecret,
     ];
 
     public static IEnumerable<string> Report(SecretSource? secrets = null)

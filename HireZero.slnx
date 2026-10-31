@@ -20,6 +20,7 @@
     <Project Path="src/HireZero.Integrations.Node/HireZero.Integrations.Node.csproj" />
     <Project Path="src/HireZero.Integrations.Postgres/HireZero.Integrations.Postgres.csproj" />
     <Project Path="src/HireZero.Integrations.SemaForge/HireZero.Integrations.SemaForge.csproj" />
+    <Project Path="src/HireZero.Integrations.SiteAnalytics/HireZero.Integrations.SiteAnalytics.csproj" />
     <Project Path="src/HireZero.Integrations.Synthetic/HireZero.Integrations.Synthetic.csproj" />
     <Project Path="src/HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
     <Project Path="src/HireZero.Tools.Crm/HireZero.Tools.Crm.csproj" />

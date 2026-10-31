@@ -1294,6 +1294,27 @@ public static class CompanyWorkspace
                     );
                 }
             );
+            // The counts a connected site keeps, for an owner filling in weekly numbers (docs/adr/0173-site-analytics.md).
+            // Read only, through the employee's own read-only toolbox; nothing is saved, and the owner decides what to
+            // record. Without a connection it is refused, and the form stays as typed.
+            app.MapGet(
+                "/api/company/employees/{employee}/analytics/daily",
+                async (string employee, DateOnly start, DateOnly end, CancellationToken token) =>
+                {
+                    var owner = Store().EmployeeOf(employee);
+                    var module = HostEmployees.Modules.Single(m => m.Manifest.Id == owner.RoleId);
+                    return Results.Ok(
+                        await Tools()
+                            .For(module.Manifest, owner.Id)
+                            .ReadOnly()
+                            .InvokeAsync(
+                                HireZero.Tools.Analytics.AnalyticsTools.Daily,
+                                new HireZero.Tools.Analytics.DailyRequest(start, end),
+                                token
+                            )
+                    );
+                }
+            );
             app.MapGet(
                 "/api/company/feed",
                 (long? after, int? limit) => Results.Ok(Store().Feed(after ?? 0, limit ?? 100))

@@ -314,6 +314,7 @@ public sealed class LocalSecretStore
         HireZero.Integrations.Google.GoogleAdsProvider.RefreshTokenSecret,
         HireZero.Integrations.Google.GoogleAdsProvider.ChangeRefreshTokenSecret,
         "HIREZERO_OPENROUTER_API_KEY",
+        HireZero.Integrations.SiteAnalytics.SiteAnalyticsProvider.KeySecret,
     ];
     private readonly string _directory;
     private readonly IDataProtector _protector;

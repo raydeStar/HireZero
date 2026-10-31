@@ -159,6 +159,13 @@
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0 12px;
 }
+.co-ladder-site {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--fe-accent);
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-2);
+}
 .co-ladder-actions {
   display: flex;
   flex-wrap: wrap;

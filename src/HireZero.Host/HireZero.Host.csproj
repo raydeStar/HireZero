@@ -17,6 +17,7 @@
     <ProjectReference Include="../HireZero.Integrations.Node/HireZero.Integrations.Node.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Postgres/HireZero.Integrations.Postgres.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Google/HireZero.Integrations.Google.csproj" />
+    <ProjectReference Include="../HireZero.Integrations.SiteAnalytics/HireZero.Integrations.SiteAnalytics.csproj" />
     <ProjectReference Include="../HireZero.Integrations.Synthetic/HireZero.Integrations.Synthetic.csproj" />
     <ProjectReference Include="../HireZero.Integrations.ModelApis/HireZero.Integrations.ModelApis.csproj" />
     <ProjectReference Include="../HireZero.Integrations.SemaForge/HireZero.Integrations.SemaForge.csproj" />

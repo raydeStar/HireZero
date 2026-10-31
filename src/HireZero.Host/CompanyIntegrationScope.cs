@@ -6,6 +6,7 @@ using HireZero.Integrations.Google;
 using HireZero.Integrations.Jev;
 using HireZero.Integrations.Microsoft365;
 using HireZero.Integrations.OpenRouter;
+using HireZero.Integrations.SiteAnalytics;
 using Microsoft.AspNetCore.DataProtection;
 
 // One company's connections. No ambient request context is consulted by a tool or background job: the
@@ -19,6 +20,7 @@ public sealed class CompanyIntegrationScope
     public LocalSecretStore? PastedSecrets { get; }
     public SecretSource Secrets { get; }
     public GoogleAnalyticsProvider Google { get; }
+    public SiteAnalyticsProvider SiteAnalytics { get; }
     public GoogleAdsProvider GoogleAds { get; }
     public GoogleDriveDocuments DriveDocuments { get; }
     public CompanyDocumentImports DocumentImports { get; }
@@ -82,6 +84,7 @@ public sealed class CompanyIntegrationScope
             googleHandler,
             secrets: Secrets.Read
         );
+        SiteAnalytics = new(DataRoot, () => Secrets.Read(SiteAnalyticsProvider.KeySecret));
         GoogleAds = new(DataRoot, Secrets.Read);
         DriveDocuments = new(DataRoot, () => Secrets.Read(GoogleDriveDocuments.KeySecret), googleHandler);
         DocumentImports = new(protection, store.CompanyId);
@@ -109,6 +112,7 @@ public sealed class CompanyIntegrationScope
         Configurable =
         [
             Google,
+            SiteAnalytics,
             GoogleAds,
             DriveDocuments,
             OpenRouter,
@@ -150,6 +154,7 @@ public sealed class CompanyIntegrationScope
             _jev?.Status() ?? MachineOnly("jev", "Jev"),
             OpenRouter.Status(),
             Google.Status(),
+            SiteAnalytics.Status(),
             GoogleAds.Status(),
             DriveDocuments.Status(),
         ];
@@ -175,6 +180,8 @@ public sealed class CompanyIntegrationScope
             Tools.Adopt(OpenRouter);
         if (Google.Status().Active)
             Tools.Adopt(Google, _syntheticAnalytics);
+        if (SiteAnalytics.Status().Active)
+            Tools.Adopt(SiteAnalytics);
         if (GoogleAds.Status().Active)
             Tools.Adopt(GoogleAds, _syntheticAds);
         // Registered real providers recheck authorization at use; removing a key never restores fictional data.

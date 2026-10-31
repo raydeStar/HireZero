@@ -301,6 +301,13 @@
           "HireZero.Tools.SemaForge": "[1.0.0, )"
         }
       },
+      "hirezero.integrations.siteanalytics": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Analytics": "[1.0.0, )"
+        }
+      },
       "hirezero.integrations.stripe": {
         "type": "Project",
         "dependencies": {

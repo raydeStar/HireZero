@@ -117,6 +117,11 @@ public sealed class MarketingModule : IEmployeeModule
                 new(AnalyticsTools.Status.Id, ToolRisk.Read, "Show which analytics source is connected."),
                 new(AnalyticsTools.Traffic.Id, ToolRisk.Read, "Read website traffic when you ask for analytics."),
                 new(AnalyticsTools.Search.Id, ToolRisk.Read, "Read search performance when you ask for analytics."),
+                new(
+                    AnalyticsTools.Daily.Id,
+                    ToolRisk.Read,
+                    "Read your site's daily visitors and sign-ups when you fill in the weekly numbers."
+                ),
                 new(AdsTools.Status.Id, ToolRisk.Read, "Show which ads account is connected."),
                 new(AdsTools.Performance.Id, ToolRisk.Read, "Read ad performance when you ask for it."),
                 new(EmailTools.Status.Id, ToolRisk.Read, "Show which email account is connected."),

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../HireZero.Tools.Analytics/HireZero.Tools.Analytics.csproj" />
+    <ProjectReference Include="../HireZero.Core/HireZero.Core.csproj" />
+    <Using Include="HireZero.Core" />
+  </ItemGroup>
+</Project>

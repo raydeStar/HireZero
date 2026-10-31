@@ -42,6 +42,14 @@ public sealed record SearchReport(
     SearchRow[] Rows
 );
 
+// The counts a site keeps itself, one row per UTC day (docs/adr/0173-site-analytics.md). A count the source does not
+// keep, or no longer keeps for that day, is null.
+public sealed record DailyRequest(DateOnly Start, DateOnly End);
+
+public sealed record DailyRow(DateOnly Day, long? Visitors, long? PageViews, long? SignUps, long? Accounts);
+
+public sealed record DailyReport(string Source, DateOnly Start, DateOnly End, DailyRow[] Rows);
+
 public static partial class AnalyticsTools
 {
     public static readonly string[] TrafficBreakdowns =
@@ -75,6 +83,12 @@ public static partial class AnalyticsTools
         ToolRisk.Read,
         "Read search performance (clicks, impressions, click-through rate, position) for a date range."
     );
+
+    public static readonly ToolContract<DailyRequest, DailyReport> Daily = new(
+        "analytics.daily",
+        ToolRisk.Read,
+        "Read daily visitors, page views, sign-ups and new accounts for a date range, as the site counts them itself."
+    );
 }
 
 // The request rules every analytics provider applies before it sends anything, so all providers refuse alike.
@@ -96,6 +110,8 @@ public static partial class AnalyticsTools
         if (request.Breakdown is { } b && !AnalyticsTools.TrafficBreakdowns.Contains(b))
             throw new ToolFailureException("refused", "Unknown traffic breakdown: " + b, 422);
     }
+
+    public static void Check(DailyRequest request) => Range(request.Start, request.End, 1);
 
     public static void Check(SearchRequest request)
     {

@@ -32,6 +32,7 @@ public sealed class IntegrationSetupTests : IAsyncDisposable
         IConfigurableIntegration[] integrations =
         [
             new GoogleAnalyticsProvider(_root.Path),
+            new HireZero.Integrations.SiteAnalytics.SiteAnalyticsProvider(_root.Path),
             new GoogleDriveDocuments(_root.Path, () => null),
             new GoogleAdsProvider(_root.Path),
             new AzureDevOpsToolProvider(_root.Path),

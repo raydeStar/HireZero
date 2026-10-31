@@ -19,6 +19,7 @@
     <ProjectReference Include="../../src/HireZero.Tools.Web/HireZero.Tools.Web.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.Wiki/HireZero.Integrations.Wiki.csproj" />
     <ProjectReference Include="../../src/HireZero.Integrations.Google/HireZero.Integrations.Google.csproj" />
+    <ProjectReference Include="../../src/HireZero.Integrations.SiteAnalytics/HireZero.Integrations.SiteAnalytics.csproj" />
     <ProjectReference Include="../../src/HireZero.Tools.Advertising/HireZero.Tools.Advertising.csproj" />
   </ItemGroup>
   <ItemGroup>
