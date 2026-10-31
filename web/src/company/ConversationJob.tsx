@@ -346,6 +346,52 @@ export function ConversationJob({
               }
             />
           )}
+          {/* What to do next, in plain words (dogfood, 2026-10-30): approve the draft, then mark the request done.
+              The same commands and checks as the controls further down. */}
+          {canWork &&
+            index === 0 &&
+            t.kind !== "conversation" &&
+            (a.state === "needs_review"
+              ? ["awaiting_review", "blocked"].includes(t.state)
+              : a.state === "approved" && t.state === "awaiting_review") && (
+              <div className="co-next-step" role="group" aria-label="Next step">
+                {a.state === "needs_review" ? (
+                  <>
+                    <p>
+                      <b>Happy with this draft?</b> Approve it to keep it as your final version. Nothing is posted or
+                      sent. For changes, use Refine draft above.
+                    </p>
+                    <button
+                      className="co-primary"
+                      disabled={busy}
+                      onClick={() =>
+                        void run("artifact.review", {
+                          id: a.id,
+                          expectedVersion: a.version,
+                          digest: a.digest,
+                          decision: "approve",
+                        })
+                      }
+                    >
+                      Approve draft
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      <b>Approved.</b> Mark this request as done once you have used it.
+                    </p>
+                    <button
+                      className="co-primary"
+                      disabled={busy}
+                      onClick={() => void run("task.complete", { id: t.id, expectedVersion: t.version })}
+                    >
+                      Mark as done
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           <ArtifactSources key={`${company()}:${a.id}:${a.contextId}`} artifact={a} entry={measured}>
             <p>
               {provenance(employeeRole, a.provenance)} · {artifactState(a.state, canWork)}
@@ -554,7 +600,8 @@ export function ConversationJob({
           })}
         >
           <label>
-            Your draft
+            {/* Before any result, this is the optional write-it-yourself route, not a step (dogfood, 2026-10-30). */}
+            {artifacts.length || editing ? "Your draft" : "Or write the draft yourself (optional)"}
             <textarea
               ref={editor}
               required
@@ -597,7 +644,18 @@ function TaskInput({ input }: { input: string }) {
   } catch {
     /* Plain text is shown as written. */
   }
-  if (!fields) return <p>{input}</p>;
+  if (!fields && input.length <= 400) return <p>{input}</p>;
+  // A long request opens with its first lines; the exact text sent stays one click away (dogfood, 2026-10-30).
+  if (!fields)
+    return (
+      <div className="co-task-input">
+        <p>{input.split(/\r?\n/).slice(0, 2).join(" ").slice(0, 300)}…</p>
+        <details>
+          <summary>Show the full request</summary>
+          <p style={{ whiteSpace: "pre-wrap" }}>{input}</p>
+        </details>
+      </div>
+    );
   return (
     <dl className="co-packet-fields">
       {Object.entries(fields).map(([key, value]) => (

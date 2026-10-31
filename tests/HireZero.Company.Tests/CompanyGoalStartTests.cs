@@ -83,6 +83,29 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.True(store.VerifyAudit().Intact);
     }
 
+    [Fact]
+    public void ALongGoalNamesItsConversationAtAWord()
+    {
+        var store = Store();
+        var command = Goal();
+        var input = CompanyJson.Decode<CompanyGoalStartInput>(command.Body!);
+        const string goal =
+            "I want more small business owners to try our fictional paper kits. Help me with posts for this week.";
+        var prepared = A<Prepared>(
+            store,
+            command with
+            {
+                Body = CompanyJson.Encode(input with { Goal = goal, Prompt = goal }),
+            }
+        );
+        var title = MeasuredQueueChecks
+            .Items<CompanyThread>(store, "threads")
+            .Single(t => t.Id == prepared.Task.ThreadId)
+            .Title;
+        Assert.Equal("I want more small business owners to try our fictional paper kits. Help me…", title);
+        Assert.True(title.Length <= 80);
+    }
+
     // A weekly plan treated only the two-line brief as approved and ignored its department context (2026-10-30).
     [Fact]
     public void ApprovedDepartmentContextIsDescribedAsApproved()

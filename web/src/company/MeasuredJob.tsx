@@ -103,7 +103,8 @@ export function MeasuredJob({
   const { canWork } = useMemberAccess();
   const authorizing = useRef(false),
     reviewRequest = useRef(0);
-  const [allowance, setAllowance] = useState(""),
+  // Untouched, the allowance shows the same default as Home's first draft (dogfood, 2026-10-30).
+  const [allowance, setAllowance] = useState<string | null>(null),
     [packet, setPacket] = useState<Packet | null>(null),
     [contextOpen, setContextOpen] = useState(false),
     [ack, setAck] = useState(false),
@@ -115,6 +116,7 @@ export function MeasuredJob({
     (modelChoices.find((option) => option.route === modelRoute)?.allowanceUnit ??
       (defaultCents ? "usd-cents" : "credits")) === "usd-cents";
   const cents = entry?.job.terms ? entry.job.terms.allowanceUnit === "usd-cents" : defaultCents;
+  const shownAllowance = allowance ?? (formCents ? "5" : "1");
   useEffect(() => {
     // A fresh envelope needs fresh eyes. Never carry consent or an old context preview into its replacement.
     reviewRequest.current++;
@@ -213,7 +215,7 @@ export function MeasuredJob({
               void prepare("measured.prepare", {
                 id: task.id,
                 expectedVersion: task.version,
-                creditAllowance: Number(allowance),
+                creditAllowance: Number(shownAllowance),
                 modelRoute,
               });
             }}
@@ -224,7 +226,7 @@ export function MeasuredJob({
               disabled={busy}
               onChange={(route) => {
                 setModelRoute(route);
-                setAllowance("");
+                setAllowance(null);
               }}
             />
             <label>
@@ -235,14 +237,14 @@ export function MeasuredJob({
                 max="1000"
                 step="0.01"
                 required
-                value={allowance}
+                value={shownAllowance}
                 onChange={(e) => setAllowance(e.target.value)}
               />
             </label>
             <p className="co-muted">
               {formCents
                 ? "Nothing is sent if the worst case (the whole context and the full reply limit at the model's listed price) could cost more than this."
-                : "This records your intended allowance. It cannot stop an in-flight request at that credit amount. Included usage must be available first. No purchases, recharge or API-key fallback."}
+                : "1 is usual for one draft. This records your intended allowance. It cannot stop an in-flight request at that credit amount. Included usage must be available first. No purchases, recharge or API-key fallback."}
             </p>
             <button disabled={busy} type="submit">
               Prepare job for review
@@ -273,7 +275,12 @@ export function MeasuredJob({
             <>
               {/* What you are authorizing, in one line; the safety details are a click away (owner walkthrough). */}
               <p className="co-job-summary">
-                {conversational ? "Sends one reply" : "Runs one job"} ·{" "}
+                {conversational
+                  ? "Sends one reply"
+                  : task.revision
+                    ? "Writes a new version with your changes"
+                    : "Runs one job"}{" "}
+                ·{" "}
                 {cents
                   ? `spend cap ${entry.job.creditAllowance} US cents`
                   : `intended allowance ${entry.job.creditAllowance} ${entry.job.creditAllowance === 1 ? "credit" : "credits"}`}{" "}
@@ -288,10 +295,13 @@ export function MeasuredJob({
               </button>
               {packet && (
                 <div className="co-packet">
+                  {/* A revision leads with the owner's own words; the full request is below (dogfood, 2026-10-30). */}
                   <p>
-                    {packet.call.context.input.length > 240
-                      ? packet.call.context.input.slice(0, 240) + "…"
-                      : packet.call.context.input}
+                    {packet.call.context.revision
+                      ? "Your changes: " + packet.call.context.revision.request.feedback
+                      : packet.call.context.input.length > 240
+                        ? packet.call.context.input.slice(0, 240) + "…"
+                        : packet.call.context.input}
                   </p>
                   <details open={contextOpen} onToggle={(event) => setContextOpen(event.currentTarget.open)}>
                     <summary>Full request and business context</summary>
@@ -434,8 +444,8 @@ export function MeasuredJob({
                     {cents
                       ? `I reviewed the ${conversational ? "message, recipient" : "work"}, context, selected API account and spend allowance, and I authorize one ${conversational ? "reply" : "job"}.`
                       : conversational
-                        ? "I reviewed the message, recipient and context, and I authorize one reply. Token, time and credit limits are soft and can be exceeded upstream."
-                        : "I reviewed the work and context, and I authorize one job. Token, time and credit limits are soft and can be exceeded upstream."}
+                        ? "I reviewed the message, recipient and context, and I authorize one reply. Its time, token and credit limits are targets, not hard caps."
+                        : "I reviewed what will be sent, and I authorize one job. Its time, token and credit limits are targets, not hard caps."}
                   </label>
                   {!packet && (
                     <p className="co-muted co-locked-hint" role="note">

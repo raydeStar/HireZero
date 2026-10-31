@@ -278,11 +278,23 @@ export function GoalStart({
     run: "Writing your first draft…",
     done: "Opening your draft…",
   };
+  // The steps a first draft goes through, so a first-time owner can see where it is (dogfood, 2026-10-30).
+  const steps = [
+    ["context", "Saving your business details"],
+    ["lookup", "Reading your website"],
+    ["prepare", "Setting up your request"],
+    ["run", "Writing your draft (usually about a minute)"],
+    ["done", "Opening your draft"],
+  ] as const;
+  const shownSteps = steps.filter(([stage]) => stage !== "lookup" || !!draft.flow?.input.website);
+  const currentStep = shownSteps.findIndex(
+    ([stage]) => stage === (draft.flow?.stage === "sources" ? "lookup" : draft.flow?.stage),
+  );
   return (
     <section className="co-goal-start" aria-label="Start with a goal">
       <p className="co-eyebrow">Put your team to work</p>
       <h2>What would you like done?</h2>
-      <p>Describe the outcome. Your specialist and first draft are next.</p>
+      <p>Tell us what you need. You’ll get a private first draft to read, change and approve.</p>
       {error && (
         <p className="co-error" role="alert">
           {error}
@@ -290,13 +302,27 @@ export function GoalStart({
       )}
       {draft.flow ? (
         <div role="status">
-          <p>
-            {busy
-              ? progress[draft.flow.stage]
-              : draft.flow.stopped
+          {busy ? (
+            <>
+              <ol className="co-goal-steps" aria-label="Progress">
+                {shownSteps.map(([stage, label], index) => (
+                  <li
+                    key={stage}
+                    className={index < currentStep ? "done" : index === currentStep ? "current" : undefined}
+                  >
+                    {label}
+                  </li>
+                ))}
+              </ol>
+              <p className="co-muted">{progress[draft.flow.stage]} Keep this page open until your draft opens.</p>
+            </>
+          ) : (
+            <p>
+              {draft.flow.stopped
                 ? "Your request stopped before another action was taken."
                 : "Your request is saved. Check its status to continue the same run."}
-          </p>
+            </p>
+          )}
           {draft.flow.stopped ? (
             <button
               className="co-primary"
@@ -306,9 +332,12 @@ export function GoalStart({
               {draft.flow.prepared ? "Review saved work" : "Edit request"}
             </button>
           ) : (
-            <button className="co-primary" disabled={busy} onClick={() => void generate()}>
-              {busy ? "Working…" : "Check saved request"}
-            </button>
+            // While it runs, the steps above say what is happening; the button returns if the page loses track.
+            !busy && (
+              <button className="co-primary" onClick={() => void generate()}>
+                Check saved request
+              </button>
+            )
           )}
         </div>
       ) : draft.pending ? (
@@ -327,22 +356,34 @@ export function GoalStart({
       ) : draft.taskId ? (
         <div>
           <p>
-            {saved && ["completed", "awaiting_review"].includes(saved.state)
-              ? "Your draft is ready to read, copy or refine."
-              : saved?.reason === "revision-awaiting-approval"
-                ? "Your revision request is ready. Review its model and allowance before running."
-                : saved
-                  ? "Your request is ready. Open it to review the run or follow its progress."
-                  : "Your work was saved. Reload the saved view to open it."}
+            {saved?.state === "completed"
+              ? "Your draft is approved and done. Start another goal whenever you are ready."
+              : saved && saved.state === "awaiting_review"
+                ? "Your draft is ready to read, copy or refine."
+                : saved?.reason === "revision-awaiting-approval"
+                  ? "Your revision request is ready. Review its model and allowance before running."
+                  : saved
+                    ? "Your request is ready. Open it to review the run or follow its progress."
+                    : "Your work was saved. Reload the saved view to open it."}
           </p>
+          {/* Finished work points to the next goal first (dogfood, 2026-10-30). */}
+          {saved?.state === "completed" && (
+            <button className="co-primary" onClick={() => change({ ...draft, taskId: undefined, goal: "" })}>
+              Start another goal
+            </button>
+          )}
           <button
-            className="co-primary"
+            className={saved?.state === "completed" ? undefined : "co-primary"}
             onClick={() => (saved ? openWork(saved) : void refresh().catch((e) => setError((e as Error).message)))}
           >
             {saved ? "Continue my work" : "Reload saved work"}
           </button>
-          {saved && (
-            <button onClick={() => change({ ...draft, taskId: undefined, goal: "" })}>Start another goal</button>
+          {/* A remembered request this company no longer has must not leave a first-time owner stuck (dogfood,
+              2026-10-30). */}
+          {saved?.state !== "completed" && (
+            <button onClick={() => change({ ...draft, taskId: undefined, goal: "" })}>
+              {saved ? "Start another goal" : "Start a new goal"}
+            </button>
           )}
         </div>
       ) : partialBrief ? (
@@ -400,31 +441,43 @@ export function GoalStart({
               />
             </label>
             <p className="co-muted">
-              {profile ? "Uses your approved brief." : "Uses your details; missing facts stay unknown."}
+              {profile
+                ? "We’ll use your approved business details."
+                : "We only use what you write here. Anything we can’t confirm is marked for you to check."}
               {website.url
-                ? ` Reads up to three public pages from ${website.url} as unverified references for this draft.`
+                ? ` Reads up to three public pages from ${website.url}, as references to check, not as facts.`
                 : ""}
             </p>
             {terms ? (
               <div className="co-goal-terms">
-                <strong>
-                  {providerName(terms.terms?.provider || "host")} · {terms.route}
-                </strong>
+                {/* Plain words first; the exact run terms stay one click away (owner: full transparency). */}
+                <strong>What happens when you press Generate</strong>
                 <p>
-                  One private draft · {draft.allowance}{" "}
-                  {terms.terms?.allowanceUnit === "usd-cents" ? "US cents maximum" : "intended existing credit(s)"} ·{" "}
-                  {terms.policy.localDeadlineSeconds}s local deadline.
+                  {employee ? employee.name : `A new ${selected?.name ?? "marketing"} specialist`} writes one private
+                  draft with your {providerName(terms.terms?.provider || "host")}. It usually takes about a minute.
+                  Nothing is posted, sent or bought, and nothing is retried on its own.
                 </p>
-                <small>
-                  {terms.terms?.provider === "codex-oauth"
-                    ? `Reasoning effort: ${terms.policy.effort || "low"} · ${terms.policy.outputTarget.toLocaleString()} output-token target. Credit, time and token limits are soft.`
-                    : `Output target and deadline are planning limits; provider terms apply.`}{" "}
-                  No publishing or automatic retry.
-                </small>
+                <details className="co-goal-run-details">
+                  <summary>Run details</summary>
+                  <p>
+                    {providerName(terms.terms?.provider || "host")} · {terms.route}
+                  </p>
+                  <p>
+                    One private draft · {draft.allowance}{" "}
+                    {terms.terms?.allowanceUnit === "usd-cents" ? "US cents maximum" : "intended existing credit(s)"} ·{" "}
+                    {terms.policy.localDeadlineSeconds}s local deadline.
+                  </p>
+                  <small>
+                    {terms.terms?.provider === "codex-oauth"
+                      ? `Reasoning effort: ${terms.policy.effort || "low"} · ${terms.policy.outputTarget.toLocaleString()} output-token target. Credit, time and token limits are soft.`
+                      : `Output target and deadline are planning limits; provider terms apply.`}{" "}
+                    No publishing or automatic retry.
+                  </small>
+                </details>
                 <label className="co-check">
                   <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                   <span>
-                    Use these details{draft.website ? " and this website" : ""} and run this one draft under the terms
+                    Write one private draft with these details{draft.website ? " and this website" : ""}, as described
                     above.
                   </span>
                 </label>

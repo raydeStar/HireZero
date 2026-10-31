@@ -68,6 +68,15 @@ public sealed partial class CompanyStore
         return PrepareGoalAssignment(db, command, input, goal, role, knowledge);
     }
 
+    // A long goal names its conversation up to a word, marked as shortened, not cut mid-word (dogfood, 2026-10-30).
+    internal static string GoalTitle(string goal)
+    {
+        if (goal.Length <= 80)
+            return goal;
+        var cut = goal.LastIndexOf(' ', 78);
+        return goal[..(cut > 40 ? cut : 79)].TrimEnd(' ', ',', ';', ':', '.', '-') + "…";
+    }
+
     private CompanyKnowledge GoalKnowledge(StoreConnection db, CompanyCommand command, CompanyGoalStartInput input)
     {
         if (command.Decision != "use-details-and-prepare")
@@ -265,19 +274,14 @@ public sealed partial class CompanyStore
             ? All<CompanyThread>(db).First(t => t.EmployeeId == employee.Id && t.Scope == "employee")
             : (CompanyThread)Apply(
                 db,
-                new(
-                    command.RequestId,
-                    "thread.create",
-                    EmployeeId: employee.Id,
-                    Name: goal.Length <= 80 ? goal : goal[..80]
-                )
+                new(command.RequestId, "thread.create", EmployeeId: employee.Id, Name: GoalTitle(goal))
             );
         if (command.EmployeeId is null)
         {
             // Give the first result its owner's purpose, not the butler's empty-room label.
             thread = thread with
             {
-                Title = goal.Length <= 80 ? goal : goal[..80],
+                Title = GoalTitle(goal),
                 Version = thread.Version + 1,
             };
             Save(db, thread, thread.Id, employee: employee.Id, version: thread.Version);

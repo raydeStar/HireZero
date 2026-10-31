@@ -7,6 +7,7 @@ import type { Employee, Event, Snapshot, ThreadDetail, Work } from "./api";
 import { ConversationJob } from "./ConversationJob";
 import { MeasuredJob } from "./MeasuredJob";
 import { ConnectCard } from "./ConnectCard";
+import { DraftMarkdown } from "./DraftMarkdown";
 import { employeeState, humanize, taskState, workName } from "./labels";
 import { useMemberAccess } from "./MemberAccess";
 import { ModelChoice } from "./ModelChoice";
@@ -28,7 +29,6 @@ const emptyDraft = (): ConversationDraft => ({
   evidence: [],
   recipient: "",
   delivery: "reply",
-  allowance: "",
 });
 type Props = {
   memberRole?: string;
@@ -114,12 +114,18 @@ export function CompanyConversation({
   const tasks = d.tasks.filter((t) => t.employeeId === target?.id && t.threadId === shownThread),
     artifacts = d.artifacts.filter((a) => tasks.some((t) => t.id === a.taskId));
   const messages =
-      shown?.messages.filter((m) => m.author === "owner" || !artifacts.some((a) => a.body === m.body)) ?? [],
-    orphaned = tasks.filter((t) => !messages.some((m) => m.sequence === t.watermark));
+    shown?.messages.filter((m) => m.author === "owner" || !artifacts.some((a) => a.body === m.body)) ?? [];
+  // Work sits after the latest shown message at its watermark, so a revision whose watermark is a hidden result
+  // message does not drop below later conversation (dogfood, 2026-10-30).
+  const anchorOf = (t: Work) =>
+    messages.reduce((found, m) => (m.sequence <= t.watermark ? m.sequence : found), Number.NaN);
+  const orphaned = tasks.filter((t) => Number.isNaN(anchorOf(t)));
   // An API model enforces the reply allowance as a cap in US cents; Codex credits are only intended.
   const cents =
     (snapshot.capabilities.modelChoices?.find((option) => option.route === draft.modelRoute)?.allowanceUnit ??
       snapshot.capabilities.allowanceUnit) === "usd-cents";
+  // Untouched, a reply's allowance shows the same default as Home's first draft (dogfood, 2026-10-30).
+  const allowanceValue = draft.allowance ?? (cents ? "5" : "1");
   // "Message prepared… Send" stops being true once the prepared reply is sent, cancelled or expires.
   const replyWaiting = tasks.some((t) => d.measured?.some((m) => m.taskId === t.id && m.job.state === "proposed"));
   const waitingBefore = useRef(false);
@@ -202,7 +208,8 @@ export function CompanyConversation({
       );
       return;
     }
-    if (reply && !(Number(sent.allowance) > 0 && Number(sent.allowance) <= 1000)) {
+    const sentAllowance = sent.allowance ?? (cents ? "5" : "1");
+    if (reply && !(Number(sentAllowance) > 0 && Number(sentAllowance) <= 1000)) {
       setLocalError(
         cents
           ? "Enter a positive spend cap in US cents, at most 1,000."
@@ -221,7 +228,7 @@ export function CompanyConversation({
           threadId: company ? companyThread?.id : thread,
           scope: company ? "company" : "employee",
           body,
-          creditAllowance: Number(sent.allowance),
+          creditAllowance: Number(sentAllowance),
           modelRoute: sent.modelRoute || null,
           evidence: company ? [] : sent.evidence,
         });
@@ -419,11 +426,26 @@ export function CompanyConversation({
                         <strong>{message.author === "owner" ? "You" : target?.name + " · AI reply"}</strong>
                       </div>
                       <div className="fe-msg-content">
-                        <p>{message.body}</p>
+                        {/* A long request the app wrote from a goal opens with its first lines; the exact text stays
+                            one click away (dogfood, 2026-10-30). */}
+                        {message.author === "owner" && message.body.length > 400 ? (
+                          <>
+                            <p>{message.body.split(/\r?\n/).slice(0, 2).join(" ").slice(0, 300)}…</p>
+                            <details>
+                              <summary>Show the full request</summary>
+                              <p style={{ whiteSpace: "pre-wrap" }}>{message.body}</p>
+                            </details>
+                          </>
+                        ) : message.author === "owner" ? (
+                          <p>{message.body}</p>
+                        ) : (
+                          // Replies are written in Markdown; show the formatting, not its asterisks (dogfood).
+                          <DraftMarkdown>{message.body}</DraftMarkdown>
+                        )}
                       </div>
                     </div>
                   </article>
-                  {tasks.filter((t) => t.watermark === message.sequence).map(job)}
+                  {tasks.filter((t) => anchorOf(t) === message.sequence).map(job)}
                 </Fragment>
               ))}
               {orphaned.map(job)}
@@ -585,7 +607,7 @@ export function CompanyConversation({
                 <ModelChoice
                   options={snapshot.capabilities.modelChoices}
                   value={draft.modelRoute ?? ""}
-                  onChange={(modelRoute) => update({ modelRoute, allowance: "" })}
+                  onChange={(modelRoute) => update({ modelRoute, allowance: undefined })}
                 />
               )}
               {reply && (
@@ -598,8 +620,8 @@ export function CompanyConversation({
                     step="0.01"
                     required
                     placeholder="Required"
-                    aria-describedby={!draft.allowance ? "co-reply-allowance-help" : undefined}
-                    value={draft.allowance ?? ""}
+                    aria-describedby={!allowanceValue ? "co-reply-allowance-help" : undefined}
+                    value={allowanceValue}
                     onChange={(e) => update({ allowance: e.target.value })}
                   />
                 </label>
@@ -643,7 +665,7 @@ export function CompanyConversation({
                 ? "Enter saves a note · Shift+Enter for a new line"
                 : "Enter saves · Shift+Enter for a new line · saving never asks for a reply"}
           </p>
-          {reply && !draft.allowance && (
+          {reply && !allowanceValue && (
             <p id="co-reply-allowance-help" className="fe-composer-hint">
               {cents
                 ? "Set a limit for this reply in US cents (100 = $1). You review it before authorizing the model call."

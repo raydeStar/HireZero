@@ -34,7 +34,7 @@ public sealed class MarketingModule : IEmployeeModule
                 },
                 new(
                     GoalDraft,
-                    "Marketing goal draft",
+                    "Marketing draft",
                     "Produce the marketing asset requested in the owner's goal from supplied business context.",
                     SkillMode.Measured
                 )

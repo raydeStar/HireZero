@@ -793,7 +793,13 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             )}
           </div>
         ))}
-        {!d.employees.length && <p>Hire and onboard an employee to open a private conversation.</p>}
+        {!d.employees.length && (
+          <p>
+            {canManage
+              ? "Your team shows up here after your first request."
+              : "Your team shows up here once an owner adds the first employee."}
+          </p>
+        )}
         {/* Clear actions at the foot of the sidebar (UX audit, 2026-10-20). */}
         <div className="co-sidebar-foot">
           {canManage && (

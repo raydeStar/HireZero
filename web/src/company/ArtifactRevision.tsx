@@ -78,7 +78,7 @@ export function ArtifactRevision({
           rows={4}
           value={feedback}
           onChange={(event) => change(event.target.value)}
-          placeholder="What missed the mark, what should stay, and what would make the next draft useful?"
+          placeholder="What should change? For example: make the posts shorter, use a friendlier tone, mention our free trial."
         />
       </label>
       {suggestedFeedback && !feedback.trim() && (
@@ -88,7 +88,7 @@ export function ArtifactRevision({
       )}
       <p className="co-muted">
         {canRevise
-          ? "Saves your feedback and creates a separate revision request. Review its model and allowance before authorizing another run. The original draft stays in your history."
+          ? "We save your notes and set up a new version. You confirm it before it runs, and this draft stays in your history."
           : "Saves your feedback with this result. Plan, recurring and repository work keep their separate revision workflows."}
       </p>
       <div className="co-actions">

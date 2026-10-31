@@ -10,7 +10,8 @@ export function workContext(snapshot: Snapshot, taskId?: string) {
   );
   const number = requests.findIndex((t) => t.id === task.id) + 1;
   const conversation = snapshot.data.threads.find((t) => t.id === task.threadId)?.title;
-  return [conversation, `${reply ? "Reply" : "Request"} ${number}`].filter(Boolean).join(" · ");
+  // A number only tells requests apart when there is more than one (dogfood, 2026-10-30).
+  return [conversation, requests.length > 1 && `${reply ? "Reply" : "Request"} ${number}`].filter(Boolean).join(" · ");
 }
 
 export function WorkContext({ snapshot, taskId }: { snapshot: Snapshot; taskId?: string }) {

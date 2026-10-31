@@ -239,6 +239,23 @@ export function Home({
           {new Date(now).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
         </p>
         <h2>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}</h2>
+        {/* A first visit says what HireZero does and what happens next (dogfood, 2026-10-30). */}
+        {d.employees.length === 0 && d.tasks.length === 0 && (
+          <ol className="co-home-how" aria-label="How HireZero works">
+            <li>
+              <b>Tell us what you need</b>
+              <span>A sentence about your business and one goal is enough.</span>
+            </li>
+            <li>
+              <b>Get a private draft</b>
+              <span>A specialist on your team writes it, usually in about a minute.</span>
+            </li>
+            <li>
+              <b>You decide</b>
+              <span>Read it, ask for changes and approve it. Nothing is posted or sent for you.</span>
+            </li>
+          </ol>
+        )}
         {d.employees.length > 0 && (
           <>
             <p className="co-home-today" aria-label="Today so far">

@@ -463,6 +463,140 @@
   font-size: var(--fe-t-s);
 }
 
+/* First visit and first draft (dogfood, 2026-10-30): how it works, where the draft is, and what to do next. */
+.co-workspace .co-home-how {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: hz-how;
+}
+.co-workspace .co-home-how > li {
+  counter-increment: hz-how;
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  background: var(--fe-surface);
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-home-how > li::before {
+  content: counter(hz-how);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: var(--fe-accent-soft);
+  color: var(--fe-accent);
+  font-size: 12px;
+  font-weight: 650;
+}
+.co-workspace .co-home-how b {
+  color: var(--fe-fg);
+  font-size: var(--fe-t-m);
+  font-weight: 600;
+}
+.co-workspace .co-goal-steps {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 10px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fe-t-m);
+  color: var(--fe-fg-4);
+}
+.co-workspace .co-goal-steps > li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.co-workspace .co-goal-steps > li::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--fe-line-2);
+  box-sizing: border-box;
+}
+.co-workspace .co-goal-steps > li.done {
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-goal-steps > li.done::before {
+  content: "✓";
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: var(--hz-live);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.co-workspace .co-goal-steps > li.current {
+  color: var(--fe-fg);
+  font-weight: 600;
+}
+.co-workspace .co-goal-steps > li.current::before {
+  border-color: var(--hz-live);
+  animation: hz-pulse 1.8s ease-out infinite;
+}
+.co-workspace .co-goal-terms > strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--fe-t-m);
+  color: var(--fe-fg);
+}
+.co-workspace .co-goal-terms > p {
+  margin: 0 0 8px;
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-goal-run-details {
+  margin: 0 0 10px;
+}
+.co-workspace .co-goal-run-details > summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-goal-run-details > p,
+.co-workspace .co-goal-run-details > small {
+  display: block;
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-next-step {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--fe-accent-line);
+  border-radius: 12px;
+  background: var(--fe-accent-soft);
+}
+.co-workspace .co-next-step > p {
+  flex: 1 1 280px;
+  margin: 0;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-next-step b {
+  color: var(--fe-fg);
+}
+.co-workspace .co-cockpit-intro {
+  padding: 12px 4px;
+  line-height: 1.5;
+}
+
 /* The second layer: what happened to a piece of work, step by step. */
 .co-workspace .co-trail {
   margin: 0 0 14px;
@@ -656,9 +790,12 @@
 .co-workspace .co-conversation-composer .fe-composer {
   border-radius: 16px;
 }
-/* The employee's actions keep their row of buttons whatever the window height. */
-.co-workspace .co-action-strip {
-  min-height: 50px;
+/* On tall windows the employee's actions keep their row of buttons; on short ones the row may shrink so the composer
+   stays on screen (walkthrough check at 1024x768). */
+@media (min-height: 860px) {
+  .co-workspace .co-action-strip {
+    min-height: 50px;
+  }
 }
 
 /* Cockpit: lists under quiet labels; live work carries a pulse. */
@@ -698,6 +835,9 @@
   }
   .co-workspace .co-home-hello h2 {
     font-size: 24px;
+  }
+  .co-workspace .co-home-how {
+    grid-template-columns: 1fr;
   }
   .co-workspace .co-goal-start,
   .co-workspace .co-home > .co-goal-start {

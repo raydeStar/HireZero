@@ -176,6 +176,12 @@ export function Cockpit({
         </button>
       </header>
       <div className="fe-cockpit-body">
+        {/* An empty company gets one sentence, not three empty counts (dogfood, 2026-10-30). */}
+        {d.employees.length === 0 && d.tasks.length === 0 && !needs.length && (
+          <p className="fe-cockpit-clear co-cockpit-intro">
+            This panel shows what your team is working on, what comes next and anything that needs you.
+          </p>
+        )}
         {scope && (
           <div className="co-cockpit-scope" role="group" aria-label="Cockpit scope">
             <button aria-pressed={!everyone} onClick={() => setEveryone(false)}>
@@ -235,9 +241,7 @@ export function Cockpit({
             <h3>
               Drafts ready <span className="fe-count">{ready.length}</span>
             </h3>
-            <p className="fe-muted">
-              Open, copy or refine. Sharing with the team, handoffs and schedules still need approval.
-            </p>
+            <p className="fe-muted">Read, copy or ask for changes. Approve a draft when you are happy with it.</p>
             <ol className="fe-up-next">
               {ready.map((need) => (
                 <li key={need.key}>
@@ -305,8 +309,9 @@ export function Cockpit({
         )}
         {spend && spend.pricedJobs + spend.unpricedJobs > 0 && (
           <p className="co-cockpit-foot">
-            Model costs &amp; estimates: {spend.pricedJobs === 0 ? "Not priced" : dollars(spend.usd)}
-            {spend.unpricedJobs > 0 && ` · ${spend.unpricedJobs} unpriced`}
+            Model costs &amp; estimates: {spend.pricedJobs === 0 ? "no dollar price yet" : dollars(spend.usd)}
+            {spend.unpricedJobs > 0 &&
+              ` · ${spend.unpricedJobs} ${spend.unpricedJobs === 1 ? "job" : "jobs"} without a dollar price`}
           </p>
         )}
       </div>
