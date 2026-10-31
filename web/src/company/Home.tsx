@@ -1,9 +1,9 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { Check } from "lucide-react";
 import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workState, workTitle, type Need } from "./Cockpit";
-import { artifactState, employeeState, roleName } from "./labels";
-import { isToday, useNow } from "./time";
+import { artifactState, employeeState, roleName, taskState } from "./labels";
+import { ago, isToday, useNow } from "./time";
 import { dollars } from "./money";
 import { approvedBusinessProfile, businessSetup, homeCards } from "../roles/company";
 import { FirstAssignment } from "./FirstAssignment";
@@ -123,6 +123,10 @@ export function Home({
     ["Done", count(workGroups.done), false],
   ] as const;
   const status = (e: Employee) => teamStatus(snapshot, needs, e, canWork);
+  const [allResults, setAllResults] = useState(false);
+  const [resultSearch, setResultSearch] = useState("");
+  const [allRequests, setAllRequests] = useState(false);
+  const [nextTaskRequest, setNextTaskRequest] = useState(0);
   const results = [...d.artifacts]
     .reverse()
     .filter((a) => !["superseded", "revoked"].includes(a.state))
@@ -133,9 +137,22 @@ export function Home({
         !["canceled", "superseded"].includes(r.task.state) &&
         !(r.task.scheduleRunId && shiftRound(snapshot, r.task)),
     )
-    .filter((r, index, all) => all.findIndex((other) => other.task.id === r.task.id) === index)
-    .slice(0, 3);
+    .filter((r, index, all) => all.findIndex((other) => other.task.id === r.task.id) === index);
   const nameOf = (id: string) => d.employees.find((e) => e.id === id)?.name ?? "Former employee";
+  const matchingResults = results.filter(({ artifact, task }) =>
+    [workTitle(snapshot, task), nameOf(task.employeeId), task.input, artifact.body]
+      .join(" ")
+      .toLocaleLowerCase()
+      .includes(resultSearch.trim().toLocaleLowerCase()),
+  );
+  // A closed tab is not a closed request. Keep unfinished work reachable without browser recovery state.
+  const openRequests = [...work]
+    .reverse()
+    .filter(
+      (task) =>
+        !["completed", "canceled", "cancelled", "superseded"].includes(task.state) &&
+        !d.artifacts.some((a) => a.taskId === task.id && !["superseded", "revoked"].includes(a.state)),
+    );
   // Getting started (UX round 6): the path from an empty company to a first approved result, shown until it is done.
   const active = d.employees.find((e) => e.state === "active");
   const onboarding = d.employees.find((e) => e.state === "onboarding");
@@ -218,13 +235,11 @@ export function Home({
   const times = d.taskTimes ?? {};
   const startedToday = work.filter((t) => isToday(times[t.id]?.started, now)).length;
   const finishedToday = work.filter((t) => t.state === "completed" && isToday(times[t.id]?.updated, now)).length;
+  const draftsToday = ready.filter((t) => isToday(times[t.id]?.updated, now)).length;
   const todayParts = [
     startedToday && startedToday + " started",
+    draftsToday && draftsToday + (draftsToday === 1 ? " draft ready" : " drafts ready"),
     finishedToday && finishedToday + " finished",
-    !needsError &&
-      !needsLoading &&
-      attentionNeeds.length &&
-      attentionNeeds.length + (attentionNeeds.length === 1 ? " waits for you" : " wait for you"),
   ].filter(Boolean);
   const hour = new Date(now).getHours();
   // The first layer of status (UX round 10): a plain summary and live counts, each opening the place to look.
@@ -251,7 +266,12 @@ export function Home({
         {d.employees.length > 0 && (
           <>
             <p className="co-home-today" aria-label="Today so far">
-              <b>Today so far:</b> {todayParts.length ? todayParts.join(" · ") : "nothing has happened yet."}
+              <b>Today so far:</b>{" "}
+              {todayParts.length
+                ? todayParts.join(" · ")
+                : results.length
+                  ? "No new activity today. Your saved work is below."
+                  : "nothing has happened yet."}
             </p>
             <div className="co-home-pulse" aria-label="Right now">
               {pulse.map(([label, value, open]) =>
@@ -270,26 +290,47 @@ export function Home({
                 ),
               )}
             </div>
+            {goalStart && work.length > 0 && (
+              <button className="co-primary co-home-new-task" onClick={() => setNextTaskRequest((value) => value + 1)}>
+                New task
+              </button>
+            )}
           </>
         )}
       </header>
-      {goalStart && (
-        <GoalStart
-          snapshot={snapshot}
-          refresh={refresh}
-          openWork={onOpenWork}
-          onBusiness={onBusiness}
-          onResumeHire={onResumeHire}
-        />
-      )}
       {homeCards(d.roles, "home-lead").map(({ roleId, Card }) => (
         <Card key={roleId} snapshot={snapshot} refresh={refresh} openWork={onOpenWork} openChat={onChat} />
       ))}
       {results.length > 0 && (
         <section className="co-home-section" aria-label="Recent results">
-          <h2>Your results</h2>
+          <div className="co-home-section-head">
+            <h2>Your results</h2>
+            {results.length > 3 && (
+              <button
+                aria-expanded={allResults}
+                onClick={() => {
+                  setAllResults(!allResults);
+                  setResultSearch("");
+                }}
+              >
+                {allResults ? "Show recent results" : `Find all ${results.length} results`}
+              </button>
+            )}
+          </div>
+          {allResults && (
+            <label className="co-home-search">
+              Find saved work
+              <input
+                type="search"
+                value={resultSearch}
+                placeholder="Search requests, employees or draft text"
+                onChange={(event) => setResultSearch(event.target.value)}
+              />
+            </label>
+          )}
+          {allResults && matchingResults.length === 0 && <p>No matching results. Try a different word.</p>}
           <ul className="co-home-list">
-            {results.map(({ artifact, task }) => (
+            {(allResults ? matchingResults : results.slice(0, 3)).map(({ artifact, task }) => (
               <li key={artifact.id}>
                 <button className="co-home-row" onClick={() => onOpenWork(task)}>
                   <span>
@@ -298,6 +339,17 @@ export function Home({
                     </b>
                     <WorkContext snapshot={snapshot} taskId={task.id} />
                     <small>{firstLine(artifact.body)}</small>
+                    {times[task.id]?.updated && (
+                      <small>
+                        Updated{" "}
+                        <time
+                          dateTime={times[task.id].updated}
+                          title={new Date(times[task.id].updated).toLocaleString()}
+                        >
+                          {ago(times[task.id].updated, now)}
+                        </time>
+                      </small>
+                    )}
                   </span>
                   <em className={"co-chip state-" + artifact.state}>
                     {["completed", "canceled", "superseded"].includes(task.state) && artifact.state === "needs_review"
@@ -311,6 +363,48 @@ export function Home({
             ))}
           </ul>
         </section>
+      )}
+      {openRequests.length > 0 && (
+        <section className="co-home-section" aria-label="Open requests">
+          <div className="co-home-section-head">
+            <h2>Pick up a request</h2>
+            {openRequests.length > 3 && (
+              <button aria-expanded={allRequests} onClick={() => setAllRequests(!allRequests)}>
+                {allRequests ? "Show recent requests" : `Show all ${openRequests.length} requests`}
+              </button>
+            )}
+          </div>
+          <ul className="co-home-list">
+            {(allRequests ? openRequests : openRequests.slice(0, 3)).map((task) => (
+              <li key={task.id}>
+                <button className="co-home-row" onClick={() => onOpenWork(task)}>
+                  <span>
+                    <b>
+                      {workTitle(snapshot, task)} · {nameOf(task.employeeId)}
+                    </b>
+                    <WorkContext snapshot={snapshot} taskId={task.id} />
+                    <small>
+                      {task.reason === "revision-awaiting-approval"
+                        ? "Revision saved — review before running"
+                        : taskState(workState(snapshot, task))}
+                    </small>
+                  </span>
+                  <em className="co-chip">Open request</em>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {goalStart && (
+        <GoalStart
+          snapshot={snapshot}
+          refresh={refresh}
+          openWork={onOpenWork}
+          onBusiness={onBusiness}
+          onResumeHire={onResumeHire}
+          nextTaskRequest={nextTaskRequest}
+        />
       )}
       {homeCards(d.roles).map(({ roleId, Card }) => (
         <Card key={roleId} snapshot={snapshot} refresh={refresh} openWork={onOpenWork} openChat={onChat} />

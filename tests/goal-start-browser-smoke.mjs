@@ -151,8 +151,11 @@ try {
       if (m.error) p.reject(new Error(m.error.message));
       else p.resolve(m.result);
     }
-    if (m.method === "Runtime.exceptionThrown")
-      errors.push(m.params.exceptionDetails.text);
+    if (m.method === "Runtime.exceptionThrown") {
+      const detail=m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text;
+      errors.push(detail);
+      console.error(detail);
+    }
   });
   const send = (method, params = {}) =>
     new Promise((resolve, reject) => {
@@ -176,7 +179,11 @@ try {
       );
     return r.result.value;
   };
-  until.diagnose = pageDiagnosis(evaluate);
+  until.diagnose = async () => {
+    await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
+    await fs.writeFile(path.join(repo,'test-results/goal-start-browser-failure.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+    return (await pageDiagnosis(evaluate)())+'; visible text: '+await evaluate('document.body.innerText.slice(0,2500)');
+  };
   await send("Runtime.enable");
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", {
@@ -308,30 +315,30 @@ try {
   await send('Page.navigate',{url:url+'/'});
   await text('Your results');
   assert.equal(await evaluate("document.querySelectorAll('[aria-label=\"Recent results\"] li').length"),1);
-  // Start or continue a goal before shift dashboards and planning detail can bury the entrance.
-  assert.equal(await evaluate("document.querySelector('.co-home > .co-home-hello + section').getAttribute('aria-label')"),'Start with a goal');
+  // Returning owners see their results before a form that might repeat yesterday's request.
+  assert.equal(await evaluate("document.querySelector('.co-home > .co-home-hello + section').getAttribute('aria-label')"),'Recent results');
   await text('Fictional revised accessibility draft.');
-  await click('Start another goal');
+  await click('Start next task');
   await setField('Your goal','Improve keyboard navigation.');
   await setField('Website (optional)','');
   await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'next-run terms');
   await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
-  await click('Generate my first draft');
+  await click('Generate draft');
   await text('Fictional technical plan');
   state=(await dashboard()).data;
   assert.equal(state.tasks.length,2);
   assert.equal(state.measured.length,2);
   assert.equal(state.artifacts.filter(a=>a.taskId!==task.id).length,1,'Normal single-click path saves the first raw result');
   await send('Page.navigate',{url:url+'/'});
-  await text('Start another goal');
-  await click('Start another goal');
+  await text('Start next task');
+  await click('Start next task');
   await setField('Your goal','Improve website copy for our paper kits.');
   await text('Your marketing draft');
   await setField('Your goal','Write one welcome email for new paper-kit subscribers.');
   await text('Your marketing draft');
   await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'marketing-run terms');
   await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
-  await click('Generate my first draft');
+  await click('Generate draft');
   await text('Fictional welcome email');
   state=(await dashboard()).data;
   const emailTask=state.tasks.find(t=>t.skill==='marketing-goal-draft');
@@ -342,14 +349,14 @@ try {
   assert.equal(await evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(emailTask.id)}`),true);
   // A normal website-backed request must reach its raw draft from one Home consent, too.
   await send('Page.navigate',{url:url+'/'});
-  await text('Start another goal');
-  await click('Start another goal');
+  await text('Start next task');
+  await click('Start next task');
   await setField('Your goal','Write one welcome email using our website details.');
   await setField('Website (optional)','paper.example.invalid/');
   await text('Reads up to three public pages from https://paper.example.invalid/');
   await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'website-backed run terms');
   await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
-  await click('Generate my first draft');
+  await click('Generate draft');
   await until(async()=>{
     const current=(await dashboard()).data;
     const task=current.tasks.find(t=>t.id!==emailTask.id && t.skill==='marketing-goal-draft');
@@ -422,9 +429,52 @@ try {
   await until(()=>evaluate("(()=>{const r=document.querySelector('.co-revision-feedback textarea').getBoundingClientRect();return r.top>=0 && r.bottom<=document.querySelector('.co-main').getBoundingClientRect().bottom;})()"),'Mobile refinement stays above the navigation');
   await useCurrentDraft('Keep draft and close');
   assert.equal((await dashboard()).data.measured.length,4,'Following the revision does not authorize a model request');
+  // A fresh browser session on the following day must find durable work, not replay its old goal.
+  await evaluate("Object.keys(sessionStorage).filter(k=>k.startsWith('hirezero-goal-start-v1:')).forEach(k=>sessionStorage.removeItem(k))");
+  const tomorrow = Date.now()+24*60*60*1000;
+  const nextDayClock = await send('Page.addScriptToEvaluateOnNewDocument',{source:`Date.now=()=>${tomorrow}`});
+  await send('Page.navigate',{url:url+'/'});
+  await text('No new activity today. Your saved work is below.');
+  assert.equal(await evaluate("!!document.querySelector('.co-goal-start textarea')"),false,'A fresh session does not prefill the completed request');
+  assert.ok(await evaluate("document.querySelector('[aria-label=\"Recent results\"] time')?.dateTime"),'Saved results show their update time');
+  await capture('return-next-day-mobile');
+  await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.startsWith('Find all ')).click()");
+  await until(()=>evaluate("!!document.querySelector('.co-home-search input')"),'saved-work search');
+  await evaluate("(()=>{const el=document.querySelector('.co-home-search input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'Fictional revised accessibility draft');el.dispatchEvent(new Event('input',{bubbles:true}));})()");
+  await until(()=>evaluate("document.querySelectorAll('[aria-label=\"Recent results\"] li').length===1"),'older matching result');
+  await evaluate("document.querySelector('[aria-label=\"Recent results\"] .co-home-row').click()");
+  await until(()=>evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(task.id)}`),'the older result opens directly');
+  await send('Page.removeScriptToEvaluateOnNewDocument',{identifier:nextDayClock.identifier});
+  await send('Page.navigate',{url:url+'/'});
+  await text('New task');
+  await click('New task');
+  await until(()=>evaluate("document.activeElement===document.querySelector('.co-goal-start textarea')"),'New task focuses its blank input');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start textarea').value"),'','Yesterday\'s goal is not reused');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start .co-check input').checked"),false,'A new task needs fresh consent');
+  await setField('Your goal','Write one welcome email with a practical checklist for returning paper-kit subscribers.');
+  await send('Page.reload');
+  await until(()=>evaluate("document.querySelector('.co-goal-start textarea')?.value==='Write one welcome email with a practical checklist for returning paper-kit subscribers.'"),'unfinished next-task text survives reload');
+  assert.equal(await evaluate("document.querySelector('.co-goal-start .co-check input').checked"),false,'Reload cannot retain run consent');
+  const employeeCount=(await dashboard()).data.employees.length;
+  await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
+  await click('Generate draft');
+  await text('Fictional welcome email');
+  state=(await dashboard()).data;
+  assert.equal(state.measured.length,5,'The next task dispatches exactly once after its own consent');
+  assert.equal(state.employees.length,employeeCount,'The next task reuses the existing specialist');
+  const nextTask=state.tasks.find(t=>t.input.includes('Write one welcome email with a practical checklist for returning paper-kit subscribers.'));
+  assert.ok(nextTask);
+  const nextResult=state.artifacts.find(a=>a.taskId===nextTask.id);
+  const pendingNext=await command('artifact.revise',{id:nextResult.id,expectedVersion:nextResult.version,digest:nextResult.digest,body:'Keep the facts and make the checklist shorter.'});
+  await evaluate("Object.keys(sessionStorage).filter(k=>k.startsWith('hirezero-goal-start-v1:')).forEach(k=>sessionStorage.removeItem(k))");
+  await send('Page.navigate',{url:url+'/'});
+  await text('Revision saved — review before running');
+  await evaluate("document.querySelector('[aria-label=\"Open requests\"] .co-home-row').click()");
+  await until(()=>evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(pendingNext.id)}`),'A fresh session resumes its unrun revision from Home');
+  assert.equal((await dashboard()).data.measured.length,5,'Returning to an unfinished request does not run it');
   assert.deepEqual(errors,[]);
-  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),goalEntryFirst:true,freshMobileInputVisible:true,refineFocusAndReturn:true,termsRecoveryWithoutDispatch:true,singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,currentRevisionFromHome:true,revisionChainAfterReload:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
-  console.log('PASS goal start: old knowledge draft preserved and excluded, optional website, automatic setup, single Home consent and a requested email instead of a weekly plan. The butler handled the paperwork.');
+  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),freshGoalEntryFirst:true,returningResultsFirst:true,nextDayFreshSession:true,olderResultSearch:true,unfinishedRequestRecovery:true,nextTaskSingleConsent:true,freshMobileInputVisible:true,refineFocusAndReturn:true,termsRecoveryWithoutDispatch:true,singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,currentRevisionFromHome:true,revisionChainAfterReload:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
+  console.log('PASS goal start and return visit: optional website, single consent, next-day saved work, older-result search, pending recovery and the next task. The butler kept the saved work on the tray.');
   await send('Browser.close').catch(()=>{});
 } catch (error) {
   await fs.mkdir(path.join(repo, "test-results"), { recursive: true });

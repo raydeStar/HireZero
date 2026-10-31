@@ -11,20 +11,13 @@ replacement hosted signup remains deferred.
 
 - Home turns a business sentence, goal and optional website into one disclosed draft with a single
   consent and Generate action. The [latest local walkthrough](history/2026-10-31-local-goal-entry-walkthrough.md)
-  puts the goal form first, focuses Refine and keeps inline review notes out of copied customer text.
+  puts the first goal form first, focuses Refine and keeps review notes out of copied customer text.
+  [Returning Home](history/2026-10-31-return-visit-work.md) leads with saved work, searchable older results
+  and open requests; New task reuses business details without repeating the old goal or consent.
   One fresh, untouched native welcome-email draft completed from Home; owner usefulness acceptance is separate.
-  Copy, Download, Refine and complete section exports are prominent;
-  the [native Home walkthrough](history/2026-10-30-native-home-walkthrough.md) also verified download and return-to-result,
-  with proposed-day Copy controls, a centered Work view and meaningful Home previews now installed.
-  internal notes and administration stay collapsed. An [unrelated unapproved note](history/2026-10-30-home-unapproved-note.md)
-  no longer blocks that form; the installed fix preserves the note and excludes it from the draft context.
-  The [combined Home walkthrough](history/2026-10-29-opus-integration-verification.md)
-  passed on desktop and mobile, including website discovery and lost-response recovery. A failed
-  disclosure lookup now has an [in-place retry](history/2026-10-29-home-terms-recovery.md) that preserves
-  inputs and cannot dispatch work. Returning from Refine, Home now [continues the current revision](history/2026-10-30-home-current-revision.md)
-  after reload, with desktop/mobile proof and no extra dispatch. [Exact saved-result feedback](history/2026-10-29-first-draft-usefulness-evidence.md)
-  can now enter the private pilot report without requiring approval or task completion; raw-model and edited-copy
-  evidence remain separate.
+  Desktop/mobile checks cover recovery, current revisions, copy/export and the following task.
+  [Raw-usefulness feedback](history/2026-10-29-first-draft-usefulness-evidence.md) remains separate from approval
+  and task completion. Earlier navigation evidence is linked in the return-visit history.
 - Both local installs now include the [combined handoff](history/2026-10-29-opus-integration-verification.md):
   the latest Marketing instructions, confirmed native reasoning effort, v3/6,000-token terms,
   per-model API reasoning settings and queued database writers. The October 30 Marketing update preserved all

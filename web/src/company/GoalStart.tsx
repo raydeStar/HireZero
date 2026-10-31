@@ -32,14 +32,17 @@ export function GoalStart({
   openWork,
   onBusiness,
   onResumeHire,
+  nextTaskRequest = 0,
 }: {
   snapshot: Snapshot;
   refresh: () => Promise<void>;
   openWork: (task: Work) => void;
   onBusiness?: () => void;
   onResumeHire?: (employee: Snapshot["data"]["employees"][number]) => void;
+  nextTaskRequest?: number;
 }) {
   const profile = approvedBusinessProfile(snapshot);
+  const hasWork = snapshot.data.tasks.some((task) => task.kind !== "conversation");
   const key = "hirezero-goal-start-v1:" + (company() || "local-company");
   const [draft, setDraft] = useState<Draft>(() => {
     try {
@@ -52,11 +55,15 @@ export function GoalStart({
     return {
       name: snapshot.data.business?.name || "",
       business: "",
-      goal: snapshot.data.business?.goal || "",
+      goal: hasWork ? "" : snapshot.data.business?.goal || "",
       modelRoute: "",
       allowance: snapshot.capabilities.allowanceUnit === "usd-cents" ? "5" : "1",
     };
   });
+  const [formOpen, setFormOpen] = useState(() => !hasWork || !!draft.goal.trim());
+  const goalInput = useRef<HTMLTextAreaElement>(null);
+  const section = useRef<HTMLElement>(null);
+  const focusNextGoal = useRef(false);
   const [busy, setBusy] = useState(false),
     [checking, setChecking] = useState(false),
     [error, setError] = useState("");
@@ -79,6 +86,27 @@ export function GoalStart({
     current.current = next;
     setDraft(next);
   }
+  function startNextTask() {
+    setConsent(false);
+    focusNextGoal.current = true;
+    setFormOpen(true);
+    change({ ...draft, taskId: undefined, goal: draft.taskId ? "" : draft.goal });
+  }
+  useEffect(() => {
+    if (!nextTaskRequest) return;
+    // A new-task shortcut may reveal recovery, but may never discard an uncertain request.
+    if (current.current.flow || current.current.pending) {
+      section.current?.focus();
+      section.current?.scrollIntoView({ block: "nearest" });
+    } else startNextTask();
+  }, [nextTaskRequest]);
+  useEffect(() => {
+    if (focusNextGoal.current && goalInput.current) {
+      focusNextGoal.current = false;
+      goalInput.current.focus();
+      goalInput.current.scrollIntoView({ block: "nearest" });
+    }
+  }, [formOpen, draft.taskId, nextTaskRequest]);
   const proposal: BusinessProfile = {
     ...(profile || { id: "goal-preview", businessVersion: 0, digest: "", state: "draft", version: 0, updatedAt: "" }),
     fields: (
@@ -275,7 +303,7 @@ export function GoalStart({
     lookup: "Reading your website…",
     sources: "Checking saved website context…",
     prepare: "Preparing your request…",
-    run: "Writing your first draft…",
+    run: "Writing your draft…",
     done: "Opening your draft…",
   };
   // The steps a first draft goes through, so a first-time owner can see where it is (dogfood, 2026-10-30).
@@ -291,9 +319,9 @@ export function GoalStart({
     ([stage]) => stage === (draft.flow?.stage === "sources" ? "lookup" : draft.flow?.stage),
   );
   return (
-    <section className="co-goal-start" aria-label="Start with a goal">
+    <section className="co-goal-start" aria-label="Start with a goal" ref={section} tabIndex={-1}>
       <p className="co-eyebrow">Put your team to work</p>
-      <h2>What would you like done?</h2>
+      <h2>{hasWork ? "What’s next?" : "What would you like done?"}</h2>
       <p>Tell us what you need. You’ll get a private draft to copy, download or refine.</p>
       {error && (
         <p className="co-error" role="alert">
@@ -357,7 +385,7 @@ export function GoalStart({
         <div>
           <p>
             {saved?.state === "completed"
-              ? "Your draft is approved and done. Start another goal whenever you are ready."
+              ? "Your draft is approved and done. Start the next task whenever you are ready."
               : saved && saved.state === "awaiting_review"
                 ? "Your draft is ready to read, copy or refine."
                 : saved?.reason === "revision-awaiting-approval"
@@ -368,8 +396,8 @@ export function GoalStart({
           </p>
           {/* Finished work points to the next goal first (dogfood, 2026-10-30). */}
           {saved?.state === "completed" && (
-            <button className="co-primary" onClick={() => change({ ...draft, taskId: undefined, goal: "" })}>
-              Start another goal
+            <button className="co-primary" onClick={startNextTask}>
+              Start next task
             </button>
           )}
           <button
@@ -381,10 +409,15 @@ export function GoalStart({
           {/* A remembered request this company no longer has must not leave a first-time owner stuck (dogfood,
               2026-10-30). */}
           {saved?.state !== "completed" && (
-            <button onClick={() => change({ ...draft, taskId: undefined, goal: "" })}>
-              {saved ? "Start another goal" : "Start a new goal"}
-            </button>
+            <button onClick={startNextTask}>{saved ? "Start next task" : "Start a new goal"}</button>
           )}
+        </div>
+      ) : !formOpen ? (
+        <div>
+          <p>Your earlier work is saved above. Start a new request using your saved business details.</p>
+          <button className="co-primary" onClick={startNextTask}>
+            Start next task
+          </button>
         </div>
       ) : partialBrief ? (
         <div>
@@ -417,11 +450,16 @@ export function GoalStart({
             <label>
               Your goal
               <textarea
+                ref={goalInput}
                 required
                 maxLength={600}
                 rows={2}
                 value={draft.goal}
-                placeholder="Prepare three useful posts for this week that show how our cake ordering works."
+                placeholder={
+                  hasWork
+                    ? "Describe the next useful result: a customer email, a checklist, or a page draft."
+                    : "Prepare three useful posts for this week that show how our cake ordering works."
+                }
                 onChange={(e) => change({ ...draft, goal: e.target.value })}
               />
             </label>
@@ -508,7 +546,7 @@ export function GoalStart({
                 type="submit"
                 disabled={!setup || !terms || !consent || !snapshot.capabilities.measuredOneJob}
               >
-                {busy ? "Writing your draft…" : "Generate my first draft"}
+                {busy ? "Writing your draft…" : hasWork ? "Generate draft" : "Generate my first draft"}
               </button>
             )}
             {activeJob && (

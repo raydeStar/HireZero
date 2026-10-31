@@ -311,7 +311,7 @@
   background: var(--fe-hover);
 }
 
-/* Home: a greeting, the goal, then results and the team. Let the work enter before the paperwork. */
+/* Home: a first goal or returning work, then the team. Let the work enter before the paperwork. */
 .co-workspace .co-home {
   max-width: 880px;
   padding: 40px 40px 64px;
@@ -400,6 +400,31 @@
   gap: 8px;
   padding: 0;
   list-style: none;
+}
+.co-workspace .co-home-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.co-workspace .co-home-section-head h2 {
+  margin: 0;
+  font-size: var(--fe-t-m);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.co-workspace .co-home-search {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+.co-workspace .co-home-search input {
+  min-width: 0;
+  width: 100%;
+}
+.co-workspace .co-home-new-task {
+  margin-top: 16px;
 }
 .co-workspace .co-home-row {
   width: 100%;
