@@ -64,3 +64,21 @@ At the owner's "Ship both", both local installs moved to 5baef00 through the usu
 
 - Only visitors are mapped to a step. Sign-ups and accounts are shown for the owner to place.
 - Filling readings with no owner step would override ADR 0029 and is not proposed.
+
+## Live connection verified
+
+The owner-requested deployment and connection walkthrough passed on October 31:
+
+- The counter bundle passed its checksum, the three site services were active, and the site was re-rendered.
+  Public deployment checks passed; the new counter and account-page script version are live.
+- The named agent key was transferred directly from the site's admin into the primary installation's encrypted
+  connection field. The pilot remains unconnected. This browser's visits are excluded from the counter.
+- The completed October 19 week reads 12 visitors, 13 page views, zero launch-list sign-ups and zero earlier
+  early-access accounts. The incomplete October 26 week shows "so far this week" and leaves reading fields blank.
+- No weekly numbers were saved. Department context, employees, knowledge, tasks, artifacts and saved readings
+  retain their pre-connection hashes. The morning shift is active with a current approval and its next occurrence
+  remains November 2 at 08:00 Mountain time. No model calls were made.
+
+The pre-deployment counts include owner visits. Other owner browsers and devices need their own admin sign-in
+to exclude future visits. The existing account counter describes the earlier early-access account system, not
+the newer workspace sign-in journey; zero there does not establish zero attempts to start a workspace.
