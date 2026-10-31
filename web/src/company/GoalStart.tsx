@@ -294,7 +294,7 @@ export function GoalStart({
     <section className="co-goal-start" aria-label="Start with a goal">
       <p className="co-eyebrow">Put your team to work</p>
       <h2>What would you like done?</h2>
-      <p>Tell us what you need. You’ll get a private first draft to read, change and approve.</p>
+      <p>Tell us what you need. You’ll get a private draft to copy, download or refine.</p>
       {error && (
         <p className="co-error" role="alert">
           {error}

@@ -908,7 +908,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
         <LiveStrip
           snapshot={snapshot}
           needs={needs.filter((need) => !optionalDraftReview(snapshot, need))}
-          showNeeds={!docked && !needsError && tab !== "home"}
+          showNeeds={!docked && !needsError && tab !== "home" && !workTask}
           onOpenWork={(task) => openWork(task)}
           onOpenNeed={openNeed}
         />

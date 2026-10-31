@@ -358,8 +358,8 @@ export function ConversationJob({
                 {a.state === "needs_review" ? (
                   <>
                     <p>
-                      <b>Happy with this draft?</b> Approve it to keep it as your final version. Nothing is posted or
-                      sent. For changes, use Refine draft above.
+                      <b>Your draft is saved.</b> Copy, download or refine it whenever you like. Approve it when you
+                      want to mark this version final. Nothing is posted or sent.
                     </p>
                     <button
                       className="co-primary"

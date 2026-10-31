@@ -191,6 +191,12 @@ try {
     () => evaluate("!!document.querySelector('.co-home')"),
     "company home",
   );
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  // Viewport changes settle asynchronously; measure the rendered mobile layout, not the preceding frame.
+  await until(()=>evaluate("(()=>{const r=document.querySelector('.co-goal-start textarea').getBoundingClientRect();return innerWidth===390 && r.top>=0 && r.bottom<=document.querySelector('.co-main').getBoundingClientRect().bottom;})()"),'A fresh mobile Home shows the first business input above the navigation without scrolling');
+  await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
+  await fs.writeFile(path.join(repo,'test-results/goal-home-fresh-mobile.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false})).data,'base64'));
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   const click = clicker(evaluate, until),
     idle = pageIdle(evaluate, until);
   const text = (phrase) =>
@@ -297,12 +303,13 @@ try {
   assert.equal(state.measured.length,1,'Only one model run after a lost reply');
   assert.equal(await evaluate(`document.querySelector('[data-artifact-id="${result.id}"]')?.open===true`),true);
   await capture('goal-first-result');
+  assert.equal(await evaluate("!!document.querySelector('.co-live-strip.attention')"),false,'Unrelated company decisions do not interrupt the draft');
   await command('artifact.create',{id:task.id,expectedVersion:state.tasks[0].version,body:'Fictional revised accessibility draft.'});
   await send('Page.navigate',{url:url+'/'});
   await text('Your results');
   assert.equal(await evaluate("document.querySelectorAll('[aria-label=\"Recent results\"] li').length"),1);
-  // Results lead Home's sections; only the greeting and its live status sit above them (UX round 10).
-  assert.equal(await evaluate("document.querySelector('.co-home > .co-home-hello + section').getAttribute('aria-label')"),'Recent results');
+  // Start or continue a goal before shift dashboards and planning detail can bury the entrance.
+  assert.equal(await evaluate("document.querySelector('.co-home > .co-home-hello + section').getAttribute('aria-label')"),'Start with a goal');
   await text('Fictional revised accessibility draft.');
   await click('Start another goal');
   await setField('Your goal','Improve keyboard navigation.');
@@ -361,6 +368,12 @@ try {
   assert.ok(websitePacket.call.context.websiteResearch.sources.length>0);
   // Returning Home after feedback should continue the replacement request, not the superseded draft.
   await click('Refine draft');
+  await until(()=>evaluate("document.activeElement===document.querySelector('.co-revision-feedback textarea')"),'Refine puts the cursor in the visible feedback field');
+  assert.equal(await evaluate("(()=>{const r=document.querySelector('.co-revision-feedback textarea').getBoundingClientRect();return r.top>=0 && r.bottom<=innerHeight;})()"),true,'Refine feedback is visible without hunting through the draft');
+  await click('Keep draft and close');
+  assert.equal(await evaluate("document.activeElement?.textContent"),'Refine draft','Closing feedback returns focus to its action');
+  assert.equal((await dashboard()).data.measured.length,4,'Opening and closing Refine cannot dispatch');
+  await click('Refine draft');
   await evaluate(`(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,'Keep the folding example and make the reply invitation clearer.');el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await click('Create revision request');
   const revisionTask = await until(async()=>{
@@ -379,7 +392,9 @@ try {
   await text('Continue my work');
   await click('Continue my work');
   assert.equal(await evaluate("new URLSearchParams(location.search).get('work')"),latestRevision.id,'Home follows the full revision chain after reload');
-  await command('artifact.create',{id:latestRevision.id,expectedVersion:latestRevision.version,body:'Fictional latest revision, ready to read.'});
+  const finalFixtureDraft = 'Fictional latest revision, ready to read.';
+  const finalFixtureBody = finalFixtureDraft+'\n\n*Review notes:* Fictional owner-only guidance.';
+  await command('artifact.create',{id:latestRevision.id,expectedVersion:latestRevision.version,body:finalFixtureBody});
   await send('Page.navigate',{url:url+'/'});
   await text('Your draft is ready to read, copy or refine.');
   assert.equal(await evaluate("document.querySelectorAll('[aria-label=\"Recent results\"] li').length"),3,'Earlier superseded drafts do not crowd out distinct results');
@@ -388,9 +403,27 @@ try {
   await click('Continue my work');
   await text('Fictional latest revision, ready to read.');
   assert.equal(await evaluate("new URLSearchParams(location.search).get('work')"),latestRevision.id,'The delivered revision opens from Home on mobile');
+  await until(()=>evaluate("document.querySelector('.co-artifact[open] .co-report-content')?.innerText.trim() === "+JSON.stringify(finalFixtureDraft)),'Inline italic review notes stay outside the usable draft');
+  assert.equal(await evaluate("document.querySelector('.co-artifact[open] .co-internal-review-notes').open"),false,'Review notes start collapsed');
+  const useCurrentDraft = label => evaluate(`[...document.querySelectorAll('.co-artifact[open] button')].find(b=>b.textContent.trim()===${JSON.stringify(label)}).click()`);
+  await evaluate("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.copiedDraft=text}}});");
+  await useCurrentDraft('Copy draft');
+  assert.equal(await evaluate('window.copiedDraft'),finalFixtureDraft,'Copy excludes internal notes');
+  await evaluate("window.savedCreateObjectURL=URL.createObjectURL;window.savedAnchorClick=HTMLAnchorElement.prototype.click;URL.createObjectURL=blob=>{window.downloadedDraft=blob.text();return window.savedCreateObjectURL(blob)};HTMLAnchorElement.prototype.click=function(){window.downloadName=this.download};");
+  await useCurrentDraft('Download draft');
+  assert.equal(await evaluate('window.downloadedDraft'),finalFixtureDraft,'Download excludes internal notes');
+  await evaluate("document.querySelector('.co-artifact[open] .co-internal-review-notes > summary').click()");
+  await useCurrentDraft('Download full saved result');
+  assert.equal(await evaluate('window.downloadedDraft'),finalFixtureBody,'The full raw result remains downloadable unchanged');
+  await evaluate('URL.createObjectURL=window.savedCreateObjectURL;HTMLAnchorElement.prototype.click=window.savedAnchorClick;');
+  await evaluate("document.querySelector('.co-artifact[open] .co-internal-review-notes > summary').click()");
+  await useCurrentDraft('Refine draft');
+  await until(()=>evaluate("document.activeElement===document.querySelector('.co-revision-feedback textarea')"),'Mobile Refine focuses feedback');
+  await until(()=>evaluate("(()=>{const r=document.querySelector('.co-revision-feedback textarea').getBoundingClientRect();return r.top>=0 && r.bottom<=document.querySelector('.co-main').getBoundingClientRect().bottom;})()"),'Mobile refinement stays above the navigation');
+  await useCurrentDraft('Keep draft and close');
   assert.equal((await dashboard()).data.measured.length,4,'Following the revision does not authorize a model request');
   assert.deepEqual(errors,[]);
-  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),termsRecoveryWithoutDispatch:true,singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,currentRevisionFromHome:true,revisionChainAfterReload:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
+  await fs.writeFile(path.join(repo,'test-results/goal-start-browser.json'),JSON.stringify({verifiedAt:new Date().toISOString(),goalEntryFirst:true,freshMobileInputVisible:true,refineFocusAndReturn:true,termsRecoveryWithoutDispatch:true,singleHomeConsent:true,optionalWebsiteDiscovery:true,bareWebsiteAddress:true,normalWebsiteOneClickRun:true,normalOneClickRun:true,automaticSpecialistSetup:true,lostSaveReplyAndReload:true,exactFirstResultOpened:true,latestResultsFirst:true,currentRevisionFromHome:true,revisionChainAfterReload:true,desktopAndMobile:true,liveModelCalls:0,externalRequests:0},null,2));
   console.log('PASS goal start: old knowledge draft preserved and excluded, optional website, automatic setup, single Home consent and a requested email instead of a weekly plan. The butler handled the paperwork.');
   await send('Browser.close').catch(()=>{});
 } catch (error) {

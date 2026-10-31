@@ -14,7 +14,7 @@ export function splitDraftReview(body: string): { draft: string; notes?: string 
       /^(?:#{1,6}[ \t]+(?:\*\*)?|\*\*)(?:Internal[ \t]+)?Review notes(?:[ \t]*(?:[—–-][ \t]*internal|\(internal\)))?[ \t]*(?:\*\*)?:?[ \t]*$/i.test(
         line,
       ) ||
-      /^\*\*(?:Internal[ \t]+)?Review notes(?::\*\*|\*\*:)[ \t]+\S/i.test(line)
+      /^(\*{1,2}|_{1,2})(?:Internal[ \t]+)?Review notes(?::\1|\1:)[ \t]+\S/i.test(line)
     ) {
       const draft = body.slice(0, match.index).trimEnd();
       // A response consisting entirely of notes is still the deliverable, not an empty plate.

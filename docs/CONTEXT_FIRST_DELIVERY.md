@@ -7,10 +7,13 @@ for the next internal walkthrough. Hosted deployment follows owner satisfaction 
 The [competition-era Plow connection](history/2026-10-31-plow-retirement.md) is retired on the public site;
 replacement hosted signup remains deferred.
 
-## Current checkpoint — 2026-10-30
+## Current checkpoint — 2026-10-31
 
 - Home turns a business sentence, goal and optional website into one disclosed draft with a single
-  consent and Generate action. Copy, Download, Refine and complete section exports are prominent;
+  consent and Generate action. The [latest local walkthrough](history/2026-10-31-local-goal-entry-walkthrough.md)
+  puts the goal form first, focuses Refine and keeps inline review notes out of copied customer text.
+  One fresh, untouched native welcome-email draft completed from Home; owner usefulness acceptance is separate.
+  Copy, Download, Refine and complete section exports are prominent;
   the [native Home walkthrough](history/2026-10-30-native-home-walkthrough.md) also verified download and return-to-result,
   with proposed-day Copy controls, a centered Work view and meaningful Home previews now installed.
   internal notes and administration stay collapsed. An [unrelated unapproved note](history/2026-10-30-home-unapproved-note.md)

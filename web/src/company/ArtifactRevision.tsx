@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { company, memberStorage } from "../lib/api";
 import type { Artifact, Work } from "./api";
 import "./artifact-revision.css";
@@ -30,6 +30,16 @@ export function ArtifactRevision({
     }
   });
   const lock = useRef(false);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (open) {
+      input.current?.focus();
+      input.current?.scrollIntoView({ block: "nearest" });
+    } else if (wasOpen.current) trigger.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
   function change(value: string) {
     setFeedback(value);
     try {
@@ -73,12 +83,13 @@ export function ArtifactRevision({
       <label>
         What should change?
         <textarea
+          ref={input}
           required
           maxLength={4000}
           rows={4}
           value={feedback}
           onChange={(event) => change(event.target.value)}
-          placeholder="What should change? For example: make the posts shorter, use a friendlier tone, mention our free trial."
+          placeholder="Make the opening shorter, use a warmer tone, and keep the service details unchanged."
         />
       </label>
       {suggestedFeedback && !feedback.trim() && (
@@ -101,7 +112,7 @@ export function ArtifactRevision({
       </div>
     </form>
   ) : (
-    <button type="button" disabled={busy} onClick={() => setOpen(true)}>
+    <button ref={trigger} type="button" disabled={busy} onClick={() => setOpen(true)}>
       {feedback.trim() ? "Continue requested changes" : (label ?? "Ask for changes")}
     </button>
   );

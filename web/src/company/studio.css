@@ -311,7 +311,7 @@
   background: var(--fe-hover);
 }
 
-/* Home: a greeting, a plain summary and live counts, then results, the goal and the team. */
+/* Home: a greeting, the goal, then results and the team. Let the work enter before the paperwork. */
 .co-workspace .co-home {
   max-width: 880px;
   padding: 40px 40px 64px;
@@ -320,7 +320,7 @@
   display: block;
   height: auto;
   min-height: 0;
-  margin: 0 0 30px;
+  margin: 0;
   padding: 0;
   border: 0;
   background: none;
@@ -434,6 +434,9 @@
   letter-spacing: -0.02em;
   margin: 2px 0 4px;
 }
+.co-workspace .co-home > .co-home-hello + .co-goal-start {
+  margin-top: 0;
+}
 .co-workspace .co-goal-start .co-eyebrow {
   margin: 0;
 }
@@ -464,43 +467,11 @@
 }
 
 /* First visit and first draft (dogfood, 2026-10-30): how it works, where the draft is, and what to do next. */
-.co-workspace .co-home-how {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: hz-how;
-}
-.co-workspace .co-home-how > li {
-  counter-increment: hz-how;
-  display: grid;
-  gap: 2px;
-  padding: 14px 16px;
-  border: 1px solid var(--fe-line);
-  border-radius: 12px;
-  background: var(--fe-surface);
-  font-size: var(--fe-t-s);
+.co-workspace .co-home-intro {
+  max-width: 65ch;
+  margin: 12px 0 0;
   color: var(--fe-fg-3);
-}
-.co-workspace .co-home-how > li::before {
-  content: counter(hz-how);
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  margin-bottom: 6px;
-  border-radius: 50%;
-  background: var(--fe-accent-soft);
-  color: var(--fe-accent);
-  font-size: 12px;
-  font-weight: 650;
-}
-.co-workspace .co-home-how b {
-  color: var(--fe-fg);
   font-size: var(--fe-t-m);
-  font-weight: 600;
 }
 .co-workspace .co-goal-steps {
   display: grid;
@@ -835,9 +806,6 @@
   }
   .co-workspace .co-home-hello h2 {
     font-size: 24px;
-  }
-  .co-workspace .co-home-how {
-    grid-template-columns: 1fr;
   }
   .co-workspace .co-goal-start,
   .co-workspace .co-home > .co-goal-start {

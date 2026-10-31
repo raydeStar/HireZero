@@ -243,20 +243,10 @@ export function Home({
         <h2>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}</h2>
         {/* A first visit says what HireZero does and what happens next (dogfood, 2026-10-30). */}
         {d.employees.length === 0 && d.tasks.length === 0 && (
-          <ol className="co-home-how" aria-label="How HireZero works">
-            <li>
-              <b>Tell us what you need</b>
-              <span>A sentence about your business and one goal is enough.</span>
-            </li>
-            <li>
-              <b>Get a private draft</b>
-              <span>A specialist on your team writes it, usually in about a minute.</span>
-            </li>
-            <li>
-              <b>You decide</b>
-              <span>Read it, ask for changes and approve it. Nothing is posted or sent for you.</span>
-            </li>
-          </ol>
+          <p className="co-home-intro">
+            A sentence about your business and one goal is enough. We’ll set up the right employee and bring back a
+            private draft you can use.
+          </p>
         )}
         {d.employees.length > 0 && (
           <>
@@ -283,6 +273,15 @@ export function Home({
           </>
         )}
       </header>
+      {goalStart && (
+        <GoalStart
+          snapshot={snapshot}
+          refresh={refresh}
+          openWork={onOpenWork}
+          onBusiness={onBusiness}
+          onResumeHire={onResumeHire}
+        />
+      )}
       {homeCards(d.roles, "home-lead").map(({ roleId, Card }) => (
         <Card key={roleId} snapshot={snapshot} refresh={refresh} openWork={onOpenWork} openChat={onChat} />
       ))}
@@ -316,15 +315,6 @@ export function Home({
       {homeCards(d.roles).map(({ roleId, Card }) => (
         <Card key={roleId} snapshot={snapshot} refresh={refresh} openWork={onOpenWork} openChat={onChat} />
       ))}
-      {goalStart && (
-        <GoalStart
-          snapshot={snapshot}
-          refresh={refresh}
-          openWork={onOpenWork}
-          onBusiness={onBusiness}
-          onResumeHire={onResumeHire}
-        />
-      )}
       {needsError && (
         <div className="co-needs-error" role="status">
           <p>
