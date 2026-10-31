@@ -14,6 +14,9 @@ replacement hosted signup remains deferred.
   puts the first goal form first, focuses Refine and keeps review notes out of copied customer text.
   [Returning Home](history/2026-10-31-return-visit-work.md) leads with saved work, searchable older results
   and open requests; New task reuses business details without repeating the old goal or consent.
+  [Proactive proposals](history/2026-10-31-proactive-proposals.md) add persistent corrections/vetoes and
+  an explicitly reviewed, bounded site-read step for morning shifts. Existing shifts keep their read scope;
+  the research-enabled replacement awaits owner approval. Exact vetoes are blocked; paraphrases remain a model-quality gate.
   One fresh, untouched native welcome-email draft completed from Home; owner usefulness acceptance is separate.
   Desktop/mobile checks cover recovery, current revisions, copy/export and the following task.
   [Raw-usefulness feedback](history/2026-10-29-first-draft-usefulness-evidence.md) remains separate from approval

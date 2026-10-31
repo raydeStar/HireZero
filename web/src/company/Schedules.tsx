@@ -21,6 +21,7 @@ type Definition = {
   creditAllowance: number;
   modelRoute?: string | null;
   includeOccurrenceTime?: boolean;
+  readContextPolicy?: string | null;
   profileId?: string | null;
   sourceIds?: string[] | null;
   scriptJobId?: string | null;
@@ -855,6 +856,13 @@ export function Schedules({
             </p>
           )}
           {schedule.definition.prompt && <blockquote>{schedule.definition.prompt}</blockquote>}
+          {schedule.definition.readContextPolicy && (
+            <p>
+              Before each round: up to two read-only checks of connected site activity for the last 14 complete days and
+              five landing pages, with a 15-second collection deadline. Missing data stays unknown. No new connections,
+              publishing or automatic retry. Read plan: {schedule.definition.readContextPolicy}.
+            </p>
+          )}
           {schedule.definition.kind === "employee-task" && (
             <p>
               {schedule.definition.includeOccurrenceTime

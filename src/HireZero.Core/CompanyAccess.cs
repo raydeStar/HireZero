@@ -60,6 +60,7 @@ public static class CompanyAccess
         "document.source.delete",
         "document.retention",
         "memory.save",
+        "proposal.feedback",
         "memory.review",
         "memory.delete",
         "memory.source.delete",

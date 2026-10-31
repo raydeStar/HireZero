@@ -273,7 +273,15 @@ public sealed record CompanyContext(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        CompanyLesson[]? Lessons = null
+        CompanyLesson[]? Lessons = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyOwnerDirection[]? OwnerDirections = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyFreshSignals? FreshSignals = null
 );
 
 // Owner-approved memory addressed to one employee, as a shift round sees it (docs/adr/0172): what it has learned.

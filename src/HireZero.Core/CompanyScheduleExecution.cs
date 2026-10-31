@@ -4,6 +4,7 @@ public sealed partial class CompanyScheduler
 {
     // The host supplies a role-neutral tool path. Core never imports a web integration.
     public Func<CompanyCommand, string, CancellationToken, Task<string>>? RefreshScheduledSources { get; set; }
+    public Func<string, string, DateOnly, CancellationToken, Task<string>>? GatherScheduledContext { get; set; }
     private readonly SemaphoreSlim _schedules = new(1, 1);
 
     public async Task<bool> TickSchedulesAsync(CancellationToken token = default)
@@ -47,7 +48,39 @@ public sealed partial class CompanyScheduler
                     await store.ProviderGate.WaitAsync(token);
                     try
                     {
-                        var attempt = store.StartScheduledTask(run.Id);
+                        CompanyFreshSignals? signals = null;
+                        if (schedule.Definition.ReadContextPolicy is not null)
+                        {
+                            var request = store.ScheduledResearchRequest(run.Id);
+                            using var readDeadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+                            readDeadline.CancelAfter(TimeSpan.FromSeconds(15));
+                            string summary;
+                            try
+                            {
+                                summary = GatherScheduledContext is null
+                                    ? "Connected information is unavailable; no source was read."
+                                    : await GatherScheduledContext(
+                                            request.Employee,
+                                            request.Skill,
+                                            request.Today,
+                                            readDeadline.Token
+                                        )
+                                        .WaitAsync(readDeadline.Token);
+                            }
+                            catch (Exception error)
+                                when (error is not OutOfMemoryException && !token.IsCancellationRequested)
+                            {
+                                summary =
+                                    "Connected information could not be read within this round. Values are unknown; no retry was attempted.";
+                            }
+                            token.ThrowIfCancellationRequested();
+                            signals = new(
+                                schedule.Definition.ReadContextPolicy,
+                                request.Today.ToString("yyyy-MM-dd"),
+                                ContentGuard.Clean(summary, 6000).Text
+                            );
+                        }
+                        var attempt = store.StartScheduledTask(run.Id, signals);
                         try
                         {
                             var call = store.TextCall(attempt.Id);

@@ -14,6 +14,11 @@ public sealed class MarketingModule : IEmployeeModule
     public const string StarterPlan = "marketing-starter-plan";
     public const string GoalDraft = "marketing-goal-draft";
 
+    public Task<string> GatherContextAsync(string skill, IToolbox tools, DateOnly today, CancellationToken token) =>
+        skill == MarketingShift.Skill
+            ? MarketingSignals.GatherAsync(tools, today, token)
+            : throw new WorkspaceException("This skill has no automatic read plan.", 422);
+
     public EmployeeManifest Manifest { get; } =
         new(
             "marketing",
@@ -59,6 +64,7 @@ public sealed class MarketingModule : IEmployeeModule
                 {
                     MeasuredProfile = CompanyMeasuredPolicy.DeliverableProfile,
                     ShiftContext = true,
+                    ReadContextPolicy = MarketingSignals.Policy,
                 },
                 new(
                     Draft,

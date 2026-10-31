@@ -38,7 +38,11 @@ public sealed record CompanyScheduleInput(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault
     )]
-        bool IncludeOccurrenceTime = false
+        bool IncludeOccurrenceTime = false,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        string? ReadContextPolicy = null
 );
 
 public sealed record CompanyScheduledOccurrence(
@@ -288,6 +292,8 @@ public sealed partial class CompanyStore
         CompanyMeasuredPolicy? approved = null
     )
     {
+        if (input.ReadContextPolicy is not null && input.Kind != "employee-task")
+            throw new WorkspaceException("Automatic context reads belong to an approved employee shift.", 422);
         if (input.Kind == "source-refresh")
         {
             var profile = Need<CompanyBusinessProfile>(db, input.ProfileId);
@@ -336,6 +342,15 @@ public sealed partial class CompanyStore
         var employee = Need<CompanyEmployee>(db, input.EmployeeId);
         var role = Role(employee.RoleId);
         var skill = ScheduleSkill(role, input);
+        if (
+            input.ReadContextPolicy is not null
+            && (
+                input.Kind != "employee-task"
+                || role.Manifest?.Skills.SingleOrDefault(s => s.Id == skill)?.ReadContextPolicy
+                    != input.ReadContextPolicy
+            )
+        )
+            throw new WorkspaceException("This employee does not support the reviewed automatic read plan.", 422);
         var kind = skill == PlatformSkills.Chat ? "conversation" : "work";
         if (employee.State != "active")
             throw new WorkspaceException("Choose an active employee for this recurring deliverable.", 409);
@@ -383,6 +398,10 @@ public sealed partial class CompanyStore
                 RetrievalScope = "approved-documents-and-memory-v1",
             }
         );
+        if (input.ReadContextPolicy is not null)
+            fingerprint = CompanyJson.Digest(
+                new { context = fingerprint, readContextPolicy = input.ReadContextPolicy }
+            );
         if (selectedResults.Length > 0)
             fingerprint = CompanyJson.Digest(
                 new
@@ -778,7 +797,7 @@ public sealed partial class CompanyStore
         );
     }
 
-    public CompanyAttempt StartScheduledTask(string runId)
+    public CompanyAttempt StartScheduledTask(string runId, CompanyFreshSignals? signals = null)
     {
         using var db = Open();
         return Transaction(
@@ -795,6 +814,11 @@ public sealed partial class CompanyStore
                     || !ScheduleAuthorityCurrent(db, schedule)
                 )
                     throw new WorkspaceException("This scheduled occurrence no longer has current authority.", 409);
+                if (
+                    signals?.Policy != schedule.Definition.ReadContextPolicy
+                    || signals is not null && signals.Summary.Length > 6000
+                )
+                    throw new WorkspaceException("Collect only the exact read plan approved for this occurrence.", 409);
                 var task = NewTask(
                     db,
                     schedule.Definition.EmployeeId!,
@@ -822,7 +846,8 @@ public sealed partial class CompanyStore
                         task.Id,
                         task.Version,
                         CreditAllowance: schedule.Definition.CreditAllowance
-                    )
+                    ),
+                    signals
                 );
                 attempt = StartMeasured(
                     db,

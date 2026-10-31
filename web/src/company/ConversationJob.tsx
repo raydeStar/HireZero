@@ -2,6 +2,7 @@ import { canRepeatWork } from "./recurringWork";
 import { useMemberAccess } from "./MemberAccess";
 import { lazy, Suspense, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { DraftMarkdown } from "./DraftMarkdown";
+import { ProposalFeedback, useProposalFeedback } from "./ProposalFeedback";
 import { api, company, memberStorage } from "../lib/api";
 import type { Snapshot, Work } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
@@ -127,11 +128,12 @@ export function ConversationJob({
   onRepeatWork?: (taskId: string) => void;
   focused?: boolean;
 }) {
-  const { canWork } = useMemberAccess();
+  const { canWork, canManage } = useMemberAccess();
   const d = snapshot.data,
     employee = d.employees.find((e) => e.id === t.employeeId)!,
     employeeRole = d.roles.find((r) => r.id === employee.roleId);
   const draftKey = `hirezero-artifact-edit-v1:${company() || "local-company"}:${t.id}`;
+  const feedback = useProposalFeedback(employee.id, d.cursor, refresh);
   const [outcome, setOutcome] = useState(() => {
     try {
       return memberStorage.getItem(draftKey) ?? "";
@@ -392,6 +394,9 @@ export function ConversationJob({
                 )}
               </div>
             )}
+          {canManage && index === 0 && (
+            <ProposalFeedback artifact={a} employeeName={employee.name} feedback={feedback} />
+          )}
           <ArtifactSources key={`${company()}:${a.id}:${a.contextId}`} artifact={a} entry={measured}>
             <p>
               {provenance(employeeRole, a.provenance)} · {artifactState(a.state, canWork)}

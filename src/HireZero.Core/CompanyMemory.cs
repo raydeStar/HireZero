@@ -21,7 +21,11 @@ public sealed record CompanyMemoryInput(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        string? MeetingId = null
+        string? MeetingId = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyProposalFeedback? ProposalFeedback = null
 );
 
 public sealed record CompanyMemoryOrigin(
@@ -270,6 +274,8 @@ public sealed partial class CompanyStore
     private object SaveMemory(StoreConnection db, CompanyCommand command)
     {
         var input = CompanyJson.Decode<CompanyMemoryInput>(command.Body ?? "null");
+        if (input.ProposalFeedback is not null && command.Action != "proposal.feedback")
+            throw new WorkspaceException("Save proposal feedback from the exact result being reviewed.", 422);
         var previous = command.Id is null ? null : Need<CompanyMemoryItem>(db, command.Id);
         Version(previous?.Version ?? 0, command.ExpectedVersion);
         if (previous is not null && previous.State != "draft")

@@ -17,6 +17,10 @@ public interface IEmployeeModule
     // The system instructions for one skill; the manifest's base instructions unless a skill needs its own.
     string InstructionsFor(string skill) => Manifest.Instructions;
 
+    // Only an explicitly reviewed schedule may request this versioned, bounded read plan.
+    Task<string> GatherContextAsync(string skill, IToolbox tools, DateOnly today, CancellationToken token) =>
+        throw new WorkspaceException("This employee has no automatic read plan.", 422);
+
     // Runs a declared action with a read-only toolbox and returns its output (at most 12,000 characters), which the
     // owner reviews as an artifact before any skill may use it as evidence.
     Task<string> RunActionAsync(
@@ -108,6 +112,11 @@ public sealed record EmployeeSkill(string Id, string Name, string Description, S
     // A shift round (docs/adr/0171-an-owner-approved-shift.md): its requests also carry the employee's recorded weekly
     // numbers and where its recent work stands, so each round can move unfinished work forward.
     public bool ShiftContext { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+    public string? ReadContextPolicy { get; init; }
 
     // A skill whose reviewed result the module can publish: an execution's changes or a measured skill's approved
     // artifact (docs/adr/0012-company-publication.md, docs/adr/0015-publishing-an-approved-artifact.md).

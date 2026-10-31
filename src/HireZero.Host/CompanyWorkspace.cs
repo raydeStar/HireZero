@@ -269,6 +269,17 @@ public static class CompanyWorkspace
             {
                 SkippedRound = LogSkippedRound(s.GetRequiredService<ILogger<CompanyScheduler>>(), store.CompanyId),
                 NotificationSender = notificationSender,
+                GatherScheduledContext = (employeeId, skill, today, token) =>
+                {
+                    var employee = store.EmployeeOf(employeeId);
+                    var module = HostEmployees.Modules.Single(m => m.Manifest.Id == employee.RoleId);
+                    return module.GatherContextAsync(
+                        skill,
+                        tools.For(module.Manifest, employee.Id).ReadOnly(),
+                        today,
+                        token
+                    );
+                },
                 RefreshScheduledSources = (command, subject, token) =>
                     CompanyBusinessResearch.RunRefreshAsync(command, subject, store, tools, token),
             });
@@ -422,6 +433,17 @@ public static class CompanyWorkspace
                             companyStore.CompanyId
                         ),
                         NotificationSender = notificationSender,
+                        GatherScheduledContext = (employeeId, skill, today, token) =>
+                        {
+                            var employee = companyStore.EmployeeOf(employeeId);
+                            var module = HostEmployees.Modules.Single(m => m.Manifest.Id == employee.RoleId);
+                            return module.GatherContextAsync(
+                                skill,
+                                registry.For(module.Manifest, employee.Id).ReadOnly(),
+                                today,
+                                token
+                            );
+                        },
                         RefreshScheduledSources = (command, subject, token) =>
                             CompanyBusinessResearch.RunRefreshAsync(command, subject, companyStore, registry, token),
                     };

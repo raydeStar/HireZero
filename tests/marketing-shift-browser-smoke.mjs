@@ -246,6 +246,7 @@ try {
   assert.equal(shift.state, "active");
   assert.equal(shift.definition.occurrences, 3);
   assert.equal(shift.definition.includeOccurrenceTime, true);
+  assert.equal(shift.definition.readContextPolicy, "marketing-site-signals-v1");
   assert.equal(shift.definition.cadence, "weekdays", "Shifts default to weekday mornings");
   assert.equal((await dashboard()).data.measured.length, 2, "Starting a shift runs nothing yet");
   // Once a shift exists it leads Home, right after the greeting and before earlier results and the ladder.
@@ -261,6 +262,7 @@ try {
   assert.ok(round, "The round is its own Marketing request");
   const packet = await fetch(url + "/api/company/measured/" + state.measured.find((m) => m.taskId === round.id).id).then((r) => r.json());
   assert.equal(packet.call.context.scorecard.length, 2, "The round reads both weeks of numbers");
+  assert.equal(packet.call.context.freshSignals.policy, "marketing-site-signals-v1");
   assert.ok(packet.call.context.recentWork.some((w) => w.title === "Work out my goal ladder: what to grow, and where to start"));
   assert.equal(await evaluate("document.querySelectorAll('.co-shift-jobs li').length"), 2);
   await text("Do people need a card to order? (yes / no)");
@@ -293,6 +295,20 @@ try {
   await text("Changes being measured at Visit → Order");
   await text("Too early to judge");
 
+  // Owner feedback is a decision, not an edited model artifact or another model call.
+  const originalRound = (await dashboard()).data.artifacts.find(a => a.taskId === round.id);
+  const countBeforeFeedback = (await dashboard()).data.measured.length;
+  await click("That’s inaccurate");
+  await fill(".co-proposal-feedback textarea", "We serve local shops only. Do not assume we sell online.");
+  await click("Save correction");
+  await text("Correction saved for this employee’s future work.");
+  await evaluate("document.querySelector('.co-shift-jobs li button:last-child').click()");
+  await text("Vetoed · won’t start again");
+  await send("Page.navigate", { url: url + "/" });
+  await text("Vetoed · won’t start again");
+  assert.equal((await dashboard()).data.measured.length, countBeforeFeedback);
+  assert.equal((await dashboard()).data.artifacts.find(a => a.id === originalRound.id).body, originalRound.body);
+
   // The next weekday's round reads the kept lesson.
   await advance(shift.id);
   await until(async () => (await dashboard()).data.tasks.filter((t) => t.skill === "marketing-morning").length === 2, "the next round");
@@ -301,9 +317,17 @@ try {
   await until(async () => (await dashboard()).data.artifacts.some((a) => a.taskId === second.id), "the next round's report");
   state = (await dashboard()).data;
   const nextPacket = await fetch(url + "/api/company/measured/" + state.measured.find((m) => m.taskId === second.id).id).then((r) => r.json());
-  assert.equal(nextPacket.call.context.lessons[0].statement, "Posts that name the starter kit brought the most questions this week.");
+  assert.ok(nextPacket.call.context.lessons.some(l => l.statement === "Posts that name the starter kit brought the most questions this week."));
+  assert.equal(nextPacket.call.context.ownerDirections.length, 2);
+  assert.ok(nextPacket.call.context.ownerDirections.some(d => d.kind === "veto" && d.subject === "Rewrite the shop page's opening lines"));
+  assert.ok(nextPacket.call.context.ownerDirections.some(d => d.kind === "correction" && d.statement.includes("local shops only")));
   assert.equal(new Date(nextPacket.call.context.scheduledOccurrence.scheduledFor).getDay() % 6 !== 0, true, "A weekday round");
   await text("2 of 3 morning rounds done");
+  await text("Vetoed · won’t start again");
+  const callsBeforeUndo = (await dashboard()).data.measured.length;
+  await click("Undo veto");
+  await text("Decision removed. Nothing has been restarted.");
+  assert.equal((await dashboard()).data.measured.length, callsBeforeUndo);
   await capture("marketing-shift-desktop");
   await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await delay(200);
@@ -330,6 +354,10 @@ try {
         oneClickJob: true,
         weekdayCadence: true,
         keptLessonReachesNextRound: true,
+        optedInReadPlan: true,
+        correctionAndVetoSurviveReloadAndNextRound: true,
+        rawDraftUnchanged: true,
+        undoStartsNothing: true,
         changeMeasuredByRule: true,
         pause: true,
         mobileWithoutSidewaysScroll: true,

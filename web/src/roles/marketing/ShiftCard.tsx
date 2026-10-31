@@ -8,6 +8,7 @@ import { useMemberAccess } from "../../company/MemberAccess";
 import { providerName } from "../../company/ModelChoice";
 import type { HomeCardProps } from "../company";
 import { GoalLadder } from "./GoalLadder";
+import { ProposalFeedback, useProposalFeedback } from "../../company/ProposalFeedback";
 import "./ladder.css";
 import { goalTitle, morningSkill, nextRoundLabel, openQuestion, parseMorningReport, type ShiftJob } from "./morning";
 
@@ -242,6 +243,7 @@ function Offer({
   const [start, setStart] = useState<"today" | "tomorrow">("tomorrow");
   const [time, setTime] = useState("08:00");
   const [weekdays, setWeekdays] = useState(true);
+  const [readSources, setReadSources] = useState(true);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -257,7 +259,7 @@ function Offer({
       active = false;
     };
   }, [roleId, snapshot.capabilities.measuredOneJob]);
-  useEffect(() => setConsent(false), [mornings, start, time, weekdays]);
+  useEffect(() => setConsent(false), [mornings, start, time, weekdays, readSources]);
   const count = Math.min(31, Math.max(1, Math.round(Number(mornings) || 0)));
 
   async function begin() {
@@ -295,6 +297,7 @@ function Offer({
           skill: morningSkill,
           modelRoute: terms.route,
           includeOccurrenceTime: true,
+          readContextPolicy: readSources ? "marketing-site-signals-v1" : null,
         }),
       })) as Shift;
       await command("schedule.review", {
@@ -359,6 +362,13 @@ function Offer({
               <span>Weekdays only</span>
             </label>
           </div>
+          <label className="co-check">
+            <input type="checkbox" checked={readSources} onChange={(e) => setReadSources(e.target.checked)} />
+            <span>
+              Check connected site activity before each round: up to two reads covering the last 14 complete days and
+              five landing pages. Missing connections are skipped; no new services are connected.
+            </span>
+          </label>
           <p>
             Each {weekdays ? "weekday " : ""}morning {employee.name} writes one private report with your {provider}.
             That’s {count} private drafts in all, one a {weekdays ? "weekday" : "day"}, and then the shift ends. Monday
@@ -418,6 +428,8 @@ function Report({
 }) {
   const d = snapshot.data;
   const report = parseMorningReport(body);
+  const feedback = useProposalFeedback(employee.id, d.cursor, changed);
+  const source = d.artifacts.filter((a) => a.taskId === round.id && a.body === body).at(-1);
   const [terms, setTerms] = useState<GoalTerms>();
   const [starting, setStarting] = useState("");
   const [error, setError] = useState("");
@@ -519,7 +531,7 @@ function Report({
 
   // One click is the owner's consent to one private draft, through the same one-consent path as Home's goals.
   async function doIt(job: ShiftJob) {
-    if (locked.current || !terms || !brief) return;
+    if (locked.current || !terms || !brief || !feedback.ready || feedback.veto(job.title)) return;
     locked.current = true;
     setStarting(job.title);
     setError("");
@@ -575,13 +587,23 @@ function Report({
       <ol className="co-shift-jobs" aria-label="Jobs for today">
         {report.jobs.map((job, i) => {
           const task = i === 0 ? round : started(job);
+          const veto = feedback.veto(job.title);
           return (
             <li key={job.title}>
               <b>{job.title}</b>
               {job.why && <p>{job.why}</p>}
               {job.time && <small>Your time: {job.time}</small>}
               <div className="co-ladder-actions">
-                {i === 0 ? (
+                {veto ? (
+                  <>
+                    <span>Vetoed · won’t start again</span>
+                    {canManage && (
+                      <button disabled={feedback.busy} onClick={() => void feedback.undo(veto)}>
+                        Undo veto
+                      </button>
+                    )}
+                  </>
+                ) : i === 0 ? (
                   <button className="co-primary" onClick={() => openWork(round)}>
                     Read the draft
                   </button>
@@ -589,13 +611,21 @@ function Report({
                   <button onClick={() => openWork(task)}>Started · open it</button>
                 ) : canManage ? (
                   <button
-                    disabled={!terms || !brief || !!starting || busy}
+                    disabled={!terms || !brief || !!starting || busy || !feedback.ready || feedback.busy}
                     title={busy ? `${employee.name} is finishing another draft` : undefined}
                     onClick={() => void doIt(job)}
                   >
                     {starting === job.title ? "Starting…" : "Do it"}
                   </button>
                 ) : null}
+                {!veto && canManage && source && (
+                  <button
+                    disabled={feedback.busy || !feedback.ready}
+                    onClick={() => void feedback.save(source, "veto", job.title)}
+                  >
+                    Don’t suggest this again
+                  </button>
+                )}
               </div>
             </li>
           );
@@ -609,6 +639,13 @@ function Report({
         </p>
       )}
       {error && <p role="alert">{error}</p>}
+      {source && canManage && <ProposalFeedback artifact={source} employeeName={employee.name} feedback={feedback} />}
+      {report.lookedAt && (
+        <details>
+          <summary>What {employee.name} checked</summary>
+          <DraftMarkdown>{report.lookedAt}</DraftMarkdown>
+        </details>
+      )}
       {question && (
         <div className="co-shift-question">
           <b>One question from {employee.name}</b>

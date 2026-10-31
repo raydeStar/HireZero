@@ -52,6 +52,8 @@ public sealed partial class CompanyStore
                 return ConfigureUsage(db, c);
             case "memory.save":
                 return SaveMemory(db, c);
+            case "proposal.feedback":
+                return SaveProposalFeedback(db, c);
             case "memory.review":
                 return ReviewMemory(db, c);
             case "memory.delete":
