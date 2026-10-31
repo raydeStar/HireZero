@@ -79,4 +79,14 @@ assert.equal(
   goalTitle("Write three opening lines for the shop page that show the starter kit first, with a friendly tone, please."),
   "Write three opening lines for the shop page that show the starter kit first…",
 );
+// Friday's lessons: at most three, list markers and emphasis removed; other days may have none.
+const friday = parseMorningReport(`${report}
+## Lessons
+- **Posts naming the kit** brought orders.
+2. No paid ads yet.
+- One.
+- Two.
+`);
+assert.deepEqual(plain(friday.lessons), ["Posts naming the kit brought orders.", "No paid ads yet.", "One."]);
+assert.deepEqual(plain(parsed.lessons), []);
 console.log("marketing morning round: ok");

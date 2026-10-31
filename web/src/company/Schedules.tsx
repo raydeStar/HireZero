@@ -11,7 +11,7 @@ import { ModelChoice, providerName } from "./ModelChoice";
 type Definition = {
   name: string;
   kind: "employee-task" | "source-refresh" | "script-task" | "browser-task";
-  cadence: "daily" | "weekly";
+  cadence: "daily" | "weekly" | "weekdays";
   timeZone: string;
   startDate: string;
   localTime: string;
@@ -714,6 +714,7 @@ export function Schedules({
                 >
                   <option value="weekly">Weekly, on the starting weekday</option>
                   <option value="daily">Daily</option>
+                  <option value="weekdays">Weekdays, Monday to Friday</option>
                 </select>
               </label>
               <label>

@@ -47,6 +47,23 @@ host.stderr.on("data", (b) => (hostLog += b));
 let browser, ws;
 const until = waiter();
 const dashboard = () => fetch(url + "/api/company").then((r) => r.json());
+async function command(action, fields) {
+  const response = await fetch(url + "/api/company/commands", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: url, "X-Dev-Request": "1" },
+    body: JSON.stringify({ requestId: crypto.randomUUID(), action, ...fields }),
+  });
+  assert.ok(response.ok, "Fictional fixture command " + action + " succeeds (HTTP " + response.status + ")");
+  return response.json();
+}
+const advance = async (id) => {
+  const due = await fetch(url + "/__fixture/schedules/" + id + "/due", {
+    method: "POST",
+    headers: { "X-Dev-Request": "1", "Content-Type": "application/json", Origin: url },
+    body: "{}",
+  });
+  assert.ok(due.ok, "fictional clock advanced");
+};
 try {
   await until(() => hostLog.includes("Now listening on: " + url), "this test host owns the listener");
   await until(async () => (await fetch(url + "/health")).ok, "fresh host health");
@@ -217,10 +234,10 @@ try {
   assert.equal(state.measured.length, 2, "Numbers never call a model");
   // One consent starts a finite shift; nothing runs until its first morning.
   const shiftCard = "section[aria-label=Shift]";
-  await until(() => evaluate(`!!document.querySelector('${shiftCard} .co-check input')`), "shift offer and its terms");
+  await until(() => evaluate(`!!document.querySelector('${shiftCard} .co-shift-consent input')`), "shift offer and its terms");
   assert.equal(await evaluate(`document.querySelector('${shiftCard} input[type=number]').value`), "14");
   await fill(`${shiftCard} input[type=number]`, "3");
-  await evaluate(`document.querySelector('${shiftCard} .co-check input').click()`);
+  await evaluate(`document.querySelector('${shiftCard} .co-shift-consent input').click()`);
   await click("Start the shift");
   await text("is on shift");
   await text("0 of 3 morning rounds done");
@@ -229,18 +246,14 @@ try {
   assert.equal(shift.state, "active");
   assert.equal(shift.definition.occurrences, 3);
   assert.equal(shift.definition.includeOccurrenceTime, true);
+  assert.equal(shift.definition.cadence, "weekdays", "Shifts default to weekday mornings");
   assert.equal((await dashboard()).data.measured.length, 2, "Starting a shift runs nothing yet");
   // Once a shift exists it leads Home, right after the greeting and before earlier results and the ladder.
   assert.equal(await evaluate("document.querySelector('.co-home > .co-home-hello + section').getAttribute('aria-label')"), "Shift");
   assert.equal(await evaluate("document.querySelector('.co-shift').compareDocumentPosition(document.querySelector('.co-ladder')) & Node.DOCUMENT_POSITION_FOLLOWING ? 1 : 0"), 1);
 
   // The first morning arrives on the fictional clock.
-  const due = await fetch(url + "/__fixture/schedules/" + shift.id + "/due", {
-    method: "POST",
-    headers: { "X-Dev-Request": "1", "Content-Type": "application/json", Origin: url },
-    body: "{}",
-  });
-  assert.ok(due.ok, "fictional clock advanced");
+  await advance(shift.id);
   await text("Rewrite the shop page's opening lines");
   await text("1 of 3 morning rounds done");
   state = (await dashboard()).data;
@@ -260,6 +273,37 @@ try {
   assert.ok(job, "The job keeps its title");
   await until(async () => (await dashboard()).data.artifacts.some((a) => a.taskId === job.id), "the job's draft");
   assert.equal((await dashboard()).data.measured.length, 4, "One request for the round and one for the job");
+
+  // A lesson the owner keeps reaches every later round, without stopping the shift.
+  await text("Lessons from this week");
+  await click("Keep");
+  await text("Kept");
+  const memory = await fetch(url + "/api/company/memory").then((r) => r.json());
+  const lesson = memory.find((v) => v.memory.definition.statement === "Posts that name the starter kit brought the most questions this week.");
+  assert.equal(lesson.memory.state, "approved");
+  assert.equal(lesson.memory.definition.employeeId, round.employeeId);
+
+  // A finished job is a change; the ladder judges it at the focus step by the fixed rule, once enough weeks exist.
+  state = (await dashboard()).data;
+  const jobDraft = state.artifacts.find((a) => a.taskId === job.id);
+  await command("artifact.review", { id: jobDraft.id, expectedVersion: jobDraft.version, digest: jobDraft.digest, decision: "approve" });
+  const approvedJob = (await dashboard()).data.tasks.find((t) => t.id === job.id);
+  await command("task.complete", { id: approvedJob.id, expectedVersion: approvedJob.version });
+  await send("Page.navigate", { url: url + "/" });
+  await text("Changes being measured at Visit → Order");
+  await text("Too early to judge");
+
+  // The next weekday's round reads the kept lesson.
+  await advance(shift.id);
+  await until(async () => (await dashboard()).data.tasks.filter((t) => t.skill === "marketing-morning").length === 2, "the next round");
+  state = (await dashboard()).data;
+  const second = state.tasks.filter((t) => t.skill === "marketing-morning").at(-1);
+  await until(async () => (await dashboard()).data.artifacts.some((a) => a.taskId === second.id), "the next round's report");
+  state = (await dashboard()).data;
+  const nextPacket = await fetch(url + "/api/company/measured/" + state.measured.find((m) => m.taskId === second.id).id).then((r) => r.json());
+  assert.equal(nextPacket.call.context.lessons[0].statement, "Posts that name the starter kit brought the most questions this week.");
+  assert.equal(new Date(nextPacket.call.context.scheduledOccurrence.scheduledFor).getDay() % 6 !== 0, true, "A weekday round");
+  await text("2 of 3 morning rounds done");
   await capture("marketing-shift-desktop");
   await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await delay(200);
@@ -284,6 +328,9 @@ try {
         roundReadsNumbersAndRecentWork: true,
         jobsAndFirstDraft: true,
         oneClickJob: true,
+        weekdayCadence: true,
+        keptLessonReachesNextRound: true,
+        changeMeasuredByRule: true,
         pause: true,
         mobileWithoutSidewaysScroll: true,
         liveModelCalls: 0,
@@ -293,7 +340,7 @@ try {
       2,
     ),
   );
-  console.log("PASS marketing shift: one consent, a morning round with numbers and recent work, a one-click job and a pause.");
+  console.log("PASS marketing shift: weekday rounds with numbers and recent work, a one-click job, a kept lesson in the next round, a measured change and a pause.");
   await send("Browser.close").catch(() => {});
 } catch (error) {
   await fs.mkdir(path.join(repo, "test-results"), { recursive: true });

@@ -176,3 +176,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0169](0169-openrouter-reasoning-per-model.md) | Set OpenRouter reasoning effort per model | Accepted; DeepSeek V4.1 Flash runs without reasoning, others keep low |
 | [0170](0170-goal-ladder-and-weekly-numbers.md) | Give Marketing a goal ladder and weekly numbers | Accepted; optional department fields, one-consent draft, owner-recorded weeks compared by code |
 | [0171](0171-an-owner-approved-shift.md) | Put Marketing on an owner-approved shift of morning rounds | Accepted; recurring rounds read numbers and recent work, jobs start with one click, no new authority |
+| [0172](0172-shift-rhythm-lessons-and-measured-changes.md) | Give the shift a weekly rhythm, kept lessons and measured changes | Accepted; weekday cadence, lessons as owner-approved memory in every round, a fixed before-and-after rule |

@@ -10,7 +10,7 @@ import { FirstAssignment } from "./FirstAssignment";
 import { useMemberAccess } from "./MemberAccess";
 import { WorkContext } from "./WorkContext";
 import { GoalStart } from "./GoalStart";
-import { optionalDraftReview, readyDraft } from "./readyDrafts";
+import { optionalDraftReview, readyDraft, shiftRound } from "./readyDrafts";
 import { isDraftDayLabel } from "./draftCopySections";
 
 export function initials(name: string) {
@@ -129,7 +129,9 @@ export function Home({
     .map((a) => ({ artifact: a, task: d.tasks.find((t) => t.id === a.taskId) }))
     .filter(
       (r): r is { artifact: (typeof d.artifacts)[number]; task: Work } =>
-        !!r.task && !["canceled", "superseded"].includes(r.task.state),
+        !!r.task &&
+        !["canceled", "superseded"].includes(r.task.state) &&
+        !(r.task.scheduleRunId && shiftRound(snapshot, r.task)),
     )
     .filter((r, index, all) => all.findIndex((other) => other.task.id === r.task.id) === index)
     .slice(0, 3);

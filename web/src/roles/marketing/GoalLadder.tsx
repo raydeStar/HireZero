@@ -11,6 +11,7 @@ import {
   addWeeks,
   biggestDrop,
   ladderSkill,
+  measureChange,
   parseLadderDraft,
   parseSteps,
   shareText,
@@ -482,6 +483,26 @@ function Scorecard({
   const drop = biggestDrop(steps, latest, before);
   const [focusText, leave] = splitLeave(ladder.focus);
   const focusStep = steps.find((s) => ladder.focus.toLowerCase().includes(s.name.toLowerCase()));
+  // Done Marketing drafts are the changes; each is judged at the focus step by the fixed rule (docs/adr/0172).
+  const d = snapshot.data;
+  // The focus step is where people should move on, so a change is judged on the share reaching the step after it.
+  const judged = Math.max(1, focusStep ? Math.min(steps.indexOf(focusStep) + 1, steps.length - 1) : steps.length - 1);
+  const changes = readings.length
+    ? d.tasks
+        .filter((t) => t.employeeId === employee.id && t.skill === "marketing-goal-draft" && t.state === "completed")
+        .map((t) => {
+          const done = d.taskTimes?.[t.id]?.updated;
+          const title = d.threads.find((h) => h.id === t.threadId)?.title || t.input;
+          return done ? { id: t.id, title, week: weekOf(new Date(done)) } : undefined;
+        })
+        .filter(
+          (c): c is { id: string; title: string; week: string } => !!c && c.week >= addWeeks(weekOf(new Date()), -10),
+        )
+        .reverse()
+        .slice(0, 4)
+    : [];
+  const weekLabel = (w: string) =>
+    new Date(w + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return (
     <section className="co-ladder" aria-label="Goal ladder">
       <div className="co-ladder-head">
@@ -525,6 +546,33 @@ function Scorecard({
         <p className="co-ladder-drop" role="status">
           Fewer people went from {drop.from} to {drop.to} than the week before: {drop.now}, down from {drop.before}.
         </p>
+      )}
+      {changes.length > 0 && steps.length > 1 && (
+        <div className="co-ladder-changes" aria-label="Changes being measured">
+          <b>
+            Changes being measured at {steps[judged - 1].name} → {steps[judged].name}
+          </b>
+          <ul>
+            {changes.map((c) => {
+              const check = measureChange(steps, judged, readings, c.week);
+              return (
+                <li key={c.id}>
+                  {c.title} <small>· done the week of {weekLabel(c.week)}</small>
+                  <br />
+                  <small>
+                    {check.verdict === "too early"
+                      ? `Too early to judge: needs two weeks of numbers on each side, from the week of ${weekLabel(check.judgeFrom!)}.`
+                      : check.verdict === "working"
+                        ? `Working: ${check.before} before, ${check.after} after.`
+                        : check.verdict === "not working"
+                          ? `Not working: ${check.before} before, ${check.after} after. Consider changing it back.`
+                          : `No clear change: ${check.before} before, ${check.after} after.`}
+                  </small>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
       {canWork && (
         <Numbers

@@ -241,6 +241,7 @@ function Offer({
   const [mornings, setMornings] = useState("14");
   const [start, setStart] = useState<"today" | "tomorrow">("tomorrow");
   const [time, setTime] = useState("08:00");
+  const [weekdays, setWeekdays] = useState(true);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -256,15 +257,16 @@ function Offer({
       active = false;
     };
   }, [roleId, snapshot.capabilities.measuredOneJob]);
-  useEffect(() => setConsent(false), [mornings, start, time]);
+  useEffect(() => setConsent(false), [mornings, start, time, weekdays]);
   const count = Math.min(31, Math.max(1, Math.round(Number(mornings) || 0)));
 
   async function begin() {
     if (busy || !consent || !terms) return;
     const day = new Date();
     if (start === "tomorrow") day.setDate(day.getDate() + 1);
-    const startDate = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
     const [h, m] = time.split(":").map(Number);
+    if (weekdays) while (day.getDay() === 0 || day.getDay() === 6) day.setDate(day.getDate() + 1);
+    const startDate = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
     const first = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m);
     if (first.getTime() < Date.now() + 2 * 60_000) return setError("Choose a later time today, or start tomorrow.");
     setBusy(true);
@@ -281,7 +283,7 @@ function Offer({
         body: JSON.stringify({
           name: `${employee.name}’s morning round`,
           kind: "employee-task",
-          cadence: "daily",
+          cadence: weekdays ? "weekdays" : "daily",
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
           startDate,
           localTime: time,
@@ -352,11 +354,16 @@ function Offer({
               At
               <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
             </label>
+            <label className="co-check">
+              <input type="checkbox" checked={weekdays} onChange={(e) => setWeekdays(e.target.checked)} />
+              <span>Weekdays only</span>
+            </label>
           </div>
           <p>
-            Each morning {employee.name} writes one private report with your {provider}. That’s {count} private drafts
-            in all, one a day, and then the shift ends. Nothing is posted, sent or bought, and nothing is retried on its
-            own. You can pause or end the shift at any time.
+            Each {weekdays ? "weekday " : ""}morning {employee.name} writes one private report with your {provider}.
+            That’s {count} private drafts in all, one a {weekdays ? "weekday" : "day"}, and then the shift ends. Monday
+            sets the week’s priorities and Friday looks back at results and lessons. Nothing is posted, sent or bought,
+            and nothing is retried on its own. You can pause or end the shift at any time.
           </p>
           <details className="co-goal-run-details">
             <summary>Run details</summary>
@@ -370,7 +377,7 @@ function Offer({
               caps. Recurring work for {employee.name} waits for your review again if the ladder or context changes.
             </p>
           </details>
-          <label className="co-check">
+          <label className="co-check co-shift-consent">
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             <span>
               Run up to {count} morning round{count === 1 ? "" : "s"}, one private report each, as described above.
@@ -415,6 +422,30 @@ function Report({
   const [starting, setStarting] = useState("");
   const [error, setError] = useState("");
   const locked = useRef(false);
+  // Lessons already in the employee's memory, by statement (docs/adr/0172).
+  const [kept, setKept] = useState<Set<string>>();
+  const [keeping, setKeeping] = useState("");
+  useEffect(() => {
+    let active = true;
+    void api<{ memory: { definition: { statement: string; employeeId?: string | null }; state: string } }[]>(
+      "/company/memory",
+    )
+      .then(
+        (all) =>
+          active &&
+          setKept(
+            new Set(
+              all
+                .filter((v) => v.memory.definition.employeeId === employee.id && v.memory.state === "approved")
+                .map((v) => v.memory.definition.statement),
+            ),
+          ),
+      )
+      .catch(() => active && setKept(new Set()));
+    return () => {
+      active = false;
+    };
+  }, [employee.id, d.cursor]);
   useEffect(() => {
     let active = true;
     if (canManage && snapshot.capabilities.measuredOneJob)
@@ -455,6 +486,36 @@ function Report({
   const when = roundStarted
     ? new Date(roundStarted).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })
     : "";
+
+  // Keeping a lesson is the owner's approval of one memory record addressed to this employee; later rounds follow it.
+  async function keep(lesson: string) {
+    if (keeping) return;
+    setKeeping(lesson);
+    setError("");
+    try {
+      const saved = (await command("memory.save", {
+        body: JSON.stringify({
+          kind: "feedback",
+          title: "Lesson: " + (lesson.length > 140 ? lesson.slice(0, 139) + "…" : lesson),
+          statement: lesson,
+          rationale: `Kept from ${employee.name}’s ${when || "morning"} round.`,
+          employeeId: employee.id,
+        }),
+      })) as { id: string; version: number; digest: string };
+      await command("memory.review", {
+        id: saved.id,
+        expectedVersion: saved.version,
+        digest: saved.digest,
+        decision: "approve",
+      });
+      setKept(new Set([...(kept ?? []), lesson]));
+      await changed();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setKeeping("");
+    }
+  }
 
   // One click is the owner's consent to one private draft, through the same one-consent path as Home's goals.
   async function doIt(job: ShiftJob) {
@@ -553,6 +614,29 @@ function Report({
           <b>One question from {employee.name}</b>
           <p>{question}</p>
           <button onClick={() => openChat(employee)}>Answer in chat</button>
+        </div>
+      )}
+      {report.lessons.length > 0 && (
+        <div className="co-shift-lessons">
+          <b>Lessons from this week</b>
+          <ul>
+            {report.lessons.map((lesson) => (
+              <li key={lesson}>
+                <span>{lesson}</span>
+                {kept?.has(lesson) ? (
+                  <em>Kept</em>
+                ) : canManage && kept ? (
+                  <button disabled={!!keeping} onClick={() => void keep(lesson)}>
+                    {keeping === lesson ? "Keeping…" : "Keep"}
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <p className="co-muted">
+            A kept lesson goes into {employee.name}’s memory, and every later round follows it. You can change or remove
+            it under Memory.
+          </p>
         </div>
       )}
     </div>

@@ -289,7 +289,12 @@ public sealed partial class CompanyStore
         };
         context = CompactBusinessPacket(context);
         if (t.MeetingId is null && Role(e.RoleId).ShiftSkills.Contains(t.Skill))
-            context = context with { Scorecard = ShiftScorecard(db, e.Id), RecentWork = RecentWork(db, e.Id, t.Id) };
+            context = context with
+            {
+                Scorecard = ShiftScorecard(db, e.Id),
+                RecentWork = RecentWork(db, e.Id, t.Id),
+                Lessons = ShiftLessons(db, e.Id),
+            };
         // A reply knows what is connected, so it can ask for a connection it needs (docs/adr/0046-connect-cards.md).
         if (t.MeetingId is null && t.Kind is not (ContextDraftKind or ActionKind))
             context = context with { Connections = ConnectionsLine() };

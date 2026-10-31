@@ -148,6 +148,31 @@ public sealed partial class CompanyStore
         ];
     }
 
+    public const int ShiftLessonCount = 8;
+
+    // Current, owner-approved decisions and feedback addressed to this employee, newest first, or none
+    // (docs/adr/0172-shift-rhythm-lessons-and-measured-changes.md). Keyword retrieval may miss them; a round should not.
+    private CompanyLesson[]? ShiftLessons(StoreConnection db, string employeeId)
+    {
+        var lessons = All<CompanyMemoryItem>(db)
+            .Where(m =>
+                m.State == "approved"
+                && m.Definition.EmployeeId == employeeId
+                && m.Definition.Kind is "feedback" or "decision"
+                && MemoryExclusion(db, m) is null
+            )
+            .OrderByDescending(m => m.ApprovedAt)
+            .Take(ShiftLessonCount)
+            .Select(m => new CompanyLesson(
+                m.Definition.Title,
+                m.Definition.Statement,
+                m.Definition.Kind,
+                m.ApprovedAt?.ToString("yyyy-MM-dd") ?? ""
+            ))
+            .ToArray();
+        return lessons.Length == 0 ? null : lessons;
+    }
+
     // The latest weeks of each employee's numbers, oldest first.
     private CompanyReading[] RecentReadings(StoreConnection db) =>
         [

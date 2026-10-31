@@ -747,6 +747,9 @@ static class BrowserQueueFixture
 
                     ## One question
                     Do people need a card to order? (yes / no)
+
+                    ## Lessons
+                    - Posts that name the starter kit brought the most questions this week.
                     """,
                 _ => throw new ModelTransportException(
                     "The fictional team has no such assignment.",

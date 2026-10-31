@@ -212,8 +212,10 @@ on first, and a weekly scorecard ([ADR 0170](adr/0170-goal-ladder-and-weekly-num
 [notes](history/2026-10-30-goal-ladder.md)). It is the first of three steps toward an owner-approved Marketing shift.
 The second puts Marketing on shift: a finite run of morning rounds that read the ladder, the numbers and recent work,
 come back with up to three jobs and draft the first, with the rest one click away
-([ADR 0171](adr/0171-an-owner-approved-shift.md), [notes](history/2026-10-30-marketing-shift.md)). Measuring, deciding
-and weekly learning follow.
+([ADR 0171](adr/0171-an-owner-approved-shift.md), [notes](history/2026-10-30-marketing-shift.md)). The third gives
+the shift a weekday rhythm, lessons the owner keeps for every later round, and done changes judged against the
+numbers by a fixed rule ([ADR 0172](adr/0172-shift-rhythm-lessons-and-measured-changes.md),
+[notes](history/2026-10-30-shift-rhythm-and-lessons.md)).
 Actual usefulness, identification accuracy and commercial retention still require observed customer trials.
 The full product goal remains in progress.
 

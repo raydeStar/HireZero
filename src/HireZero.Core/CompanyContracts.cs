@@ -269,8 +269,15 @@ public sealed record CompanyContext(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        CompanyRecentWork[]? RecentWork = null
+        CompanyRecentWork[]? RecentWork = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )]
+        CompanyLesson[]? Lessons = null
 );
+
+// Owner-approved memory addressed to one employee, as a shift round sees it (docs/adr/0172): what it has learned.
+public sealed record CompanyLesson(string Title, string Statement, string Kind, string Approved);
 
 // One of an employee's recent requests as a shift round sees it: its title, the kind of work, where it stands and when
 // it last moved. Results themselves stay out; the owner reviews them separately.

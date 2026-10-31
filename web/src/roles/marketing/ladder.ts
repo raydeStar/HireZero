@@ -138,3 +138,37 @@ export function ladderChecks(body: string): DraftCheck[] {
     },
   ];
 }
+
+export type ChangeCheck = {
+  verdict: "working" | "not working" | "unclear" | "too early";
+  before?: string;
+  after?: string;
+  judgeFrom?: string;
+};
+
+// A done change judged by a fixed rule (docs/adr/0172-shift-rhythm-lessons-and-measured-changes.md): it counts from the
+// week it was marked done; with two weeks of numbers on each side, the share at the step rose (working) or fell
+// (not working) by a fifth or more, or is unclear. Code decides; the employee explains.
+export function measureChange(steps: LadderStep[], step: number, readings: Reading[], doneWeek: string): ChangeCheck {
+  const judgeFrom = addWeeks(doneWeek, 3);
+  if (step < 1 || step >= steps.length) return { verdict: "too early", judgeFrom };
+  const total = (weeks: string[], name: string) => {
+    const values = weeks.map((w) =>
+      valueIn(
+        readings.find((r) => r.week === w),
+        name,
+      ),
+    );
+    return values.every((v) => v !== undefined) ? values.reduce<number>((sum, v) => sum + (v ?? 0), 0) : undefined;
+  };
+  const side = (weeks: string[]) => [total(weeks, steps[step - 1].name), total(weeks, steps[step].name)] as const;
+  const [a, b] = side([addWeeks(doneWeek, -2), addWeeks(doneWeek, -1)]);
+  const [c, d] = side([addWeeks(doneWeek, 1), addWeeks(doneWeek, 2)]);
+  if (a === undefined || b === undefined || c === undefined || d === undefined || !a || !c)
+    return { verdict: "too early", judgeFrom };
+  const before = shareText(a, b),
+    after = shareText(c, d);
+  if (!b) return { verdict: d ? "working" : "unclear", before, after };
+  const change = d / c / (b / a) - 1;
+  return { verdict: change >= 0.2 ? "working" : change <= -0.2 ? "not working" : "unclear", before, after };
+}

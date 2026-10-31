@@ -11,9 +11,11 @@ export type MorningReport = {
   jobs: ShiftJob[];
   draft: string;
   question: string;
+  // Friday's lessons, one sentence each, for the owner to keep (docs/adr/0172).
+  lessons: string[];
 };
 
-const sections: Record<string, Exclude<keyof MorningReport, "jobs"> | "jobs"> = {
+const sections: Record<string, keyof MorningReport> = {
   "what i looked at": "lookedAt",
   "what changed": "changed",
   "today's focus": "focus",
@@ -21,6 +23,7 @@ const sections: Record<string, Exclude<keyof MorningReport, "jobs"> | "jobs"> = 
   "jobs for today": "jobs",
   "draft for job 1": "draft",
   "one question": "question",
+  lessons: "lessons",
 };
 
 const plain = (text: string) =>
@@ -50,6 +53,12 @@ export function parseMorningReport(body: string): MorningReport | undefined {
     jobs: parseJobs(text("jobs")),
     draft: text("draft"),
     question: text("question"),
+    lessons: text("lessons")
+      .split("\n")
+      .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+      .filter(Boolean)
+      .map(plain)
+      .slice(0, 3),
   };
   return report.focus && report.jobs.length && report.draft ? report : undefined;
 }

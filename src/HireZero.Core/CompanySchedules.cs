@@ -156,10 +156,25 @@ public static class CompanyScheduleCalendar
         }
     }
 
+    // The index-th Monday-to-Friday date on or after the start (docs/adr/0172-shift-rhythm-lessons-and-measured-changes.md).
+    private static DateOnly Weekday(DateOnly start, int index)
+    {
+        var day = start;
+        while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            day = day.AddDays(1);
+        for (var counted = 0; counted < index; )
+        {
+            day = day.AddDays(1);
+            if (day.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday))
+                counted++;
+        }
+        return day;
+    }
+
     public static DateTimeOffset Slot(CompanyScheduleInput input, int index)
     {
         if (
-            input.Cadence is not ("daily" or "weekly")
+            input.Cadence is not ("daily" or "weekly" or "weekdays")
             || !DateOnly.TryParseExact(
                 input.StartDate,
                 "yyyy-MM-dd",
@@ -175,12 +190,20 @@ public static class CompanyScheduleCalendar
                 out var time
             )
         )
-            throw new WorkspaceException("Choose a daily or weekly cadence, a start date and a local time.", 422);
+            throw new WorkspaceException(
+                "Choose a daily, weekday or weekly cadence, a start date and a local time.",
+                422
+            );
         if (index is < 0 or > 31)
             throw new WorkspaceException("Schedule occurrence is outside its bounded range.", 422);
         var zone = Zone(input.TimeZone);
-        var local = date.AddDays(index * (input.Cadence == "weekly" ? 7 : 1))
-            .ToDateTime(time, DateTimeKind.Unspecified);
+        var day = input.Cadence switch
+        {
+            "weekly" => date.AddDays(index * 7),
+            "weekdays" => Weekday(date, index),
+            _ => date.AddDays(index),
+        };
+        var local = day.ToDateTime(time, DateTimeKind.Unspecified);
         // Spring-forward gaps move to the first valid minute; fall-back repeats get one, earlier UTC occurrence.
         for (var minute = 0; zone.IsInvalidTime(local) && minute < 180; minute++)
             local = local.AddMinutes(1);

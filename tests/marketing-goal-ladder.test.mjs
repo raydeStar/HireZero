@@ -5,7 +5,7 @@ import ts from "../web/node_modules/typescript/lib/typescript.js";
 const source = fs.readFileSync(new URL("../web/src/roles/marketing/ladder.ts", import.meta.url), "utf8");
 const exports = {};
 vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports });
-const { parseLadderDraft, parseSteps, weekOf, addWeeks, shareText, biggestDrop, ladderChecks } = exports;
+const { parseLadderDraft, parseSteps, weekOf, addWeeks, shareText, biggestDrop, ladderChecks, measureChange } = exports;
 // Values from the sandbox's own realm compare by content.
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
@@ -74,4 +74,19 @@ checks = ladderChecks(draft.replace("Leave alone for now: paid ads.", "").replac
 assert.equal(checks.find((c) => c.label === "Steps with numbers").state, "review");
 assert.equal(checks.find((c) => c.label === "What to leave alone").state, "review");
 assert.equal(ladderChecks("A note.").find((c) => c.label === "Ladder sections").state, "fail");
+// A change done the week of Nov 2 is judged on the two weeks either side, at the step that shares the change.
+const week = (w, visit, order) => reading(w, { Visit: visit, Order: order });
+const around = (beforeOrder, afterOrder) => [
+  week("2026-10-19", 1000, beforeOrder), week("2026-10-26", 1000, beforeOrder),
+  week("2026-11-02", 1000, 99),
+  week("2026-11-09", 1000, afterOrder), week("2026-11-16", 1000, afterOrder),
+];
+const [, visit, order] = steps.slice(0, 3);
+const pair = [visit, order];
+assert.equal(measureChange(pair, 1, around(10, 13), "2026-11-02").verdict, "working");
+assert.deepEqual(plain(measureChange(pair, 1, around(10, 13), "2026-11-02")), { verdict: "working", before: "1 in 100", after: "1 in 77" });
+assert.equal(measureChange(pair, 1, around(10, 7), "2026-11-02").verdict, "not working");
+assert.equal(measureChange(pair, 1, around(10, 11), "2026-11-02").verdict, "unclear", "A tenth is within the rule's band");
+assert.deepEqual(plain(measureChange(pair, 1, around(10, 13).slice(0, 4), "2026-11-02")), { verdict: "too early", judgeFrom: "2026-11-23" });
+assert.equal(measureChange(pair, 0, around(10, 13), "2026-11-02").verdict, "too early", "The first step has no step before it");
 console.log("marketing goal ladder: ok");

@@ -253,6 +253,8 @@ export type Role = {
   measuredSkills?: string[];
   executionSkills?: string[];
   publishingSkills?: string[];
+  // Skills whose scheduled results are a shift's rounds (docs/adr/0171-an-owner-approved-shift.md).
+  shiftSkills?: string[];
   // Skill id to its display name, as the module declares it.
   skillNames?: Record<string, string>;
   summary?: string | null;

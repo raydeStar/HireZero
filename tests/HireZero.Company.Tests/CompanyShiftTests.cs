@@ -53,4 +53,82 @@ public sealed partial class CompanyScheduleTests
         Assert.DoesNotContain(CompanyStore.ShiftInstructions, plan.Instructions);
         Assert.True(s.VerifyAudit().Intact);
     }
+
+    [Fact]
+    public void WeekdayShiftsSkipSaturdaysAndSundays()
+    {
+        // Friday 2026-10-30, then Monday to Friday, then the following Monday.
+        var weekdays = Definition() with
+        {
+            Cadence = "weekdays",
+            StartDate = "2026-10-30",
+            LocalTime = "08:00",
+        };
+        Assert.Equal(
+            ["2026-10-30", "2026-11-02", "2026-11-03", "2026-11-06", "2026-11-09"],
+            new[] { 0, 1, 2, 5, 6 }.Select(i => CompanyScheduleCalendar.Slot(weekdays, i).ToString("yyyy-MM-dd"))
+        );
+        // A weekend start waits for Monday.
+        Assert.Equal(
+            "2026-11-02",
+            CompanyScheduleCalendar.Slot(weekdays with { StartDate = "2026-10-31" }, 0).ToString("yyyy-MM-dd")
+        );
+        Assert.Throws<WorkspaceException>(() =>
+            CompanyScheduleCalendar.Slot(weekdays with { Cadence = "fortnightly" }, 0)
+        );
+    }
+
+    [Fact]
+    public async Task KeptLessonsReachEveryLaterRoundWithoutStoppingTheShift()
+    {
+        var s = Store();
+        var employee = Employee(s);
+        var shift = Approve(
+            s,
+            Draft(s, Definition(employee) with { Skill = "marketing-morning", Cadence = "weekdays" })
+        );
+        CompanyMemoryItem Save(string title, string kind = "feedback", string? audience = null) =>
+            A<CompanyMemoryItem>(
+                s,
+                C("memory.save") with
+                {
+                    Body = CompanyJson.Encode(
+                        new CompanyMemoryInput(
+                            kind,
+                            title,
+                            title + " statement.",
+                            "Kept from a round.",
+                            EmployeeId: audience ?? employee
+                        )
+                    ),
+                }
+            );
+        void Keep(CompanyMemoryItem m) =>
+            s.Apply(
+                C("memory.review") with
+                {
+                    Id = m.Id,
+                    ExpectedVersion = m.Version,
+                    Digest = m.Digest,
+                    Decision = "approve",
+                }
+            );
+        Keep(Save("Posts naming the starter kit brought orders"));
+        Keep(Save("No paid ads this quarter", "decision"));
+        Save("An unapproved idea");
+        Keep(Save("A project note", "project"));
+        Assert.True(s.ScheduleDetail(shift.Id).Schedule.ReviewCurrent, "Kept lessons do not stop the shift");
+
+        var model = new Model(policy: CompanyMeasuredPolicy.Deliverable);
+        using var scheduler = new CompanyScheduler(s, model);
+        _now = s.ScheduleDetail(shift.Id).Schedule.NextRunAt!.Value;
+        Assert.True(await scheduler.TickSchedulesAsync(TestContext.Current.CancellationToken));
+        var lessons = model.Last!.Context.Lessons!;
+        Assert.Equal(
+            ["No paid ads this quarter", "Posts naming the starter kit brought orders"],
+            lessons.Select(l => l.Title).Order()
+        );
+        Assert.Contains(CompanyStore.LessonInstructions, model.Last.Instructions);
+        Assert.Contains("Friday: results and lessons", model.Last.Instructions);
+    }
 }

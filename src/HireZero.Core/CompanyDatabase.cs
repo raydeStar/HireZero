@@ -508,6 +508,7 @@ public sealed partial class CompanyStore
                         r.MeasuredSkills,
                         r.ExecutionSkills,
                         r.PublishingSkills,
+                        r.ShiftSkills,
                         skillNames = r.Skills.ToDictionary(s => s, r.WorkName),
                         summary = r.Manifest?.Summary,
                         onboarding = r.Manifest is { Onboarding: var o }
