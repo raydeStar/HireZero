@@ -7,10 +7,11 @@ The owner asked to improve the Marketing shift's morning rounds with their metho
 - have a fresh blind grader regrade;
 - cycle until every criterion reaches at least A-.
 
-This ran six cycles on the pinned Luna connection. The runs went through a private runner, which sends a real captured
+This ran eight cycles on the pinned Luna connection. The runs went through a private runner, which sends a real captured
 morning-round request with its context replaced by a fixed scenario and the working tree's instructions. Every run was
-marked before dispatch and none was replayed. The owner authorized 36 runs; all 36 were used, and one of them was
-refused by Codex at its usage-limit check before anything was sent.
+marked before dispatch and none was replayed. The owner authorized 36 runs for cycles 1 to 6, then 18 more to try
+drafting job 1 in its own request. All 54 were used. One was refused by Codex at its usage-limit check before anything
+was sent.
 
 ## Rubric and scenarios
 
@@ -44,6 +45,8 @@ the same batch.
 | 4 | cycle 2 vs cycle 4 | 3.26 → 3.20 | no real change |
 | 5 | cycle 2 vs cycle 5 | 3.13 → 3.34 | drafts still lowest, at 3.08 |
 | 6 | cycle 5 vs cycle 6 | 3.40 → 3.27 | drafts fell from 3.27 to 2.60 |
+| 7 | cycle 5 vs cycle 7 (split draft) | 3.32 → 3.14 | drafts fell from 2.88 to 2.65 |
+| 8 | cycle 5 vs cycle 8 | 3.26 → 3.32 | continuity rose from 3.00 to 3.35 |
 
 What each cycle changed and found:
 1. **Cycle 2** was the biggest gain. Rounds now:
@@ -72,10 +75,31 @@ What each cycle changed and found:
    Friday verdict improved: both Friday drafts gave one, against one of two before. The drafts got worse, though, with
    businesses introducing themselves like ads and posts running over their length. Cycle 6 was reverted.
 
+6. **Cycle 7** tested the owner's question of whether the draft would improve in its own request. The round left the
+   draft out and wrote a richer Ask for job 1, and Core drafted job 1 in a second request with the Marketing draft
+   skill, under the same shift approval. The drafts came back in 5 to 9 seconds but "safe but flat". They pasted the
+   business's self-description into customer copy and scored lower than cycle 5's single request. A second request a
+   morning also doubles the shift's use, so the split was reverted. The patch is kept with the private runner.
+7. **Cycle 8** was cycle 5 plus only the Friday "Change check:" line from cycle 6. Every Friday draft that had the line
+   gave a verdict on the done change, in cycle 6 and cycle 8 alike, against one of two without it. Continuity rose
+   from 3.00 to 3.35, and nothing else fell beyond noise. It is kept.
+
 ## Result
 
-The committed instructions are cycle 5's, unchanged: the working text's digest matches the cycle 5 requests. In the
-final batch, cycle 5 averaged:
+The committed instructions are cycle 8's: cycle 5 plus the Friday "Change check:" line. In batch 8, cycle 8 averaged:
+
+| Criterion | Average |
+| --- | --- |
+| Evidence and accuracy | 3.48 |
+| Prioritization | 3.62 |
+| Jobs | 3.22 |
+| Draft quality | 2.88 |
+| Continuity and judgment | 3.35 |
+| Timeliness | 3.43 |
+| Clarity | 3.28 |
+| Overall | 3.32, about B+ |
+
+Cycle 5, before the Friday line, averaged this in batch 6:
 
 | Criterion | Average |
 | --- | --- |
@@ -92,10 +116,13 @@ The target was A- (3.7) on every criterion, and it is not met. Graders also diff
 between batches for the same drafts, so single cycles near each other are within noise.
 
 What is still holding it back:
-- **Draft quality.** One request writes the whole report and the finished draft for job 1. The draft is consistently
-  the weakest part, and cycle 6 showed that piling on rules makes it worse.
-- **Friday's verdict.** One of the two cycle 5 Friday drafts never judged the done change. Cycle 6's "Change check:"
-  line fixed that; it is the next change to test on its own.
+- **Draft quality.** The draft stays around 2.6 to 2.9 whatever the structure: inline, with more rules, or in its own
+  request. The graders' complaints are the same each time. Calls to action hedge or point at the page the reader is
+  already on, copy restates a one-sentence brief, and lengths miss the Ask. The likeliest limit is the thin briefs in
+  these scenarios. The next useful test is a round on a company with a full brief, such as the confirmed HireZero
+  context, rather than more instruction wording.
 - **Overlap with waiting work.** New work still sometimes repeats approved work that is waiting to be posted.
+- **Business results on Friday.** Friday reports judge the share but rarely say the goal number itself moved, for
+  example that enquiries doubled from 3 to 6 a week.
 
 No customer validation, and nothing about real usefulness, follows from these fictional scenarios.
