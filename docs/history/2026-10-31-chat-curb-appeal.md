@@ -80,7 +80,7 @@ asked for a box like other chat apps', with a + that drops the options down:
 ## Installed
 
 At the owner's "Yes, install it", both local installs moved to 15bb2e9 and then to aa267c3 through the usual backup
-routine:
+routine. At their second "Yes, install it" they moved to 594e0a1, the message box, the same way:
 - Only the web app was replaced. The host and every other file kept its installed bytes, and each install verified 165
   files.
 - All 21 companies kept their work, connections, model connections, readings and schedules, and every audit chain is
