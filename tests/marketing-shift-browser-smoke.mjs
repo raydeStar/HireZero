@@ -267,6 +267,33 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('.co-shift-jobs li').length"), 2);
   await text("Do people need a card to order? (yes / no)");
 
+  // A failed morning lookup is not an empty schedule list or permission to offer a second shift.
+  const unavailableShift = await send("Page.addScriptToEvaluateOnNewDocument", { source: `(()=>{
+    const original=window.fetch;window.fetch=(input,options)=>{
+      if(!window.allowShiftDetails&&String(input)==='/api/company/schedules'){
+        return Promise.reject(new TypeError('Fictional unavailable shift'));
+      }return original(input,options);
+    };
+  })()` });
+  const callsBeforeReload = (await dashboard()).data.measured.length;
+  await send("Page.reload");
+  await text("Retry morning work");
+  assert.equal(await evaluate("document.body.innerText.includes('Start the shift')"), false);
+  await evaluate("window.allowShiftDetails=true");
+  await click("Retry morning work");
+  await text("Read the draft");
+  await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: unavailableShift.identifier });
+  assert.equal((await dashboard()).data.measured.length, callsBeforeReload, "Retry only reads saved morning work");
+
+  // A veto disables an unstarted proposal immediately; undo does not start it.
+  await idle();
+  await evaluate("[...document.querySelectorAll('.co-shift-jobs > li:nth-child(2) button')].find(b=>b.textContent==='Don’t suggest this again').click()");
+  await text("Vetoed · won’t start again");
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-shift-jobs > li:nth-child(2) button')].some(b=>b.textContent==='Do it')"), false);
+  await click("Undo veto");
+  await text("Decision removed. Nothing has been restarted.");
+  assert.equal((await dashboard()).data.measured.length, callsBeforeReload);
+
   // Job 2 starts with one click: one more private draft, in its own conversation.
   const unavailableTerms = await send("Page.addScriptToEvaluateOnNewDocument", { source: `(()=>{
     const original=window.fetch;window.fetch=(input,options)=>{
@@ -359,11 +386,22 @@ try {
   const originalRound = (await dashboard()).data.artifacts.find(a => a.taskId === round.id);
   const countBeforeFeedback = (await dashboard()).data.measured.length;
   await click("That’s inaccurate");
-  await fill(".co-proposal-feedback textarea", "We serve local shops only. Do not assume we sell online.");
+  assert.equal(await evaluate("document.activeElement===document.querySelector('.co-shift-jobs > li:first-child textarea')"), true, "Correction opens and focuses beside the selected proposal");
+  await evaluate("document.querySelector('.co-shift-jobs > li:first-child').scrollIntoView({block:'start'})");
+  await capture("marketing-shift-correction-desktop");
+  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), true, "The inline correction fits on a phone");
+  await evaluate("document.querySelector('.co-shift-jobs > li:first-child').scrollIntoView({block:'start'})");
+  await capture("marketing-shift-correction-mobile");
+  await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await fill(".co-shift-jobs > li:first-child textarea", "We serve local shops only. Do not assume we sell online.");
   await click("Save correction");
   await text("Correction saved for this employee’s future work.");
-  await evaluate("document.querySelector('.co-shift-jobs li button:last-child').click()");
+  await evaluate("[...document.querySelectorAll('.co-shift-jobs > li:first-child button')].find(b=>b.textContent==='Don’t suggest this again').click()");
   await text("Vetoed · won’t start again");
+  assert.equal(await evaluate("[...document.querySelectorAll('.co-shift-jobs > li:first-child button')].some(b=>b.textContent==='Read the draft')"), true, "A veto keeps completed work readable");
+  await click("Read the draft");
+  await until(() => evaluate("new URLSearchParams(location.search).get('work')").then(id => id === round.id), "the saved draft opens directly");
   await send("Page.navigate", { url: url + "/" });
   await text("Vetoed · won’t start again");
   assert.equal((await dashboard()).data.measured.length, countBeforeFeedback);
@@ -380,7 +418,7 @@ try {
   assert.ok(nextPacket.call.context.lessons.some(l => l.statement === "Posts that name the starter kit brought the most questions this week."));
   assert.equal(nextPacket.call.context.ownerDirections.length, 2);
   assert.ok(nextPacket.call.context.ownerDirections.some(d => d.kind === "veto" && d.subject === "Rewrite the shop page's opening lines"));
-  assert.ok(nextPacket.call.context.ownerDirections.some(d => d.kind === "correction" && d.statement.includes("local shops only")));
+  assert.ok(nextPacket.call.context.ownerDirections.some(d => d.kind === "correction" && d.subject === "Rewrite the shop page's opening lines" && d.statement.includes("local shops only")));
   assert.equal(new Date(nextPacket.call.context.scheduledOccurrence.scheduledFor).getDay() % 6 !== 0, true, "A weekday round");
   await text("2 of 3 morning rounds done");
   await text("Vetoed · won’t start again");
@@ -417,6 +455,9 @@ try {
         keptLessonReachesNextRound: true,
         optedInReadPlan: true,
         correctionAndVetoSurviveReloadAndNextRound: true,
+        failedShiftLookupHasReadOnlyRetry: true,
+        correctionTargetsSelectedProposal: true,
+        vetoKeepsDraftReadableAndBlocksUnstartedJob: true,
         rawDraftUnchanged: true,
         undoStartsNothing: true,
         changeMeasuredByRule: true,

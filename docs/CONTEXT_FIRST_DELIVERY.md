@@ -7,7 +7,7 @@ for the next internal walkthrough. Hosted deployment follows owner satisfaction 
 The [competition-era Plow connection](history/2026-10-31-plow-retirement.md) is retired on the public site;
 replacement hosted signup remains deferred.
 
-## Current checkpoint — 2026-10-31
+## Current checkpoint — 2026-11-01
 
 - Home turns a business sentence, goal and optional website into one disclosed draft with a single
   consent and Generate action. The [latest local walkthrough](history/2026-10-31-local-goal-entry-walkthrough.md)
@@ -22,6 +22,8 @@ replacement hosted signup remains deferred.
   an explicitly reviewed, bounded site-read step for morning shifts. The owner activated the replacement for
   fourteen weekday mornings starting November 2 at 08:00 Mountain; the original is ended. Exact vetoes are blocked;
   paraphrases remain a model-quality gate.
+  [Morning-work decisions](history/2026-11-01-morning-work-decisions.md) put corrections beside each proposal,
+  keep vetoed drafts readable and recover failed schedule lookups with a read-only retry.
   One fresh, untouched native welcome-email draft completed from Home; owner usefulness acceptance is separate.
   Desktop/mobile checks cover recovery, current revisions, copy/export and the following task.
   [Raw-usefulness feedback](history/2026-10-29-first-draft-usefulness-evidence.md) remains separate from approval

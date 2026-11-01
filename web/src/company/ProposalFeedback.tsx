@@ -115,33 +115,40 @@ export function useProposalFeedback(employeeId: string, cursor: number, changed:
   };
 }
 
-export function ProposalFeedback({
-  artifact,
-  employeeName,
-  feedback,
-}: {
+type FeedbackProps = {
   artifact: Artifact;
   employeeName: string;
   feedback: ReturnType<typeof useProposalFeedback>;
-}) {
+};
+
+export function ProposalCorrection({
+  artifact,
+  employeeName,
+  feedback,
+  subject: proposalSubject,
+}: FeedbackProps & { subject?: string }) {
   const [editing, setEditing] = useState(false);
   const [subject, setSubject] = useState("");
   const [correction, setCorrection] = useState("");
-  const { directions, busy, error, status, save, undo } = feedback;
+  const { busy, ready, save } = feedback;
   return (
-    <div className="co-proposal-feedback">
+    <div className="co-proposal-correction">
       <button
         type="button"
+        disabled={busy || !ready}
+        aria-expanded={editing}
+        aria-label={proposalSubject ? `That’s inaccurate: ${proposalSubject}` : undefined}
         onClick={() => {
           const selection = window.getSelection()?.toString().trim() || "";
           setSubject(
-            selection.length >= 4 && artifact.body.includes(selection)
-              ? selection.slice(0, 160)
-              : artifact.body
-                  .split(/\r?\n/)
-                  .find((line) => line.trim().length >= 4)
-                  ?.trim()
-                  .slice(0, 160) || "",
+            proposalSubject ||
+              (selection.length >= 4 && artifact.body.includes(selection)
+                ? selection.slice(0, 160)
+                : artifact.body
+                    .split(/\r?\n/)
+                    .find((line) => line.trim().length >= 4)
+                    ?.trim()
+                    .slice(0, 160) || ""),
           );
           setEditing(true);
         }}
@@ -151,6 +158,7 @@ export function ProposalFeedback({
       {editing && (
         <form
           className="co-form"
+          aria-label={proposalSubject ? `Correct ${proposalSubject}` : "Correct this draft"}
           onSubmit={(e) => {
             e.preventDefault();
             void save(artifact, "correction", subject, correction).then((saved) => {
@@ -183,6 +191,20 @@ export function ProposalFeedback({
           </div>
         </form>
       )}
+    </div>
+  );
+}
+
+export function ProposalFeedback({
+  artifact,
+  employeeName,
+  feedback,
+  showCorrection = true,
+}: FeedbackProps & { showCorrection?: boolean }) {
+  const { directions, busy, error, status, undo } = feedback;
+  return (
+    <div className="co-proposal-feedback">
+      {showCorrection && <ProposalCorrection artifact={artifact} employeeName={employeeName} feedback={feedback} />}
       {status && <p role="status">{status}</p>}
       {error && <p role="alert">{error}</p>}
       {directions.length > 0 && (

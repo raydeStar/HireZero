@@ -15,7 +15,7 @@ import { useMemberAccess } from "../../company/MemberAccess";
 import { providerName } from "../../company/ModelChoice";
 import type { HomeCardProps } from "../company";
 import { GoalLadder } from "./GoalLadder";
-import { ProposalFeedback, useProposalFeedback } from "../../company/ProposalFeedback";
+import { ProposalCorrection, ProposalFeedback, useProposalFeedback } from "../../company/ProposalFeedback";
 import "./ladder.css";
 import { goalTitle, morningSkill, nextRoundLabel, openQuestion, parseMorningReport, type ShiftJob } from "./morning";
 
@@ -39,18 +39,21 @@ function useShift(props: HomeCardProps) {
   const employee = d.employees.find((e) => e.roleId === role?.id && e.state === "active");
   const [shifts, setShifts] = useState<Shift[]>();
   const [reload, setReload] = useState(0);
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
     let active = true;
-    if (employee)
+    if (employee) {
+      setLoading(true);
       void api<Shift[]>("/company/schedules")
-        .then(
-          (all) =>
-            active &&
-            setShifts(
-              all.filter((s) => s.definition.skill === morningSkill && s.definition.employeeId === employee.id),
-            ),
-        )
-        .catch(() => active && setShifts([]));
+        .then((all) => {
+          if (!active) return;
+          setShifts(all.filter((s) => s.definition.skill === morningSkill && s.definition.employeeId === employee.id));
+          setLoadError(false);
+        })
+        .catch(() => active && setLoadError(true))
+        .finally(() => active && setLoading(false));
+    }
     return () => {
       active = false;
     };
@@ -67,29 +70,40 @@ function useShift(props: HomeCardProps) {
     setReload((n) => n + 1);
     await props.refresh();
   };
-  return { role, employee, shift, loaded: !!shifts, changed };
+  return {
+    role,
+    employee,
+    shift,
+    loaded: !!shifts && !loadError,
+    loadError,
+    loading,
+    retry: () => setReload((n) => n + 1),
+    changed,
+  };
 }
 
 // Home's lead (docs/adr/0171-an-owner-approved-shift.md): once a shift exists, its latest morning round comes right
 // after the greeting, before earlier results.
 export function MarketingLead(props: HomeCardProps) {
-  const { role, employee, shift, loaded, changed } = useShift(props);
-  return role && employee && shift ? (
+  const { role, employee, shift, loaded, loadError, loading, retry, changed } = useShift(props);
+  if (role && employee && loadError)
+    return (
+      <section className="co-shift" aria-label="Morning work unavailable">
+        <h2>Morning work couldn’t be checked</h2>
+        <p role="status">We couldn’t load {employee.name}’s shift. Your saved work hasn’t changed.</p>
+        <button disabled={loading} onClick={retry}>
+          {loading ? "Checking morning work…" : "Retry morning work"}
+        </button>
+      </section>
+    );
+  return role && employee ? (
     <ShiftCard {...props} employee={employee} roleId={role.id} shift={shift} loaded={loaded} changed={changed} />
   ) : null;
 }
 
-// Marketing's card (docs/adr/0170, docs/adr/0171): the goal ladder and its numbers, then the offer to start a shift.
+// Morning work has one loader in the lead card; the ladder stays below saved results.
 export function MarketingHome(props: HomeCardProps) {
-  const { role, employee, shift, loaded, changed } = useShift(props);
-  return (
-    <>
-      <GoalLadder {...props} />
-      {role && employee && loaded && !shift && (
-        <ShiftCard {...props} employee={employee} roleId={role.id} loaded={loaded} changed={changed} />
-      )}
-    </>
-  );
+  return <GoalLadder {...props} />;
 }
 
 function ShiftCard({
@@ -705,22 +719,13 @@ function Report({
               {job.why && <p>{job.why}</p>}
               {job.time && <small>Your time: {job.time}</small>}
               <div className="co-ladder-actions">
-                {veto ? (
-                  <>
-                    <span>Vetoed · won’t start again</span>
-                    {canManage && (
-                      <button disabled={feedback.busy} onClick={() => void feedback.undo(veto)}>
-                        Undo veto
-                      </button>
-                    )}
-                  </>
-                ) : i === 0 ? (
+                {i === 0 ? (
                   <button className="co-primary" onClick={() => openWork(round)}>
                     Read the draft
                   </button>
                 ) : task ? (
                   <button onClick={() => openWork(task)}>Started · open it</button>
-                ) : canManage ? (
+                ) : !veto && canManage ? (
                   <button
                     disabled={
                       !terms || !brief || !!starting || !!recovering || busy || !feedback.ready || feedback.busy
@@ -731,6 +736,16 @@ function Report({
                     {starting === job.title ? "Starting…" : "Do it"}
                   </button>
                 ) : null}
+                {veto ? (
+                  <>
+                    <span>Vetoed · won’t start again</span>
+                    {canManage && (
+                      <button disabled={feedback.busy} onClick={() => void feedback.undo(veto)}>
+                        Undo veto
+                      </button>
+                    )}
+                  </>
+                ) : null}
                 {!veto && canManage && source && (
                   <button
                     disabled={feedback.busy || !feedback.ready}
@@ -738,6 +753,14 @@ function Report({
                   >
                     Don’t suggest this again
                   </button>
+                )}
+                {canManage && source && (
+                  <ProposalCorrection
+                    artifact={source}
+                    employeeName={employee.name}
+                    feedback={feedback}
+                    subject={job.title}
+                  />
                 )}
               </div>
             </li>
@@ -780,7 +803,9 @@ function Report({
           Check saved lesson
         </button>
       )}
-      {source && canManage && <ProposalFeedback artifact={source} employeeName={employee.name} feedback={feedback} />}
+      {source && canManage && (
+        <ProposalFeedback artifact={source} employeeName={employee.name} feedback={feedback} showCorrection={false} />
+      )}
       {report.lookedAt && (
         <details>
           <summary>What {employee.name} checked</summary>
