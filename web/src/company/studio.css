@@ -990,8 +990,13 @@
   align-items: center;
   gap: 5px;
 }
-/* On a phone the toolbar keeps one row: its buttons show their icons, and their names stay for screen readers. */
-@media (max-width: 600px) {
+/* A narrow chat keeps its toolbar on one row: the buttons show their icons, and their names stay for screen readers.
+   Narrow means the toolbar's own width, so a phone and a desktop chat squeezed by a wide cockpit both fit (installed
+   check, 2026-10-31). */
+.co-workspace .co-conversation-context {
+  container: co-toolbar / inline-size;
+}
+@container co-toolbar (max-width: 600px) {
   .co-workspace .co-conversation-context .co-toolbar-text {
     position: absolute;
     width: 1px;

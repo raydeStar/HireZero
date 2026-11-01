@@ -17,8 +17,10 @@ Display only: nothing saved, sent or authorized changes.
 - **Header.** It shows the role, and the department only when it differs: "Chip / Marketing". The employee's
   responsibility is its tooltip.
 - **Toolbar.** One row: the conversation picker on the left, then New conversation, Context & settings and an info
-  button for How replies work. The cut-off responsibility line is gone from employee chats. On a phone the buttons
-  show only their icons; their names stay for screen readers and tests.
+  button for How replies work. The cut-off responsibility line is gone from employee chats. When the toolbar itself is
+  under 600px wide, the buttons show only their icons; their names stay for screen readers and tests. That covers a
+  phone, and also a desktop chat squeezed by a wide cockpit. The first install keyed this to the screen width, and the
+  owner's real layout still wrapped.
 - **Messages.**
   - A reply carries the employee's avatar, name and a quiet "AI reply" tag.
   - Your messages are plain right-hand bubbles; "You" is kept for screen readers.
