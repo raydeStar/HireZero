@@ -55,6 +55,28 @@ The reply-text rules are in `web/src/company/replyText.ts`.
 At 1280 wide the docked cockpit still takes about a third of the window beside the chat. Folding it away by default in
 chat is a layout decision for the owner. It can already be closed by hand.
 
+## One message box
+
+After the first install the owner marked two things in their real chat. The Tools line sat alone at the far left,
+away from the message box. Under the box, Attach, Options and "Review before spending" took a row of their own. They
+asked for a box like other chat apps', with a + that drops the options down:
+- The box holds the message, then a + on the left and the send button on the right.
+- The + opens a menu upward over the conversation. The box never grows to show it. The menu holds:
+  - Attach a file;
+  - Tools;
+  - the reply options: work type, message action, model, allowance and evidence;
+  - a line saying that Prepare reply makes no model call and that the reply is reviewed before anything is sent or
+    spent.
+
+  It closes on a click outside it or on Escape. The + turns into a × while the menu is open.
+- What a message will do is never hidden: a changed work type, or "Save only", shows as a chip beside the +. A file
+  being read shows there too.
+- **Tools.** The panel keeps its own recovery behaviour: it opens itself when an action needs a status check. Closed,
+  it takes no room and is reached from the + menu. Open, it is a card in the message column just above the box. Its
+  own header still closes it, and the conversation gives it room.
+- Attached text is shown above the box.
+- The Options and Tools panels, and the file picker, keep the names and behaviour the tests and screen readers rely on.
+
 ## Installed
 
 At the owner's "Yes, install it", both local installs moved to 15bb2e9 and then to aa267c3 through the usual backup

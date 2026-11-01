@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { ArrowUp, Info, MessageSquareText, Paperclip, Plus, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUp, Info, MessageSquareText, Paperclip, Plus, SlidersHorizontal, X, Zap } from "lucide-react";
 import {
   attachmentAccept,
   attachmentBytes,
@@ -106,7 +106,38 @@ export function CompanyConversation({
     companyRequest = useRef(0);
   const filePicker = useRef<HTMLInputElement>(null),
     fileRequest = useRef(0),
-    reading = useRef(false);
+    reading = useRef(false),
+    section = useRef<HTMLElement>(null),
+    options = useRef<HTMLDetailsElement>(null);
+  // The + menu closes on a click outside it or on Escape, like any menu.
+  useEffect(() => {
+    const close = (event: PointerEvent | KeyboardEvent) => {
+      const menu = options.current;
+      if (!menu?.open) return;
+      if (event instanceof KeyboardEvent ? event.key === "Escape" : !menu.contains(event.target as Node))
+        menu.open = false;
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, []);
+  const closeOptions = () => {
+    if (options.current) options.current.open = false;
+  };
+  const openOptions = () => {
+    if (options.current) options.current.open = true;
+  };
+  // Tools keep their own panel above the message box (its recovery state lives there); the + menu opens it.
+  const openTools = () => {
+    closeOptions();
+    const strip = section.current?.querySelector<HTMLDetailsElement>(".co-action-strip");
+    if (!strip) return;
+    strip.open = true;
+    strip.querySelector("summary")?.focus();
+  };
   useEffect(() => {
     fileRequest.current++;
     reading.current = false;
@@ -144,7 +175,8 @@ export function CompanyConversation({
   }
   const target = company ? d.employees.find((e) => e.id === draft.recipient) : employee,
     role = d.roles.find((r) => r.id === employee?.roleId),
-    structured = company ? undefined : skillInput(role, draft.skill);
+    structured = company ? undefined : skillInput(role, draft.skill),
+    hasTools = canWork && !company && !!employee && !!role?.actions?.length;
   const companyThread = company
     ? d.threads.find((t) => t.employeeId === target?.id && t.scope === "company")
     : undefined;
@@ -350,6 +382,7 @@ export function CompanyConversation({
     );
   return (
     <section
+      ref={section}
       className="fe-chat co-conversation"
       aria-label={company ? "Company conversation" : "Private employee conversation"}
     >
@@ -607,75 +640,6 @@ export function CompanyConversation({
                 <structured.Editor value={draft.brief} onChange={(brief) => update({ brief })} />
               </details>
             ) : null}
-            <div className="fe-composer">
-              {!structured && (
-                <textarea
-                  ref={input}
-                  aria-label={company ? "Company message" : "Message to " + (employee?.name || "employee")}
-                  rows={2}
-                  maxLength={4000}
-                  required
-                  value={draft.body}
-                  disabled={busy || (!company && (!privateReady || employee?.state !== "active"))}
-                  onChange={(e) => update({ body: e.target.value })}
-                  onPaste={(e) => {
-                    const file = Array.from(e.clipboardData.files).find((file) => file.type.startsWith("image/"));
-                    if (file && !company && draft.skill === "chat") {
-                      e.preventDefault();
-                      void attach(file);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                      e.preventDefault();
-                      void send();
-                    }
-                  }}
-                  placeholder={
-                    company ? "Message your company…" : "Message " + (employee?.name || "this employee") + "…"
-                  }
-                />
-              )}
-              <button
-                className="fe-send"
-                type="submit"
-                aria-label={
-                  reply
-                    ? "Prepare reply for review"
-                    : company
-                      ? "Save company note"
-                      : draft.skill === "chat"
-                        ? "Save message"
-                        : "Assign work"
-                }
-                title={
-                  reply
-                    ? "Prepare reply for review without a model call"
-                    : company
-                      ? "Save company note"
-                      : draft.skill === "chat"
-                        ? "Save message only"
-                        : "Assign work"
-                }
-                disabled={
-                  busy ||
-                  readingFile ||
-                  (!company && (!privateReady || employee?.state !== "active")) ||
-                  (!structured && !draft.body.trim())
-                }
-              >
-                <ArrowUp size={17} aria-hidden="true" />
-                <span>
-                  {reply
-                    ? "Prepare reply"
-                    : company
-                      ? "Save company note"
-                      : draft.skill === "chat"
-                        ? "Save message"
-                        : "Assign work"}
-                </span>
-              </button>
-            </div>
             {attached.length > 0 && (
               <div className="co-attachments" aria-label="Attached text">
                 <small>Only this text goes with your message. Check recognition and remove anything private.</small>
@@ -713,139 +677,236 @@ export function CompanyConversation({
                 </small>
               </div>
             )}
-            <div className="co-composer-footer">
-              {!company && draft.skill === "chat" && (
-                <>
-                  <input
-                    ref={filePicker}
-                    type="file"
-                    hidden
-                    aria-label="Choose attachment"
-                    accept={attachmentAccept}
-                    onChange={(e) => {
-                      void attach(e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="co-attach-button"
-                    disabled={busy || readingFile || !privateReady || attached.length >= 3}
-                    onClick={() => filePicker.current?.click()}
-                    title="Screenshots, PDF, Word, text or Markdown"
-                  >
-                    <Paperclip size={16} />
-                    {readingFile ? "Reading…" : "Attach"}
-                  </button>
-                </>
+            {!company && draft.skill === "chat" && (
+              <input
+                ref={filePicker}
+                type="file"
+                hidden
+                aria-label="Choose attachment"
+                accept={attachmentAccept}
+                onChange={(e) => {
+                  void attach(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            )}
+            {/* One box, as in other chat apps: the message, then a + that holds attaching, tools and reply options,
+                and the send button (owner feedback, 2026-10-31). */}
+            <div className="fe-composer">
+              {!structured && (
+                <textarea
+                  ref={input}
+                  aria-label={company ? "Company message" : "Message to " + (employee?.name || "employee")}
+                  rows={2}
+                  maxLength={4000}
+                  required
+                  value={draft.body}
+                  disabled={busy || (!company && (!privateReady || employee?.state !== "active"))}
+                  onChange={(e) => update({ body: e.target.value })}
+                  onPaste={(e) => {
+                    const file = Array.from(e.clipboardData.files).find((file) => file.type.startsWith("image/"));
+                    if (file && !company && draft.skill === "chat") {
+                      e.preventDefault();
+                      void attach(file);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      void send();
+                    }
+                  }}
+                  placeholder={
+                    company ? "Message your company…" : "Message " + (employee?.name || "this employee") + "…"
+                  }
+                />
               )}
-              <details className="co-composer-options">
-                <summary>
-                  Options
-                  {draft.skill !== "chat"
-                    ? " · " + workName(role, draft.skill)
-                    : draft.delivery === "save"
-                      ? " · save only"
-                      : ""}
-                </summary>
-                <div className="co-composer-tools">
-                  {company ? (
-                    <label>
-                      Reply as
-                      <select value={draft.recipient} onChange={(e) => update({ recipient: e.target.value })}>
-                        <option value="">Save owner note only</option>
-                        {d.employees
-                          .filter((e) => e.state === "active")
-                          .map((e) => (
-                            <option key={e.id} value={e.id}>
-                              {e.name} · company context
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  ) : (
-                    <label>
-                      Work type
-                      <select
-                        value={draft.skill}
-                        disabled={!privateReady || busy}
-                        onChange={(e) => update({ skill: e.target.value })}
+              <div className="co-composer-bar">
+                <details className="co-composer-options" ref={options}>
+                  <summary aria-label="Attach, tools and options" title="Attach, tools and options">
+                    <Plus size={18} aria-hidden="true" />
+                  </summary>
+                  <div className="co-composer-menu">
+                    {!company && draft.skill === "chat" && (
+                      <button
+                        type="button"
+                        className="co-composer-item"
+                        disabled={busy || readingFile || !privateReady || attached.length >= 3}
+                        onClick={() => {
+                          closeOptions();
+                          filePicker.current?.click();
+                        }}
                       >
-                        {role?.skills
-                          .filter((s) => s !== "meeting-turn" && s !== "meeting-chair")
-                          .map((s) => (
-                            <option key={s} value={s}>
-                              {workName(role, s)}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  )}
-                  {eligible && (
-                    <label>
-                      Message action
-                      <select value={draft.delivery ?? "reply"} onChange={(e) => update({ delivery: e.target.value })}>
-                        <option value="reply">Prepare one reply for review</option>
-                        <option value="save">Save message only</option>
-                      </select>
-                    </label>
-                  )}
-                  {reply && (
-                    <ModelChoice
-                      options={snapshot.capabilities.modelChoices}
-                      value={draft.modelRoute ?? ""}
-                      onChange={(modelRoute) => update({ modelRoute, allowance: undefined })}
-                    />
-                  )}
-                  {reply && (
-                    <label>
-                      {cents ? "Spend cap (US cents)" : "Credit allowance"}
-                      <input
-                        type="number"
-                        min="0.01"
-                        max="1000"
-                        step="0.01"
-                        required
-                        placeholder="Required"
-                        aria-describedby={!allowanceValue ? "co-reply-allowance-help" : undefined}
-                        value={allowanceValue}
-                        onChange={(e) => update({ allowance: e.target.value })}
-                      />
-                    </label>
-                  )}
-                  {!company && (
-                    <details className="co-evidence">
-                      <summary>Evidence ({draft.evidence.length})</summary>
-                      {!d.artifacts.some((a) => a.state === "approved") && (
-                        <p className="co-muted">
-                          No approved results yet. Approve a result to include it as evidence here.
-                        </p>
+                        <Paperclip size={16} aria-hidden="true" />
+                        <span>
+                          Attach a file
+                          <small>
+                            A screenshot, PDF, Word, text or Markdown file. You can also paste a screenshot.
+                          </small>
+                        </span>
+                      </button>
+                    )}
+                    {hasTools && (
+                      <button type="button" className="co-composer-item" onClick={openTools}>
+                        <Zap size={16} aria-hidden="true" />
+                        <span>
+                          Tools
+                          <small>Read-only lookups {employee?.name} can run, with results back for your review.</small>
+                        </span>
+                      </button>
+                    )}
+                    <div className="co-composer-tools">
+                      {company ? (
+                        <label>
+                          Reply as
+                          <select value={draft.recipient} onChange={(e) => update({ recipient: e.target.value })}>
+                            <option value="">Save owner note only</option>
+                            {d.employees
+                              .filter((e) => e.state === "active")
+                              .map((e) => (
+                                <option key={e.id} value={e.id}>
+                                  {e.name} · company context
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                      ) : (
+                        <label>
+                          Work type
+                          <select
+                            value={draft.skill}
+                            disabled={!privateReady || busy}
+                            onChange={(e) => update({ skill: e.target.value })}
+                          >
+                            {role?.skills
+                              .filter((s) => s !== "meeting-turn" && s !== "meeting-chair")
+                              .map((s) => (
+                                <option key={s} value={s}>
+                                  {workName(role, s)}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
                       )}
-                      {d.artifacts
-                        .filter((a) => a.state === "approved")
-                        .map((a) => (
-                          <label className="co-check" key={a.id}>
-                            <input
-                              type="checkbox"
-                              checked={draft.evidence.includes(a.id)}
-                              onChange={(e) =>
-                                update({
-                                  evidence: e.target.checked
-                                    ? [...draft.evidence, a.id]
-                                    : draft.evidence.filter((id) => id !== a.id),
-                                })
-                              }
-                            />
-                            {d.employees.find((e) => e.id === a.employeeId)?.name}: {a.body.slice(0, 80)}
-                          </label>
-                        ))}
-                    </details>
-                  )}
-                </div>
-              </details>
-              <span className="co-composer-disclosure">
-                {reply ? "Review before spending" : "Saves without an AI reply"}
-              </span>
+                      {eligible && (
+                        <label>
+                          Message action
+                          <select
+                            value={draft.delivery ?? "reply"}
+                            onChange={(e) => update({ delivery: e.target.value })}
+                          >
+                            <option value="reply">Prepare one reply for review</option>
+                            <option value="save">Save message only</option>
+                          </select>
+                        </label>
+                      )}
+                      {reply && (
+                        <ModelChoice
+                          options={snapshot.capabilities.modelChoices}
+                          value={draft.modelRoute ?? ""}
+                          onChange={(modelRoute) => update({ modelRoute, allowance: undefined })}
+                        />
+                      )}
+                      {reply && (
+                        <label>
+                          {cents ? "Spend cap (US cents)" : "Credit allowance"}
+                          <input
+                            type="number"
+                            min="0.01"
+                            max="1000"
+                            step="0.01"
+                            required
+                            placeholder="Required"
+                            aria-describedby={!allowanceValue ? "co-reply-allowance-help" : undefined}
+                            value={allowanceValue}
+                            onChange={(e) => update({ allowance: e.target.value })}
+                          />
+                        </label>
+                      )}
+                      {!company && (
+                        <details className="co-evidence">
+                          <summary>Evidence ({draft.evidence.length})</summary>
+                          {!d.artifacts.some((a) => a.state === "approved") && (
+                            <p className="co-muted">
+                              No approved results yet. Approve a result to include it as evidence here.
+                            </p>
+                          )}
+                          {d.artifacts
+                            .filter((a) => a.state === "approved")
+                            .map((a) => (
+                              <label className="co-check" key={a.id}>
+                                <input
+                                  type="checkbox"
+                                  checked={draft.evidence.includes(a.id)}
+                                  onChange={(e) =>
+                                    update({
+                                      evidence: e.target.checked
+                                        ? [...draft.evidence, a.id]
+                                        : draft.evidence.filter((id) => id !== a.id),
+                                    })
+                                  }
+                                />
+                                {d.employees.find((e) => e.id === a.employeeId)?.name}: {a.body.slice(0, 80)}
+                              </label>
+                            ))}
+                        </details>
+                      )}
+                    </div>
+                    <p className="co-composer-disclosure">
+                      {reply
+                        ? "Prepare reply makes no model call. You review the reply before anything is sent or spent."
+                        : "Saves your message without an AI reply."}
+                    </p>
+                  </div>
+                </details>
+                {/* What the message will do is never hidden: a setting changed from the plain default shows here. */}
+                {readingFile && <span className="co-composer-chip">Reading the file…</span>}
+                {(draft.skill !== "chat" || draft.delivery === "save") && (
+                  <button type="button" className="co-composer-chip" onClick={openOptions}>
+                    {draft.skill !== "chat" ? workName(role, draft.skill) : "Save only"}
+                  </button>
+                )}
+                <span className="co-composer-spacer" />
+                <button
+                  className="fe-send"
+                  type="submit"
+                  aria-label={
+                    reply
+                      ? "Prepare reply for review"
+                      : company
+                        ? "Save company note"
+                        : draft.skill === "chat"
+                          ? "Save message"
+                          : "Assign work"
+                  }
+                  title={
+                    reply
+                      ? "Prepare reply for review without a model call"
+                      : company
+                        ? "Save company note"
+                        : draft.skill === "chat"
+                          ? "Save message only"
+                          : "Assign work"
+                  }
+                  disabled={
+                    busy ||
+                    readingFile ||
+                    (!company && (!privateReady || employee?.state !== "active")) ||
+                    (!structured && !draft.body.trim())
+                  }
+                >
+                  <ArrowUp size={17} aria-hidden="true" />
+                  <span>
+                    {reply
+                      ? "Prepare reply"
+                      : company
+                        ? "Save company note"
+                        : draft.skill === "chat"
+                          ? "Save message"
+                          : "Assign work"}
+                  </span>
+                </button>
+              </div>
             </div>
           </form>
           {reply && !allowanceValue && (

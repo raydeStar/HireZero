@@ -1015,3 +1015,209 @@
 .co-workspace .co-conversation-composer .co-composer-form {
   max-width: 760px;
 }
+
+/* One message box, as in other chat apps (owner feedback, 2026-10-31): the message on top, then a + on the left that
+   holds attaching, tools and reply options, and the send button on the right. The + menu opens upward over the
+   conversation, so the box never grows to show it. */
+.co-workspace .co-conversation-composer {
+  max-height: none;
+  overflow: visible;
+}
+.co-workspace .co-conversation-composer .co-brief-composer,
+.co-workspace .co-conversation-composer .co-attachments {
+  max-height: 32dvh;
+  overflow: auto;
+}
+.co-workspace .co-conversation-composer .fe-composer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 10px 10px 8px;
+}
+.co-workspace .co-conversation-composer .fe-composer textarea {
+  width: 100%;
+  min-height: 46px;
+  max-height: 30dvh;
+  padding: 4px 6px;
+  resize: none;
+  field-sizing: content;
+}
+.co-workspace .co-composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.co-workspace .co-composer-spacer {
+  flex: 1 1 auto;
+}
+.co-workspace .co-composer-bar .co-composer-options,
+.co-workspace .co-composer-bar .co-composer-options[open] {
+  position: static;
+  flex: none;
+  order: 0;
+  padding: 0;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-composer-bar .co-composer-options > summary {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  list-style: none;
+  cursor: pointer;
+  color: var(--fe-fg-2);
+  transition:
+    background 120ms var(--fe-ease),
+    transform 160ms var(--fe-ease);
+}
+.co-workspace .co-composer-bar .co-composer-options > summary::-webkit-details-marker {
+  display: none;
+}
+.co-workspace .co-composer-bar .co-composer-options > summary::before {
+  content: none;
+}
+.co-workspace .co-composer-bar .co-composer-options > summary:hover {
+  background: var(--fe-hover);
+  color: var(--fe-fg);
+}
+.co-workspace .co-composer-bar .co-composer-options[open] > summary {
+  background: var(--fe-surface-2);
+  color: var(--fe-fg);
+  transform: rotate(45deg);
+}
+.co-workspace .co-composer-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  display: grid;
+  gap: 2px;
+  width: min(380px, calc(100vw - 40px));
+  max-height: min(460px, 60dvh);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--fe-line-2);
+  border-radius: 14px;
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow-lg);
+}
+/* Closed, the menu is not laid out at all, so none of its controls take space or focus. */
+.co-workspace .co-composer-options:not([open]) .co-composer-menu {
+  display: none;
+}
+.co-workspace .co-composer-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  font-weight: 500;
+  color: var(--fe-fg);
+}
+.co-workspace .co-composer-item > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-composer-item:hover:not(:disabled) {
+  background: var(--fe-hover);
+}
+.co-workspace .co-composer-item small {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-composer-menu .co-composer-tools {
+  display: grid;
+  gap: 6px;
+  max-height: none;
+  overflow: visible;
+  margin: 2px 0 0;
+  padding: 10px 6px 4px;
+  border-top: 1px solid var(--fe-line);
+}
+.co-workspace .co-composer-menu .co-composer-item + .co-composer-tools,
+.co-workspace .co-composer-menu .co-composer-tools:first-child {
+  margin-top: 4px;
+}
+.co-workspace .co-composer-menu .co-composer-tools:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+.co-workspace .co-composer-menu .co-composer-tools > label:not(.co-model-choice) {
+  justify-content: space-between;
+}
+.co-workspace .co-composer-menu .co-composer-disclosure {
+  margin: 4px 10px 4px;
+  font-size: 11.5px;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-composer-chip {
+  min-width: 0;
+  max-width: 45%;
+  min-height: 26px;
+  padding: 2px 10px;
+  overflow: hidden;
+  border: 1px solid var(--fe-accent-line);
+  border-radius: 999px;
+  background: var(--fe-accent-soft);
+  box-shadow: none;
+  color: var(--fe-fg);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.co-workspace .co-conversation-composer .fe-composer .fe-send {
+  flex: none;
+}
+
+/* Tools: opened from the + menu. Open, the panel sits in the message column just above the box; closed, it takes no
+   room. Its own header still closes it. */
+.co-workspace .co-action-strip {
+  max-height: 45vh;
+  margin-inline: max(clamp(16px, 4vw, 40px), calc((100% - 760px) / 2));
+  padding: 0;
+  border-top: 0;
+}
+.co-workspace .co-action-strip:not([open]) > summary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.co-workspace .co-action-strip[open] {
+  flex: 0 0 auto;
+  max-height: 40dvh;
+  padding: 10px 12px 8px;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  background: var(--fe-surface);
+}
+/* While Tools is open the conversation gives up room for it, down to a short window of messages. */
+.co-workspace .co-conversation:has(.co-action-strip[open]) .fe-chat-scroll {
+  min-height: 120px;
+}
+@media (max-width: 680px) {
+  .co-workspace .co-action-strip {
+    margin-inline: 12px;
+  }
+  .co-workspace .co-composer-menu {
+    max-height: min(420px, 48dvh);
+  }
+}
