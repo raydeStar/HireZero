@@ -864,3 +864,149 @@
     animation: none;
   }
 }
+
+/* Chat (UX round 11, docs/history/2026-10-31-chat-curb-appeal.md): a one-row toolbar, replies under the employee's
+   face and name, your messages as plain bubbles, and a finished reply's receipt as one quiet line beneath it. */
+.co-workspace .co-hidden-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.co-workspace .co-conversation-context {
+  padding: 6px 14px;
+}
+.co-workspace .co-context-line {
+  gap: 4px;
+}
+.co-workspace .co-thread-picker {
+  margin-right: auto;
+}
+.co-workspace .co-conversation-context .co-thread-picker select {
+  max-width: min(280px, 48vw);
+  border-color: transparent;
+  background-color: transparent;
+  font-weight: 600;
+  color: var(--fe-fg);
+}
+.co-workspace .co-conversation-context .co-thread-picker select:hover {
+  background-color: var(--fe-hover);
+}
+.co-workspace .co-conversation-context .co-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.co-workspace .co-conversation-context .co-about > summary {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  padding: 0;
+  color: var(--fe-fg-3);
+}
+
+.co-workspace .fe-thread {
+  gap: 22px;
+}
+.co-workspace .fe-msg.assistant {
+  gap: 12px;
+}
+.co-workspace .co-msg-avatar {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.co-workspace .fe-msg.assistant .fe-msg-meta {
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-ai-tag {
+  font-size: 11.5px;
+  color: var(--fe-fg-4);
+}
+.co-workspace .fe-msg-content {
+  line-height: 1.6;
+}
+.co-workspace .fe-msg.user .fe-msg-body {
+  max-width: min(560px, 82%);
+  padding: 9px 14px;
+  border: 1px solid var(--fe-line);
+  border-radius: 18px 18px 6px 18px;
+  background: var(--fe-user-bubble);
+}
+.co-workspace .co-reply-fields {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--fe-line);
+  border-radius: 12px;
+  background: var(--fe-surface-2);
+}
+.co-workspace .co-reply-fields dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fe-fg-3);
+}
+.co-workspace .co-reply-fields dd {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.co-workspace .co-reply-turn.finished {
+  margin: 0 0 0 40px;
+  padding: 0;
+}
+.co-workspace .fe-msg.assistant + .co-reply-turn.finished {
+  margin-top: -18px;
+}
+.co-workspace .co-reply-turn.finished > details > summary {
+  font-size: 11.5px;
+  color: var(--fe-fg-4);
+}
+.co-workspace .co-reply-turn.finished > details > summary:hover {
+  color: var(--fe-fg-2);
+}
+.co-workspace .co-reply-turn.finished > p[role="alert"] {
+  margin: 2px 0 0;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-3);
+}
+/* A work card in the chat: its title on its own line, so a button never butts against it. */
+.co-workspace .fe-thread .co-job-card > b:first-child {
+  display: block;
+  margin-bottom: 10px;
+  font-size: var(--fe-t-m);
+  font-weight: 600;
+}
+.co-workspace .co-conversation-context .co-private-context > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+/* On a phone the toolbar keeps one row: its buttons show their icons, and their names stay for screen readers. */
+@media (max-width: 600px) {
+  .co-workspace .co-conversation-context .co-toolbar-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .co-workspace .co-conversation-context .co-ghost,
+  .co-workspace .co-conversation-context .co-private-context > summary {
+    min-width: 32px;
+    justify-content: center;
+  }
+}
+/* The composer is as wide as the messages above it. */
+.co-workspace .co-conversation-composer .co-composer-form {
+  max-width: 760px;
+}

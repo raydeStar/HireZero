@@ -871,15 +871,18 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
                           ? "People"
                           : tab[0].toUpperCase() + tab.slice(1)}
             </h1>
+            {/* The role, and the department only when it says something new ("Marketing · Marketing" did not). */}
             {chat && (
-              <small>
+              <small title={tab === "employee" ? employee?.responsibility : undefined}>
                 {tab === "company"
                   ? "Company context · owner control"
                   : employee
-                    ? roleName(d.roles, employee.roleId) +
-                      " · " +
-                      d.departments.find((x) => x.id === employee.departmentId)?.name +
-                      " · private conversation"
+                    ? [
+                        roleName(d.roles, employee.roleId),
+                        d.departments.find((x) => x.id === employee.departmentId)?.name,
+                      ]
+                        .filter((name, i, all) => name && all.indexOf(name) === i)
+                        .join(" · ")
                     : ""}
               </small>
             )}

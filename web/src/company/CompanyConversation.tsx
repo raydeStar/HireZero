@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
-import { ArrowUp, MessageSquareText, Paperclip, X } from "lucide-react";
+import { ArrowUp, Info, MessageSquareText, Paperclip, Plus, SlidersHorizontal, X } from "lucide-react";
 import {
   attachmentAccept,
   attachmentBytes,
@@ -14,9 +14,11 @@ import { ConversationJob } from "./ConversationJob";
 import { MeasuredJob } from "./MeasuredJob";
 import { ConnectCard } from "./ConnectCard";
 import { DraftMarkdown } from "./DraftMarkdown";
+import { avatarStyle, initials } from "./Home";
 import { employeeState, humanize, taskState, workName } from "./labels";
 import { useMemberAccess } from "./MemberAccess";
 import { ModelChoice } from "./ModelChoice";
+import { readableReply, replyFields, stoppedReply } from "./replyText";
 
 export type ConversationDraft = {
   body: string;
@@ -163,8 +165,14 @@ export function CompanyConversation({
     shown?.messages.filter((m) => m.author === "owner" || !artifacts.some((a) => a.body === m.body)) ?? [];
   // Work sits after the latest shown message at its watermark, so a revision whose watermark is a hidden result
   // message does not drop below later conversation (dogfood, 2026-10-30).
+  // A finished reply's details sit under the reply it wrote, not between the question and its answer (UX round 11).
+  const replyAfter = (t: Work) => {
+    if (t.kind !== "conversation" || t.state !== "completed") return undefined;
+    const next = messages.find((m) => m.sequence > t.watermark);
+    return next && next.author !== "owner" ? next.sequence : undefined;
+  };
   const anchorOf = (t: Work) =>
-    messages.reduce((found, m) => (m.sequence <= t.watermark ? m.sequence : found), Number.NaN);
+    replyAfter(t) ?? messages.reduce((found, m) => (m.sequence <= t.watermark ? m.sequence : found), Number.NaN);
   const orphaned = tasks.filter((t) => Number.isNaN(anchorOf(t)));
   // An API model enforces the reply allowance as a cap in US cents; Codex credits are only intended.
   const cents =
@@ -347,15 +355,18 @@ export function CompanyConversation({
     >
       <div className="co-conversation-context">
         <div className="co-context-line">
-          <p className="co-context-summary">
-            {company
-              ? "Notes for the whole company. To get an answer, choose who replies below the message box."
-              : employee?.responsibility || "Choose an employee conversation from the sidebar."}
-          </p>
+          {/* An employee's responsibility is in its header's tooltip and its settings; the toolbar keeps one row. */}
+          {(company || !employee) && (
+            <p className="co-context-summary">
+              {company
+                ? "Notes for the whole company. To get an answer, choose who replies below the message box."
+                : "Choose an employee conversation from the sidebar."}
+            </p>
+          )}
           {employee && (
             <>
               <label className="co-thread-picker">
-                Conversation
+                <span className="co-hidden-label">Conversation</span>
                 <select
                   aria-label="Employee conversation"
                   value={thread}
@@ -376,7 +387,8 @@ export function CompanyConversation({
                   disabled={busy || employee.state === "retired"}
                   onClick={() => void createThread()}
                 >
-                  New conversation
+                  <Plus size={14} aria-hidden="true" />
+                  <span className="co-toolbar-text">New conversation</span>
                 </button>
               )}
             </>
@@ -384,7 +396,9 @@ export function CompanyConversation({
           {employee && privateReady && <PrivateContext employee={employee} detail={detail!} busy={busy} run={run} />}
           {/* How a reply is authorized, one click away rather than in every header (UX audit, 2026-10-20). */}
           <details className="co-about">
-            <summary>How replies work</summary>
+            <summary aria-label="How replies work" title="How replies work">
+              <Info size={15} aria-hidden="true" />
+            </summary>
             <p>
               {snapshot.capabilities.conversationalReplies
                 ? "One text-only reply can be prepared, reviewed and explicitly authorized. Each turn needs its own approval; no tools, coding or autonomous follow-up."
@@ -474,48 +488,67 @@ export function CompanyConversation({
                   </p>
                 </div>
               )}
-              {messages.map((message) => (
-                <Fragment key={message.id}>
-                  <article
-                    className={"fe-msg " + (message.author === "owner" ? "user" : "assistant")}
-                    data-message-id={message.id}
-                  >
-                    <div className="fe-msg-body">
-                      <div className="fe-msg-meta">
-                        <strong>{message.author === "owner" ? "You" : target?.name + " · AI reply"}</strong>
-                      </div>
-                      <div className="fe-msg-content">
-                        {/* A long request the app wrote from a goal opens with its first lines; the exact text stays
+              {messages.map((message) => {
+                const fields = message.author === "owner" ? undefined : replyFields(message.body);
+                return (
+                  <Fragment key={message.id}>
+                    <article
+                      className={"fe-msg " + (message.author === "owner" ? "user" : "assistant")}
+                      data-message-id={message.id}
+                    >
+                      {message.author !== "owner" && target && (
+                        <span className="co-avatar co-msg-avatar" aria-hidden="true" style={avatarStyle(target.name)}>
+                          {initials(target.name)}
+                        </span>
+                      )}
+                      <div className="fe-msg-body">
+                        {/* Your messages are the right-hand bubbles; a reply names its employee and that it is AI. */}
+                        <div className={"fe-msg-meta" + (message.author === "owner" ? " co-hidden-label" : "")}>
+                          <strong>{message.author === "owner" ? "You" : target?.name}</strong>
+                          {message.author !== "owner" && <span className="co-ai-tag">AI reply</span>}
+                        </div>
+                        <div className="fe-msg-content">
+                          {/* A long request the app wrote from a goal opens with its first lines; the exact text stays
                             one click away (dogfood, 2026-10-30). */}
-                        {message.author === "owner" && message.body.length > 400 ? (
-                          <>
-                            <p>{message.body.split(/\r?\n/).slice(0, 2).join(" ").slice(0, 300)}…</p>
-                            <details>
-                              <summary>Show the full request</summary>
-                              <p style={{ whiteSpace: "pre-wrap" }}>{message.body}</p>
-                            </details>
-                          </>
-                        ) : message.author === "owner" ? (
-                          <p>{message.body}</p>
-                        ) : (
-                          // Replies are written in Markdown; show the formatting, not its asterisks (dogfood).
-                          <DraftMarkdown>{message.body}</DraftMarkdown>
-                        )}
+                          {message.author === "owner" && message.body.length > 400 ? (
+                            <>
+                              <p>{message.body.split(/\r?\n/).slice(0, 2).join(" ").slice(0, 300)}…</p>
+                              <details>
+                                <summary>Show the full request</summary>
+                                <p style={{ whiteSpace: "pre-wrap" }}>{message.body}</p>
+                              </details>
+                            </>
+                          ) : message.author === "owner" ? (
+                            <p>{message.body}</p>
+                          ) : fields ? (
+                            <dl className="co-reply-fields">
+                              {fields.map(([name, value]) => (
+                                <div key={name}>
+                                  <dt>{humanize(name)}</dt>
+                                  <dd>{value}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          ) : (
+                            // Replies are written in Markdown; show the formatting, not its asterisks (dogfood).
+                            <DraftMarkdown>{readableReply(message.body)}</DraftMarkdown>
+                          )}
+                        </div>
+                        {message.attachments?.map((file, index) => (
+                          <details className="co-message-attachment" key={index}>
+                            <summary>
+                              <Paperclip size={13} aria-hidden="true" /> {file.name} ·{" "}
+                              {file.kind === "image-ocr" ? "recognized text" : "document text"}
+                            </summary>
+                            <p style={{ whiteSpace: "pre-wrap" }}>{file.text}</p>
+                          </details>
+                        ))}
                       </div>
-                      {message.attachments?.map((file, index) => (
-                        <details className="co-message-attachment" key={index}>
-                          <summary>
-                            <Paperclip size={13} aria-hidden="true" /> {file.name} ·{" "}
-                            {file.kind === "image-ocr" ? "recognized text" : "document text"}
-                          </summary>
-                          <p style={{ whiteSpace: "pre-wrap" }}>{file.text}</p>
-                        </details>
-                      ))}
-                    </div>
-                  </article>
-                  {tasks.filter((t) => anchorOf(t) === message.sequence).map(job)}
-                </Fragment>
-              ))}
+                    </article>
+                    {tasks.filter((t) => anchorOf(t) === message.sequence).map(job)}
+                  </Fragment>
+                );
+              })}
               {orphaned.map(job)}
               {/* Connect cards this conversation raised (docs/adr/0046-connect-cards.md). */}
               {!company &&
@@ -599,7 +632,7 @@ export function CompanyConversation({
                     }
                   }}
                   placeholder={
-                    company ? "Message your company." : "Message " + (employee?.name || "this employee") + "."
+                    company ? "Message your company…" : "Message " + (employee?.name || "this employee") + "…"
                   }
                 />
               )}
@@ -873,7 +906,9 @@ function ReplyTurn({
         contents
       ) : (
         <details>
-          <summary>Reply status and usage · {taskState(task.state)}</summary>
+          <summary>
+            {task.state === "completed" ? "Usage and receipt" : "Reply status · " + taskState(task.state)}
+          </summary>
           {contents}
         </details>
       )}
@@ -887,12 +922,7 @@ function ReplyTurn({
           {entry?.job.state === "dispatched" ? "Stop reply" : "Cancel reply"}
         </button>
       )}
-      {entry?.error && (
-        <p role="alert">
-          Reply stopped. {entry.error}. Accounting or runtime reconciliation may be required; this turn cannot be
-          replayed.
-        </p>
-      )}
+      {entry?.error && <p role="alert">{stoppedReply(entry.error)}</p>}
     </article>
   );
 }
@@ -920,7 +950,10 @@ function PrivateContext({
   }, [detail.notes.body, detail.notes.version, dirty]);
   return (
     <details className="co-private-context">
-      <summary>Context & settings</summary>
+      <summary title="Context & settings">
+        <SlidersHorizontal size={14} aria-hidden="true" />
+        <span className="co-toolbar-text">Context & settings</span>
+      </summary>
       <p>
         Replies use this conversation, your attached text, approved facts and selected evidence. Attachments stay
         reference material in this conversation. They do not become shared company knowledge.
