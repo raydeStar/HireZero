@@ -54,3 +54,15 @@ The reply-text rules are in `web/src/company/replyText.ts`.
 
 At 1280 wide the docked cockpit still takes about a third of the window beside the chat. Folding it away by default in
 chat is a layout decision for the owner. It can already be closed by hand.
+
+## Installed
+
+At the owner's "Yes, install it", both local installs moved to 15bb2e9 and then to aa267c3 through the usual backup
+routine:
+- Only the web app was replaced. The host and every other file kept its installed bytes, and each install verified 165
+  files.
+- All 21 companies kept their work, connections, model connections, readings and schedules, and every audit chain is
+  intact. Marketing's morning shift and the pilot's schedule still match their approvals.
+- No model calls were made.
+
+The first install showed the toolbar still wrapping beside the owner's wide cockpit. That led to the second.
