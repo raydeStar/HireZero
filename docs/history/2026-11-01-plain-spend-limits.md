@@ -41,3 +41,17 @@ Server checks, budgets and stored values are unchanged.
   - schedules: "Split chat remains an explicit choice".
 
   They are left for a separate fix.
+
+## Installed
+
+At the owner's "Yes, install it", both local installs moved to 1f706e5 through the usual backup routine:
+- A fix session was sharing the checkout, so the web app was built from a clean export of the pushed commit rather
+  than from the working tree.
+- Only the web app was replaced, and each install verified 165 files.
+- All 21 companies kept their work, connections and schedules, and every audit chain is intact. Marketing's morning
+  shift and the pilot's schedule still match their approvals.
+- **In the real Marketing chat:**
+  - the + menu asks for no allowance and never mentions credits;
+  - choosing the OpenRouter model shows "Spend limit $0.05", capped at $10;
+  - the choice was set back to the default afterwards, so no draft changed.
+- No model calls were made.
