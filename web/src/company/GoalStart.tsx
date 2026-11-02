@@ -10,6 +10,7 @@ import {
   type Work,
 } from "./api";
 import { ModelChoice, providerName } from "./ModelChoice";
+import { defaultAllowance, SpendLimit, spendText } from "./allowance";
 import { advanceGoal, currentGoalWork, type GoalFlow, type GoalTerms } from "./goalFlow";
 import { goalWebsite } from "./goalWebsite";
 import "./goalStart.css";
@@ -205,7 +206,9 @@ export function GoalStart({
             roleId: selected.id,
             employeeId: employee?.id,
             skill: setup.firstAssignment.skill,
-            creditAllowance: Number(current.current.allowance),
+            creditAllowance: Number(
+              cents ? current.current.allowance || defaultAllowance(true) : defaultAllowance(false),
+            ),
             modelRoute: current.current.modelRoute || null,
             body: JSON.stringify({
               businessName: current.current.name.trim() || "My business",
@@ -255,7 +258,9 @@ export function GoalStart({
             roleId: selected!.id,
             employeeId: employee?.id,
             skill: setup!.firstAssignment.skill,
-            creditAllowance: Number(current.current.allowance),
+            creditAllowance: Number(
+              cents ? current.current.allowance || defaultAllowance(true) : defaultAllowance(false),
+            ),
             modelRoute: terms!.route,
           },
           input: {
@@ -389,7 +394,7 @@ export function GoalStart({
               : saved && saved.state === "awaiting_review"
                 ? "Your draft is ready to read, copy or refine."
                 : saved?.reason === "revision-awaiting-approval"
-                  ? "Your revision request is ready. Review its model and allowance before running."
+                  ? "Your revision request is ready. Review its model and terms before running."
                   : saved
                     ? "Your request is ready. Open it to review the run or follow its progress."
                     : "Your work was saved. Reload the saved view to open it."}
@@ -501,13 +506,16 @@ export function GoalStart({
                     {providerName(terms.terms?.provider || "host")} · {terms.route}
                   </p>
                   <p>
-                    One private draft · {draft.allowance}{" "}
-                    {terms.terms?.allowanceUnit === "usd-cents" ? "US cents maximum" : "intended existing credit(s)"} ·{" "}
-                    {terms.policy.localDeadlineSeconds}s local deadline.
+                    One private draft ·{" "}
+                    {spendText(
+                      terms.terms?.allowanceUnit === "usd-cents",
+                      Number(draft.allowance || defaultAllowance(true)),
+                    )}{" "}
+                    · {terms.policy.localDeadlineSeconds}s local deadline.
                   </p>
                   <small>
                     {terms.terms?.provider === "codex-oauth"
-                      ? `Reasoning effort: ${terms.policy.effort || "low"} · ${terms.policy.outputTarget.toLocaleString()} output-token target. Credit, time and token limits are soft.`
+                      ? `Reasoning effort: ${terms.policy.effort || "low"} · ${terms.policy.outputTarget.toLocaleString()} output-token target. Uses your plan's included usage; time and token limits are soft.`
                       : `Output target and deadline are planning limits; provider terms apply.`}{" "}
                     No publishing or automatic retry.
                   </small>
@@ -590,18 +598,11 @@ export function GoalStart({
                   })
                 }
               />
-              <label>
-                {cents ? "Spend cap (US cents)" : "Intended credit allowance"}
-                <input
-                  type="number"
-                  min="0.01"
-                  max="1000"
-                  step="0.01"
-                  required
-                  value={draft.allowance}
-                  onChange={(e) => change({ ...draft, allowance: e.target.value })}
-                />
-              </label>
+              <SpendLimit
+                cents={cents}
+                value={draft.allowance || defaultAllowance(true)}
+                onChange={(allowance) => change({ ...draft, allowance })}
+              />
               {setup && (
                 <>
                   <p>{setup.responsibility}</p>

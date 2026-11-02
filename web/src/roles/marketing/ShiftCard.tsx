@@ -13,6 +13,7 @@ import { DraftMarkdown } from "../../company/DraftMarkdown";
 import { advanceGoal, currentGoalWork, type GoalFlow, type GoalTerms } from "../../company/goalFlow";
 import { useMemberAccess } from "../../company/MemberAccess";
 import { providerName } from "../../company/ModelChoice";
+import { dollars, spendText } from "../../company/allowance";
 import type { HomeCardProps } from "../company";
 import { GoalLadder } from "./GoalLadder";
 import { ProposalCorrection, ProposalFeedback, useProposalFeedback } from "../../company/ProposalFeedback";
@@ -403,10 +404,9 @@ function Offer({
               {provider} · {terms.route}
             </p>
             <p>
-              One private report a morning · {allowance}{" "}
-              {terms.terms?.allowanceUnit === "usd-cents" ? "US cents maximum" : "intended existing credit(s)"} each ·{" "}
-              {terms.policy.localDeadlineSeconds}s local deadline. Credit, time and token limits are targets, not hard
-              caps. Recurring work for {employee.name} waits for your review again if the ladder or context changes.
+              One private report a morning · {spendText(terms.terms?.allowanceUnit === "usd-cents", allowance)} each ·{" "}
+              {terms.policy.localDeadlineSeconds}s local deadline. Time and token limits are targets, not hard caps.
+              Recurring work for {employee.name} waits for your review again if the ladder or context changes.
             </p>
           </details>
           <label className="co-check co-shift-consent">
@@ -775,16 +775,16 @@ function Report({
                 Do it approves one private draft from {employee.name} through{" "}
                 {providerName(terms.terms?.provider || "host")} · {terms.route}.
                 {terms.terms?.allowanceUnit === "usd-cents"
-                  ? " Allowance: 5 US cents."
-                  : " Intended allowance: 1 existing subscription credit."}
+                  ? " Spend limit: " + dollars(5) + "."
+                  : " It uses your plan's included usage."}
                 {busy ? ` ${employee.name} is finishing another draft first.` : ""}
               </p>
               <details>
                 <summary>Run limits and scope</summary>
                 <p>
                   Reasoning effort: {terms.policy.effort || "low"}. {terms.policy.outputTarget.toLocaleString()}{" "}
-                  output-token target · {terms.policy.localDeadlineSeconds}s local deadline. Credit, time and token
-                  limits are soft. No automatic retry, publishing, outreach or purchase.
+                  output-token target · {terms.policy.localDeadlineSeconds}s local deadline. Time and token limits are
+                  soft. No automatic retry, publishing, outreach or purchase.
                 </p>
               </details>
             </>

@@ -4,6 +4,7 @@ import { company } from "../lib/api";
 import { command, reconcileCompanyOperation, UnconfirmedCompanyOperation, type Snapshot, type Work } from "./api";
 import type { BusinessSetup } from "../roles/company";
 import { ModelChoice } from "./ModelChoice";
+import { defaultAllowance, SpendLimit } from "./allowance";
 
 type Draft = { prompt: string; allowance: string; modelRoute?: string; pending?: string; prepared?: boolean };
 export function FirstAssignment({
@@ -64,9 +65,9 @@ export function FirstAssignment({
       let saved: unknown;
       if (current.current.pending) saved = await reconcileCompanyOperation(current.current.pending);
       else {
-        const allowance = Number(current.current.allowance);
+        const allowance = Number(cents ? current.current.allowance || defaultAllowance(true) : defaultAllowance(false));
         if (!current.current.prompt.trim() || !(allowance > 0 && allowance <= 1000))
-          throw new Error("Enter the request and a positive allowance up to 1,000.");
+          throw new Error("Enter the request, and a spend limit between $0.01 and $10.00.");
         saved = await command(
           "assignment.prepare",
           {
@@ -111,8 +112,8 @@ export function FirstAssignment({
     <section className="co-first-assignment" aria-label="First assignment">
       <h3>{setup.firstAssignment.title}</h3>
       <p>
-        {setup.firstAssignment.description} Review the request and allowance before authorizing one draft. Then approve
-        the result and mark the assignment complete.
+        {setup.firstAssignment.description} Review the request before authorizing one draft. Then approve the result and
+        mark the assignment complete.
       </p>
       {error && (
         <p className="co-error" role="alert">
@@ -171,19 +172,11 @@ export function FirstAssignment({
                 onChange={(e) => change({ ...draft, prompt: e.target.value })}
               />
             </label>
-            <label>
-              {cents ? "Spend cap (US cents)" : "Intended credit allowance"}
-              <input
-                type="number"
-                min="0.01"
-                max="1000"
-                step="0.01"
-                required
-                value={draft.allowance}
-                onChange={(e) => change({ ...draft, allowance: e.target.value })}
-              />
-            </label>
-            {!cents && <p className="co-muted">This is an intended allowance, not a provider-enforced spending cap.</p>}
+            <SpendLimit
+              cents={cents}
+              value={draft.allowance || defaultAllowance(true)}
+              onChange={(allowance) => change({ ...draft, allowance })}
+            />
             <button className="co-primary" type="submit">
               {busy ? "Preparing request…" : "Prepare my first plan"}
             </button>

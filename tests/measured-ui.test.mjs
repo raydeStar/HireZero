@@ -52,11 +52,24 @@ const useEffect = (callback, deps) => {
   }
 };
 const jsx = (type, props) => ({ type, props });
+// The real spend-limit wording and defaults, so the card is checked against what owners see.
+const allowanceExports = {};
+vm.runInNewContext(
+  ts.transpileModule(fs.readFileSync(new URL("../web/src/company/allowance.tsx", import.meta.url), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText,
+  {
+    exports: allowanceExports,
+    require: (name) => (name === "react" ? { useState, useRef, useEffect } : { jsx, jsxs: jsx, Fragment: "fragment" }),
+  },
+);
 const exports = {};
 vm.runInNewContext(code, {
   exports,
   require: (name) =>
-    name === "./MemberAccess"
+    name === "./allowance"
+      ? allowanceExports
+      : name === "./MemberAccess"
       ? { useMemberAccess: () => ({ canWork, canManage: canWork }) }
       : name === "react"
         ? { useState, useRef, useEffect }
@@ -183,7 +196,8 @@ assert.equal(
   true,
 );
 assert.match(text(render()), /not upstream token caps/);
-assert.match(text(render()), /no provider-enforced per-job credit cap/);
+assert.match(text(render()), /included usage\. There is no per-job limit on it/);
+assert.doesNotMatch(text(render()), /credit/i, "Included usage shows no credit allowance");
 await flush(); // Non-conversation proposals load their saved review automatically.
 find("button", "Review task and context").props.onClick();
 await flush();

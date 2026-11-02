@@ -181,3 +181,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0174](0174-retire-the-competition-workspace-provider.md) | Retire the competition workspace provider | Accepted; site integration disabled, records preserved, replacement signup deferred |
 | [0175](0175-proposals-with-standing-owner-direction.md) | Research-backed proposals and standing owner direction | Accepted; opt-in bounded reads, persistent corrections/vetoes, exact-title dispatch guard, no expanded legacy authority |
 | [0176](0176-conversation-text-attachments.md) | Conversation attachments as local text references | Accepted; bounded Windows OCR and document text, thread-scoped references, no vision calls or automatic knowledge promotion |
+| [0177](0177-plain-spend-limits.md) | Spend limits in the owner's terms | Accepted; no allowance asked for included usage, paid-model caps in dollars, server checks unchanged |

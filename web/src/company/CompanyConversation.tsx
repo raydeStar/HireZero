@@ -19,6 +19,7 @@ import { employeeState, humanize, taskState, workName } from "./labels";
 import { useMemberAccess } from "./MemberAccess";
 import { ModelChoice } from "./ModelChoice";
 import { readableReply, replyFields, stoppedReply } from "./replyText";
+import { defaultAllowance, SpendLimit } from "./allowance";
 
 export type ConversationDraft = {
   body: string;
@@ -206,12 +207,12 @@ export function CompanyConversation({
   const anchorOf = (t: Work) =>
     replyAfter(t) ?? messages.reduce((found, m) => (m.sequence <= t.watermark ? m.sequence : found), Number.NaN);
   const orphaned = tasks.filter((t) => Number.isNaN(anchorOf(t)));
-  // An API model enforces the reply allowance as a cap in US cents; Codex credits are only intended.
+  // An API model enforces the reply allowance as a cap in US cents; included usage has no per-job limit, so its
+  // planning default is sent unasked (docs/adr/0177-plain-spend-limits.md).
   const cents =
     (snapshot.capabilities.modelChoices?.find((option) => option.route === draft.modelRoute)?.allowanceUnit ??
       snapshot.capabilities.allowanceUnit) === "usd-cents";
-  // Untouched, a reply's allowance shows the same default as Home's first draft (dogfood, 2026-10-30).
-  const allowanceValue = draft.allowance ?? (cents ? "5" : "1");
+  const allowanceValue = cents ? (draft.allowance ?? defaultAllowance(true)) : defaultAllowance(false);
   // "Message prepared… Send" stops being true once the prepared reply is sent, cancelled or expires.
   const replyWaiting = tasks.some((t) => d.measured?.some((m) => m.taskId === t.id && m.job.state === "proposed"));
   const waitingBefore = useRef(false);
@@ -303,13 +304,10 @@ export function CompanyConversation({
       );
       return;
     }
-    const sentAllowance = sent.allowance ?? (cents ? "5" : "1");
+    const sentAllowance = cents ? (sent.allowance ?? defaultAllowance(true)) : defaultAllowance(false);
     if (reply && !(Number(sentAllowance) > 0 && Number(sentAllowance) <= 1000)) {
-      setLocalError(
-        cents
-          ? "Enter a positive spend cap in US cents, at most 1,000."
-          : "Enter a positive intended existing-credit allowance, at most 1,000. It is not a provider-enforced cap.",
-      );
+      setLocalError("Enter a spend limit between $0.01 and $10.00.");
+      openOptions();
       return;
     }
     sending.current = true;
@@ -439,8 +437,8 @@ export function CompanyConversation({
             </p>
             <p>
               {cents
-                ? "Preparing sends no model request. The final Send authorizes one reply, refused before sending if its worst case could cost more than the cap."
-                : "Preparing sends no model request. The final Send authorizes one native turn. Token, time and credit stops are soft; the provider may exceed the intended allowance. Included usage must be available; no purchases or API fallback."}
+                ? "Preparing sends no model request. The final Send authorizes one reply, refused before sending if the most it could cost is over your spend limit."
+                : "Preparing sends no model request. The final Send authorizes one reply from your plan’s included usage, which has no per-job limit. Nothing is bought, and no API key is used instead."}
             </p>
             <p>Replies are informational. Work and decisions still need your approval.</p>
             {company && <p>Private employee notes, department facts and private conversations are excluded.</p>}
@@ -808,20 +806,11 @@ export function CompanyConversation({
                         />
                       )}
                       {reply && (
-                        <label>
-                          {cents ? "Spend cap (US cents)" : "Credit allowance"}
-                          <input
-                            type="number"
-                            min="0.01"
-                            max="1000"
-                            step="0.01"
-                            required
-                            placeholder="Required"
-                            aria-describedby={!allowanceValue ? "co-reply-allowance-help" : undefined}
-                            value={allowanceValue}
-                            onChange={(e) => update({ allowance: e.target.value })}
-                          />
-                        </label>
+                        <SpendLimit
+                          cents={cents}
+                          value={allowanceValue}
+                          onChange={(allowance) => update({ allowance })}
+                        />
                       )}
                       {!company && (
                         <details className="co-evidence">
@@ -910,10 +899,8 @@ export function CompanyConversation({
             </div>
           </form>
           {reply && !allowanceValue && (
-            <p id="co-reply-allowance-help" className="fe-composer-hint">
-              {cents
-                ? "Set a limit for this reply in US cents (100 = $1). You review it before authorizing the model call."
-                : "Set the existing-credit allowance for this reply. It is a planning limit, not a hard provider cap."}
+            <p className="fe-composer-hint">
+              Set a spend limit for this reply under +. You review it before anything is sent.
             </p>
           )}
         </div>

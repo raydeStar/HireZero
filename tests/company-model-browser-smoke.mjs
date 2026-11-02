@@ -381,7 +381,7 @@ try {
     "expired review exposes fresh preparation",
   );
   await evaluate(
-    "(() => { const input = document.querySelector('.co-work-window .co-measured input[type=number]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '100'); input.dispatchEvent(new Event('input', { bubbles: true })); })()",
+    "(() => { const input = document.querySelector('.co-work-window .co-measured input[type=number]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '1.00'); input.dispatchEvent(new Event('input', { bubbles: true })); })()",
   );
   await click("Prepare job for review");
   await until(

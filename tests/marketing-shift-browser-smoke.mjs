@@ -308,7 +308,7 @@ try {
   await evaluate("window.allowRunDetails=true");
   await click("Reload run details");
   await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: unavailableTerms.identifier });
-  await text("Intended allowance: 1 existing subscription credit");
+  await text("It uses your plan's included usage.");
   const beforeStorageRefusal = (await dashboard()).data.tasks.length;
   await evaluate(`window.originalStorageSet=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){
     if(k.startsWith('hirezero-shift-job-v1:'))throw new Error('Fictional storage refusal');

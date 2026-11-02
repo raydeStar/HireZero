@@ -40,7 +40,7 @@ try{
   await evaluate("document.querySelector('button[aria-label=\"Assign work\"]').click()");await until(async()=>(await dashboard()).data.tasks.length===1,'brief saved');
   await until(()=>evaluate("document.body.innerText.includes('Waiting for your one-job authorization.')"),'manual queue waiting state');
   assert.equal(await starts(),0,'Assigning a brief makes no provider request');
-  await field('Intended existing-credit allowance','1');await click('Prepare job for review');
+  await click('Prepare job for review');
   await until(async()=>(await dashboard()).data.measured[0]?.job.state==='proposed','sealed proposal');assert.equal(await starts(),0,'Preparing a job makes no provider request');
   const authorizeDisabled=()=>evaluate("[...document.querySelectorAll('.co-measured button')].find(b=>b.textContent==='Authorize and run one job').disabled");
   await until(()=>evaluate("[...document.querySelectorAll('.co-measured button')].some(b=>b.textContent==='Authorize and run one job')"),'sealed proposal shown');

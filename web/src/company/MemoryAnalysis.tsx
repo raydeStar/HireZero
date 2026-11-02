@@ -1,5 +1,6 @@
 import { memberStorage as sessionStorage } from "../lib/api";
 import { useEffect, useRef, useState } from "react";
+import { defaultAllowance, SpendLimit, spendText } from "./allowance";
 import { api, company } from "../lib/api";
 import {
   command,
@@ -86,7 +87,7 @@ export function MemoryAnalysis({
     }
   });
   const [selected, setSelected] = useState<string[]>([]),
-    [allowance, setAllowance] = useState("1");
+    [allowance, setAllowance] = useState("");
   const [jobs, setJobs] = useState<Summary[]>([]),
     [view, setView] = useState<View | null>(null);
   const [busy, setBusy] = useState(false),
@@ -105,6 +106,8 @@ export function MemoryAnalysis({
   const report = view?.analysis,
     available = snapshot.capabilities.measuredOneJob;
   const cents = snapshot.capabilities.allowanceUnit === "usd-cents";
+  // Included usage has no per-job limit, so its planning default is sent unasked (docs/adr/0177-plain-spend-limits.md).
+  const sentAllowance = cents ? allowance || defaultAllowance(true) : defaultAllowance(false);
   const approved = records.filter((r) => r.analysisEligible);
   const selectedCurrent = selected.filter((id) => approved.some((r) => r.id === id));
   const disabled = busy || !!pending;
@@ -269,32 +272,25 @@ export function MemoryAnalysis({
               </span>
             </label>
           ))}
-          <label>
-            {cents ? "Spend cap (US cents)" : "Intended credit allowance"}
-            <input
-              type="number"
-              min="0.01"
-              max="1000"
-              step="0.01"
-              value={allowance}
-              onChange={(e) => setAllowance(e.target.value)}
-            />
-          </label>
+          <SpendLimit cents={cents} value={sentAllowance} onChange={setAllowance} />
           <p className="co-muted">
             {cents
-              ? "The API provider checks the maximum planned price before sending."
-              : "Subscription credit and token limits are measured safeguards, not hard provider caps."}{" "}
+              ? "Nothing is sent if the most this could cost is over your spend limit."
+              : "Uses your plan's included usage, which has no per-job limit. Its token limits are safeguards, not hard caps."}{" "}
             Preparing a check sends nothing to the model.
           </p>
           <button
             disabled={
               selectedCurrent.length < 2 ||
-              !Number.isFinite(Number(allowance)) ||
-              Number(allowance) <= 0 ||
-              Number(allowance) > 1000
+              !Number.isFinite(Number(sentAllowance)) ||
+              Number(sentAllowance) <= 0 ||
+              Number(sentAllowance) > 1000
             }
             onClick={() =>
-              void perform("memory.analysis.prepare", { evidence: selectedCurrent, creditAllowance: Number(allowance) })
+              void perform("memory.analysis.prepare", {
+                evidence: selectedCurrent,
+                creditAllowance: Number(sentAllowance),
+              })
             }
           >
             Prepare memory check
@@ -331,9 +327,11 @@ export function MemoryAnalysis({
           {report.state === "proposed" && (
             <>
               <p>
-                {report.job.creditAllowance}{" "}
-                {(report.job.terms ? report.job.terms.allowanceUnit === "usd-cents" : cents) ? "US cents" : "credits"} ·{" "}
-                {report.job.policy.localDeadlineSeconds}
+                {spendText(
+                  report.job.terms ? report.job.terms.allowanceUnit === "usd-cents" : cents,
+                  report.job.creditAllowance,
+                )}{" "}
+                · {report.job.policy.localDeadlineSeconds}
                 -second local deadline · {report.job.policy.planningTokens.toLocaleString()} planning tokens.
                 Authorization expires {new Date(report.job.expiresAt).toLocaleTimeString()}.
               </p>
@@ -362,8 +360,8 @@ export function MemoryAnalysis({
                       onChange={(e) => setAck(e.target.checked)}
                     />
                     <span>
-                      I authorize one check of these records with the shown allowance
-                      {cents ? "." : ", acknowledging the soft limits."}
+                      I authorize one check of these records
+                      {cents ? " within the shown spend limit." : ", acknowledging the soft limits."}
                     </span>
                   </label>
                   <button

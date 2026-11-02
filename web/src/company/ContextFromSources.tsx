@@ -4,6 +4,7 @@ import { command, type Snapshot, type ThreadDetail } from "./api";
 import { MeasuredJob } from "./MeasuredJob";
 import { humanize } from "./labels";
 import { parseDraft } from "./contextDraft";
+import { defaultAllowance, SpendLimit } from "./allowance";
 
 type SourceRead = {
   source: string;
@@ -37,7 +38,7 @@ export function ContextFromSources({
 }) {
   const cents = snapshot.capabilities.allowanceUnit === "usd-cents";
   const [sources, setSources] = useState("");
-  const [allowance, setAllowance] = useState("1");
+  const [allowance, setAllowance] = useState(() => defaultAllowance(cents));
   const [reading, setReading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<SourceRead[]>([]);
@@ -80,7 +81,13 @@ export function ContextFromSources({
       const result = await api<{ sources: SourceRead[]; attempt: { taskId: string } }>(
         "/company/context-sources",
         "POST",
-        { requestId: crypto.randomUUID(), employeeId, sources: list, creditAllowance: Number(allowance), scope },
+        {
+          requestId: crypto.randomUUID(),
+          employeeId,
+          sources: list,
+          creditAllowance: Number(cents ? allowance : defaultAllowance(false)),
+          scope,
+        },
       );
       setResults(result.sources);
       setTaskId(result.attempt.taskId);
@@ -110,17 +117,7 @@ export function ContextFromSources({
         />
       </label>
       <div className="co-from-sources-row">
-        <label>
-          {cents ? "Spend cap (US cents)" : "Credit allowance"}
-          <input
-            type="number"
-            min="0.01"
-            max="1000"
-            step="0.01"
-            value={allowance}
-            onChange={(e) => setAllowance(e.target.value)}
-          />
-        </label>
+        <SpendLimit cents={cents} value={allowance} onChange={setAllowance} />
         <button type="button" className="co-primary" disabled={reading} onClick={() => void read()}>
           {reading ? "Reading sources…" : "Read sources"}
         </button>

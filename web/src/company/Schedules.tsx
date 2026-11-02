@@ -7,6 +7,7 @@ import { api, company } from "../lib/api";
 import { command, reconcileCompanyOperation, UnconfirmedCompanyOperation, type Snapshot, type Work } from "./api";
 import "./schedules.css";
 import { ModelChoice, providerName } from "./ModelChoice";
+import { defaultAllowance, dollars, SpendLimit } from "./allowance";
 
 type Definition = {
   name: string;
@@ -561,24 +562,29 @@ export function Schedules({
                 <ModelChoice
                   options={snapshot.capabilities.modelChoices}
                   value={form.modelRoute ?? ""}
-                  onChange={(modelRoute) => edit({ ...form, modelRoute, creditAllowance: 0 })}
+                  onChange={(modelRoute) =>
+                    edit({
+                      ...form,
+                      modelRoute,
+                      creditAllowance: Number(
+                        defaultAllowance(
+                          (snapshot.capabilities.modelChoices?.find((option) => option.route === modelRoute)
+                            ?.allowanceUnit ?? snapshot.capabilities.allowanceUnit) === "usd-cents",
+                        ),
+                      ),
+                    })
+                  }
                 />
-                <label>
-                  {cents ? "Spending allowance per run (US cents)" : "Existing-credit fallback allowance per run"}
-                  <input
-                    type="number"
-                    required
-                    min="0.01"
-                    max="1000"
-                    step="0.01"
-                    value={form.creditAllowance}
-                    onChange={(e) => edit({ ...form, creditAllowance: Number(e.target.value) })}
-                  />
-                </label>
+                <SpendLimit
+                  cents={cents}
+                  label="Spend limit per run"
+                  value={String(form.creditAllowance)}
+                  onChange={(value) => edit({ ...form, creditAllowance: Number(value) })}
+                />
                 <small>
                   {cents
-                    ? "100 cents = $1. The configured API provider checks the estimated request cost against this allowance."
-                    : "This is an explicit soft allowance, not a provider-enforced spending cap."}{" "}
+                    ? "Nothing is sent if the most a run could cost is over this limit."
+                    : "Runs use your plan's included usage, which has no per-run limit."}{" "}
                   Existing company and employee budgets also apply.
                 </small>
               </>
@@ -931,16 +937,8 @@ export function Schedules({
               {(schedule.authority.policy.planningTokens * schedule.definition.occurrences).toLocaleString()} across
               this schedule.{" "}
               {(schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)
-                ? "Spending allowance"
-                : "Existing-credit fallback"}
-              : {schedule.definition.creditAllowance}{" "}
-              {(schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)
-                ? "US cents"
-                : "credits"}{" "}
-              per run.{" "}
-              {(schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)
-                ? "Time and observed token targets are local soft stops; spending is checked before dispatch."
-                : "Time, token and existing-credit allowances are soft limits; a run may exceed them."}
+                ? `Spend limit: ${dollars(schedule.definition.creditAllowance)} per run. Time and observed token targets are local soft stops; spending is checked before dispatch.`
+                : "Runs use your plan's included usage, which has no per-run limit. Time and token targets are soft limits; a run may exceed them."}
             </p>
           )}
           <details>
@@ -988,7 +986,7 @@ export function Schedules({
                       />
                       <span>
                         {schedule.definition.kind === "employee-task"
-                          ? "I authorize the remaining private model requests using this scope and acknowledge the soft token and credit limits."
+                          ? "I authorize the remaining private model requests using this scope and acknowledge the soft time and token limits."
                           : schedule.definition.kind === "browser-task"
                             ? "I authorize these exact public websites, steps, screenshots and per-run limits for the remaining occurrences, including shared compute allocation."
                             : schedule.definition.kind === "script-task"

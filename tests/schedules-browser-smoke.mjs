@@ -443,7 +443,7 @@ try {
   assert.equal(records[0].authority.policy.outputTarget, 6000);
   await waitText("6,000 observed output-token target per run");
   await waitText("Reasoning tokens count toward that target");
-  await waitText("Time, token and existing-credit allowances are soft limits");
+  await waitText("Time and token targets are soft limits");
   const id = records[0].id;
   assert.equal(
     await evaluate("new URLSearchParams(location.search).get('schedule')"),

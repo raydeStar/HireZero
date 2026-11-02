@@ -255,11 +255,10 @@ try {
     await until(
       () =>
         evaluate(
-          "!!document.querySelector('.co-work-window .co-measured input[type=number]')",
+          "!![...document.querySelectorAll('.co-work-window .co-measured button')].find(b=>b.textContent==='Prepare job for review')",
         ),
       "measured controls in focused work",
     );
-    await set(".co-work-window .co-measured input[type=number]", "1");
     await click("Prepare job for review");
     await until(
       () =>
@@ -273,12 +272,11 @@ try {
         "document.body.innerText.includes('Latest details loaded.')",
       )
     ) {
-      assert.equal(
+      assert.ok(
         await evaluate(
-          "document.querySelector('.co-work-window .co-measured input[type=number]').value",
+          "!![...document.querySelectorAll('.co-work-window .co-measured button')].find(b=>b.textContent==='Prepare job for review')",
         ),
-        "1",
-        "A refused preparation preserves the entered allowance",
+        "A refused preparation can be prepared again",
       );
       await click("Prepare job for review");
     }
@@ -374,7 +372,6 @@ try {
     );
   };
   await openTask(2);
-  await set(".co-work-window .co-measured input[type=number]", "1");
   await click("Prepare job for review");
   await until(
     () =>

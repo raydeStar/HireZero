@@ -6,6 +6,7 @@ import { DraftMarkdown } from "../../company/DraftMarkdown";
 import { advanceGoal, type GoalFlow, type GoalTerms } from "../../company/goalFlow";
 import { useMemberAccess } from "../../company/MemberAccess";
 import { providerName } from "../../company/ModelChoice";
+import { spendText } from "../../company/allowance";
 import type { HomeCardProps } from "../company";
 import {
   addDays,
@@ -273,9 +274,8 @@ function Offer({
           {provider} · {terms.route}
         </p>
         <p>
-          One private draft · {allowance}{" "}
-          {terms.terms?.allowanceUnit === "usd-cents" ? "US cents maximum" : "intended existing credit(s)"} ·{" "}
-          {terms.policy.localDeadlineSeconds}s local deadline. Credit, time and token limits are targets, not hard caps.
+          One private draft · {spendText(terms.terms?.allowanceUnit === "usd-cents", Number(allowance))} ·{" "}
+          {terms.policy.localDeadlineSeconds}s local deadline. Time and token limits are targets, not hard caps.
         </p>
       </details>
       <label className="co-check">

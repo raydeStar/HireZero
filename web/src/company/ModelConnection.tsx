@@ -180,7 +180,7 @@ export function ModelConnection({ role, refresh }: { role?: string; refresh: () 
               {current.choices?.map((choice) => (
                 <p key={choice.route}>
                   {providerName(choice.provider)} · {choice.route} ·{" "}
-                  {choice.allowanceUnit === "usd-cents" ? "US-cent cap" : "intended credit allowance"}
+                  {choice.allowanceUnit === "usd-cents" ? "spend limit in dollars" : "included usage"}
                 </p>
               ))}
             </div>
@@ -194,7 +194,7 @@ export function ModelConnection({ role, refresh }: { role?: string; refresh: () 
             <details open={!current.keyStored}>
               <summary>{current.keyStored ? "Manage API connection" : "Add an API connection"}</summary>
               <p>
-                Changing this connection expires unsent model reviews. Review the new model and allowance before running
+                Changing this connection expires unsent model reviews. Review the new model and terms before running
                 work. Requests already sent keep their usage and any unresolved holds.
               </p>
               {current.models.length === 0 ? (

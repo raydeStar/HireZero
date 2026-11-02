@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { providerName } from "./ModelChoice";
+import { defaultAllowance, SpendLimit, spendText } from "./allowance";
 import {
   command,
   type BusinessIdentity,
@@ -39,7 +40,7 @@ export function BusinessDrafting({
   load: (profile: BusinessProfile) => void;
 }) {
   const [selected, setSelected] = useState(sources.slice(-3).map((s) => s.id));
-  const [allowance, setAllowance] = useState("1"),
+  const [allowance, setAllowance] = useState(""),
     [selectedJob, setSelectedJob] = useState("");
   const [packet, setPacket] = useState<Packet | null>(null),
     [ack, setAck] = useState(false);
@@ -64,6 +65,8 @@ export function BusinessDrafting({
   }, [job?.id]);
   const result = snapshot.data.businessProfiles?.find((p) => p.id === job?.profileId);
   const cents = snapshot.capabilities.allowanceUnit === "usd-cents";
+  // Included usage has no per-job limit, so its planning default is sent unasked (docs/adr/0177-plain-spend-limits.md).
+  const sentAllowance = cents ? allowance || defaultAllowance(true) : defaultAllowance(false);
   // modelExecution is automatic work; ADR 0036 leaves it off for every real provider.
   // This form prepares one request; the exact packet and allowance still require explicit authorization.
   const available = snapshot.capabilities.measuredOneJob;
@@ -123,24 +126,14 @@ export function BusinessDrafting({
               </span>
             </label>
           ))}
-          <label>
-            {cents ? "Spend cap (US cents)" : "Intended credit allowance"}
-            <input
-              type="number"
-              min="0.01"
-              max="1000"
-              step="0.01"
-              value={allowance}
-              onChange={(e) => setAllowance(e.target.value)}
-            />
-          </label>
+          <SpendLimit cents={cents} value={sentAllowance} onChange={setAllowance} />
           <p className="co-muted">
             {cents
-              ? "The API provider checks the worst-case price before sending the request."
-              : "This is a soft allowance. Subscription providers cannot enforce it as an in-flight credit cap. No purchases or recharge are authorized."}
+              ? "Nothing is sent if the most this could cost is over your spend limit."
+              : "Uses your plan's included usage, which has no per-job limit. Nothing is bought or recharged."}
           </p>
           <button
-            disabled={selected.length === 0 || !Number.isFinite(Number(allowance)) || Number(allowance) <= 0}
+            disabled={selected.length === 0 || !Number.isFinite(Number(sentAllowance)) || Number(sentAllowance) <= 0}
             onClick={() =>
               perform(async () => {
                 const prepared = (await command(
@@ -149,7 +142,7 @@ export function BusinessDrafting({
                     expectedVersion: identity.version,
                     digest: identity.digest,
                     evidence: selected,
-                    creditAllowance: Number(allowance),
+                    creditAllowance: Number(sentAllowance),
                   },
                   () => {},
                 )) as BusinessDraftJob;
@@ -201,9 +194,12 @@ export function BusinessDrafting({
           {job.state === "proposed" && (
             <>
               <p>
-                {job.sourceIds.length} source(s) · {job.job.creditAllowance}{" "}
-                {(job.job.terms ? job.job.terms.allowanceUnit === "usd-cents" : cents) ? "US cents" : "credits"} ·{" "}
-                {job.job.policy.localDeadlineSeconds}-second local deadline.
+                {job.sourceIds.length} source(s) ·{" "}
+                {spendText(
+                  job.job.terms ? job.job.terms.allowanceUnit === "usd-cents" : cents,
+                  job.job.creditAllowance,
+                )}{" "}
+                · {job.job.policy.localDeadlineSeconds}-second local deadline.
               </p>
               <button
                 disabled={busy}
@@ -234,7 +230,7 @@ export function BusinessDrafting({
                     <p>
                       One model request. No automatic retry. The local deadline and output target are soft limits.
                       {packet.job.terms?.allowanceUnit !== "usd-cents" &&
-                        " The credit allowance is also a soft limit; no credit purchase is authorized."}
+                        " It uses your plan's included usage, which has no per-job limit; nothing is bought."}
                     </p>
                   </div>
                   <details className="co-business-excerpt">
@@ -248,8 +244,8 @@ export function BusinessDrafting({
                   <label className="co-business-check">
                     <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
                     <span>
-                      I authorize one draft from this context with the shown allowance
-                      {cents ? "." : ", acknowledging the soft limits."}
+                      I authorize one draft from this context
+                      {cents ? " within the shown spend limit." : ", acknowledging the soft limits."}
                     </span>
                   </label>
                   <button

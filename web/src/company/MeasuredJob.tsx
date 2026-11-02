@@ -5,6 +5,7 @@ import { MonthlyAllowance, type UsageAllowance } from "./Usage";
 import { useMemberAccess } from "./MemberAccess";
 import { ModelChoice, providerName, type ModelOption } from "./ModelChoice";
 import { TaskBusinessContext, type TaskBusinessContextData } from "./TaskBusinessContext";
+import { defaultAllowance, dollars, SpendLimit, spendText } from "./allowance";
 
 type Packet = {
   usage?: UsageAllowance;
@@ -117,7 +118,8 @@ export function MeasuredJob({
     (modelChoices.find((option) => option.route === modelRoute)?.allowanceUnit ??
       (defaultCents ? "usd-cents" : "credits")) === "usd-cents";
   const cents = entry?.job.terms ? entry.job.terms.allowanceUnit === "usd-cents" : defaultCents;
-  const shownAllowance = allowance ?? (formCents ? "5" : "1");
+  // Included usage has no per-job limit, so its planning default is sent unasked (docs/adr/0177-plain-spend-limits.md).
+  const shownAllowance = formCents ? (allowance ?? defaultAllowance(true)) : defaultAllowance(false);
   useEffect(() => {
     // A fresh envelope needs fresh eyes. Never carry consent or an old context preview into its replacement.
     reviewRequest.current++;
@@ -230,22 +232,11 @@ export function MeasuredJob({
                 setAllowance(null);
               }}
             />
-            <label>
-              {formCents ? "Spend cap in US cents" : "Intended existing-credit allowance"}
-              <input
-                type="number"
-                min="0.01"
-                max="1000"
-                step="0.01"
-                required
-                value={shownAllowance}
-                onChange={(e) => setAllowance(e.target.value)}
-              />
-            </label>
+            <SpendLimit cents={formCents} value={shownAllowance} disabled={busy} onChange={setAllowance} />
             <p className="co-muted">
               {formCents
-                ? "Nothing is sent if the worst case (the whole context and the full reply limit at the model's listed price) could cost more than this."
-                : "1 is usual for one draft. This records your intended allowance. It cannot stop an in-flight request at that credit amount. Included usage must be available first. No purchases, recharge or API-key fallback."}
+                ? "Nothing is sent if the most this could cost (the whole context and the longest reply at the model's listed price) is over your spend limit."
+                : "Uses your plan's included usage, which has no per-job limit. Nothing is bought or recharged, and no API key is used instead."}
             </p>
             <button disabled={busy} type="submit">
               Prepare job for review
@@ -281,11 +272,8 @@ export function MeasuredJob({
                   : task.revision
                     ? "Writes a new version with your changes"
                     : "Runs one job"}{" "}
-                ·{" "}
-                {cents
-                  ? `spend cap ${entry.job.creditAllowance} US cents`
-                  : `intended allowance ${entry.job.creditAllowance} ${entry.job.creditAllowance === 1 ? "credit" : "credits"}`}{" "}
-                · expires {new Date(entry.job.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                · {spendText(cents, entry.job.creditAllowance)} · expires{" "}
+                {new Date(entry.job.expiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
               </p>
               {(!conversational || !packet) && (
                 <button disabled={busy || running || reviewing} aria-busy={reviewing} onClick={() => void review()}>
@@ -435,8 +423,8 @@ export function MeasuredJob({
                 </p>
                 <p>
                   {cents
-                    ? `Spend cap: ${entry.job.creditAllowance} US cents, checked against the worst case before sending.`
-                    : `Intended existing-credit allowance: ${entry.job.creditAllowance}. There is no provider-enforced per-job credit cap; this request may exceed that amount.`}
+                    ? `Spend limit: ${dollars(entry.job.creditAllowance)}, checked against the most this could cost before sending.`
+                    : "Uses your plan's included usage. There is no per-job limit on it."}
                 </p>
                 <small>
                   Expires {new Date(entry.job.expiresAt).toLocaleString()}. Policy {entry.job.policy.version}. The
@@ -453,10 +441,10 @@ export function MeasuredJob({
                       onChange={(e) => setAck(e.target.checked)}
                     />
                     {cents
-                      ? `I reviewed the ${conversational ? "message, recipient" : "work"}, context, selected API account and spend allowance, and I authorize one ${conversational ? "reply" : "job"}.`
+                      ? `I reviewed the ${conversational ? "message, recipient" : "work"}, context, selected API account and spend limit, and I authorize one ${conversational ? "reply" : "job"}.`
                       : conversational
-                        ? "I reviewed the message, recipient and context, and I authorize one reply. Its time, token and credit limits are targets, not hard caps."
-                        : "I reviewed what will be sent, and I authorize one job. Its time, token and credit limits are targets, not hard caps."}
+                        ? "I reviewed the message, recipient and context, and I authorize one reply from my plan's included usage. Its time and token limits are targets, not hard caps."
+                        : "I reviewed what will be sent, and I authorize one job from my plan's included usage. Its time and token limits are targets, not hard caps."}
                   </label>
                   {!packet && (
                     <p className="co-muted co-locked-hint" role="note">

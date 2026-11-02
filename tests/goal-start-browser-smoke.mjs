@@ -399,7 +399,7 @@ try {
   },'saved revision request');
   await send('Page.navigate',{url:url+'/'});
   await text('Continue my work');
-  await text('Your revision request is ready. Review its model and allowance before running.');
+  await text('Your revision request is ready. Review its model and terms before running.');
   await click('Continue my work');
   assert.equal(await evaluate("new URLSearchParams(location.search).get('work')"),revisionTask.id,'Home continues the current revision rather than the superseded original');
   // Synthetic results exercise a second revision without calling any model provider.
