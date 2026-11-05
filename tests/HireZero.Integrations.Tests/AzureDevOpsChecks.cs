@@ -79,7 +79,7 @@ public static class AzureDevOpsChecks
             else if (url.Contains("searchCriteria.status=active"))
                 body =
                     "{\"value\":["
-                    + Pr(7, "Bound AssetChat batches", "me", votes: [-5, 0])
+                    + Pr(7, "Bound asset batches", "me", votes: [-5, 0])
                     + ","
                     + Pr(8, "Draft idea", "me", draft: true, merge: "conflicts")
                     + ","

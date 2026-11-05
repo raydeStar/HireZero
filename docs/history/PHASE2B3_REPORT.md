@@ -11,9 +11,9 @@ found real employer and personal data in the test fixtures, which conflicts with
 
 Tracked test files contained real-looking identifiers:
 
-- an organization (Northwind), with its email domain and Azure DevOps organization;
-- repository names (QuoteDesk, PartnerQuoteDesk, NorthwindPortal);
-- people with work emails (Riley Park, Mark Hall, Dana, Avery Stone);
+- an organization, with its email domain and Azure DevOps organization;
+- repository names;
+- people with work emails;
 - a tailnet machine name.
 
 They were present from the first commit. They were only in tests, not in source, docs or tools. No git remote is
@@ -25,8 +25,7 @@ They are replaced with a consistent fictional mapping that keeps the tests meani
 | --- | --- |
 | Company | Northwind, `northwind.example` |
 | Azure DevOps organization | `north` (still a prefix of the company name, which the sharing rule relies on) |
-| QuoteDesk | QuoteDesk |
-| PartnerQuoteDesk | PartnerQuoteDesk |
+| Repositories | QuoteDesk, PartnerQuoteDesk |
 | People | Riley Park, Morgan Lee, Avery Stone |
 | Tailnet machine | `host-1.tail0000.ts.net` |
 
