@@ -47,6 +47,14 @@ public sealed partial class CompanyModelConnection
         {
             if (!fault && usage is not null && usage.Consistent(total) && usage.BilledUsd is not < 0)
                 store.SettleModelSpend(call.DispatchId, usage.BilledUsd ?? price.Cost(usage));
+            // An accounting fault keeps the worst-case hold, unless the provider reports spending more than that.
+            else if (
+                fault
+                && usage is not null
+                && (usage.BilledUsd ?? price.Cost(usage)) is var reported and > 0
+                && reported > worst
+            )
+                store.SettleModelSpend(call.DispatchId, reported);
         }
         try
         {

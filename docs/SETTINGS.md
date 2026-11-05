@@ -62,15 +62,15 @@ A verified visitor without a membership can choose **Create my company** and bec
 | Setting | Meaning |
 | --- | --- |
 | `HIREZERO_OPEN_SIGNUP` | Default `0`. `1` enables the hosted enrollment flow. |
-| `HIREZERO_SIGNUP_MAX_COMPANIES` | Default `200`; maximum companies ever created through sign-up on this install. Integer 1–1,000,000. |
-| `HIREZERO_SIGNUP_COMPANY_CAP_CENTS` | Default `50` ($0.50); lifetime model allowance saved with each new sign-up company. Integer 0–1,000,000. Changing it affects future companies only. |
-| `HIREZERO_DAILY_CAP_CENTS` | Default `500` ($5.00); shared model allowance across **all** companies on this install per UTC day. Integer 0–1,000,000; zero pauses new spending. Applied when open sign-up is enabled. |
+| `HIREZERO_SIGNUP_MAX_COMPANIES` | Default `200`; maximum companies ever created through sign-up on this install. Integer 1â€“1,000,000. |
+| `HIREZERO_SIGNUP_COMPANY_CAP_CENTS` | Default `50` ($0.50); lifetime model allowance saved with each new sign-up company. Integer 0â€“1,000,000. Changing it affects future companies only. |
+| `HIREZERO_DAILY_CAP_CENTS` | Default `500` ($5.00); shared model allowance across **all** companies on this install per UTC day. Integer 0â€“1,000,000; zero pauses new spending. Applied when open sign-up is enabled. |
 
 The sign-in subject can create only one free company, including through the ordinary company-creation route.
 Concurrent enrollment and spending are serialized in the shared database. Model dispatch reserves a conservative
 worst case (all input bytes plus API framing and the full approved output target) before sending. Confirmed usage
-settles at the reviewed price or reported bill; unknown usage retains its reservation across restarts and UTC
-midnight. A dispatch receipt can never authorize a second send. The UI shows the lower of the company's lifetime
+settles at the reviewed price or reported bill; unknown usage retains its reservation across restarts, on the
+company's lifetime cap and on the UTC day it was sent. A dispatch receipt can never authorize a second send. The UI shows the lower of the company's lifetime
 remainder and today's shared remainder, in dollars. Existing job, token, monthly and approval limits still apply.
 
 Disabling open sign-up stops enrollment, but does **not** remove existing caps or reservations. The last configured

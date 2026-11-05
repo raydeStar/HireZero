@@ -230,7 +230,7 @@ export function SignInGate({ children }: { children: (session: Session, signOut?
             {session.openSignup && (
               <>
                 <button className="co-primary" disabled={creating} onClick={() => void signup()}>
-                  {creating ? "Checking company creation�" : "Create my company"}
+                  {creating ? "Creating your company…" : "Create my company"}
                 </button>
                 {signupError && <p role="alert">{signupError}</p>}
               </>

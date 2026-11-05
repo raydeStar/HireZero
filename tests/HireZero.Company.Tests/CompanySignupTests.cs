@@ -114,7 +114,7 @@ public sealed class CompanySignupTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SharedCapSerializesCompaniesAndUnknownReservationsCarryAcrossUtcMidnight()
+    public async Task SharedCapSerializesCompaniesAndUnknownReservationsStayOnTheirDayAndCompany()
     {
         var root = Store();
         var policy = new CompanySignupPolicy(DailyCapCents: 5);
@@ -137,14 +137,37 @@ public sealed class CompanySignupTests : IAsyncDisposable
             )
         );
         Assert.Single(accepted, x => x);
-        _now = _now.AddDays(1);
         Assert.All(stores, s => Assert.Equal(1m, s.FreeAllowance()!.DailyRemainingCents));
+        _now = _now.AddDays(1);
+        // An uncertain hold cannot pin later days' shared limit, but stays on its company's lifetime cap.
+        Assert.All(stores, s => Assert.Equal(5m, s.FreeAllowance()!.DailyRemainingCents));
         var winner = stores[accepted[0] ? 0 : 1];
+        Assert.Equal(46m, winner.FreeAllowance()!.CompanyRemainingCents);
         Assert.Throws<ModelTransportException>(() => winner.ReserveModelSpend("job", .01m));
         winner.SettleModelSpend("job", .01m);
         Assert.Equal(5m, winner.FreeAllowance()!.DailyRemainingCents);
         Assert.Equal(49m, winner.FreeAllowance()!.CompanyRemainingCents);
         Assert.True(Store().HasSpendCaps); // Removing the enrollment switch does not erase the ledger.
+    }
+
+    [Fact]
+    public void ASignupCompanyCannotInviteOrClaimSomeoneElsesSignIn()
+    {
+        var root = Store();
+        root.ConfigureSignup(new());
+        var attacker = Store(Signup(root, "attacker").Id, "attacker");
+        var refused = Assert.Throws<WorkspaceException>(() =>
+            attacker.Apply(
+                new(Guid.NewGuid().ToString("D"), "member.invite")
+                {
+                    Body = "victim@example.invalid",
+                    Decision = "viewer",
+                }
+            )
+        );
+        Assert.Equal(403, refused.Status);
+        Assert.Null(attacker.SignIn("victim", "victim@example.invalid", true, "Victim"));
+        Assert.Equal(CompanyRoles.Owner, Signup(root, "victim").Role);
     }
 
     public async ValueTask DisposeAsync()

@@ -1,4 +1,4 @@
-# 0181 — Open sign-up and durable free model allowances
+# 0181 â€” Open sign-up and durable free model allowances
 
 Status: accepted, 2026-11-05. Implements Brief B of [0179](0179-hosted-hirezero-on-vultr.md);
 extends the invitation-only entry rule in [0020](0020-members-roles-and-sign-in.md) and company creation in
@@ -26,8 +26,10 @@ shared daily limit. Usage settles using the captured reviewed price or a reporte
 request to whole cents. Complete replies, withheld tool/truncated replies and known zero-usage refusals settle;
 unknown outcomes, missing/inconsistent usage and accounting faults retain the reservation. Existing token
 accounting and provider refusal behavior remain authoritative and unchanged. A retained or settled dispatch ID
-cannot send again, even after restart. Unsettled earlier-day reservations count against today's limit; settled
-spend belongs to its dispatch day. Disabling enrollment never removes the spending policy.
+cannot send again, even after restart. Every reservation, settled or not, belongs to its dispatch day: an uncertain
+request cost at most its worst case on that day, so it does not reduce later days' limits, while it stays on its
+company's lifetime cap for good. Sign-up companies cannot invite members, and a pending invite never adds a
+sign-in to one, so a stranger's company cannot claim another person's account. Disabling enrollment never removes the spending policy.
 
 Only priced, bounded host API work can use this allowance. Capped installs refuse Codex and saved company keys,
 and disable separate Jev decision and model-tool transports that cannot reserve a worst case through this boundary.
@@ -43,5 +45,5 @@ required; a free allowance does not authorize a model request by itself.
 
 Focused offline facts cover verified OIDC entry, disabled/local behavior, concurrent enrollment, the maximum,
 company isolation, ordinary-creation refusal, both spending limits before HTTP, usage settlement, withheld tools,
-known refusals, duplicate dispatch prevention and unknown holds across restart/midnight. HTTP model handlers and
+known refusals, duplicate dispatch prevention and unknown holds across restart. HTTP model handlers and
 OIDC providers are fictional. Live Google/Vultr, deployment and customer acceptance remain separate work.

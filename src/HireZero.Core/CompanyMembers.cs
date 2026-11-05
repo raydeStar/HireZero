@@ -55,7 +55,8 @@ public sealed partial class CompanyStore
                     return new CompanyActor(rebound.Id, rebound.Role);
                 }
                 var invite = Find<CompanyMember>(db, "invite:" + address);
-                if (invite is not { State: "invited" })
+                // A stranger's free company must never claim someone else's sign-in.
+                if (invite is not { State: "invited" } || SignupCompany(db))
                     return null;
                 var member = new CompanyMember(subject, address, Text(name ?? address, 120), invite.Role, "active");
                 Save(db, member, member.Id, state: member.State, version: member.Version);
@@ -81,6 +82,8 @@ public sealed partial class CompanyStore
 
     private CompanyMember InviteMember(StoreConnection db, CompanyCommand c)
     {
+        if (SignupCompany(db))
+            throw new WorkspaceException("Free sign-up companies cannot invite members.", 403);
         var address = Normal(c.Body) ?? throw new WorkspaceException("Invite a valid email address.", 422);
         if (!CompanyRoles.All.Contains(c.Decision))
             throw new WorkspaceException("Choose owner, approver or viewer.", 422);
