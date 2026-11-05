@@ -368,10 +368,13 @@ public sealed partial class CompanyStore
         var evidence = input.Evidence ?? [];
         Evidence(db, evidence);
         var selectedResults = evidence.Select(id => Need<CompanyArtifact>(db, id)).ToArray();
-        var policy = CompanyMeasuredPolicy.Kept(
-            CompanyMeasuredPolicy.For(kind, role.Manifest?.Skills.SingleOrDefault(s => s.Id == skill)?.MeasuredProfile),
-            approved
+        var policy = CompanyMeasuredPolicy.For(
+            kind,
+            role.Manifest?.Skills.SingleOrDefault(s => s.Id == skill)?.MeasuredProfile
         );
+        if (input.Kind == "employee-task")
+            policy = ReasoningPolicy(policy, ReviewModelChoice(input.ModelRoute) ?? ModelRouteFor(role, skill, kind));
+        policy = CompanyMeasuredPolicy.Kept(policy, approved);
         var evidenceText =
             selectedResults.Length == 0
                 ? null

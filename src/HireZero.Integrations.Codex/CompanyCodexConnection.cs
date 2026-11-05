@@ -215,8 +215,14 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
         // Owner-only reports have no employee. Only their explicit measured policies get that place setting.
         var ownerReport =
             (
-                (measured?.Policy == CompanyMeasuredPolicy.BusinessProfile && call.Context.Scope == "business-profile")
-                || (measured?.Policy == CompanyMeasuredPolicy.MemoryAnalysis && call.Context.Scope == "memory-analysis")
+                (
+                    CompanyMeasuredPolicy.Matches(measured?.Policy, CompanyMeasuredPolicy.BusinessProfile)
+                    && call.Context.Scope == "business-profile"
+                )
+                || (
+                    CompanyMeasuredPolicy.Matches(measured?.Policy, CompanyMeasuredPolicy.MemoryAnalysis)
+                    && call.Context.Scope == "memory-analysis"
+                )
             )
             && call.Context.EmployeeId == ""
             && call.Context.RoleId == ""
@@ -231,8 +237,8 @@ public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyM
             || measured is not null && (bytes != measured.ApplicationBytes || bytes > measured.Policy.ApplicationBytes)
             || string.IsNullOrWhiteSpace(call.Context.EmployeeId) && !ownerReport
             || (
-                measured?.Policy == CompanyMeasuredPolicy.BusinessProfile
-                || measured?.Policy == CompanyMeasuredPolicy.MemoryAnalysis
+                CompanyMeasuredPolicy.Matches(measured?.Policy, CompanyMeasuredPolicy.BusinessProfile)
+                || CompanyMeasuredPolicy.Matches(measured?.Policy, CompanyMeasuredPolicy.MemoryAnalysis)
             ) && !ownerReport
             || call.Context.Id.Length == 0
         )

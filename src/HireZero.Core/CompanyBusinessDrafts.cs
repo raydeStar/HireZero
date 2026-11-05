@@ -139,7 +139,7 @@ public sealed partial class CompanyStore
         );
         var call = new ModelCall(id, context, BusinessDraftInstructions, 0, 0, ModelRouting.TextModel);
         var bytes = ApplicationBytes(call);
-        var policy = CompanyMeasuredPolicy.BusinessProfile;
+        var policy = ReasoningPolicy(CompanyMeasuredPolicy.BusinessProfile, call.ModelRoute!);
         if (bytes > policy.ApplicationBytes)
             throw new WorkspaceException("These sources exceed the draft's input limit. Select fewer sources.", 422);
         var job = new CompanyMeasuredJob(
@@ -198,7 +198,7 @@ public sealed partial class CompanyStore
             && draft.Job.RuntimeIdentity == MeasuredRuntimeIdentity
             && draft.Job.Terms == MeasuredTerms(draft.Job.Route)
             && draft.Job.Route == ModelRouting.TextModel
-            && draft.Job.Policy == CompanyMeasuredPolicy.BusinessProfile
+            && draft.Job.Policy == ReasoningPolicy(CompanyMeasuredPolicy.BusinessProfile, draft.Job.Route)
             && draft.Job.Digest == BusinessDraftDigest(draft)
             && draft.Job.ContextDigest == CompanyJson.Digest(draft.Call.Context)
             && draft.Job.InstructionsDigest == ContentGuard.Digest(draft.Call.Instructions)

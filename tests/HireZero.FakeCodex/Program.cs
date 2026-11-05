@@ -640,7 +640,7 @@ while (await Console.In.ReadLineAsync() is { } line)
             }
             if (
                 p.GetProperty("model").GetString() != companyTextModel
-                || p.GetProperty("effort").GetString() is not ("low" or "high")
+                || p.GetProperty("effort").GetString() is not ("low" or "high" or "xhigh")
                 || p.GetProperty("effort").GetString() != threadEffort
                 || p.GetProperty("summary").GetString() != "none"
                 || p.GetProperty("serviceTierForTurn").GetString() != "default"

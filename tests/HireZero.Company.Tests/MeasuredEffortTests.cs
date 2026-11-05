@@ -64,6 +64,7 @@ public sealed class MeasuredEffortTests
             return File.ReadAllText(Assert.Single(Efforts(root.Path).Except(before))).Trim();
         }
         Assert.Equal("high", await Effort(CompanyMeasuredPolicy.Deliverable));
+        Assert.Equal("xhigh", await Effort(CompanyMeasuredPolicy.WithXHigh(CompanyMeasuredPolicy.Deliverable)));
         Assert.Equal("high", await Effort(CompanyMeasuredPolicy.DeliverableV2));
         Assert.Equal("low", await Effort(CompanyMeasuredPolicy.DeliverableV1));
         Assert.Equal("low", await Effort(CompanyMeasuredPolicy.Current));
@@ -74,7 +75,7 @@ public sealed class MeasuredEffortTests
     {
         await using var root = new TemporaryRoot("measured-effort-");
         var model = MeasuredQueueChecks.Model(root.Path, "company-ignored-effort");
-        var (call, job) = Packet(model, CompanyMeasuredPolicy.Deliverable);
+        var (call, job) = Packet(model, CompanyMeasuredPolicy.WithXHigh(CompanyMeasuredPolicy.Deliverable));
         var refused = await Assert.ThrowsAsync<WorkspaceException>(() =>
             model.CompleteMeasuredAsync(call, job, TestContext.Current.CancellationToken)
         );
@@ -84,6 +85,30 @@ public sealed class MeasuredEffortTests
 
     private static string[] Efforts(string root) =>
         Directory.GetFiles(root, "fixture-native-efforts", SearchOption.AllDirectories);
+
+    [Fact]
+    public void XHighHasDistinctApprovalTermsAndPreservesExistingSchedulePolicies()
+    {
+        foreach (
+            var policy in new[]
+            {
+                CompanyMeasuredPolicy.Current,
+                CompanyMeasuredPolicy.ContextDraft,
+                CompanyMeasuredPolicy.Conversation,
+                CompanyMeasuredPolicy.BusinessProfile,
+                CompanyMeasuredPolicy.MemoryAnalysis,
+                CompanyMeasuredPolicy.Deliverable,
+            }
+        )
+        {
+            var xhigh = CompanyMeasuredPolicy.WithXHigh(policy);
+            Assert.True(CompanyMeasuredPolicy.Known(xhigh));
+            Assert.NotEqual(CompanyJson.Digest(policy), CompanyJson.Digest(xhigh));
+            Assert.False(CompanyMeasuredPolicy.Known(xhigh with { OutputTarget = 100000 }));
+            Assert.Equal(policy, CompanyMeasuredPolicy.Kept(xhigh, policy));
+            Assert.Equal(xhigh, CompanyMeasuredPolicy.Kept(policy, xhigh));
+        }
+    }
 
     private static (ModelCall Call, CompanyMeasuredJob Job) Packet(
         CompanyCodexConnection model,

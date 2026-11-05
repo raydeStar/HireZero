@@ -35,7 +35,13 @@ public sealed partial class CompanyStore
             MeasuredRuntimeIdentity
                 ?? throw new WorkspaceException("Connect a measured model before generating a draft.", 409),
             MeasuredTerms(route),
-            CompanyMeasuredPolicy.For("work", role.Manifest?.Skills.FirstOrDefault(s => s.Id == skill)?.MeasuredProfile)
+            ReasoningPolicy(
+                CompanyMeasuredPolicy.For(
+                    "work",
+                    role.Manifest?.Skills.FirstOrDefault(s => s.Id == skill)?.MeasuredProfile
+                ),
+                route
+            )
         );
     }
 

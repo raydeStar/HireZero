@@ -265,6 +265,12 @@ public sealed class CompanySettings
         ),
         new("HIREZERO_COMPANY_CODEX_HOME", "Codex", "The dedicated Codex profile home.", (s, v) => s.CodexHome = v),
         new(
+            "HIREZERO_COMPANY_CODEX_XHIGH",
+            "Codex",
+            "1 requests xhigh reasoning for newly reviewed Codex text jobs.",
+            (s, v) => s.CodexXHigh = Flag(v)
+        ),
+        new(
             "HIREZERO_COMPANY_CODING_READ",
             "Codex",
             "Semicolon-separated folders live coding runs may read.",
@@ -347,6 +353,7 @@ public sealed class CompanySettings
     public string? CodexExecutable { get; private set; }
     public string? CodexIdentity { get; private set; }
     public string? CodexHome { get; private set; }
+    public bool CodexXHigh { get; private set; }
     public string[] CodingRead { get; private set; } = [];
     public string? CodingPackages { get; private set; }
     public bool SyntheticWiki { get; private set; }

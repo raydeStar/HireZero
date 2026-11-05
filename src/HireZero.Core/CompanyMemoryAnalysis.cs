@@ -211,7 +211,7 @@ public sealed partial class CompanyStore
             ModelRouting.For(false, analysis: true)
         );
         var bytes = ApplicationBytes(call);
-        var policy = CompanyMeasuredPolicy.MemoryAnalysis;
+        var policy = ReasoningPolicy(CompanyMeasuredPolicy.MemoryAnalysis, call.ModelRoute!);
         if (bytes > policy.ApplicationBytes)
             throw new WorkspaceException("These records exceed the analysis input limit. Select fewer records.", 422);
         var job = new CompanyMeasuredJob(
@@ -251,7 +251,7 @@ public sealed partial class CompanyStore
         && analysis.Job.RuntimeIdentity == MeasuredRuntimeIdentity
         && analysis.Job.Terms == MeasuredTerms(analysis.Job.Route)
         && analysis.Job.Route == ModelRouting.For(false, analysis: true)
-        && analysis.Job.Policy == CompanyMeasuredPolicy.MemoryAnalysis
+        && analysis.Job.Policy == ReasoningPolicy(CompanyMeasuredPolicy.MemoryAnalysis, analysis.Job.Route)
         && analysis.Job.Digest == MemoryAnalysisDigest(analysis)
         && analysis.Job.ContextDigest == CompanyJson.Digest(analysis.Call.Context)
         && analysis.Job.InstructionsDigest == ContentGuard.Digest(analysis.Call.Instructions)

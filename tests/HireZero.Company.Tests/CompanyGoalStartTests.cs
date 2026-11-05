@@ -68,6 +68,7 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.Equal(7, profile.Fields.Count(f => f.Verification == "unknown" && f.Value == "Unknown"));
         Assert.All(profile.Fields, field => Assert.Empty(field.Citations));
         var call = store.TextCall(prepared.Attempt.Id);
+        Assert.Contains("The input field contains the owner's current assignment.", call.Instructions);
         Assert.Empty(call.Context.CompanyKnowledge);
         Assert.Equal(
             "We sell paper craft kits.",
@@ -81,6 +82,60 @@ public sealed class CompanyGoalStartTests : IDisposable
         Assert.Null(store.Claim(prepared.Task.EmployeeId, true));
         Assert.Equal(result, Store().Apply(command));
         Assert.True(store.VerifyAudit().Intact);
+    }
+
+    [Fact]
+    public void HomeReviewAndPreparedJobUseXHighOnlyForTheCodexAccount()
+    {
+        foreach (var provider in new[] { "codex-oauth", "openrouter" })
+        {
+            var store = new CompanyStore(
+                Path.Combine(_root.Path, provider + ".sqlite"),
+                "owner@example.invalid",
+                CompanyWorkspace.Definitions(),
+                measuredRuntimeIdentity: "fictional-goal-runtime"
+            )
+            {
+                PreferXHighReasoning = true,
+                MeasuredTerms = _ => new(provider, provider == "codex-oauth" ? "credits" : "usd-cents"),
+            };
+            var terms = store.GoalTerms("marketing", "marketing-starter-plan", null);
+            var prepared = A<Prepared>(store, Goal());
+            Assert.Equal(provider == "codex-oauth" ? "xhigh" : "high", terms.Policy.Effort);
+            Assert.Equal(terms.Policy, prepared.Attempt.Measured!.Policy);
+            Assert.Equal(terms.Terms, prepared.Attempt.Measured.Terms);
+            Assert.True(store.VerifyAudit().Intact);
+        }
+    }
+
+    [Fact]
+    public void ChangingConfiguredEffortInvalidatesAnUnsentHomeReview()
+    {
+        var database = Path.Combine(_root.Path, "effort-change.sqlite");
+        CompanyStore Open(bool xhigh) =>
+            new(
+                database,
+                "owner@example.invalid",
+                CompanyWorkspace.Definitions(),
+                measuredRuntimeIdentity: "fictional-goal-runtime"
+            )
+            {
+                PreferXHighReasoning = xhigh,
+                MeasuredTerms = _ => new("codex-oauth", "credits"),
+            };
+        var prepared = A<Prepared>(Open(true), Goal());
+        Assert.Throws<WorkspaceException>(() =>
+            Open(false)
+                .Apply(
+                    C("measured.run") with
+                    {
+                        Id = prepared.Attempt.Id,
+                        ExpectedVersion = prepared.Attempt.Version,
+                        Digest = prepared.Attempt.Measured!.Digest,
+                        Decision = "accept-soft-limits",
+                    }
+                )
+        );
     }
 
     [Fact]

@@ -120,6 +120,7 @@ Hosted mode names all of its missing required settings at once.
 | `HIREZERO_COMPANY_CODEX_EXECUTABLE` | The pinned Codex executable, with `--company-codex`. |
 | `HIREZERO_COMPANY_CODEX_IDENTITY` | The reviewed bundle identity of that executable. |
 | `HIREZERO_COMPANY_CODEX_HOME` | The dedicated Codex profile home. |
+| `HIREZERO_COMPANY_CODEX_XHIGH` | `1` requests `xhigh` for newly reviewed Codex text jobs. The existing review shows the effort. Previously approved schedules retain their recorded effort and limits. Defaults to `0`. |
 | `HIREZERO_COMPANY_CODING_READ` | Semicolon-separated folders that live coding runs may read. |
 | `HIREZERO_COMPANY_CODING_PACKAGES` | A pre-filled NuGet package folder that live coding runs read offline, as a fallback folder (docs/adr/0045-offline-packages-for-coding-runs.md). |
 

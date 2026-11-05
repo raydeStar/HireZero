@@ -56,6 +56,16 @@ public sealed class CompanySettingsTests : IDisposable
     }
 
     [Fact]
+    public void XHighIsAnExplicitCodexSetting()
+    {
+        Assert.False(CompanySettings.Load(Environment()).CodexXHigh);
+        Assert.True(CompanySettings.Load(Environment(("HIREZERO_COMPANY_CODEX_XHIGH", "1"))).CodexXHigh);
+        Assert.Throws<InvalidOperationException>(() =>
+            CompanySettings.Load(Environment(("HIREZERO_COMPANY_CODEX_XHIGH", "yes")))
+        );
+    }
+
+    [Fact]
     public void EveryProblemIsReportedAtOnce()
     {
         var error = Assert.Throws<InvalidOperationException>(() =>
