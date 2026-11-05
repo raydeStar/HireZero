@@ -235,6 +235,11 @@ public sealed partial class CompanyModelConnection(
 
     public CompanyModelConnectionStatus Save(CompanyModelConnectionInput input)
     {
+        if (SpendStore is not null)
+            throw new WorkspaceException(
+                "Free allowance uses the configured host model. Company model connections are unavailable.",
+                403
+            );
         lock (_gate)
         {
             if (input.ExpectedVersion != Current.Version)
@@ -339,7 +344,7 @@ public sealed partial class CompanyModelConnection(
 
     public Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token) =>
         Current.Mode == "host"
-            ? platform.CompleteAsync(call, token)
+            ? WithSpendAsync(call, call.MaxOutputTokens, () => platform.CompleteAsync(call, token), token)
             : throw new ModelUnavailableException("Company API keys do not authorize automatic model requests.");
 
     public async Task<ModelReply> CompleteMeasuredAsync(ModelCall call, CompanyMeasuredJob job, CancellationToken token)
@@ -366,12 +371,18 @@ public sealed partial class CompanyModelConnection(
             if (platform is not IMeasuredModelProvider measured)
                 throw new ModelTransportException("The host has no measured model connection.", 0, usage: new(0, 0));
             // The company envelope binds this generation and the underlying pinned runtime; only this trusted adapter unwraps it.
-            return await measured.CompleteMeasuredAsync(
+            return await WithSpendAsync(
                 call,
-                job with
-                {
-                    RuntimeIdentity = measured.RuntimeIdentity,
-                },
+                call.MaxOutputTokens > 0 ? call.MaxOutputTokens : job.Policy.OutputTarget,
+                () =>
+                    measured.CompleteMeasuredAsync(
+                        call,
+                        job with
+                        {
+                            RuntimeIdentity = measured.RuntimeIdentity,
+                        },
+                        token
+                    ),
                 token
             );
         }

@@ -32,6 +32,7 @@ public sealed class CompanyIntegrationScope
     public IConfigurableIntegration[] Configurable { get; }
     public SemaphoreSlim Gate { get; } = new(1, 1);
     public long Version { get; private set; }
+    private readonly bool _hostModelOnly;
     private readonly AgentAppsToolProvider _agentApps;
     private readonly AzureDevOpsToolProvider _azureDevOps;
     private readonly JevToolProvider? _jev;
@@ -58,9 +59,11 @@ public sealed class CompanyIntegrationScope
         IToolProvider? syntheticAnalytics = null,
         IToolProvider? syntheticAds = null,
         HttpMessageHandler? googleHandler = null,
-        IHttpClientFactory? microsoftClients = null
+        IHttpClientFactory? microsoftClients = null,
+        bool hostModelOnly = false
     )
     {
+        _hostModelOnly = hostModelOnly;
         Store = store;
         Tools = tools;
         MachineAccess = local && store.CompanyId == CompanyStore.DefaultCompanyId;
@@ -97,7 +100,7 @@ public sealed class CompanyIntegrationScope
         );
         _agentApps = AgentAppsToolProvider.Company(DataRoot);
         _azureDevOps = new(DataRoot);
-        _jev = MachineAccess ? JevToolProvider.Company() : null;
+        _jev = MachineAccess && !hostModelOnly ? JevToolProvider.Company() : null;
         MicrosoftStore = new(DataRoot);
         MicrosoftOptions = new(origin + "/oauth/microsoft/callback", ReturnTo("microsoft"));
         MicrosoftConnector = Microsoft365Services.CompanyConnector(
@@ -115,7 +118,7 @@ public sealed class CompanyIntegrationScope
             SiteAnalytics,
             GoogleAds,
             DriveDocuments,
-            OpenRouter,
+            .. hostModelOnly ? Array.Empty<IConfigurableIntegration>() : [OpenRouter],
             .. MachineAccess ? new IConfigurableIntegration[] { _azureDevOps, _agentApps } : [],
         ];
     }
@@ -152,7 +155,7 @@ public sealed class CompanyIntegrationScope
             MachineAccess ? _agentApps.Status() : MachineOnly("agent-apps", "Coding apps"),
             MachineAccess ? _azureDevOps.Status() : MachineOnly("azure-devops", "Azure DevOps"),
             _jev?.Status() ?? MachineOnly("jev", "Jev"),
-            OpenRouter.Status(),
+            .. _hostModelOnly ? Array.Empty<IntegrationStatus>() : [OpenRouter.Status()],
             Google.Status(),
             SiteAnalytics.Status(),
             GoogleAds.Status(),
@@ -176,7 +179,7 @@ public sealed class CompanyIntegrationScope
             Tools.Adopt(_azureDevOps);
         if (MicrosoftStore.Settings().ClientId is { Length: > 0 })
             Microsoft.RegisterOnce(Tools);
-        if (OpenRouter.Status().Active)
+        if (!_hostModelOnly && OpenRouter.Status().Active)
             Tools.Adopt(OpenRouter);
         if (Google.Status().Active)
             Tools.Adopt(Google, _syntheticAnalytics);

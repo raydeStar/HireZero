@@ -21,8 +21,10 @@ export function Companies({
   expanded,
   workControl,
   onWorkControl,
+  canCreate = true,
 }: {
   role?: string;
+  canCreate?: boolean;
   version: number;
   expanded?: boolean;
   workControl?: CompanyWorkControl;
@@ -154,62 +156,67 @@ export function Companies({
               Rename company
             </button>
           </form>
-          <form
-            aria-label="Create company"
-            onSubmit={(e: FormEvent) => {
-              e.preventDefault();
-              void act(() => creation());
-            }}
-          >
-            {!pendingCreation && (
-              <label>
-                New company name
-                <input
-                  required
-                  maxLength={80}
-                  disabled={busy || !creationStorageAvailable}
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                />
-              </label>
-            )}
-            {pendingCreation && (
-              <p role="status">
-                A company creation is waiting for confirmation. Check its saved result to open it without creating a
-                duplicate.
-                {pendingCreation.name && (
-                  <>
-                    {" "}
-                    Name: <strong>{pendingCreation.name}</strong>.
-                  </>
-                )}
-              </p>
-            )}
-            {!creationStorageAvailable && (
-              <p role="alert">
-                Allow session storage for this tab, then reload before creating a company. No creation request will be
-                submitted.
-              </p>
-            )}
-            <button disabled={busy || !creationStorageAvailable || (!pendingCreation && !newName.trim())} type="submit">
-              {pendingCreation ? "Check saved company" : "Create company"}
-            </button>
-            {pendingCreation?.name && canFinishCreation && (
-              <>
-                <p>
-                  No saved company was found yet. Finish this same creation using its original name; it cannot create a
-                  second copy.
+          {canCreate && (
+            <form
+              aria-label="Create company"
+              onSubmit={(e: FormEvent) => {
+                e.preventDefault();
+                void act(() => creation());
+              }}
+            >
+              {!pendingCreation && (
+                <label>
+                  New company name
+                  <input
+                    required
+                    maxLength={80}
+                    disabled={busy || !creationStorageAvailable}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
+                </label>
+              )}
+              {pendingCreation && (
+                <p role="status">
+                  A company creation is waiting for confirmation. Check its saved result to open it without creating a
+                  duplicate.
+                  {pendingCreation.name && (
+                    <>
+                      {" "}
+                      Name: <strong>{pendingCreation.name}</strong>.
+                    </>
+                  )}
                 </p>
-                <button
-                  type="button"
-                  disabled={busy || !creationStorageAvailable}
-                  onClick={() => void act(() => creation(true))}
-                >
-                  Finish this creation
-                </button>
-              </>
-            )}
-          </form>
+              )}
+              {!creationStorageAvailable && (
+                <p role="alert">
+                  Allow session storage for this tab, then reload before creating a company. No creation request will be
+                  submitted.
+                </p>
+              )}
+              <button
+                disabled={busy || !creationStorageAvailable || (!pendingCreation && !newName.trim())}
+                type="submit"
+              >
+                {pendingCreation ? "Check saved company" : "Create company"}
+              </button>
+              {pendingCreation?.name && canFinishCreation && (
+                <>
+                  <p>
+                    No saved company was found yet. Finish this same creation using its original name; it cannot create
+                    a second copy.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={busy || !creationStorageAvailable}
+                    onClick={() => void act(() => creation(true))}
+                  >
+                    Finish this creation
+                  </button>
+                </>
+              )}
+            </form>
+          )}
           {expanded && workControl && onWorkControl && <WorkControl control={workControl} onSaved={onWorkControl} />}
           {expanded && <RetirementReview />}
         </>

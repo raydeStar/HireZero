@@ -61,3 +61,20 @@ export function SpendLimit({
     </label>
   );
 }
+
+// Spend already held for unfinished work is excluded from the available purse.
+export function FreeAllowance({
+  remainingCents,
+  companyRemainingCents,
+}: {
+  remainingCents: number;
+  companyRemainingCents: number;
+}) {
+  return (
+    <p className="co-muted" role="status">
+      Free allowance remaining: <strong>{dollars(remainingCents)}</strong>
+      {remainingCents < companyRemainingCents && " � Limited by today's shared allowance; resets at midnight UTC."}
+      {remainingCents === 0 && " Your free allowance is used up or reserved for earlier work."}
+    </p>
+  );
+}

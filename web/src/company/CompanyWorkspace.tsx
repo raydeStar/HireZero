@@ -1,3 +1,4 @@
+import { FreeAllowance } from "./allowance";
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { api, ApiError, applyTheme, company, preference, savePreference, type ThemeChoice } from "../lib/api";
 import { ShortcutHelp, useShortcuts } from "./Shortcuts";
@@ -212,6 +213,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
   }
   // One address, one visible section: Back should retrace our steps, not rearrange the furniture.
   function openHub(section: HubSection) {
+    if (snapshot?.capabilities.signupCompany && ["integrations", "billing"].includes(section)) section = "members";
     navigate({
       ...routeRef.current,
       tab: "departments",
@@ -845,6 +847,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
         </div>
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>
+        {snapshot.capabilities.freeAllowance && <FreeAllowance {...snapshot.capabilities.freeAllowance} />}
         <header className="fe-topbar">
           <button
             className="co-conversation-toggle"
@@ -1065,7 +1068,11 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
                 aria-label={inSettings ? "Settings sections" : "Company sections"}
               >
                 {(inSettings
-                  ? hubSections.filter(([key]) => basicSettings.includes(key))
+                  ? hubSections.filter(
+                      ([key]) =>
+                        basicSettings.includes(key) &&
+                        !(snapshot.capabilities.signupCompany && ["integrations", "billing"].includes(key)),
+                    )
                   : ([
                       ["business", "Company knowledge"],
                       ["schedules", "Recurring work"],
@@ -1193,7 +1200,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             />
           )}
           {tab === "departments" && section === "documents" && <Documents snapshot={snapshot} role={memberRole} />}
-          {tab === "departments" && section === "billing" && (
+          {tab === "departments" && section === "billing" && !snapshot.capabilities.signupCompany && (
             <Suspense fallback={<p role="status">Loading billing…</p>}>
               <Billing role={memberRole} onUsage={() => openHub("usage")} />
             </Suspense>
@@ -1237,7 +1244,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
           {tab === "departments" && section === "members" && (
             <Members open role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
           )}
-          {tab === "departments" && section === "integrations" && (
+          {tab === "departments" && section === "integrations" && !snapshot.capabilities.signupCompany && (
             <Integrations
               role={memberRole}
               open
@@ -1250,6 +1257,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
           {tab === "departments" && section === "audit" && <Audit open role={memberRole} version={d.cursor ?? 0} />}
           {tab === "departments" && section === "companies" && (
             <Companies
+              canCreate={!snapshot.capabilities.signupCompany}
               expanded
               role={memberRole}
               version={d.cursor ?? 0}
