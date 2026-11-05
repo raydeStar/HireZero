@@ -173,6 +173,7 @@ public sealed partial class CompanyStore
                     TaskCostSchema,
                     DecisionSchema,
                     ReadingSchema,
+                    SignupSchema,
                 ];
                 try
                 {

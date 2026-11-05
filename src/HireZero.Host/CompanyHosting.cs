@@ -174,7 +174,14 @@ public static class CompanyHosting
                         string.Equals(Claim("email_verified"), "true", StringComparison.OrdinalIgnoreCase),
                         Claim("name")
                     );
-                    if (actor is null)
+                    if (
+                        actor is null
+                        && !(
+                            membership.OpenSignup
+                            && string.Equals(Claim("email_verified"), "true", StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrWhiteSpace(Claim("email"))
+                        )
+                    )
                     {
                         context.Fail("not-invited");
                         return Task.CompletedTask;
@@ -182,7 +189,9 @@ public static class CompanyHosting
                     context.Principal = new ClaimsPrincipal(
                         new ClaimsIdentity(
                             [
-                                new Claim(HostedOptions.SubjectClaim, actor.Subject),
+                                new Claim(HostedOptions.SubjectClaim, actor?.Subject ?? issuer + "|" + sub),
+                                new Claim("email", Claim("email") ?? ""),
+                                new Claim("email_verified", Claim("email_verified") ?? "false"),
                                 new Claim("name", Claim("name") ?? ""),
                             ],
                             CookieAuthenticationDefaults.AuthenticationScheme
@@ -258,6 +267,7 @@ public sealed record CompanyRuntime(
 // Hosted sign-in across the data root's companies, set once their runtimes exist.
 public sealed class CompanyMembership
 {
+    public bool OpenSignup { get; init; }
     public Func<string, string?, bool, string?, CompanyActor?>? SignIn { get; set; }
 }
 

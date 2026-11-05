@@ -30,6 +30,30 @@ public sealed class CompanySettings
                 s.VultrBaseUrl = HireZero.Integrations.ModelApis.ApiModelProvider.ValidateVultrBaseUrl(v).AbsoluteUri
         ),
         new(
+            "HIREZERO_OPEN_SIGNUP",
+            "Hosted sign-up",
+            "1 permits verified hosted users to create one free company.",
+            (s, v) => s.OpenSignup = Flag(v)
+        ),
+        new(
+            "HIREZERO_SIGNUP_MAX_COMPANIES",
+            "Hosted sign-up",
+            "Maximum free companies (default 200).",
+            (s, v) => s.SignupMaxCompanies = SignupNumber(v, 1)
+        ),
+        new(
+            "HIREZERO_SIGNUP_COMPANY_CAP_CENTS",
+            "Hosted sign-up",
+            "Lifetime cap for new free companies in US cents (default 50).",
+            (s, v) => s.SignupCompanyCapCents = SignupNumber(v, 0)
+        ),
+        new(
+            "HIREZERO_DAILY_CAP_CENTS",
+            "Hosted sign-up",
+            "Install-wide daily model cap in US cents (default 500).",
+            (s, v) => s.DailyCapCents = SignupNumber(v, 0)
+        ),
+        new(
             "HIREZERO_BILLING_CATALOG",
             "Billing",
             "Absolute JSON file of explicit monthly prices and allowances.",
@@ -373,6 +397,12 @@ public sealed class CompanySettings
     public string[] CodingRead { get; private set; } = [];
     public string? CodingPackages { get; private set; }
     public bool SyntheticWiki { get; private set; }
+    public bool OpenSignup { get; private set; }
+    public int SignupMaxCompanies { get; private set; } = 200;
+    public int SignupCompanyCapCents { get; private set; } = 50;
+    public int DailyCapCents { get; private set; } = 500;
+    public CompanySignupPolicy SignupPolicy => new(SignupMaxCompanies, SignupCompanyCapCents, DailyCapCents);
+
     public bool ApiModels { get; private set; }
     public bool SyntheticAnalytics { get; private set; }
     public bool SyntheticAds { get; private set; }
@@ -500,6 +530,11 @@ public sealed class CompanySettings
                 values[section.Key] = (section.Value, "settings file");
         }
     }
+
+    private static int SignupNumber(string value, int minimum) =>
+        int.TryParse(value, out var number) && number >= minimum && number <= 1_000_000
+            ? number
+            : throw new FormatException($"must be an integer from {minimum} to 1000000");
 
     private static bool Flag(string value) =>
         value switch

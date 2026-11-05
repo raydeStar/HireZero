@@ -96,6 +96,8 @@ public static class CompanyWorkspace
             throw new InvalidOperationException(
                 "Live company coding needs the Codex connection profile (--company-codex)."
             );
+        if (settings.OpenSignup && hosted is null)
+            throw new InvalidOperationException("HIREZERO_OPEN_SIGNUP is available in hosted mode only.");
         if (hosted is null && !localOwner)
             throw new InvalidOperationException("Company local mode requires explicit local owner mode.");
         if (hosted is not null && (localOwner || !owner.Contains('@')))
@@ -257,6 +259,10 @@ public static class CompanyWorkspace
                 BrowserExecutionAvailable = () => CompanyBrowserRuntime.Status(browser).Available,
                 BillingConfiguration = billing?.Configuration,
             };
+            if (settings.OpenSignup)
+                store.ConfigureSignup(settings.SignupPolicy);
+            if (store.HasSpendCaps)
+                model.SpendStore = store;
             // Request helpers are bound below; background work uses its own company connection scope.
             Func<IntegrationStatus[]> currentIntegrations = () => [];
             Func<IntegrationSetup[]> currentSetups = () => [];
@@ -324,7 +330,7 @@ public static class CompanyWorkspace
             builder.Services.AddCompanyKeyProtection(root);
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddCompanyTelemetry(CompanyTelemetryHosting.Enabled);
-            var membership = new CompanyMembership();
+            var membership = new CompanyMembership { OpenSignup = settings.OpenSignup };
             builder.Services.AddSingleton(membership);
             builder.Services.AddSingleton(_ => new SchedulerOwnership(ownership));
             var app = builder.Build();
@@ -343,6 +349,8 @@ public static class CompanyWorkspace
             var protection =
                 app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>();
             model.Initialize(root, protection);
+            if (store.HasSpendCaps)
+                model.DemandCappedHost();
             if (fixture is null && platformModel is IDisposable ownedModel)
                 app.Lifetime.ApplicationStopped.Register(ownedModel.Dispose);
             var connections = new System.Collections.Concurrent.ConcurrentDictionary<string, CompanyIntegrationScope>(
@@ -373,10 +381,16 @@ public static class CompanyWorkspace
                     syntheticAnalytics,
                     syntheticAds,
                     googleHandler: fixtureGoogle,
-                    vendorPolicy: settings.ModelVendor
+                    vendorPolicy: settings.ModelVendor,
+                    hostModelOnly: store.HasSpendCaps
                 );
                 connections[companyStore.CompanyId] = scope;
                 companyStore.IntegrationStatuses = () => IntegrationsFor(scope);
+                if (companyStore.IsSignupCompany)
+                {
+                    new HireZero.Integrations.Web.WebReader().Register(registry);
+                    return scope;
+                }
                 if (fixtureTools is not null)
                     fixtureTools(registry);
                 else
@@ -428,11 +442,16 @@ public static class CompanyWorkspace
                         settings.ModelVendor,
                         settings.VultrBaseUrl
                     );
+                    var signedUp = store.IsSignedUp(key);
                     companyModel.Initialize(root, protection);
                     var companyStore = new CompanyStore(
                         database,
                         listing.Creator,
-                        Definitions(settings.ModelVendor),
+                        signedUp
+                            ? Definitions(settings.ModelVendor)
+                                .Where(r => r.ExecutionSkills.Length == 0 && !r.WorkspaceClaims)
+                                .ToArray()
+                            : Definitions(settings.ModelVendor),
                         routing,
                         companyModel.MeasuredIdentity,
                         key
@@ -448,7 +467,7 @@ public static class CompanyWorkspace
                         MeasuredTerms = route => companyModel.TermsFor(route),
                         PreferXHighReasoning = settings.CodexXHigh,
                         UsagePrice = companyModel.Price,
-                        NotificationServiceIdentity = notificationSender?.Identity,
+                        NotificationServiceIdentity = signedUp ? null : notificationSender?.Identity,
                         NotificationPublicUrl = notificationUrl,
                         SandboxRuntimeIdentity = sandbox?.Identity,
                         SandboxExecutionAvailable = () => CompanySandboxRuntime.Status(sandbox).Available,
@@ -456,8 +475,13 @@ public static class CompanyWorkspace
                             sandbox is IExtendedSandboxRuntime extended && extended.ExtendedScriptsAvailable,
                         BrowserRuntimeIdentity = browser?.Identity,
                         BrowserExecutionAvailable = () => CompanyBrowserRuntime.Status(browser).Available,
-                        BillingConfiguration = billing?.Configuration,
+                        BillingConfiguration = signedUp ? null : billing?.Configuration,
                     };
+                    if (store.HasSpendCaps)
+                    {
+                        companyModel.SpendStore = companyStore;
+                        companyModel.DemandCappedHost();
+                    }
                     var registry = new ToolRegistry(
                         companyStore,
                         [companyStore.PublicationAuthority, new CompanyBusinessResearch.SearchAuthority(companyStore)]
@@ -469,7 +493,7 @@ public static class CompanyWorkspace
                             app.Services.GetRequiredService<ILogger<CompanyScheduler>>(),
                             companyStore.CompanyId
                         ),
-                        NotificationSender = notificationSender,
+                        NotificationSender = signedUp ? null : notificationSender,
                         GatherScheduledContext = (employeeId, skill, today, token) =>
                         {
                             var employee = companyStore.EmployeeOf(employeeId);
@@ -637,7 +661,12 @@ public static class CompanyWorkspace
                             }
                             // A directory read needs an authenticated subject, not membership in the default company.
                             // The front door must not require a key to a room the guest was never invited into.
-                            if (!(c.Request.Method == "GET" && c.Request.Path == "/api/companies"))
+                            if (
+                                !(c.Request.Method == "GET" && c.Request.Path == "/api/companies")
+                                && !(
+                                    settings.OpenSignup && c.Request.Method == "POST" && c.Request.Path == "/api/signup"
+                                )
+                            )
                             {
                                 try
                                 {
@@ -652,6 +681,19 @@ public static class CompanyWorkspace
                                         runtime.Store.CompanyId
                                     );
                                     c.Items["role"] = actor.Role;
+                                    if (runtime.Store.IsSignupCompany)
+                                    {
+                                        if (c.Request.Method == "POST" && c.Request.Path == "/api/companies")
+                                            throw new WorkspaceException(
+                                                "Free sign-up includes one company per account.",
+                                                403
+                                            );
+                                        if (CompanySignupHosting.Restricted(c.Request.Path))
+                                            throw new WorkspaceException(
+                                                "Connections from the data root are unavailable to free sign-up companies.",
+                                                403
+                                            );
+                                    }
                                     if (
                                         c.Request.Method is not ("GET" or "HEAD")
                                         && RouteRole(c.Request.Path) is { } required
@@ -711,6 +753,9 @@ public static class CompanyWorkspace
                                 accessMode = hosted is null ? "local" : "hosted",
                                 companySelectionRequired = true,
                                 companies = MemberCompanies(subject),
+                                openSignup = settings.OpenSignup
+                                    && MemberCompanies(subject).Length == 0
+                                    && CompanySignupHosting.Verified(context),
                             }
                         );
                     return Results.Ok(
@@ -743,42 +788,51 @@ public static class CompanyWorkspace
                     ? new("github", "GitHub", true, "Signed in" + (signedIn.Account is { } a ? " as " + a : "") + ".")
                 : new("github", "GitHub", false, "Not signed in to GitHub on this computer.");
             IntegrationStatus[] IntegrationsFor(CompanyIntegrationScope scope) =>
-                [
-                    GitHubStatus(scope),
-                    .. scope.Statuses(),
-                    syntheticAnalytics?.Status()
-                        ?? new("synthetic-analytics", "Synthetic analytics", false, "Fictional analytics data is off."),
-                    syntheticAds?.Status() ?? new("synthetic-ads", "Synthetic ads", false, "Fictional ad data is off."),
-                    syntheticEmail?.Status()
-                        ?? new("synthetic-email", "Synthetic email", false, "Fictional email data is off."),
-                    syntheticCrm?.Status()
-                        ?? new("synthetic-crm", "Synthetic CRM", false, "Fictional CRM data is off."),
-                    new(
-                        "wiki",
-                        "Synthetic Wiki",
-                        wiki,
-                        wiki ? "The synthetic Wiki pilot is switched on." : "The synthetic Wiki pilot is off."
-                    ),
-                    new(
-                        "git",
-                        "Git",
-                        scope.Tools.Has("git.read"),
-                        scope.Tools.Has("git.read")
-                            ? "Git is available."
-                            : "Local Git access is not available to this company."
-                    ),
-                    new(
-                        "live-coding",
-                        "Live coding",
-                        CodingFor(scope)?.Qualified == true,
-                        settings.ModelVendor.VultrOnly ? settings.ModelVendor.Refusal("Coding runs")
-                            : !scope.MachineAccess
-                                ? "Local coding is available only to the original company on this computer. This company needs an isolated execution environment."
-                            : coding?.Qualified == true ? "A qualified coding runner is configured."
-                            : coding is CompanyCodexCodingFactory { Refusal: { } why } ? why
-                            : "Start with -Coding and the pinned Codex runtime to enable live coding."
-                    ),
-                ];
+                scope.Store.IsSignupCompany
+                    ? []
+                    :
+                    [
+                        GitHubStatus(scope),
+                        .. scope.Statuses(),
+                        syntheticAnalytics?.Status()
+                            ?? new(
+                                "synthetic-analytics",
+                                "Synthetic analytics",
+                                false,
+                                "Fictional analytics data is off."
+                            ),
+                        syntheticAds?.Status()
+                            ?? new("synthetic-ads", "Synthetic ads", false, "Fictional ad data is off."),
+                        syntheticEmail?.Status()
+                            ?? new("synthetic-email", "Synthetic email", false, "Fictional email data is off."),
+                        syntheticCrm?.Status()
+                            ?? new("synthetic-crm", "Synthetic CRM", false, "Fictional CRM data is off."),
+                        new(
+                            "wiki",
+                            "Synthetic Wiki",
+                            wiki,
+                            wiki ? "The synthetic Wiki pilot is switched on." : "The synthetic Wiki pilot is off."
+                        ),
+                        new(
+                            "git",
+                            "Git",
+                            scope.Tools.Has("git.read"),
+                            scope.Tools.Has("git.read")
+                                ? "Git is available."
+                                : "Local Git access is not available to this company."
+                        ),
+                        new(
+                            "live-coding",
+                            "Live coding",
+                            CodingFor(scope)?.Qualified == true,
+                            settings.ModelVendor.VultrOnly ? settings.ModelVendor.Refusal("Coding runs")
+                                : !scope.MachineAccess
+                                    ? "Local coding is available only to the original company on this computer. This company needs an isolated execution environment."
+                                : coding?.Qualified == true ? "A qualified coding runner is configured."
+                                : coding is CompanyCodexCodingFactory { Refusal: { } why } ? why
+                                : "Start with -Coding and the pinned Codex runtime to enable live coding."
+                        ),
+                    ];
             IntegrationStatus[] Integrations() => IntegrationsFor(Connections());
             currentIntegrations = Integrations;
             app.MapCompanyMicrosoft365(Connections);
@@ -792,6 +846,8 @@ public static class CompanyWorkspace
                             capabilities = new
                             {
                                 localManagement = true,
+                                signupCompany = Store().IsSignupCompany,
+                                freeAllowance = Store().IsSignupCompany ? Store().FreeAllowance() : null,
                                 modelExecution = Model().Qualified,
                                 liveCoding = CodingFor(Connections())?.Qualified == true,
                                 sandboxExecution = CompanySandboxRuntime.Status(sandbox).Available,
@@ -806,11 +862,14 @@ public static class CompanyWorkspace
                                     == CompanyRoles.Owner,
                                 measuredOneJob = Model().HasMeasured,
                                 conversationalReplies = Model().HasMeasured,
-                                businessSearch = fixtureTools is not null
-                                    ? Tools().Contracts.Any(c => c.Id == HireZero.Tools.Web.WebTools.Search.Id)
-                                    : SecretSource
-                                        .Default.Describe(HireZero.Integrations.Web.BusinessSearch.KeySecret)
-                                        .Origin != SecretOrigin.Missing,
+                                businessSearch = !Store().IsSignupCompany
+                                    && (
+                                        fixtureTools is not null
+                                            ? Tools().Contracts.Any(c => c.Id == HireZero.Tools.Web.WebTools.Search.Id)
+                                            : SecretSource
+                                                .Default.Describe(HireZero.Integrations.Web.BusinessSearch.KeySecret)
+                                                .Origin != SecretOrigin.Missing
+                                    ),
                                 allowanceUnit = Model().AllowanceUnit,
                                 modelChoices = Model().Options,
                                 providerStatus = Model().Status,
@@ -839,7 +898,7 @@ public static class CompanyWorkspace
                         : Results.Json(new { error = "Select the explicit Codex connection profile." }, statusCode: 503)
             );
             // Configuration and activation affect only the selected company (ADR 0062).
-            currentSetups = () => [.. Connections().Configurable.Select(i => i.Setup)];
+            currentSetups = () => Store().IsSignupCompany ? [] : [.. Connections().Configurable.Select(i => i.Setup)];
             app.MapIntegrationSetup(Connections, Integrations);
             app.MapContextSources(Store, Tools);
             app.MapBusinessResearch(Store, Tools);
@@ -885,6 +944,24 @@ public static class CompanyWorkspace
                     context.Response.Headers.ContentDisposition =
                         "attachment; filename=\"hirezero-audit-" + current.CompanyId + ".ndjson\"";
                     return Results.Text(lines.ToString(), "application/x-ndjson");
+                }
+            );
+            app.MapPost(
+                "/api/signup",
+                (HttpContext context) =>
+                {
+                    if (!settings.OpenSignup || hosted is null)
+                        throw new WorkspaceException("Open sign-up is unavailable.", 403);
+                    var subject = (string)context.Items["login"]!;
+                    var created = store.Signup(
+                        subject,
+                        context.User.FindFirst("email")?.Value,
+                        CompanySignupHosting.Verified(context),
+                        context.User.FindFirst("name")?.Value,
+                        settings.SignupPolicy
+                    );
+                    Open(created.Id);
+                    return Results.Ok(created);
                 }
             );
             // The companies the signed-in member belongs to; an owner creates another, and becomes its owner

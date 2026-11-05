@@ -10,6 +10,7 @@ export type Session = {
   accessMode?: string;
   companySelectionRequired?: boolean;
   companies?: CompanyChoice[];
+  openSignup?: boolean;
 };
 const sessionSignal = "hirezero-session-change";
 
@@ -49,7 +50,9 @@ export function SignInGate({ children }: { children: (session: Session, signOut?
     [error, setError] = useState(""),
     [checking, setChecking] = useState(true),
     [signingOut, setSigningOut] = useState(false),
-    [signOutError, setSignOutError] = useState("");
+    [signOutError, setSignOutError] = useState(""),
+    [creating, setCreating] = useState(false),
+    [signupError, setSignupError] = useState("");
   const current = useRef<Session | null>(null),
     request = useRef(0),
     loading = useRef(false),
@@ -120,6 +123,20 @@ export function SignInGate({ children }: { children: (session: Session, signOut?
       document.removeEventListener("visibilitychange", visible);
     };
   }, []);
+  async function signup() {
+    if (creating || !session?.browserScope) return;
+    setCreating(true);
+    bindMemberSession(session.accessMode, session.browserScope);
+    try {
+      const created = await api<CompanyChoice>("/signup", "POST", {});
+      savePreference("company", created.id);
+      window.location.assign("/?company=" + encodeURIComponent(created.id));
+    } catch (cause) {
+      setSignupError(
+        (cause as Error).message + " Refresh access to check whether your company was created before trying again.",
+      );
+    }
+  }
   async function signOut() {
     if (leaving.current) return;
     leaving.current = true;
@@ -194,7 +211,13 @@ export function SignInGate({ children }: { children: (session: Session, signOut?
   if (session.companySelectionRequired)
     return (
       <main className="co-signin co-company-choice" aria-busy={checking}>
-        <h1>{session.companies!.length ? "Choose your company" : "No company access"}</h1>
+        <h1>
+          {session.companies!.length
+            ? "Choose your company"
+            : session.openSignup
+              ? "Welcome to HireZero"
+              : "No company access"}
+        </h1>
         {checking ? (
           <p role="status">Checking your session…</p>
         ) : (
@@ -204,6 +227,14 @@ export function SignInGate({ children }: { children: (session: Session, signOut?
                 ? "You’re signed in. This company isn’t available to your account. Choose a company you belong to."
                 : "You’re signed in, but this account has no active company membership. Ask a company owner to invite you, or sign in with another account."}
             </p>
+            {session.openSignup && (
+              <>
+                <button className="co-primary" disabled={creating} onClick={() => void signup()}>
+                  {creating ? "Creating your company…" : "Create my company"}
+                </button>
+                {signupError && <p role="alert">{signupError}</p>}
+              </>
+            )}
             {session.companies!.length > 0 && (
               <ul aria-label="Your companies">
                 {session.companies!.map((choice) => (

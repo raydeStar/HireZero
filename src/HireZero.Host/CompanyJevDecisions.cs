@@ -3,8 +3,9 @@ using HireZero.Integrations.Jev;
 
 public sealed partial class CompanyModelConnection
 {
-    private static bool HasDecisionKey(Saved saved) =>
-        !saved.Unreadable
+    private bool HasDecisionKey(Saved saved) =>
+        SpendStore is null
+        && !saved.Unreadable
         && saved.Mode is "company-key" or "host-and-company-key"
         && saved.Provider == "openrouter"
         && !string.IsNullOrWhiteSpace(saved.Key);

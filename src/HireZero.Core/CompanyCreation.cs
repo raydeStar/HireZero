@@ -54,6 +54,11 @@ public sealed partial class CompanyStore
             "schema",
             () =>
             {
+                if (
+                    Scalar(db, "SELECT company_id FROM co_signups WHERE subject=$0", subject) is not null
+                    || Scalar(db, "SELECT subject FROM co_signups WHERE company_id=$0", CompanyId) is not null
+                )
+                    throw new WorkspaceException("Free sign-up includes one company per account.", 403);
                 var member = Find<CompanyMember>(db, subject);
                 if (member is not { State: "active", Role: CompanyRoles.Owner })
                     throw new WorkspaceException("An active company owner must create another company.", 403);

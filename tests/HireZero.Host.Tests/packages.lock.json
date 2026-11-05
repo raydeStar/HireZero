@@ -328,6 +328,7 @@
           "HireZero.Integrations.Postgres": "[1.0.0, )",
           "HireZero.Integrations.Sandbox": "[1.0.0, )",
           "HireZero.Integrations.SemaForge": "[1.0.0, )",
+          "HireZero.Integrations.SiteAnalytics": "[1.0.0, )",
           "HireZero.Integrations.Stripe": "[1.0.0, )",
           "HireZero.Integrations.Synthetic": "[1.0.0, )",
           "HireZero.Integrations.Web": "[1.0.0, )",
@@ -457,6 +458,13 @@
         "dependencies": {
           "HireZero.Core": "[1.0.0, )",
           "HireZero.Tools.SemaForge": "[1.0.0, )"
+        }
+      },
+      "hirezero.integrations.siteanalytics": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )",
+          "HireZero.Tools.Analytics": "[1.0.0, )"
         }
       },
       "hirezero.integrations.stripe": {

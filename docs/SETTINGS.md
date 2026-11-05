@@ -53,6 +53,37 @@ The settings file is also checked for two mistakes:
 The startup log names each setting that was given and where it came from (`environment` or `settings file`).
 Inside the host, the checked values are available to code as `IOptions<CompanySettings>`.
 
+## Hosted open sign-up
+
+Open sign-up is off by default and requires `--company-hosted`. Local mode refuses
+`HIREZERO_OPEN_SIGNUP=1`. The existing OIDC provider (Google for the hosted install) must supply a verified email.
+A verified visitor without a membership can choose **Create my company** and becomes its owner.
+
+| Setting | Meaning |
+| --- | --- |
+| `HIREZERO_OPEN_SIGNUP` | Default `0`. `1` enables the hosted enrollment flow. |
+| `HIREZERO_SIGNUP_MAX_COMPANIES` | Default `200`; maximum companies ever created through sign-up on this install. Integer 1–1,000,000. |
+| `HIREZERO_SIGNUP_COMPANY_CAP_CENTS` | Default `50` ($0.50); lifetime model allowance saved with each new sign-up company. Integer 0–1,000,000. Changing it affects future companies only. |
+| `HIREZERO_DAILY_CAP_CENTS` | Default `500` ($5.00); shared model allowance across **all** companies on this install per UTC day. Integer 0–1,000,000; zero pauses new spending. Applied when open sign-up is enabled. |
+
+The sign-in subject can create only one free company, including through the ordinary company-creation route.
+Concurrent enrollment and spending are serialized in the shared database. Model dispatch reserves a conservative
+worst case (all input bytes plus API framing and the full approved output target) before sending. Confirmed usage
+settles at the reviewed price or reported bill; unknown usage retains its reservation across restarts, on the
+company's lifetime cap and on the UTC day it was sent. A dispatch receipt can never authorize a second send. The UI shows the lower of the company's lifetime
+remainder and today's shared remainder, in dollars. Existing job, token, monthly and approval limits still apply.
+
+Disabling open sign-up stops enrollment, but does **not** remove existing caps or reservations. The last configured
+daily limit remains durable. Signed-up companies keep their isolation and lifetime cap. Never erase their ledger
+to recover an uncertain request.
+
+A capped install uses its configured host API model. Codex and saved company model keys are refused at startup;
+new company model keys and the separate unbounded Jev/tool-provider paths are unavailable. Supported text roles,
+including Marketing, can be hired; roles needing a workspace/coding runtime are excluded for sign-up companies.
+Data-root connections, shared search credentials, synthetic integrations, outgoing owner notices and billing setup
+are not offered to them. Public-page reads and private company documents remain available. No keys are shared
+with a signed-up company. See [ADR 0181](adr/0181-open-signup-and-durable-spend-caps.md).
+
 ## Isolated scripts
 
 All five binding settings below are required together; none are enabled by default. Qualification and engine

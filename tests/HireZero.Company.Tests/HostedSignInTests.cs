@@ -25,6 +25,7 @@ public sealed class HostedSignInTests : IAsyncDisposable
     private readonly TemporaryRoot _root = new("hosted-sign-in-");
     private readonly RSA _key = RSA.Create(2048);
     private readonly ConcurrentDictionary<string, (string Nonce, string Challenge, string Email)> _codes = new();
+    private bool _verified = true;
     private string _email = "owner@example.invalid";
     private WebApplication? _idp;
     private string _authority = "";
@@ -129,7 +130,7 @@ public sealed class HostedSignInTests : IAsyncDisposable
                         {
                             ["sub"] = "sub-" + grant.Email.Split('@')[0],
                             ["email"] = grant.Email,
-                            ["email_verified"] = true,
+                            ["email_verified"] = _verified,
                             ["name"] = "Fictional " + grant.Email.Split('@')[0],
                             ["nonce"] = grant.Nonce,
                         },
@@ -164,7 +165,9 @@ public sealed class HostedSignInTests : IAsyncDisposable
             string path,
             bool forwarded = true,
             string? memberScope = null,
-            string? company = null
+            string? company = null,
+            string body = "{}",
+            bool csrf = true
         )
         {
             var request = new HttpRequestMessage(method, path);
@@ -181,9 +184,10 @@ public sealed class HostedSignInTests : IAsyncDisposable
                 request.Headers.Add("Cookie", string.Join("; ", _cookies.Select(c => c.Key + "=" + c.Value)));
             if (method != HttpMethod.Get)
             {
-                request.Headers.Add("Origin", "https://" + Public);
+                if (csrf)
+                    request.Headers.Add("Origin", "https://" + Public);
                 request.Headers.Add("X-Dev-Request", "1");
-                request.Content = new StringContent("{}", Encoding.UTF8, "application/json");
+                request.Content = new StringContent(body, Encoding.UTF8, "application/json");
             }
             var response = await host.SendAsync(request);
             if (response.Headers.TryGetValues("Set-Cookie", out var set))
@@ -209,6 +213,196 @@ public sealed class HostedSignInTests : IAsyncDisposable
             Assert.Equal(Public, callback.Host);
             return await Host(HttpMethod.Get, callback.PathAndQuery);
         }
+    }
+
+    [Fact]
+    public async Task OpenSignupUsesVerifiedOidcAndKeepsCompanyDataAndIntegrationsIsolated()
+    {
+        await StartProviderAsync();
+        var hosted = new HostedOptions(
+            new Uri("https://" + Public + "/"),
+            new Uri("http://127.0.0.1:0"),
+            _authority,
+            ClientId,
+            TrustedProxy: IPAddress.Loopback
+        ).Validated();
+        var settings = CompanySettings.Load(n => n == "HIREZERO_OPEN_SIGNUP" ? "1" : null);
+        await using var app = CompanyWorkspace.TryCreate(
+            [CompanyHosting.HostedFlag],
+            "owner@example.invalid",
+            false,
+            Path.Combine(_root.Path, "signup-host"),
+            new UnavailableModelProvider(),
+            fixtureUrl: "http://127.0.0.1:0",
+            fixtureTools: _ => { },
+            fixtureHosted: hosted,
+            settings: settings
+        )!;
+        await app.StartAsync(Token);
+        var address = app
+            .Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>()!
+            .Addresses.First();
+        using var host = new HttpClient(
+            new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseCookies = false,
+                UseProxy = false,
+            }
+        )
+        {
+            BaseAddress = new Uri(address),
+        };
+        using var idp = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
+        var guest = new Browser(host, idp);
+        _email = "guest@example.invalid";
+        _verified = false;
+        Assert.Equal("/?signin=not-invited", (await guest.SignInAsync()).Headers.Location!.OriginalString);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await guest.Host(HttpMethod.Post, "/api/signup")).StatusCode);
+        _verified = true;
+        Assert.Equal("/", (await guest.SignInAsync()).Headers.Location!.OriginalString);
+        using var session = JsonDocument.Parse(
+            await (await guest.Host(HttpMethod.Get, "/api/session")).Content.ReadAsStringAsync(Token)
+        );
+        Assert.True(session.RootElement.GetProperty("openSignup").GetBoolean());
+        Assert.Empty(session.RootElement.GetProperty("companies").EnumerateArray());
+        Assert.Equal(HttpStatusCode.Forbidden, (await guest.Host(HttpMethod.Get, "/api/company")).StatusCode);
+        var scope = session.RootElement.GetProperty("browserScope").GetString()!;
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await guest.Host(HttpMethod.Post, "/api/signup", csrf: false)).StatusCode
+        );
+        Assert.Equal(
+            HttpStatusCode.Conflict,
+            (await guest.Host(HttpMethod.Post, "/api/signup", memberScope: "stale")).StatusCode
+        );
+        using var created = JsonDocument.Parse(
+            await (await guest.Host(HttpMethod.Post, "/api/signup", memberScope: scope)).Content.ReadAsStringAsync(
+                Token
+            )
+        );
+        var company = created.RootElement.GetProperty("id").GetString()!;
+        using var again = JsonDocument.Parse(
+            await (await guest.Host(HttpMethod.Post, "/api/signup", memberScope: scope)).Content.ReadAsStringAsync(
+                Token
+            )
+        );
+        Assert.Equal(company, again.RootElement.GetProperty("id").GetString());
+        using var snapshot = JsonDocument.Parse(
+            await (await guest.Host(HttpMethod.Get, "/api/company", company: company)).Content.ReadAsStringAsync(Token)
+        );
+        var capabilities = snapshot.RootElement.GetProperty("capabilities");
+        Assert.True(capabilities.GetProperty("signupCompany").GetBoolean());
+        Assert.Equal(50, capabilities.GetProperty("freeAllowance").GetProperty("remainingCents").GetDecimal());
+        Assert.Empty(capabilities.GetProperty("integrations").EnumerateArray());
+        Assert.False(capabilities.GetProperty("businessSearch").GetBoolean());
+        var roles = snapshot
+            .RootElement.GetProperty("data")
+            .GetProperty("roles")
+            .EnumerateArray()
+            .Select(r => r.GetProperty("id").GetString())
+            .ToArray();
+        Assert.Contains("marketing", roles);
+        Assert.DoesNotContain("developer", roles);
+        using var department = JsonDocument.Parse(
+            await (
+                await guest.Host(
+                    HttpMethod.Post,
+                    "/api/company/commands",
+                    company: company,
+                    body: CompanyJson.Encode(
+                        new CompanyCommand(Guid.NewGuid().ToString("D"), "department.create")
+                        {
+                            Name = "Fictional Marketing",
+                        }
+                    )
+                )
+            ).Content.ReadAsStringAsync(Token)
+        );
+        var departmentId = department.RootElement.GetProperty("id").GetString();
+        var hire = new CompanyCommand(Guid.NewGuid().ToString("D"), "employee.hire")
+        {
+            DepartmentId = departmentId,
+            RoleId = "marketing",
+            Name = "Fictional marketer",
+            Responsibility = "Draft private marketing plans.",
+        };
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (
+                await guest.Host(
+                    HttpMethod.Post,
+                    "/api/company/commands",
+                    company: company,
+                    body: CompanyJson.Encode(hire)
+                )
+            ).StatusCode
+        );
+        Assert.Equal(
+            HttpStatusCode.UnprocessableEntity,
+            (
+                await guest.Host(
+                    HttpMethod.Post,
+                    "/api/company/commands",
+                    company: company,
+                    body: CompanyJson.Encode(
+                        hire with
+                        {
+                            RequestId = Guid.NewGuid().ToString("D"),
+                            RoleId = "developer",
+                        }
+                    )
+                )
+            ).StatusCode
+        );
+
+        foreach (
+            var path in new[]
+            {
+                "/api/company/integrations/setup",
+                "/api/connections/google",
+                "/api/company/model-connection",
+            }
+        )
+            Assert.Equal(
+                HttpStatusCode.Forbidden,
+                (await guest.Host(HttpMethod.Get, path, company: company)).StatusCode
+            );
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await guest.Host(HttpMethod.Post, "/api/companies", company: company)).StatusCode
+        );
+        var root = app.Services.GetRequiredService<CompanyStore>();
+        var listing = CompanyStore.Companies(root.Database).Single(c => c.Id == company);
+        var store = new CompanyStore(
+            root.Database,
+            listing.Creator,
+            CompanyWorkspace.Definitions(),
+            companyId: company
+        );
+        Assert.Equal("owner", store.Actor(_authority + "|sub-guest").Role);
+        _email = "other@example.invalid";
+        var other = new Browser(host, idp);
+        await other.SignInAsync();
+        using var otherCreated = JsonDocument.Parse(
+            await (await other.Host(HttpMethod.Post, "/api/signup")).Content.ReadAsStringAsync(Token)
+        );
+        var second = otherCreated.RootElement.GetProperty("id").GetString()!;
+        Assert.NotEqual(company, second);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await other.Host(HttpMethod.Get, "/api/company", company: company)).StatusCode
+        );
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await guest.Host(HttpMethod.Get, "/api/company", company: second)).StatusCode
+        );
+        using var choices = JsonDocument.Parse(
+            await (await other.Host(HttpMethod.Get, "/api/companies")).Content.ReadAsStringAsync(Token)
+        );
+        Assert.Equal(second, Assert.Single(choices.RootElement.EnumerateArray()).GetProperty("id").GetString());
+        await app.StopAsync(Token);
     }
 
     [Fact]
