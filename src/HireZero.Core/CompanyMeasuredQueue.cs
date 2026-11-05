@@ -738,7 +738,10 @@ public sealed partial class CompanyScheduler
     public async Task<string> RunMeasuredOnceAsync(
         CompanyCommand command,
         IMeasuredModelProvider measured,
-        CancellationToken token = default
+        CancellationToken token = default,
+        // The signed-in member. In hosted mode the first owner's membership is keyed by sign-in subject, not the
+        // configured owner login, so a request must act as its own member.
+        string? subject = null
     )
     {
         if (command.Action != "measured.run" || store.MeasuredRuntimeIdentity != measured.RuntimeIdentity)
@@ -746,7 +749,8 @@ public sealed partial class CompanyScheduler
         await store.ProviderGate.WaitAsync(token);
         try
         {
-            var result = store.Apply(command, out var fresh);
+            var fresh = false;
+            var result = subject is null ? store.Apply(command, out fresh) : store.Apply(command, subject, out fresh);
             if (!fresh)
                 return result;
             var attempt = CompanyJson.Decode<CompanyAttempt>(result);

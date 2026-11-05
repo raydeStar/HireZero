@@ -1535,7 +1535,12 @@ public static class CompanyWorkspace
                         if (!Model().HasMeasured)
                             throw new WorkspaceException("A pinned measured runtime is not configured.");
                         var receipt = await Runtime()
-                            .Scheduler.RunMeasuredOnceAsync(command, Model(), app.Lifetime.ApplicationStopping);
+                            .Scheduler.RunMeasuredOnceAsync(
+                                command,
+                                Model(),
+                                app.Lifetime.ApplicationStopping,
+                                subject
+                            );
                         return Results.Content(receipt, "application/json");
                     }
                     if (command.Action == "memory.analysis.run")

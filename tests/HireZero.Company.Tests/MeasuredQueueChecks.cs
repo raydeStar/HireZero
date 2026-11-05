@@ -546,7 +546,7 @@ static class MeasuredQueueChecks
         }
     }
 
-    static CompanyCommand RunCommand(CompanyAttempt proposal) =>
+    internal static CompanyCommand RunCommand(CompanyAttempt proposal) =>
         C("measured.run") with
         {
             Id = proposal.Id,
@@ -558,7 +558,7 @@ static class MeasuredQueueChecks
     static CompanyBudget Budget(CompanyStore store, CompanyTask task) =>
         Items<CompanyBudget>(store, "budgets").Single(b => b.Id == task.RootId);
 
-    sealed class SlowProvider : IModelProvider, IMeasuredModelProvider
+    internal sealed class SlowProvider : IModelProvider, IMeasuredModelProvider
     {
         public bool Qualified => false;
         public string Status => "Fictional noncooperative fixture";
