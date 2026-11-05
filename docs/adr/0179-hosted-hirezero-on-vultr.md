@@ -25,7 +25,7 @@ exist in HireZero for local testing only.
 - **A fresh data root.** The hosted install has its own data root with no owner integrations (Google, GitHub, Stripe,
   site analytics and so on), because integration settings are per data root and would otherwise be shared with every
   signed-up company.
-- **Public code.** `raydeStar/HireZero` becomes public after a private-data sweep of its files and history.
+- **Public code.** A rewritten public copy of this repository, after a private-data sweep of its files and history ([0180](0180-public-copy-not-a-flipped-repo.md)).
 - **Fallback.** The engine demo at `rush.hirezero.app` stays live until the hosted app is proven on the VM.
 
 ## Consequences
