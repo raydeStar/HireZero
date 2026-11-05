@@ -17,8 +17,14 @@ public sealed partial class OpenRouterDecisions : IDisposable
     private readonly Func<string?> _key;
     private readonly HttpClient _http;
 
-    public OpenRouterDecisions(string companyId, Func<string?> key, HttpMessageHandler? handler = null)
+    public OpenRouterDecisions(
+        string companyId,
+        Func<string?> key,
+        HttpMessageHandler? handler = null,
+        ModelVendorPolicy? vendorPolicy = null
+    )
     {
+        (vendorPolicy ?? ModelVendorPolicy.FromEnvironment()).Require("openrouter");
         ArgumentException.ThrowIfNullOrWhiteSpace(companyId);
         ArgumentNullException.ThrowIfNull(key);
         _companyId = companyId;

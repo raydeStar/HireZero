@@ -17,9 +17,11 @@ public sealed class CompanyCodexCodingFactory : ICompanyCodingFactory
         IEnumerable<string> readRoots,
         string? pinSha256 = null,
         // A pre-filled NuGet package folder the run reads offline (docs/adr/0045-offline-packages-for-coding-runs.md).
-        string? packageCache = null
+        string? packageCache = null,
+        ModelVendorPolicy? vendorPolicy = null
     )
     {
+        (vendorPolicy ?? ModelVendorPolicy.FromEnvironment()).Require("codex");
         _options = options;
         _routing = routing;
         _pin = pinSha256;

@@ -58,7 +58,13 @@ public sealed partial class CompanyStore
                     .Where(x => x is >= 0)
                     .Select(x => x!.Value)
                     .ToArray();
-                decimal? cost = costs.Length > 0 ? costs.Max() : null;
+                decimal? reportedCost = costs.Length > 0 ? costs.Max() : null;
+                // Vultr reports tokens, not a bill. Keep catalog-priced usage distinct from provider-reported dollars.
+                var estimatedCost =
+                    d.Packet.Provider == "vultr" && total is not null
+                        ? Find<CompanyUsageEntry>(db, d.Id)?.Price?.Cost(outcome.Usage!)
+                        : null;
+                var cost = reportedCost ?? estimatedCost;
                 var validReceipt = DecisionReceiptValid(outcome.Receipt);
                 var receiptConflict =
                     d.ProviderReceipt is not null && validReceipt && d.ProviderReceipt != outcome.Receipt;
@@ -67,7 +73,7 @@ public sealed partial class CompanyStore
                 {
                     Usage = total is not null && total >= (d.ReportedUsage ?? 0) ? outcome.Usage : d.Usage,
                     ReportedUsage = total is not null ? Math.Max(total.Value, d.ReportedUsage ?? 0) : d.ReportedUsage,
-                    ReportedCostUsd = cost,
+                    ReportedCostUsd = reportedCost,
                     ProviderReceipt = d.ProviderReceipt ?? (validReceipt ? outcome.Receipt : null),
                     Result = null,
                 };
@@ -83,7 +89,7 @@ public sealed partial class CompanyStore
                     total is not null
                     && total >= (earlierObserved ?? 0)
                     && cost is not null
-                    && outcome.Usage?.BilledUsd == cost
+                    && (outcome.Usage?.BilledUsd == cost || estimatedCost == cost)
                     && outcome.ReportedCostUsd is not < 0
                     && validReceipt
                     && !receiptConflict;
@@ -262,7 +268,7 @@ public sealed partial class CompanyScheduler
             if (claim is null)
                 return receipt;
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
-            deadline.CancelAfter(TimeSpan.FromSeconds(30));
+            deadline.CancelAfter(TimeSpan.FromSeconds(CompanyStore.DecisionDeadlineSeconds(claim.Packet)));
             using var watching = new CancellationTokenSource();
             async Task Watch()
             {

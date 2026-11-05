@@ -1368,7 +1368,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
                       onSubmit={form(async () => {
                         await run("employee.hire", {
                           name: newName,
-                          roleId: role || d.roles[0]?.id,
+                          roleId: role || d.roles.find((r) => !r.unavailableReason)?.id,
                           departmentId: department,
                           responsibility,
                         });
@@ -1382,10 +1382,14 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
                       </label>
                       <label>
                         Role
-                        <select value={role || d.roles[0]?.id} onChange={(e) => setRole(e.target.value)}>
+                        <select
+                          value={role || d.roles.find((r) => !r.unavailableReason)?.id}
+                          onChange={(e) => setRole(e.target.value)}
+                        >
                           {d.roles.map((r) => (
-                            <option value={r.id} key={r.id}>
+                            <option value={r.id} key={r.id} disabled={!!r.unavailableReason}>
                               {r.name}
+                              {r.unavailableReason ? " - unavailable on this install" : ""}
                             </option>
                           ))}
                         </select>

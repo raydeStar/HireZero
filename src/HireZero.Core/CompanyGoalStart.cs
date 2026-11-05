@@ -27,6 +27,8 @@ public sealed partial class CompanyStore
     public CompanyGoalTerms GoalTerms(string roleId, string skill, string? modelRoute)
     {
         var role = Role(roleId);
+        if (role.UnavailableReason is { } unavailable)
+            throw new WorkspaceException(unavailable, 409);
         if (!role.MeasuredSkills.Contains(skill))
             throw new WorkspaceException("Choose an internal deliverable offered by this specialist.", 403);
         var route = ReviewModelChoice(modelRoute) ?? ModelRouteFor(role, skill, "work");
@@ -61,6 +63,8 @@ public sealed partial class CompanyStore
         if (!Text(input.Prompt).Contains(goal, StringComparison.Ordinal))
             throw new WorkspaceException("The prepared request must keep the owner's goal.", 422);
         var role = Role(command.RoleId);
+        if (role.UnavailableReason is { } unavailable)
+            throw new WorkspaceException(unavailable, 409);
         if (!role.MeasuredSkills.Contains(command.Skill))
             throw new WorkspaceException("Choose an internal deliverable offered by this specialist.", 403);
 

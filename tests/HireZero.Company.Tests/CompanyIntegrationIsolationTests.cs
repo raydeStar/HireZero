@@ -47,6 +47,7 @@ public sealed class CompanyIntegrationIsolationTests : IDisposable
         a.Activate();
         Assert.True(a.Tools.Has("openrouter.status"));
         Assert.False(b.Tools.Has("openrouter.status"));
+        Assert.NotNull(b.OpenRouter);
         Assert.False(b.OpenRouter.Status().Active);
         Assert.Null(b.Secrets.Read("HIREZERO_OPENROUTER_API_KEY"));
         Assert.Equal("fictional-a-key", Scope("co-a").Secrets.Read("HIREZERO_OPENROUTER_API_KEY"));

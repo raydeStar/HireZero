@@ -13,9 +13,14 @@ namespace HireZero.Integrations.OpenRouter;
 public sealed partial class OpenRouterToolProvider(
     string dataRoot,
     HttpMessageHandler? handler = null,
-    Func<string?>? key = null
+    Func<string?>? key = null,
+    ModelVendorPolicy? vendorPolicy = null
 ) : IToolProvider, IIntegrationStatusSource, IConfigurableIntegration
 {
+    private readonly ModelVendorPolicy _vendorPolicy = (vendorPolicy ?? ModelVendorPolicy.FromEnvironment()).Require(
+        "openrouter"
+    );
+
     public const int ReplyTokens = 60;
 
     // In-app setup (docs/adr/0038-integration-setup-in-the-app.md): the same openrouter.json and key name.

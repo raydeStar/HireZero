@@ -12,6 +12,7 @@ type Connection = {
   keyStored: boolean;
   status: string;
   canCombine?: boolean;
+  allowedProviders?: string[];
   choices?: ModelOption[];
   models: { route: string; name: string; price: { inputPerMillion: number; outputPerMillion: number } }[];
 };
@@ -38,7 +39,7 @@ export function ModelConnection({ role, refresh }: { role?: string; refresh: () 
     if (request !== generation.current) return;
     setCurrent(result);
     if (initial) {
-      setProvider(result.provider ?? "openai");
+      setProvider(result.provider ?? result.allowedProviders?.[0] ?? "openai");
       setRoute(result.route ?? "");
       setAnalysisRoute(result.mode !== "host" ? (result.analysisRoute ?? "") : "");
       setKeepHost(!!result.canCombine && result.mode !== "company-key");
@@ -238,9 +239,11 @@ export function ModelConnection({ role, refresh }: { role?: string; refresh: () 
                           setConsent(false);
                         }}
                       >
-                        <option value="openai">OpenAI</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="openrouter">OpenRouter</option>
+                        {(current.allowedProviders ?? ["openai", "anthropic", "openrouter"]).map((name) => (
+                          <option key={name} value={name}>
+                            {providerName(name)}
+                          </option>
+                        ))}
                       </select>
                     </label>
                     <label>

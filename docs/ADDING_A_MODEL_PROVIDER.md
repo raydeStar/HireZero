@@ -5,6 +5,32 @@ A model vendor (Anthropic, Azure OpenAI, a local model server, ...) is an integr
 authority, deadlines and settlement. The provider's job is to keep the contract below exactly; the company's safety
 guarantees depend on it.
 
+## Existing HTTP vendors
+
+`HireZero.Integrations.ModelApis.ApiModelProvider` serves Anthropic, OpenAI, OpenRouter and Vultr. Vultr's route is
+`vultr/deepseek-v4.1-flash-1017`; its reviewed price is $0.15 per million input tokens and $0.60 per million output
+tokens, including reasoning, in `config/model-routes.json`. The vendor reads `VULTR_INFERENCE_API_KEY` from
+`SecretSource` and sends one bearer-authenticated `chat/completions` request to
+`https://api.vultrinference.com/v1/`. `HIREZERO_VULTR_BASE_URL` may override the base URL with HTTPS, or HTTP on
+loopback for fixtures. It never follows redirects or substitutes OpenRouter when the Vultr key is missing.
+
+Vultr requests carry `model`, `messages`, `max_tokens` and `reasoning_effort=low`. New Vultr reviews include a
+24,000-token output limit and a 360-second deadline; the scheduler reserves the reviewed planning tokens and the
+adapter checks the worst-case spend before sending. Prompt, completion and reasoning usage settle through the
+existing company ledger. Tool/function requests, truncation, excess output, missing receipts and incomplete usage
+never become accepted text. Uncertain outcomes are held, without retry.
+
+Like the other API vendors, Vultr is unqualified for automatic work: `CompleteAsync` refuses because `ModelCall`
+carries no consumed measured authorization or spending allowance. `CompleteMeasuredAsync` serves approved work
+after validating its exact route, context, instructions, policy and expiry. Do not make the ordinary entry point a
+spending bypass. Approved recurring work uses the measured path too.
+
+`HIREZERO_MODEL_VENDOR=vultr` activates the install-wide boundary in `CompanyWorkspace`; see
+[SETTINGS.md](SETTINGS.md). Pass its captured `ModelVendorPolicy` into every provider construction, including
+optional decision/tool transports and per-company adapters. Standalone adapters also read the environment by
+default. Restricted constructors must refuse before network or runtime work begins. Unsupported execution roles
+advertise their unavailability before hiring. The setting is off by default.
+
 ## 1. Create the integration
 
 `src/HireZero.Integrations.<Vendor>/HireZero.Integrations.<Vendor>.csproj`, referencing Core only. Keep endpoints and

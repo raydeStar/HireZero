@@ -90,6 +90,8 @@ public sealed partial class CompanyStore
             return null;
         ExpireMeasured(db);
         var e = Need<CompanyEmployee>(db, employee);
+        if (Role(e.RoleId).UnavailableReason is not null)
+            return null;
         // An onboarding employee may only be claimed for the context draft named by taskId.
         var draftOnly =
             e.State == "onboarding" && taskId is not null && Find<CompanyTask>(db, taskId)?.Kind == ContextDraftKind;

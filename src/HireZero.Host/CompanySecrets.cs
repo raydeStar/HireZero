@@ -15,6 +15,7 @@ public static class CompanySecrets
         CompanyKeyProtection.PreviousVariable,
         HostedOptions.ClientSecretVariable,
         "HIREZERO_TLS_CERTIFICATE_PASSWORD",
+        HireZero.Integrations.ModelApis.ApiModelProvider.VultrKey,
         HireZero.Integrations.ModelApis.ApiModelProvider.AnthropicKey,
         HireZero.Integrations.ModelApis.ApiModelProvider.OpenAIKey,
         "HIREZERO_OPENROUTER_API_KEY",

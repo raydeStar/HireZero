@@ -111,12 +111,28 @@ Hosted mode names all of its missing required settings at once.
 
 ## Models and Codex
 
+`HIREZERO_MODEL_VENDOR=vultr` opts into the Vultr-only install ([ADR 0179](adr/0179-hosted-hirezero-on-vultr.md)).
+It selects the API provider and pins text, analysis, deliverables, recurring text work, decisions, memory checks
+and business drafts to `vultr/deepseek-v4.1-flash-1017`, overriding individual company model settings.
+Supply `VULTR_INFERENCE_API_KEY` through the existing secret source (including `_FILE`); a key alone enables no work.
+Codex/coding flags and other provider constructions are refused with the setting's name. Saved company connections
+to other providers must be removed before enabling it. OpenRouter tools and Jev are unavailable, as are roles requiring
+coding execution, including Developer. Text work still requires its existing exact approval or approved schedule.
+
+New Vultr reviews reserve 60,000 planning tokens, permit 24,000 output tokens (including reasoning), and allow
+360 seconds. The API uses `reasoning_effort=low`. Each request checks its full worst-case dollar cost against the
+approved allowance using the reviewed route price; unknown outcomes retain their reservations and are never retried.
+Decisions use the same capped Vultr transport and durable one-dispatch approval. Unset, this setting preserves the
+existing local provider selection and review policies. It does not enable open sign-up or deploy anything.
+
 | Setting | Meaning |
 | --- | --- |
+| `HIREZERO_MODEL_VENDOR` | Unset by default; the only supported value is `vultr`, which enforces the install-wide model boundary described above. |
+| `HIREZERO_VULTR_BASE_URL` | Optional base URL; defaults to `https://api.vultrinference.com/v1/`. HTTPS required, except HTTP loopback fixtures. Credentials, query strings, fragments and redirects are refused. |
 | `HIREZERO_COMPANY_TEXT_MODEL` | Route for conversations (`vendor/model`); default from `config/model-routes.json`. |
 | `HIREZERO_COMPANY_ANALYSIS_MODEL` | Optional route for measured planning, technical reviews and owner memory checks. Defaults to the routine text route; each request still needs exact approval ([ADR 0092](adr/0092-explicit-purpose-model-routing.md)). |
 | `HIREZERO_COMPANY_CODING_MODEL` | Route for coding runs; default from `config/model-routes.json`. |
-| `HIREZERO_API_MODELS` | `1` uses an API model (Anthropic, OpenAI or OpenRouter key) when the Codex connection is not selected ([ADR 0036](adr/0036-api-model-provider.md)). |
+| `HIREZERO_API_MODELS` | `1` uses an API model (Anthropic, OpenAI, OpenRouter or Vultr key) when the Codex connection is not selected ([ADR 0036](adr/0036-api-model-provider.md)). Vultr-only mode selects its API provider without this additional flag. |
 | `HIREZERO_COMPANY_CODEX_EXECUTABLE` | The pinned Codex executable, with `--company-codex`. |
 | `HIREZERO_COMPANY_CODEX_IDENTITY` | The reviewed bundle identity of that executable. |
 | `HIREZERO_COMPANY_CODEX_HOME` | The dedicated Codex profile home. |

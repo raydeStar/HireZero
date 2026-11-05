@@ -53,17 +53,23 @@ public sealed record CompanyCodexReceipt(
 // The current strict scheduler profile requires hard token admission, an application policy
 // this native protocol cannot supply. Explicit one-job measured admission is separate from
 // strict qualification; neither entry point is an automatic worker fallback.
-public sealed class CompanyCodexConnection(CompanyCodexOptions options, CompanyModelRouting? routing = null)
-    : IModelProvider,
-        IMeasuredModelProvider
+public sealed class CompanyCodexConnection(
+    CompanyCodexOptions options,
+    CompanyModelRouting? routing = null,
+    ModelVendorPolicy? vendorPolicy = null
+) : IModelProvider, IMeasuredModelProvider
 {
     private const string PermissionProfile = "hirezero_qualification";
     private readonly SemaphoreSlim _serial = new(1, 1);
-    private readonly CompanyModelRouting _routing = Servable(routing ?? new());
+    private readonly CompanyModelRouting _routing = Servable(
+        routing ?? new(),
+        vendorPolicy ?? ModelVendorPolicy.FromEnvironment()
+    );
 
     // This connection serves OpenAI routes on the Codex runtime only.
-    private static CompanyModelRouting Servable(CompanyModelRouting routing)
+    private static CompanyModelRouting Servable(CompanyModelRouting routing, ModelVendorPolicy policy)
     {
+        policy.Require("codex");
         routing.Validate();
         if (
             routing.Runtime != "codex"

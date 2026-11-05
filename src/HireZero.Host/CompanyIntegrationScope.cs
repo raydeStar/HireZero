@@ -24,7 +24,7 @@ public sealed class CompanyIntegrationScope
     public GoogleAdsProvider GoogleAds { get; }
     public GoogleDriveDocuments DriveDocuments { get; }
     public CompanyDocumentImports DocumentImports { get; }
-    public OpenRouterToolProvider OpenRouter { get; }
+    public OpenRouterToolProvider? OpenRouter { get; }
     public MicrosoftStore MicrosoftStore { get; }
     public MicrosoftConnector MicrosoftConnector { get; }
     public Microsoft365ToolProvider Microsoft { get; }
@@ -35,6 +35,7 @@ public sealed class CompanyIntegrationScope
     private readonly AgentAppsToolProvider _agentApps;
     private readonly AzureDevOpsToolProvider _azureDevOps;
     private readonly JevToolProvider? _jev;
+    private readonly ModelVendorPolicy _vendorPolicy;
     private readonly IToolProvider? _syntheticAnalytics;
     private readonly IToolProvider? _syntheticAds;
 
@@ -58,9 +59,11 @@ public sealed class CompanyIntegrationScope
         IToolProvider? syntheticAnalytics = null,
         IToolProvider? syntheticAds = null,
         HttpMessageHandler? googleHandler = null,
-        IHttpClientFactory? microsoftClients = null
+        IHttpClientFactory? microsoftClients = null,
+        ModelVendorPolicy? vendorPolicy = null
     )
     {
+        _vendorPolicy = vendorPolicy ?? ModelVendorPolicy.FromEnvironment();
         Store = store;
         Tools = tools;
         MachineAccess = local && store.CompanyId == CompanyStore.DefaultCompanyId;
@@ -89,15 +92,18 @@ public sealed class CompanyIntegrationScope
         DriveDocuments = new(DataRoot, () => Secrets.Read(GoogleDriveDocuments.KeySecret), googleHandler);
         DocumentImports = new(protection, store.CompanyId);
         store.DocumentSourceVerifier = DocumentImports.Verify;
-        OpenRouter = new(
-            DataRoot,
-            key: () =>
-                Secrets.Read("HIREZERO_OPENROUTER_API_KEY")
-                ?? (MachineAccess ? Secrets.Read("OPENROUTER_API_KEY") : null)
-        );
+        OpenRouter = _vendorPolicy.VultrOnly
+            ? null
+            : new(
+                DataRoot,
+                key: () =>
+                    Secrets.Read("HIREZERO_OPENROUTER_API_KEY")
+                    ?? (MachineAccess ? Secrets.Read("OPENROUTER_API_KEY") : null),
+                vendorPolicy: _vendorPolicy
+            );
         _agentApps = AgentAppsToolProvider.Company(DataRoot);
         _azureDevOps = new(DataRoot);
-        _jev = MachineAccess ? JevToolProvider.Company() : null;
+        _jev = MachineAccess && !_vendorPolicy.VultrOnly ? JevToolProvider.Company(_vendorPolicy) : null;
         MicrosoftStore = new(DataRoot);
         MicrosoftOptions = new(origin + "/oauth/microsoft/callback", ReturnTo("microsoft"));
         MicrosoftConnector = Microsoft365Services.CompanyConnector(
@@ -115,8 +121,9 @@ public sealed class CompanyIntegrationScope
             SiteAnalytics,
             GoogleAds,
             DriveDocuments,
-            OpenRouter,
-            .. MachineAccess ? new IConfigurableIntegration[] { _azureDevOps, _agentApps } : [],
+            .. OpenRouter is null ? [] : new IConfigurableIntegration[] { OpenRouter },
+            .. MachineAccess ? new IConfigurableIntegration[] { _azureDevOps } : [],
+            .. MachineAccess && !_vendorPolicy.VultrOnly ? new IConfigurableIntegration[] { _agentApps } : [],
         ];
     }
 
@@ -135,7 +142,8 @@ public sealed class CompanyIntegrationScope
             () =>
                 Secrets.Read("HIREZERO_OPENROUTER_API_KEY")
                 ?? (MachineAccess ? Secrets.Read("OPENROUTER_API_KEY") : null),
-            handler
+            handler,
+            _vendorPolicy
         );
 
     public static IntegrationStatus MachineOnly(string id, string name) =>
@@ -149,10 +157,17 @@ public sealed class CompanyIntegrationScope
     public IntegrationStatus[] Statuses() =>
         [
             Microsoft.Status(),
-            MachineAccess ? _agentApps.Status() : MachineOnly("agent-apps", "Coding apps"),
+            _vendorPolicy.VultrOnly ? new("agent-apps", "Coding apps", false, _vendorPolicy.Refusal("Coding apps"))
+            : MachineAccess ? _agentApps.Status()
+            : MachineOnly("agent-apps", "Coding apps"),
             MachineAccess ? _azureDevOps.Status() : MachineOnly("azure-devops", "Azure DevOps"),
-            _jev?.Status() ?? MachineOnly("jev", "Jev"),
-            OpenRouter.Status(),
+            _jev?.Status()
+                ?? (
+                    _vendorPolicy.VultrOnly
+                        ? new("jev", "Jev", false, _vendorPolicy.Refusal("Jev"))
+                        : MachineOnly("jev", "Jev")
+                ),
+            OpenRouter?.Status() ?? new("openrouter", "OpenRouter", false, _vendorPolicy.Refusal("OpenRouter")),
             Google.Status(),
             SiteAnalytics.Status(),
             GoogleAds.Status(),
@@ -170,13 +185,13 @@ public sealed class CompanyIntegrationScope
 
     public void Activate()
     {
-        if (MachineAccess && _agentApps.Status().Active)
+        if (MachineAccess && !_vendorPolicy.VultrOnly && _agentApps.Status().Active)
             Tools.Adopt(_agentApps);
         if (MachineAccess && _azureDevOps.Status().Active)
             Tools.Adopt(_azureDevOps);
         if (MicrosoftStore.Settings().ClientId is { Length: > 0 })
             Microsoft.RegisterOnce(Tools);
-        if (OpenRouter.Status().Active)
+        if (OpenRouter?.Status().Active == true)
             Tools.Adopt(OpenRouter);
         if (Google.Status().Active)
             Tools.Adopt(Google, _syntheticAnalytics);

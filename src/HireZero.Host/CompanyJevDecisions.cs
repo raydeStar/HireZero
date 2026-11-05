@@ -11,6 +11,14 @@ public sealed partial class CompanyModelConnection
 
     public object DecisionConnection()
     {
+        if (_vendorPolicy.VultrOnly)
+            return new
+            {
+                available = HasMeasured,
+                model = ModelVendorPolicy.VultrRoute,
+                endpoint = HireZero.Integrations.ModelApis.ApiModelProvider.VultrBaseUrl + "chat/completions",
+                status = "Uses Vultr inference with a reviewed worst-case spend cap. Each advisory decision needs owner approval.",
+            };
         var saved = Current;
         return new
         {
@@ -35,11 +43,14 @@ public sealed partial class CompanyModelConnection
                 var saved = Current;
                 return HasDecisionKey(saved) && saved.Revision == revision ? saved.Key : null;
             },
-            decisionHandler
+            decisionHandler,
+            _vendorPolicy
         );
 
     public CompanyDecisionPacket PrepareDecision(CompanyDecisionInput input)
     {
+        if (_vendorPolicy.VultrOnly)
+            return PrepareVultrDecision(input);
         var saved = Current;
         if (!HasDecisionKey(saved))
             throw new WorkspaceException(
@@ -71,6 +82,8 @@ public sealed partial class CompanyModelConnection
 
     public bool DecisionCurrent(CompanyDecisionPacket packet)
     {
+        if (_vendorPolicy.VultrOnly)
+            return VultrDecisionCurrent(packet);
         var saved = Current;
         return HasDecisionKey(saved)
             && packet.CompanyId == companyId
@@ -80,6 +93,8 @@ public sealed partial class CompanyModelConnection
 
     public async Task<CompanyDecisionOutcome> SendDecisionAsync(CompanyDecision decision, CancellationToken token)
     {
+        if (_vendorPolicy.VultrOnly)
+            return await SendVultrDecisionAsync(decision, token);
         if (!decision.DispatchTaken || decision.State != "running" || !DecisionCurrent(decision.Packet))
             return new("not_sent", Usage: new(0, 0, BilledUsd: 0), ReportedCostUsd: 0);
         using var transport = DecisionTransport(decision.Packet.Funding.ConnectionRevision);

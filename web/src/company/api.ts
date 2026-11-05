@@ -246,6 +246,7 @@ export type Reading = {
   version: number;
 };
 export type Role = {
+  unavailableReason?: string | null;
   id: string;
   name: string;
   skills: string[];

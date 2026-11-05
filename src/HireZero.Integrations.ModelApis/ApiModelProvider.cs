@@ -15,6 +15,9 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
     public const string AnthropicKey = "HIREZERO_ANTHROPIC_API_KEY";
     public const string OpenAIKey = "HIREZERO_OPENAI_API_KEY";
     public const string OpenRouterKey = "HIREZERO_OPENROUTER_API_KEY";
+    public const string VultrKey = "VULTR_INFERENCE_API_KEY";
+    public const string VultrBaseUrlVariable = "HIREZERO_VULTR_BASE_URL";
+    public const string VultrBaseUrl = "https://api.vultrinference.com/v1/";
     public const string Identity = "api-models-v1";
 
     // An upper bound on the tokens a chat API adds around the system and user text (role markers and separators).
@@ -24,15 +27,25 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
     private readonly Func<string, ModelPrice?> _price;
     private readonly Func<string, string?> _reasoning;
     private readonly HttpClient _http;
+    private readonly ModelVendorPolicy _vendorPolicy;
+    private readonly Uri _vultrBaseUrl;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _sent = new();
 
     public ApiModelProvider(
         Func<string, string?>? secret = null,
         HttpMessageHandler? handler = null,
         Func<string, ModelPrice?>? price = null,
         string? runtimeIdentity = null,
-        Func<string, string?>? reasoning = null
+        Func<string, string?>? reasoning = null,
+        ModelVendorPolicy? vendorPolicy = null,
+        string? vultrBaseUrl = null,
+        string? provider = null
     )
     {
+        _vendorPolicy = vendorPolicy ?? ModelVendorPolicy.FromEnvironment();
+        if (provider is not null)
+            _vendorPolicy.Require(provider);
+        _vultrBaseUrl = ValidateVultrBaseUrl(vultrBaseUrl ?? Environment.GetEnvironmentVariable(VultrBaseUrlVariable));
         _secret = secret ?? SecretSource.Default.Read;
         RuntimeIdentity = runtimeIdentity ?? Identity;
         _price = price ?? ModelRoutes.Price;
@@ -47,8 +60,24 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
             disposeHandler: handler is null
         )
         {
-            Timeout = TimeSpan.FromSeconds(55),
+            Timeout = Timeout.InfiniteTimeSpan,
         };
+    }
+
+    public static Uri ValidateVultrBaseUrl(string? value)
+    {
+        if (
+            !Uri.TryCreate(value ?? VultrBaseUrl, UriKind.Absolute, out var uri)
+            || (uri.Scheme != "https" && !(uri.Scheme == "http" && uri.IsLoopback))
+            || uri.UserInfo.Length > 0
+            || uri.Query.Length > 0
+            || uri.Fragment.Length > 0
+        )
+            throw new InvalidOperationException(
+                VultrBaseUrlVariable
+                    + " requires HTTPS (HTTP only on loopback fixtures), without credentials, query or fragment."
+            );
+        return new Uri(uri.AbsoluteUri.TrimEnd('/') + "/");
     }
 
     public string RuntimeIdentity { get; }
@@ -66,8 +95,16 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
             "API models run only as one-job measured work; there is no automatic admission counter."
         );
 
-    public Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token) =>
-        throw new ModelUnavailableException(Status);
+    public Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (call.ModelRoute is { } route)
+            _vendorPolicy.RequireRoute(route);
+        // No allowance or consumed reservation travels on this contract; the butler cannot spend an unsigned cheque.
+        throw new ModelUnavailableException(
+            "API requests require an approved measured job and its worst-case allowance. " + Status
+        );
+    }
 
     // OpenRouter's key under either name, as the OpenRouter choice tool reads it.
     private string? OpenRouter() => _secret(OpenRouterKey) is { Length: > 0 } key ? key : _secret("OPENROUTER_API_KEY");
@@ -75,15 +112,20 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
     private IEnumerable<string> Keys() =>
         new[]
         {
-            string.IsNullOrEmpty(_secret(AnthropicKey)) ? null : "anthropic",
-            string.IsNullOrEmpty(_secret(OpenAIKey)) ? null : "openai",
-            string.IsNullOrEmpty(OpenRouter()) ? null : "openrouter",
+            _vendorPolicy.VultrOnly || string.IsNullOrEmpty(_secret(AnthropicKey)) ? null : "anthropic",
+            _vendorPolicy.VultrOnly || string.IsNullOrEmpty(_secret(OpenAIKey)) ? null : "openai",
+            _vendorPolicy.VultrOnly || string.IsNullOrEmpty(OpenRouter()) ? null : "openrouter",
+            string.IsNullOrEmpty(_secret(VultrKey)) ? null : "vultr",
         }.OfType<string>();
 
     // The API that serves a route: the vendor's own when its key is set, otherwise OpenRouter, which takes vendor/model ids.
     public (string Api, string Model, string Key)? Endpoint(string route)
     {
+        _vendorPolicy.RequireRoute(route);
         var vendor = ModelRoutes.Provider(route);
+        // A Vultr route never falls through to a router, even if another account is configured.
+        if (vendor == "vultr")
+            return _secret(VultrKey) is { Length: > 0 } vultr ? ("vultr", ModelRoutes.Native(route), vultr) : null;
         if (vendor == "anthropic" && _secret(AnthropicKey) is { Length: > 0 } anthropic)
             return ("anthropic", ModelRoutes.Native(route), anthropic);
         if (vendor == "openai" && _secret(OpenAIKey) is { Length: > 0 } openai)
@@ -108,6 +150,7 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
         if (
             job.State != "dispatched"
             || job.RuntimeIdentity != RuntimeIdentity
+            || job.ExpiresAt <= DateTimeOffset.UtcNow
             || !CompanyMeasuredPolicy.Known(job.Policy)
             || job.CreditAllowance is <= 0 or > 1000
             || job.Route != call.ModelRoute
@@ -117,6 +160,7 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
             || bytes > job.Policy.ApplicationBytes
         )
             throw new WorkspaceException("The exact consumed measured authorization is required.");
+        token.ThrowIfCancellationRequested();
         var route = call.ModelRoute!;
         var endpoint =
             Endpoint(route) ?? throw NotSent($"No API key serves {route}. Set its vendor's key or an OpenRouter key.");
@@ -132,8 +176,10 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
         // (docs/adr/0166-openrouter-deliverables-get-their-output-target.md).
         var maxOutput =
             call.MaxOutputTokens > 0 ? call.MaxOutputTokens
-            : endpoint.Api == "openrouter" ? job.Policy.OutputTarget
+            : endpoint.Api is "openrouter" or "vultr" ? job.Policy.OutputTarget
             : CompanyMeasuredPolicy.LowEffortOutputTarget(job.Policy);
+        if (maxOutput <= 0 || maxOutput > job.Policy.OutputTarget)
+            throw NotSent("The output limit exceeds the reviewed policy.");
         var worst = WorstCaseUsd(price, bytes, maxOutput);
         var allowance = job.CreditAllowance / 100m;
         if (worst > allowance)
@@ -154,9 +200,9 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                     }
                 )
                 : (
-                    endpoint.Api == "openai"
-                        ? "https://api.openai.com/v1/chat/completions"
-                        : "https://openrouter.ai/api/v1/chat/completions",
+                    endpoint.Api == "vultr" ? new Uri(_vultrBaseUrl, "chat/completions").AbsoluteUri
+                    : endpoint.Api == "openai" ? "https://api.openai.com/v1/chat/completions"
+                    : "https://openrouter.ai/api/v1/chat/completions",
                     new JsonObject
                     {
                         ["model"] = endpoint.Model,
@@ -171,6 +217,12 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
         // or off for a model the catalog says reasons too long even then (docs/adr/0169-openrouter-reasoning-per-model.md),
         // the reviewed price is the ceiling OpenRouter routes under, and the reply reports what was billed, so a route
         // whose price varies by request (a router such as Jev) is checked against the allowance either way.
+        if (endpoint.Api == "vultr")
+        {
+            body.Remove("max_completion_tokens");
+            body["max_tokens"] = maxOutput;
+            body["reasoning_effort"] = "low";
+        }
         if (endpoint.Api == "openrouter")
         {
             body["reasoning"] = new JsonObject { ["effort"] = _reasoning(route) ?? "low" };
@@ -195,6 +247,14 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
 
         // From here the request may have reached the provider: anything unconfirmed propagates as unknown and is never
         // retried. A clear 4xx refusal was not processed, so it is reported with no usage.
+        // One provider instance cannot replay a consumed attempt after an uncertain transport outcome.
+        if (endpoint.Api == "vultr" && !_sent.TryAdd(call.DispatchId, 0))
+            throw new ModelTransportException(
+                "This API attempt was already dispatched; its outcome must not be replayed."
+            );
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(TimeSpan.FromSeconds(endpoint.Api == "vultr" ? 360 : 55));
+        token = deadline.Token;
         using var response = await _http.SendAsync(request, token);
         var text = await response.Content.ReadAsStringAsync(token);
         if ((int)response.StatusCode is >= 400 and < 500)
@@ -208,7 +268,32 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
 
         using var document = JsonDocument.Parse(text);
         var root = document.RootElement;
-        var (reply, stop, usage, id) = endpoint.Api == "anthropic" ? Anthropic(root) : OpenAI(root);
+        (string reply, string stop, ModelUsage usage, string id) parsed;
+        try
+        {
+            parsed = endpoint.Api == "anthropic" ? Anthropic(root) : OpenAI(root);
+        }
+        catch (Exception error)
+            when (error
+                    is KeyNotFoundException
+                        or InvalidOperationException
+                        or FormatException
+                        or OverflowException
+                        or IndexOutOfRangeException
+            )
+        {
+            var knownId =
+                root.ValueKind == JsonValueKind.Object
+                && root.TryGetProperty("id", out var value)
+                && value.ValueKind == JsonValueKind.String
+                    ? value.GetString()
+                    : null;
+            throw new ModelTransportException(
+                "The provider reply has missing or invalid usage or content; it was withheld.",
+                receipt: string.IsNullOrWhiteSpace(knownId) ? null : endpoint.Api + ":" + knownId
+            );
+        }
+        var (reply, stop, usage, id) = parsed;
         if (endpoint.Api == "openrouter")
             usage = usage with { BilledUsd = BilledUsd(root) };
         var receipt = endpoint.Api + ":" + id;
@@ -239,6 +324,20 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                 receipt,
                 usage,
                 accountingViolation: true
+            );
+        if (usage.OutputTokens > maxOutput)
+            throw new ModelTransportException(
+                "The provider exceeded the output limit; the reply was withheld.",
+                total,
+                receipt,
+                usage,
+                accountingViolation: true
+            );
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ModelTransportException(
+                "The provider supplied no receipt; the reply was withheld.",
+                total,
+                usage: usage
             );
         if (stop != "complete")
             throw new ModelTransportException(stop, total, receipt, usage);
@@ -287,9 +386,11 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
             message.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString()! : "";
         var finish = choice.TryGetProperty("finish_reason", out var f) ? f.GetString() : null;
         var stop =
-            message.TryGetProperty("tool_calls", out var tools)
-            && tools.ValueKind == JsonValueKind.Array
-            && tools.GetArrayLength() > 0
+            (
+                message.TryGetProperty("tool_calls", out var tools)
+                && tools.ValueKind != JsonValueKind.Null
+                && (tools.ValueKind != JsonValueKind.Array || tools.GetArrayLength() > 0)
+            ) || (message.TryGetProperty("function_call", out var function) && function.ValueKind != JsonValueKind.Null)
                 ? "The model asked for a tool; employees have none, so the reply was withheld."
                 : finish switch
                 {

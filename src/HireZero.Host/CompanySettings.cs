@@ -11,8 +11,24 @@ public sealed class CompanySettings
 
     public sealed record Setting(string Name, string Group, string Description, Action<CompanySettings, string> Apply);
 
+    public ModelVendorPolicy ModelVendor { get; private set; } = new();
+    public string? VultrBaseUrl { get; private set; }
+
     public static readonly Setting[] All =
     [
+        new(
+            ModelVendorPolicy.Variable,
+            "Models",
+            "vultr restricts the install to Vultr inference; unset preserves local behavior.",
+            (s, v) => s.ModelVendor = new(v)
+        ),
+        new(
+            HireZero.Integrations.ModelApis.ApiModelProvider.VultrBaseUrlVariable,
+            "Models",
+            "Vultr inference base URL, HTTPS except loopback fixtures.",
+            (s, v) =>
+                s.VultrBaseUrl = HireZero.Integrations.ModelApis.ApiModelProvider.ValidateVultrBaseUrl(v).AbsoluteUri
+        ),
         new(
             "HIREZERO_BILLING_CATALOG",
             "Billing",

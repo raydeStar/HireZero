@@ -93,16 +93,37 @@ public sealed record CompanyMeasuredPolicy(
         VisibleCharacterStop: 14000
     );
 
+    public static CompanyMeasuredPolicy WithReasoningRoom(CompanyMeasuredPolicy policy) =>
+        policy with
+        {
+            Version = policy.Version + "-reasoning-room-v1",
+            OutputTarget = 24000,
+            PlanningTokens = 60000,
+            LocalDeadlineSeconds = 360,
+            Effort = "low",
+        };
+
     public static bool Known(CompanyMeasuredPolicy policy) =>
+        KnownBaseline(policy)
+        || new[] { Current, ContextDraft, Conversation, BusinessProfile, MemoryAnalysis, Deliverable }.Any(baseline =>
+            policy == WithReasoningRoom(baseline)
+        );
+
+    private static bool KnownBaseline(CompanyMeasuredPolicy policy) =>
         Matches(policy, Current)
         || Matches(policy, ContextDraft)
         || Matches(policy, Conversation)
         || Matches(policy, BusinessProfile)
         || Matches(policy, MemoryAnalysis)
-        || IsDeliverable(policy);
+        || Matches(policy, Deliverable)
+        || Matches(policy, DeliverableV2)
+        || Matches(policy, DeliverableV1);
 
     public static bool IsDeliverable(CompanyMeasuredPolicy policy) =>
-        Matches(policy, Deliverable) || Matches(policy, DeliverableV2) || Matches(policy, DeliverableV1);
+        policy == WithReasoningRoom(Deliverable)
+        || Matches(policy, Deliverable)
+        || Matches(policy, DeliverableV2)
+        || Matches(policy, DeliverableV1);
 
     public static CompanyMeasuredPolicy WithXHigh(CompanyMeasuredPolicy policy) =>
         policy.Effort == "xhigh" ? policy : policy with { Version = policy.Version + "-xhigh", Effort = "xhigh" };
@@ -160,9 +181,10 @@ public sealed partial class CompanyStore
     public bool PreferXHighReasoning { get; init; }
 
     private CompanyMeasuredPolicy ReasoningPolicy(CompanyMeasuredPolicy policy, string route) =>
-        PreferXHighReasoning && MeasuredTerms(route)?.Provider == "codex-oauth"
+        ModelRoutes.Provider(route) == "vultr" ? CompanyMeasuredPolicy.WithReasoningRoom(policy)
+        : PreferXHighReasoning && MeasuredTerms(route)?.Provider == "codex-oauth"
             ? CompanyMeasuredPolicy.WithXHigh(policy)
-            : policy;
+        : policy;
 
     private CompanyMeasuredPolicy MeasuredPolicy(StoreConnection db, CompanyTask task) =>
         task.PlanId is not null && task.Kind == "work"

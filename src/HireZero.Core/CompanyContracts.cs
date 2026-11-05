@@ -14,6 +14,7 @@ public sealed record CompanyRole(
 {
     public Func<string, string, string>? ValidateInput { get; init; }
     public Func<string, string>? InstructionsForSkill { get; init; }
+    public string? UnavailableReason { get; init; }
     public bool WorkspaceClaims { get; init; }
     public bool CompanyOverview { get; init; }
     public string[] ExecutionSkills { get; init; } = [];

@@ -30,7 +30,8 @@ public sealed record CompanyModelConnectionStatus(
     CompanyApiModel[] Models,
     string? AnalysisRoute = null,
     bool CanCombine = false,
-    CompanyModelOption[]? Choices = null
+    CompanyModelOption[]? Choices = null,
+    string[]? AllowedProviders = null
 );
 
 // A company's key never falls back to a host secret. The butler keeps each purse in its own locked drawer.
@@ -40,9 +41,34 @@ public sealed partial class CompanyModelConnection(
     CompanyModelRouting platformRouting,
     Func<CompanyApiModel[]>? catalog = null,
     HttpMessageHandler? handler = null,
-    HttpMessageHandler? decisionHandler = null
+    HttpMessageHandler? decisionHandler = null,
+    ModelVendorPolicy? vendorPolicy = null,
+    string? vultrBaseUrl = null
 ) : IModelProvider, IMeasuredModelProvider
 {
+    private readonly ModelVendorPolicy _vendorPolicy = ValidatePlatform(platform, platformRouting, vendorPolicy);
+
+    private static ModelVendorPolicy ValidatePlatform(
+        IModelProvider platform,
+        CompanyModelRouting routing,
+        ModelVendorPolicy? policy
+    )
+    {
+        policy ??= ModelVendorPolicy.FromEnvironment();
+        if (policy.VultrOnly)
+        {
+            if (platform is not ApiModelProvider)
+                policy.Require("non-Vultr runtime");
+            foreach (
+                var route in new[] { routing.TextModel, routing.AnalysisModel, routing.CodingModel }
+                    .Concat(routing.AdditionalTextModels ?? [])
+                    .OfType<string>()
+            )
+                policy.RequireRoute(route);
+        }
+        return policy;
+    }
+
     private sealed record Saved(
         int Version = 0,
         string Mode = "host",
@@ -61,13 +87,17 @@ public sealed partial class CompanyModelConnection(
     private Saved Current => Volatile.Read(ref _saved);
 
     private CompanyApiModel[] Models() =>
-        catalog?.Invoke()
-        ?? ModelRoutes
-            .PricedModels.Select(route => new CompanyApiModel(
-                route,
-                ModelRoutes.Name(route),
-                ModelRoutes.Price(route)!
-            ))
+        (
+            catalog?.Invoke()
+            ?? ModelRoutes
+                .PricedModels.Select(route => new CompanyApiModel(
+                    route,
+                    ModelRoutes.Name(route),
+                    ModelRoutes.Price(route)!
+                ))
+                .ToArray()
+        )
+            .Where(m => !_vendorPolicy.VultrOnly || m.Route == ModelVendorPolicy.VultrRoute)
             .ToArray();
 
     public void Initialize(string hostRoot, IDataProtectionProvider protection)
@@ -98,11 +128,18 @@ public sealed partial class CompanyModelConnection(
                     || saved.Mode is "company-key" or "host-and-company-key"
                         && (
                             string.IsNullOrWhiteSpace(saved.Key)
-                            || saved.Provider is not ("openai" or "anthropic" or "openrouter")
+                            || saved.Provider is not ("openai" or "anthropic" or "openrouter" or "vultr")
                             || string.IsNullOrWhiteSpace(saved.Route)
                         )
                 )
                     throw new CryptographicException();
+                if (saved.Mode != "host")
+                {
+                    _vendorPolicy.Require(saved.Provider!);
+                    _vendorPolicy.RequireRoute(saved.Route!);
+                    if (saved.AnalysisRoute is { } analysis)
+                        _vendorPolicy.RequireRoute(analysis);
+                }
                 Volatile.Write(ref _saved, saved);
             }
             catch (Exception error)
@@ -144,7 +181,8 @@ public sealed partial class CompanyModelConnection(
     public string AllowanceUnit =>
         Current.Mode == "company-key" || platform is ApiModelProvider ? "usd-cents" : "credits";
     private string PlatformProvider =>
-        platform is CompanyCodexConnection ? "codex-oauth"
+        _vendorPolicy.VultrOnly ? "vultr"
+        : platform is CompanyCodexConnection ? "codex-oauth"
         : platform is ApiModelProvider ? "host-api"
         : "host";
     public bool CanCombine => platform is IMeasuredModelProvider && platform is not ApiModelProvider;
@@ -229,7 +267,8 @@ public sealed partial class CompanyModelConnection(
             Models(),
             saved.Mode is "company-key" or "host-and-company-key" ? saved.AnalysisRoute : platformRouting.AnalysisModel,
             CanCombine,
-            Options
+            Options,
+            _vendorPolicy.VultrOnly ? ["vultr"] : ["openai", "anthropic", "openrouter", "vultr"]
         );
     }
 
@@ -239,10 +278,14 @@ public sealed partial class CompanyModelConnection(
         {
             if (input.ExpectedVersion != Current.Version)
                 throw new WorkspaceException("This connection changed. Reload before replacing its key.", 409);
+            _vendorPolicy.Require(input.Provider);
+            _vendorPolicy.RequireRoute(input.Route);
+            if (input.AnalysisRoute is { Length: > 0 } analysis)
+                _vendorPolicy.RequireRoute(analysis);
             var combine = input.Decision == "use-host-and-company-key";
             if (
                 (!combine && input.Decision != "use-company-key")
-                || input.Provider is not ("openai" or "anthropic" or "openrouter")
+                || input.Provider is not ("openai" or "anthropic" or "openrouter" or "vultr")
             )
                 throw new WorkspaceException("Explicitly authorize this company's provider connection.", 422);
             if (combine && !CanCombine)
@@ -388,13 +431,17 @@ public sealed partial class CompanyModelConnection(
         {
             "openai" => ApiModelProvider.OpenAIKey,
             "anthropic" => ApiModelProvider.AnthropicKey,
+            "vultr" => ApiModelProvider.VultrKey,
             _ => ApiModelProvider.OpenRouterKey,
         };
         using var api = new ApiModelProvider(
             name => name == keyName ? saved.Key : null,
             handler,
             Price,
-            IdentityFor(saved)
+            IdentityFor(saved),
+            vendorPolicy: _vendorPolicy,
+            vultrBaseUrl: vultrBaseUrl,
+            provider: saved.Provider
         );
         return await api.CompleteMeasuredAsync(call, job, token);
     }

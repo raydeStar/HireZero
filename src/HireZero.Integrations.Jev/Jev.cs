@@ -6,8 +6,12 @@ using HireZero.Tools.Jev;
 namespace HireZero.Integrations.Jev;
 
 // Jev (TypeSafe systemone): cheap structured choices. The key stays server-side, read as a secret (docs/SECRETS.md).
-public sealed class JevClient(IHttpClientFactory clients)
+public sealed class JevClient(IHttpClientFactory clients, ModelVendorPolicy? vendorPolicy = null)
 {
+    private readonly ModelVendorPolicy _vendorPolicy = (vendorPolicy ?? ModelVendorPolicy.FromEnvironment()).Require(
+        "jev"
+    );
+
     public static string? Key()
     {
         var key = SecretSource.Default.Read("HIREZERO_JEV_API_KEY") ?? SecretSource.Default.Read("TYPESAFE_API_KEY");
@@ -78,10 +82,17 @@ public sealed class JevClient(IHttpClientFactory clients)
 }
 
 // The jev.* tools. The key stays in this integration; callers send only the request body.
-public sealed class JevToolProvider(IHttpClientFactory clients) : IToolProvider, IIntegrationStatusSource
+public sealed class JevToolProvider(IHttpClientFactory clients, ModelVendorPolicy? vendorPolicy = null)
+    : IToolProvider,
+        IIntegrationStatusSource
 {
+    private readonly ModelVendorPolicy _vendorPolicy = (vendorPolicy ?? ModelVendorPolicy.FromEnvironment()).Require(
+        "jev"
+    );
+
     // The company workspace's provider: private HTTP clients, so the profile offers no general client factory.
-    public static JevToolProvider Company() => new(new PrivateClients());
+    public static JevToolProvider Company(ModelVendorPolicy? vendorPolicy = null) =>
+        new(new PrivateClients(), vendorPolicy);
 
     public IntegrationStatus Status() =>
         JevClient.Key() is not null

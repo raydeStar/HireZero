@@ -341,6 +341,8 @@ public sealed partial class CompanyStore
             );
         var employee = Need<CompanyEmployee>(db, input.EmployeeId);
         var role = Role(employee.RoleId);
+        if (role.UnavailableReason is { } unavailable)
+            throw new WorkspaceException(unavailable, 409);
         var skill = ScheduleSkill(role, input);
         if (
             input.ReadContextPolicy is not null

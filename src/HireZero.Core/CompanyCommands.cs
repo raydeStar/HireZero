@@ -142,6 +142,8 @@ public sealed partial class CompanyStore
             {
                 var d = Need<CompanyDepartment>(db, c.DepartmentId);
                 var role = Role(c.RoleId);
+                if (role.UnavailableReason is { } unavailable)
+                    throw new WorkspaceException(unavailable, 409);
                 if (All<CompanyEmployee>(db).Count(e => e.State != "retired") >= 20)
                     throw new WorkspaceException("The local company supports at most 20 active employees.");
                 var e = new CompanyEmployee(
@@ -673,6 +675,8 @@ public sealed partial class CompanyStore
     )
     {
         var e = Need<CompanyEmployee>(db, employee);
+        if (Role(e.RoleId).UnavailableReason is { } unavailable)
+            throw new WorkspaceException(unavailable, 409);
         if (e.State != "active" && !(e.State == "onboarding" && kind == ContextDraftKind))
             throw new WorkspaceException("This employee must be active with approved department onboarding.");
         var t = Need<CompanyThread>(db, thread);

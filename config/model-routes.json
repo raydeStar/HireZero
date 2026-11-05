@@ -15,6 +15,7 @@
     "company.coding": "codex"
   },
   "prices": {
+    "vultr/deepseek-v4.1-flash-1017": { "input": 0.15, "output": 0.60 },
     "$comment": "US dollars per million tokens, as {\"input\": n, \"output\": n}, for models served by an API provider. A route without a price cannot be used with one (docs/adr/0036-api-model-provider.md). Check each provider's price page; prices change."
   },
   "reasoning": {
@@ -22,6 +23,7 @@
     "deepseek/deepseek-v4.1-flash": "none"
   },
   "names": {
+    "vultr/deepseek-v4.1-flash-1017": "DeepSeek V4.1 Flash (Vultr)",
     "openai/gpt-6-luna": "Luna",
     "openai/gpt-6.1-sol": "Sol 6.1",
     "openai/gpt-6-astra": "Astra",

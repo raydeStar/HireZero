@@ -74,6 +74,8 @@ export function Decisions({
     generation = useRef(0),
     selected = useRef("");
   const d = view?.decision;
+  const vultr = listing?.connection.model?.startsWith("vultr/") === true;
+  const reviewedVultr = d?.packet.model.startsWith("vultr/") === true;
   const disabled = busy || !!pending || !!recovery.error;
   function remember(id: string | null) {
     if (id) {
@@ -159,8 +161,8 @@ export function Decisions({
   }
   const exact = d ? { id: d.id, expectedVersion: d.version, digest: d.digest } : {};
   const packet = d ? JSON.parse(d.packet.json) : null;
-  const criteria: Record<string, string> = packet?.questions.answer.criteria || {};
-  const state = packet?.state;
+  const criteria: Record<string, string> = packet?.questions?.answer.criteria || packet?.criteria || {};
+  const state = packet?.state ?? (packet?.stateJson ? JSON.parse(packet.stateJson) : null);
   const context =
     typeof state === "string"
       ? state
@@ -172,14 +174,21 @@ export function Decisions({
     Number.isSafeInteger(Number(input)) &&
     Number.isSafeInteger(Number(output));
   return (
-    <section className="co-decisions" id="company-jev-decisions" tabIndex={-1} aria-label="Jev decisions">
-      <h3>Jev decisions</h3>
+    <section
+      className="co-decisions"
+      id="company-jev-decisions"
+      tabIndex={-1}
+      aria-label={vultr ? "Decisions" : "Jev decisions"}
+    >
+      <h3>{vultr ? "Decisions" : "Jev decisions"}</h3>
       <p>
-        Compare a few concrete options using the context you provide. Jev returns advice for your review; choosing an
-        option here does not start that work.
+        Compare a few concrete options using the context you provide. The model returns advice for your review; choosing
+        an option here does not start that work.
       </p>
       <p className="co-muted">
-        Uses the saved OpenRouter account. Your text jobs keep their selected model and account.
+        {vultr
+          ? "Uses the configured Vultr model and spending cap."
+          : "Uses the saved OpenRouter account. Your text jobs keep their selected model and account."}
       </p>
       {error && (
         <p role="alert" className="co-error">
@@ -218,16 +227,19 @@ export function Decisions({
           <p>{listing.connection.status}</p>
           <fieldset disabled={disabled || !listing.connection.available}>
             <label>
-              Versioned Jev model
+              {vultr ? "Model" : "Versioned Jev model"}
               <input
                 value={model}
+                readOnly={vultr}
                 maxLength={192}
                 placeholder="typesafe/jev-<major>.<minor>"
                 onChange={(e) => setModel(e.target.value)}
               />
             </label>
             <p className="co-muted">
-              Use a versioned decision model available on your OpenRouter account. Router models are not supported.
+              {vultr
+                ? "Each request uses the configured Vultr model."
+                : "Use a versioned decision model available on your OpenRouter account. Router models are not supported."}
             </p>
             <label>
               What needs deciding?
@@ -244,7 +256,7 @@ export function Decisions({
                 value={situation}
                 maxLength={7000}
                 onChange={(e) => setSituation(e.target.value)}
-                placeholder="Include the facts, constraints and tradeoffs Jev needs. Only this text and your options will be sent."
+                placeholder="Include the facts, constraints and tradeoffs the model needs. Only this text and your options will be sent."
               />
             </label>
             {options.map((option, index) => (
@@ -266,7 +278,7 @@ export function Decisions({
               )}
             </div>
             <label>
-              Intended allowance (US cents)
+              {vultr ? "Spend cap (US cents)" : "Intended allowance (US cents)"}
               <input
                 type="number"
                 min="0.01"
@@ -298,7 +310,7 @@ export function Decisions({
             >
               Review decision request
             </button>
-            <p className="co-muted">Preparing a review does not call OpenRouter or spend an allowance.</p>
+            <p className="co-muted">Preparing a review does not call a model or spend an allowance.</p>
           </fieldset>
         </details>
       )}
@@ -306,18 +318,19 @@ export function Decisions({
         <article aria-label="Saved decision review">
           <h4>{labels[d.state] || d.state}</h4>
           <p>
-            <strong>{d.packet.model}</strong> through OpenRouter · Company API account
+            <strong>{d.packet.model}</strong>
+            {reviewedVultr ? " through Vultr" : " through OpenRouter \u00b7 Company API account"}
           </p>
           <p>
-            Intended allowance: {d.allowanceCents} US cents. Planning reservation: {d.planningTokens.toLocaleString()}{" "}
-            tokens. Local deadline: 30 seconds.
+            {reviewedVultr ? "Spend cap" : "Intended allowance"}: {d.allowanceCents} US cents. Planning reservation:{" "}
+            {d.planningTokens.toLocaleString()} tokens. Local deadline: {reviewedVultr ? 360 : 30} seconds.
           </p>
           {d.error && <p role="status">{d.error}</p>}
           <div className="co-decision-context" aria-label="Decision inputs">
             <p>
               <strong>Question</strong>
               <br />
-              {packet.questions.answer.instructions}
+              {packet.questions?.answer.instructions ?? packet.instructions}
             </p>
             <p>
               <strong>Context</strong>
@@ -333,7 +346,7 @@ export function Decisions({
             </ol>
           </div>
           <details>
-            <summary>Exact data sent to OpenRouter</summary>
+            <summary>{reviewedVultr ? "Reviewed decision data" : "Exact data sent to OpenRouter"}</summary>
             <p>{listing?.connection.endpoint}</p>
             <pre>{JSON.stringify(JSON.parse(d.packet.json), null, 2)}</pre>
           </details>
@@ -350,7 +363,7 @@ export function Decisions({
                   disabled={disabled}
                   onChange={(e) => setReviewed(e.target.checked)}
                 />
-                I reviewed the exact context, question and options sent to OpenRouter.
+                I reviewed the context, question and options sent to the model.
               </label>
               <label className="co-decision-check">
                 <input
@@ -359,8 +372,9 @@ export function Decisions({
                   disabled={disabled}
                   onChange={(e) => setSoftLimits(e.target.checked)}
                 />
-                I authorize one request. The allowance, token reservation and local deadline are soft limits; the
-                provider may continue or charge more. An uncertain request will not be retried.
+                {reviewedVultr
+                  ? "I authorize one request within this spend cap. An uncertain request will not be retried."
+                  : "I authorize one request. The allowance, token reservation and local deadline are soft limits; the provider may continue or charge more. An uncertain request will not be retried."}
               </label>
               <div className="co-decision-controls">
                 <button

@@ -5,6 +5,7 @@ export function providerName(provider: string) {
     (
       {
         "codex-oauth": "Codex subscription",
+        vultr: "Vultr",
         openrouter: "OpenRouter API",
         openai: "OpenAI API",
         anthropic: "Anthropic API",

@@ -137,6 +137,11 @@ public sealed partial class CompanyStore
             ) == "decision";
     }
 
+    public static int DecisionDeadlineSeconds(CompanyDecisionPacket packet) => packet.Provider == "vultr" ? 360 : 30;
+
+    private static long DecisionReservation(CompanyDecisionPacket packet) =>
+        packet.Provider == "vultr" ? 60000 : DecisionPlanningTokens;
+
     private static string DecisionDigest(CompanyDecision d) =>
         CompanyJson.Digest(
             new
@@ -147,15 +152,15 @@ public sealed partial class CompanyStore
                 d.PlanningTokens,
                 d.ExpiresAt,
                 policy = "reviewed-decision-v1",
-                localDeadlineSeconds = 30,
-                providerHardSpendCap = false,
+                localDeadlineSeconds = DecisionDeadlineSeconds(d.Packet),
+                providerHardSpendCap = d.Packet.Provider == "vultr",
             }
         );
 
     private bool DecisionCurrent(StoreConnection db, CompanyDecision d) =>
         d.Packet.CompanyId == CompanyId
         && d.Digest == DecisionDigest(d)
-        && d.PlanningTokens == DecisionPlanningTokens
+        && d.PlanningTokens == DecisionReservation(d.Packet)
         && (
             d.AuthorizedBy is null
             || Find<CompanyMember>(db, d.AuthorizedBy) is { State: "active", Role: CompanyRoles.Owner }
@@ -198,7 +203,7 @@ public sealed partial class CompanyStore
             Id(),
             packet,
             c.CreditAllowance,
-            DecisionPlanningTokens,
+            DecisionReservation(packet),
             Clock().AddMinutes(10),
             "",
             "prepared",

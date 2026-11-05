@@ -33,7 +33,19 @@ public static class CompanyWorkspace
             ? CompanyAccess.Steps
         : CompanyRoles.Owner;
 
-    public static CompanyRole[] Definitions() => [.. HostEmployees.Modules.Select(CompanyRole.From)];
+    public static CompanyRole[] Definitions(ModelVendorPolicy? vendorPolicy = null) =>
+        [
+            .. HostEmployees
+                .Modules.Select(CompanyRole.From)
+                .Select(role =>
+                    vendorPolicy?.VultrOnly == true && role.ExecutionSkills.Length > 0
+                        ? role with
+                        {
+                            UnavailableReason = vendorPolicy.Refusal(role.Name + " (coding runtime)"),
+                        }
+                        : role
+                ),
+        ];
 
     // A scheduler round skipped because another writer held the company database leaves a warning
     // (docs/adr/0167-a-locked-database-skips-a-scheduler-round.md).
@@ -75,6 +87,11 @@ public static class CompanyWorkspace
             fixtureHosted ?? (args.Contains(CompanyHosting.HostedFlag) ? HostedOptions.FromSettings(settings) : null);
         if (!args.Contains(Flag) && hosted is null)
             return null;
+        if (
+            settings.ModelVendor.VultrOnly
+            && (args.Contains(CodexFlag) || args.Contains(CodingFlag) || fixtureCoding is not null)
+        )
+            settings.ModelVendor.Require("Codex/coding");
         if (args.Contains(CodingFlag) && !args.Contains(CodexFlag) && fixtureCoding is null)
             throw new InvalidOperationException(
                 "Live company coding needs the Codex connection profile (--company-codex)."
@@ -141,13 +158,15 @@ public static class CompanyWorkspace
         );
         try
         {
-            var routing = new CompanyModelRouting(
-                settings.TextModel ?? ModelRoutes.Route(ModelRoutes.CompanyText),
-                settings.CodingModel ?? ModelRoutes.Route(ModelRoutes.CompanyCoding)
-            )
-            {
-                AnalysisModel = settings.AnalysisModel,
-            };
+            var routing = settings.ModelVendor.Routing(
+                new CompanyModelRouting(
+                    settings.TextModel ?? ModelRoutes.Route(ModelRoutes.CompanyText),
+                    settings.CodingModel ?? ModelRoutes.Route(ModelRoutes.CompanyCoding)
+                )
+                {
+                    AnalysisModel = settings.AnalysisModel,
+                }
+            );
             routing.Validate();
             CompanyCodexOptions? codex =
                 fixture is null && args.Contains(CodexFlag)
@@ -166,10 +185,14 @@ public static class CompanyWorkspace
             IModelProvider platformModel =
                 fixture
                 ?? (
-                    codex is not null ? new CompanyCodexConnection(codex, routing)
+                    codex is not null ? new CompanyCodexConnection(codex, routing, settings.ModelVendor)
                     // The pinned Codex CLI stays the model when it is selected; an API model only on explicit opt-in
                     // (docs/adr/0036-api-model-provider.md).
-                    : settings.ApiModels ? new HireZero.Integrations.ModelApis.ApiModelProvider()
+                    : settings.ApiModels || settings.ModelVendor.VultrOnly
+                        ? new HireZero.Integrations.ModelApis.ApiModelProvider(
+                            vendorPolicy: settings.ModelVendor,
+                            vultrBaseUrl: settings.VultrBaseUrl
+                        )
                     : new UnavailableModelProvider()
                 );
             var model = new CompanyModelConnection(
@@ -178,7 +201,9 @@ public static class CompanyWorkspace
                 routing,
                 fixtureUrl is null ? null : fixtureCompanyModels,
                 fixtureUrl is null ? null : fixtureCompanyModelHandler?.Invoke(CompanyStore.DefaultCompanyId),
-                fixtureUrl is null ? null : fixtureCompanyDecisionHandler?.Invoke(CompanyStore.DefaultCompanyId)
+                fixtureUrl is null ? null : fixtureCompanyDecisionHandler?.Invoke(CompanyStore.DefaultCompanyId),
+                settings.ModelVendor,
+                settings.VultrBaseUrl
             );
             var coding = fixtureCoding;
             if (coding is null && codex is not null && args.Contains(CodingFlag))
@@ -203,7 +228,13 @@ public static class CompanyWorkspace
             var notificationUrl = fixtureNotificationSender is not null
                 ? "https://workspace.example.invalid"
                 : settings.PublicUrl?.ToString();
-            var store = new CompanyStore(database, owner, Definitions(), routing, model.MeasuredIdentity)
+            var store = new CompanyStore(
+                database,
+                owner,
+                Definitions(settings.ModelVendor),
+                routing,
+                model.MeasuredIdentity
+            )
             {
                 Clock = fixtureClock ?? (() => DateTimeOffset.UtcNow),
                 CurrentModelRouting = () => model.Routing,
@@ -340,7 +371,8 @@ public static class CompanyWorkspace
                     connectionOrigin,
                     syntheticAnalytics,
                     syntheticAds,
-                    googleHandler: fixtureGoogle
+                    googleHandler: fixtureGoogle,
+                    vendorPolicy: settings.ModelVendor
                 );
                 connections[companyStore.CompanyId] = scope;
                 companyStore.IntegrationStatuses = () => IntegrationsFor(scope);
@@ -391,13 +423,15 @@ public static class CompanyWorkspace
                         routing,
                         fixtureUrl is null ? null : fixtureCompanyModels,
                         fixtureUrl is null ? null : fixtureCompanyModelHandler?.Invoke(key),
-                        fixtureUrl is null ? null : fixtureCompanyDecisionHandler?.Invoke(key)
+                        fixtureUrl is null ? null : fixtureCompanyDecisionHandler?.Invoke(key),
+                        settings.ModelVendor,
+                        settings.VultrBaseUrl
                     );
                     companyModel.Initialize(root, protection);
                     var companyStore = new CompanyStore(
                         database,
                         listing.Creator,
-                        Definitions(),
+                        Definitions(settings.ModelVendor),
                         routing,
                         companyModel.MeasuredIdentity,
                         key
@@ -736,7 +770,8 @@ public static class CompanyWorkspace
                         "live-coding",
                         "Live coding",
                         CodingFor(scope)?.Qualified == true,
-                        !scope.MachineAccess
+                        settings.ModelVendor.VultrOnly ? settings.ModelVendor.Refusal("Coding runs")
+                            : !scope.MachineAccess
                                 ? "Local coding is available only to the original company on this computer. This company needs an isolated execution environment."
                             : coding?.Qualified == true ? "A qualified coding runner is configured."
                             : coding is CompanyCodexCodingFactory { Refusal: { } why } ? why

@@ -503,6 +503,7 @@ public sealed partial class CompanyStore
                     {
                         r.Id,
                         r.Name,
+                        r.UnavailableReason,
                         r.Skills,
                         r.OnboardingFields,
                         r.MeasuredSkills,

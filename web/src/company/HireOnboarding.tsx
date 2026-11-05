@@ -32,7 +32,7 @@ type Draft = {
 const key = "hirezero-hire-draft-v2:" + (company() || "local-company");
 const legacyKey = "hirezero-hire-draft-v1";
 const suggestion = (snapshot: Snapshot, role: string) => snapshot.data.roles.find((r) => r.id === role)?.onboarding;
-function fresh(snapshot: Snapshot, role = snapshot.data.roles[0]?.id ?? ""): Draft {
+function fresh(snapshot: Snapshot, role = snapshot.data.roles.find((r) => !r.unavailableReason)?.id ?? ""): Draft {
   const defaults = suggestion(snapshot, role);
   const setup = businessSetup(snapshot, role);
   return {
@@ -517,8 +517,9 @@ export function HireOnboarding({
                 }
               >
                 {data.roles.map((r) => (
-                  <option key={r.id} value={r.id}>
+                  <option key={r.id} value={r.id} disabled={!!r.unavailableReason}>
                     {r.name}
+                    {r.unavailableReason ? " - unavailable on this install" : ""}
                   </option>
                 ))}
               </select>
@@ -580,7 +581,7 @@ export function HireOnboarding({
           {department?.knowledge && (
             <p>This employee will reuse the department’s approved context. You will not need to enter it again.</p>
           )}
-          <button className="co-primary" disabled={disabled} type="submit">
+          <button className="co-primary" disabled={disabled || !!role?.unavailableReason} type="submit">
             {busy
               ? person
                 ? "Saving employee…"
@@ -669,7 +670,7 @@ export function HireOnboarding({
               <button type="button" disabled={disabled} onClick={() => change({ ...draft, step: "profile" })}>
                 Back to employee
               </button>
-              <button className="co-primary" disabled={disabled} type="submit">
+              <button className="co-primary" disabled={disabled || !!role?.unavailableReason} type="submit">
                 {busy ? "Saving context…" : "Save context for review"}
               </button>
             </div>

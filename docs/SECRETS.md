@@ -108,6 +108,7 @@ flowchart LR
 | `HIREZERO_AUDIT_KEY` | Signs the audit chain; hosts sharing one database need the same one | An `audit.key` file in the data root, created once | Never (it is the chain's identity) |
 | `HIREZERO_ANTHROPIC_API_KEY` | Employees' model through Anthropic's API, with `HIREZERO_API_MODELS=1` | `anthropic/*` routes go through OpenRouter, if set | Create a new key, update the file, revoke the old key |
 | `HIREZERO_OPENAI_API_KEY` | Employees' model through OpenAI's API, with `HIREZERO_API_MODELS=1` | `openai/*` routes go through OpenRouter, if set | Create a new key, update the file, revoke the old key |
+| `VULTR_INFERENCE_API_KEY` | Vultr inference for `vultr/*` routes; selected explicitly or by `HIREZERO_MODEL_VENDOR=vultr` | Vultr requests are refused; no alternate provider is used | Change the secret file; the next authorized call reads it |
 | `HIREZERO_OPENROUTER_API_KEY` or `OPENROUTER_API_KEY` | OpenRouter: structured choices, and employees' model for any route with `HIREZERO_API_MODELS=1` | The provider is unavailable | Change the file; the next call uses it |
 | `HIREZERO_JEV_API_KEY` or `TYPESAFE_API_KEY` | The Jev choice service | Jev is unavailable | Change the file |
 | `HIREZERO_SEMAFORGE_API_KEY` | SemaForge | SemaForge is unavailable | Change the file |
