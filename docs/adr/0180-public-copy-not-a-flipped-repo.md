@@ -13,7 +13,9 @@ history here and changing the visibility could leave the originals reachable.
 
 ## Decision
 
-- This repository stays private and unchanged, pull requests included.
+- This repository stays private and unchanged, pull requests included, renamed `raydeStar/HireZero-private` so the
+  public copy can take the name `raydeStar/HireZero`. Local checkouts, including the Developer's, point at the new name
+  so nothing meant for the private repository can reach the public one.
 - The public code is a new repository made from a rewritten copy of `main` only: names, addresses and hosts are mapped
   to the fictional names the fixtures already use, and commit authors use a no-reply address.
 - The rewrite rules live outside every repository, because they contain the very names they remove. They are never
