@@ -150,7 +150,7 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
         if (
             job.State != "dispatched"
             || job.RuntimeIdentity != RuntimeIdentity
-            || job.ExpiresAt <= DateTimeOffset.UtcNow
+            || (ModelRoutes.Provider(call.ModelRoute ?? "") == "vultr" && job.ExpiresAt <= DateTimeOffset.UtcNow)
             || !CompanyMeasuredPolicy.Known(job.Policy)
             || job.CreditAllowance is <= 0 or > 1000
             || job.Route != call.ModelRoute
@@ -162,8 +162,18 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
             throw new WorkspaceException("The exact consumed measured authorization is required.");
         token.ThrowIfCancellationRequested();
         var route = call.ModelRoute!;
+        (string Api, string Model, string Key)? served;
+        try
+        {
+            served = Endpoint(route);
+        }
+        catch (InvalidOperationException refused)
+        {
+            // The install's vendor policy refused the route before anything left this process.
+            throw NotSent(refused.Message);
+        }
         var endpoint =
-            Endpoint(route) ?? throw NotSent($"No API key serves {route}. Set its vendor's key or an OpenRouter key.");
+            served ?? throw NotSent($"No API key serves {route}. Set its vendor's key or an OpenRouter key.");
         var price =
             _price(route)
             ?? throw NotSent(
@@ -325,7 +335,8 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                 usage,
                 accountingViolation: true
             );
-        if (usage.OutputTokens > maxOutput)
+        // Vultr-only checks: the other vendors keep the behaviour local installs already rely on.
+        if (endpoint.Api == "vultr" && usage.OutputTokens > maxOutput)
             throw new ModelTransportException(
                 "The provider exceeded the output limit; the reply was withheld.",
                 total,
@@ -333,7 +344,7 @@ public sealed class ApiModelProvider : IModelProvider, IMeasuredModelProvider, I
                 usage,
                 accountingViolation: true
             );
-        if (string.IsNullOrWhiteSpace(id))
+        if (endpoint.Api == "vultr" && string.IsNullOrWhiteSpace(id))
             throw new ModelTransportException(
                 "The provider supplied no receipt; the reply was withheld.",
                 total,

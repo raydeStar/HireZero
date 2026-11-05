@@ -109,6 +109,52 @@ public sealed class VultrProviderTests
     }
 
     [Fact]
+    public async Task AVultrOnlyInstallRefusesAnotherRouteAsNotSent()
+    {
+        using var fake = new Fake();
+        using var provider = Provider(fake);
+        var (call, job) = Packet();
+        const string other = "openai/fictional-model";
+        var error = await Assert.ThrowsAsync<ModelTransportException>(() =>
+            provider.CompleteMeasuredAsync(call with { ModelRoute = other }, job with { Route = other }, Token)
+        );
+        Assert.Equal(new ModelUsage(0, 0), error.Usage);
+        Assert.Null(error.Receipt);
+        Assert.Empty(fake.Requests);
+    }
+
+    [Fact]
+    public async Task OtherVendorsKeepAcceptingAReplyWithoutAnIdOrAWallClockExpiry()
+    {
+        using var fake = new Fake
+        {
+            Reply =
+                """{"choices":[{"message":{"content":"A fictional draft."},"finish_reason":"stop"}],"usage":{"prompt_tokens":130,"completion_tokens":20}}""",
+        };
+        const string other = "openai/fictional-model";
+        using var provider = new ApiModelProvider(
+            name => name == ApiModelProvider.OpenAIKey ? "fictional-openai-key" : null,
+            fake,
+            _ => new ModelPrice(0.15m, 0.60m),
+            vendorPolicy: new(null)
+        );
+        var (call, job) = Packet();
+        var reply = await provider.CompleteMeasuredAsync(
+            call with
+            {
+                ModelRoute = other,
+            },
+            job with
+            {
+                Route = other,
+                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            },
+            Token
+        );
+        Assert.Equal("openai:", reply.Receipt);
+    }
+
+    [Fact]
     public async Task WorstCasePriceKeyAndConsumedAuthorityAreRequiredBeforeSend()
     {
         using var fake = new Fake();

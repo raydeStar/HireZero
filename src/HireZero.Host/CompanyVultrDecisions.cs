@@ -121,7 +121,8 @@ public sealed partial class CompanyModelConnection
         }
         catch (ModelTransportException error)
         {
-            if (error.KnownUsage == 0)
+            // Only a refusal before sending is "not sent"; a reply that reached us with a receipt keeps its reservation.
+            if (error.KnownUsage == 0 && error.Receipt is null && error.Usage == new ModelUsage(0, 0))
                 return new("not_sent", Usage: new(0, 0, BilledUsd: 0), ReportedCostUsd: 0);
             return new(
                 error.AccountingViolation ? "unknown" : "answer_withheld",

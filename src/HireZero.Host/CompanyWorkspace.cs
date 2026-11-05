@@ -212,7 +212,8 @@ public static class CompanyWorkspace
                     codex,
                     routing,
                     settings.CodingRead,
-                    packageCache: settings.CodingPackages
+                    packageCache: settings.CodingPackages,
+                    vendorPolicy: settings.ModelVendor
                 );
                 coding = live.Qualified
                     ? live
