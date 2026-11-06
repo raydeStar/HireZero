@@ -177,7 +177,7 @@ public static class CompanyHosting
                     if (
                         actor is null
                         && !(
-                            membership.OpenSignup
+                            (membership.OpenSignup || membership.InvitationSignIn?.Invoke(context.HttpContext) == true)
                             && string.Equals(Claim("email_verified"), "true", StringComparison.OrdinalIgnoreCase)
                             && !string.IsNullOrWhiteSpace(Claim("email"))
                         )
@@ -233,9 +233,16 @@ public static class CompanyHosting
     {
         app.MapGet(
             "/signin",
-            () =>
+            (HttpContext context) =>
                 Results.Challenge(
-                    new AuthenticationProperties { RedirectUri = "/" },
+                    new OpenIdConnectChallengeProperties
+                    {
+                        RedirectUri = context.Request.Query["join"] == "1" ? "/join" : "/",
+                        Prompt =
+                            context.Request.Query["join"] == "1" && context.Request.Query["account"] == "1"
+                                ? "select_account"
+                                : null,
+                    },
                     [OpenIdConnectDefaults.AuthenticationScheme]
                 )
         );
@@ -267,6 +274,7 @@ public sealed record CompanyRuntime(
 // Hosted sign-in across the data root's companies, set once their runtimes exist.
 public sealed class CompanyMembership
 {
+    public Func<HttpContext, bool>? InvitationSignIn { get; set; }
     public bool OpenSignup { get; init; }
     public Func<string, string?, bool, string?, CompanyActor?>? SignIn { get; set; }
 }

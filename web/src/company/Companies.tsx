@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, ApiError, company, savePreference } from "../lib/api";
 import { RetirementReview } from "./RetirementReview";
 import { WorkControl, type CompanyWorkControl } from "./WorkControl";
+import { CreateFreeCompany } from "./FreeCompanyActions";
 import {
   checkCompanyCreation,
   createCompany,
@@ -22,9 +23,11 @@ export function Companies({
   workControl,
   onWorkControl,
   canCreate = true,
+  canSignup = false,
 }: {
   role?: string;
   canCreate?: boolean;
+  canSignup?: boolean;
   version: number;
   expanded?: boolean;
   workControl?: CompanyWorkControl;
@@ -110,6 +113,7 @@ export function Companies({
       <summary>Company: {current?.name ?? "Company"}</summary>
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
+      {canSignup && <CreateFreeCompany />}
       {companies.length > 1 && (
         <label>
           Switch to

@@ -14,6 +14,11 @@ public static class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--team-browser-fixture")
+        {
+            await TeamBrowserFixture.RunAsync(args);
+            return Environment.ExitCode;
+        }
         if (args.FirstOrDefault() is "--codex-inspect" or "--codex-pilot")
         {
             try

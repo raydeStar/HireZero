@@ -35,6 +35,12 @@ public sealed partial class CompanyStore
         return Scalar(db, "SELECT subject FROM co_signups WHERE company_id=$0", companyId) is not null;
     }
 
+    public bool HasSignup(string subject)
+    {
+        using var db = Open();
+        return Scalar(db, "SELECT company_id FROM co_signups WHERE subject=$0", subject) is not null;
+    }
+
     public bool HasSpendCaps
     {
         get
@@ -102,19 +108,6 @@ public sealed partial class CompanyStore
                         member.Role
                     );
                 }
-                if (
-                    Rows(
-                            db,
-                            "SELECT payload FROM co_members WHERE id=$0",
-                            r => CompanyJson.Decode<CompanyMember>(r.GetString(0)),
-                            subject
-                        )
-                        .Any(m => m.State == "active")
-                )
-                    throw new WorkspaceException(
-                        "You already belong to a company. Open it from the company chooser.",
-                        409
-                    );
                 if (int.Parse(Scalar(db, "SELECT count(*) FROM co_signups")!) >= policy.MaxCompanies)
                     throw new WorkspaceException(
                         "Free sign-up is full. The install's company limit has been reached.",

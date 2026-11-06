@@ -98,6 +98,8 @@ public static class CompanyWorkspace
             );
         if (settings.OpenSignup && hosted is null)
             throw new InvalidOperationException("HIREZERO_OPEN_SIGNUP is available in hosted mode only.");
+        if (settings.SignupInvites && hosted is null)
+            throw new InvalidOperationException("HIREZERO_SIGNUP_INVITES is available in hosted mode only.");
         if (hosted is null && !localOwner)
             throw new InvalidOperationException("Company local mode requires explicit local owner mode.");
         if (hosted is not null && (localOwner || !owner.Contains('@')))
@@ -126,6 +128,7 @@ public static class CompanyWorkspace
         {
             builder.ListenHosted(hosted, 16_384);
             builder.Services.AddHostedSignIn(hosted);
+            CompanyInvitationHosting.AddLimits(builder.Services);
         }
         else
             builder.ListenLoopbackOnly(uri, uri.Port, 16_384);
@@ -240,6 +243,7 @@ public static class CompanyWorkspace
             )
             {
                 Clock = fixtureClock ?? (() => DateTimeOffset.UtcNow),
+                SignupInvitesEnabled = settings.SignupInvites,
                 CurrentModelRouting = () => model.Routing,
                 CurrentMeasuredRuntimeIdentity = () => model.MeasuredIdentity,
                 UsageFunding = kind => model.FundingFor(kind),
@@ -458,6 +462,7 @@ public static class CompanyWorkspace
                     )
                     {
                         Clock = fixtureClock ?? (() => DateTimeOffset.UtcNow),
+                        SignupInvitesEnabled = settings.SignupInvites,
                         CurrentModelRouting = () => companyModel.Routing,
                         CurrentMeasuredRuntimeIdentity = () => companyModel.MeasuredIdentity,
                         UsageFunding = kind => companyModel.FundingFor(kind),
@@ -548,10 +553,20 @@ public static class CompanyWorkspace
             CompanyModelConnection Model() => Runtime().Model;
             ToolRegistry Tools() => Runtime().Tools;
             CompanyIntegrationScope Connections() => connections[Store().CompanyId];
+            var invitations = new CompanyInvitationHosting(
+                store,
+                id => Open(id).Store,
+                app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(),
+                settings.SignupInvites
+            );
+            membership.InvitationSignIn = invitations.CanSignIn;
             app.Lifetime.ApplicationStopped.Register(ownership.Dispose);
             app.UseWorkspaceCorrelation();
             if (hosted is not null)
+            {
                 app.UseHostedSignIn(hosted);
+                app.UseRateLimiter();
+            }
             app.Use(
                 async (c, next) =>
                 {
@@ -605,6 +620,7 @@ public static class CompanyWorkspace
                             subject is null
                             && c.Request.Path.StartsWithSegments("/api")
                             && c.Request.Path != "/api/session"
+                            && !CompanyInvitationHosting.Anonymous(c.Request)
                             && !billingEvent
                         )
                         {
@@ -663,6 +679,7 @@ public static class CompanyWorkspace
                             // The front door must not require a key to a room the guest was never invited into.
                             if (
                                 !(c.Request.Method == "GET" && c.Request.Path == "/api/companies")
+                                && !CompanyInvitationHosting.WithoutMembership(c.Request)
                                 && !(
                                     settings.OpenSignup && c.Request.Method == "POST" && c.Request.Path == "/api/signup"
                                 )
@@ -754,7 +771,7 @@ public static class CompanyWorkspace
                                 companySelectionRequired = true,
                                 companies = MemberCompanies(subject),
                                 openSignup = settings.OpenSignup
-                                    && MemberCompanies(subject).Length == 0
+                                    && !store.HasSignup(subject)
                                     && CompanySignupHosting.Verified(context),
                             }
                         );
@@ -767,6 +784,10 @@ public static class CompanyWorkspace
                                 : null,
                             role = (string?)context.Items["role"],
                             signedIn = context.Items["login"] is string,
+                            openSignup = settings.OpenSignup
+                                && context.Items["login"] is string eligibleSubject
+                                && !store.HasSignup(eligibleSubject)
+                                && CompanySignupHosting.Verified(context),
                             accessMode = hosted is null ? "local" : "hosted",
                             roles = Array.Empty<string>(),
                             agentModel = Model().HasMeasured
@@ -847,6 +868,7 @@ public static class CompanyWorkspace
                             {
                                 localManagement = true,
                                 signupCompany = Store().IsSignupCompany,
+                                signupInvites = Store().IsSignupCompany && settings.SignupInvites,
                                 freeAllowance = Store().IsSignupCompany ? Store().FreeAllowance() : null,
                                 modelExecution = Model().Qualified,
                                 liveCoding = CodingFor(Connections())?.Qualified == true,
@@ -1598,7 +1620,10 @@ public static class CompanyWorkspace
                 }
             );
             if (hosted is not null)
+            {
                 app.MapHostedSignIn();
+                invitations.Map(app, Store, hosted.PublicUrl);
+            }
             app.MapFallback(
                 "/api/{**path}",
                 () =>

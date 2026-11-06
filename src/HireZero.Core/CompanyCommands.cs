@@ -376,6 +376,8 @@ public sealed partial class CompanyStore
                 return MarkNeed(db, c);
             case "member.invite":
                 return InviteMember(db, c);
+            case "member.leave":
+                return LeaveCompany(db, c);
             case "member.role":
                 return ChangeMember(db, c, revoke: false);
             case "member.revoke":

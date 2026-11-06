@@ -332,6 +332,7 @@ export type Snapshot = {
     conversationalReplies?: boolean;
     // "usd-cents" when an API model enforces the allowance as a spending cap; Codex credits are only intended.
     signupCompany?: boolean;
+    signupInvites?: boolean;
     freeAllowance?: { remainingCents: number; companyRemainingCents: number; dailyRemainingCents: number } | null;
     allowanceUnit?: "credits" | "usd-cents";
     modelChoices?: import("./ModelChoice").ModelOption[];

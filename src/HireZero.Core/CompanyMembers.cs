@@ -102,6 +102,11 @@ public sealed partial class CompanyStore
         Version(member.Version, c.ExpectedVersion);
         if (!revoke && !CompanyRoles.All.Contains(c.Decision))
             throw new WorkspaceException("Choose owner, approver or viewer.", 422);
+        if (!revoke && SignupCompany(db) && (c.Decision == CompanyRoles.Owner || member.Role == CompanyRoles.Owner))
+            throw new WorkspaceException(
+                "Free teams keep their original owner. Choose approver or viewer for teammates.",
+                403
+            );
         var changed = revoke
             ? member with
             {
@@ -118,6 +123,10 @@ public sealed partial class CompanyStore
         if (owners == 0 && !(changed.State == "active" && changed.Role == CompanyRoles.Owner))
             throw new WorkspaceException("The company must keep at least one active owner.");
         Save(db, changed, changed.Id, state: changed.State, version: changed.Version);
+        if (SignupCompany(db))
+            Sql(db, "DELETE FROM co_member_invites WHERE company_id=$0 AND email=$1", CompanyId, member.Email);
+        if (revoke)
+            Sql(db, "DELETE FROM co_verified_emails WHERE company_id=$0 AND id=$1", CompanyId, member.Id);
         Event(
             db,
             revoke ? "member.revoked" : "member.changed",

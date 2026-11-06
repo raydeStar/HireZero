@@ -18,7 +18,7 @@ using Microsoft.IdentityModel.Tokens;
 // Hosted sign-in (docs/adr/0020-members-roles-and-sign-in.md) against an in-process fake OIDC provider: the code
 // flow with PKCE, a secure session cookie, the first owner bound by verified email, strangers refused, and only the
 // public HTTPS origin served through the one trusted proxy. No live identity provider.
-public sealed class HostedSignInTests : IAsyncDisposable
+public sealed partial class HostedSignInTests : IAsyncDisposable
 {
     private const string Public = "hirezero.example.invalid";
     private const string ClientId = "hirezero-fixture";
@@ -203,9 +203,9 @@ public sealed class HostedSignInTests : IAsyncDisposable
         }
 
         // Starts sign-in, lets the fake provider consent, and returns the host's answer to the callback.
-        public async Task<HttpResponseMessage> SignInAsync()
+        public async Task<HttpResponseMessage> SignInAsync(string path = "/signin")
         {
-            var challenge = await Host(HttpMethod.Get, "/signin");
+            var challenge = await Host(HttpMethod.Get, path);
             Assert.Equal(HttpStatusCode.Redirect, challenge.StatusCode);
             var consent = await idp.GetAsync(challenge.Headers.Location);
             Assert.Equal(HttpStatusCode.Redirect, consent.StatusCode);

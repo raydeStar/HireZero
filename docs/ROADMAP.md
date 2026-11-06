@@ -7,6 +7,11 @@ safe by default, auditable, multi-user, and extensible by adding a folder rather
 This file is the canonical plan. Architecture decisions behind it live in [docs/adr](adr/). Update the status
 column when a phase lands; open a new ADR when a decision changes.
 
+Free-company teams are implemented locally behind the default-off `HIREZERO_SIGNUP_INVITES` setting
+([ADR 0182](adr/0182-consent-based-free-company-teams.md)). Explicit invitation consent, shared allowances,
+independent signup eligibility and non-owner departure are covered by focused offline checks; production rollout
+and live identity-provider acceptance remain deferred.
+
 ## Context-first product track — adopted 2026-10-25
 
 The owner requested implementation of **all three phases** of the [context-first product vision](product/context-first-vision.md):
