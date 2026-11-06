@@ -1221,3 +1221,180 @@
     max-height: min(420px, 48dvh);
   }
 }
+
+/* Usefulness round (2026-11-06): the employee speaks first, one box starts a new outcome, and the cockpit stays
+   docked from laptop widths up. */
+.co-workspace .co-team-note {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin: 14px 0 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--fe-line);
+  border-radius: 16px;
+  background: var(--fe-surface);
+  box-shadow: var(--fe-shadow);
+  animation: hz-note-in 0.35s ease-out;
+}
+.co-workspace .co-team-note-avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+.co-workspace .co-team-note-body {
+  flex: 1;
+  min-width: 0;
+}
+.co-workspace .co-team-note-who {
+  margin: 0 0 6px;
+  font-size: var(--fe-t-s);
+  color: var(--fe-fg-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.co-workspace .co-team-note-who b {
+  color: var(--fe-fg);
+}
+.co-workspace .co-team-note-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--hz-live-soft);
+  color: var(--hz-live);
+  font-size: 12px;
+  font-weight: 600;
+}
+.co-workspace .co-team-note-live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hz-live);
+  animation: hz-pulse 1.8s ease-out infinite;
+}
+.co-workspace .co-team-note ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.co-workspace .co-team-note-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  font-size: var(--fe-t-m);
+  line-height: 1.45;
+  animation: hz-note-in 0.35s ease-out both;
+}
+.co-workspace .co-team-note-line:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.co-workspace .co-team-note-line:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.co-workspace .co-team-note-line:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.co-workspace .co-team-note-line > button {
+  flex: none;
+}
+.co-workspace .co-outcome {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 4px;
+  padding: 14px 18px;
+  border: 1px solid color-mix(in srgb, var(--fe-accent) 35%, var(--fe-line));
+  border-radius: 16px;
+  background: var(--fe-accent-soft);
+}
+.co-workspace .co-outcome label {
+  font-weight: 620;
+  color: var(--fe-fg);
+}
+.co-workspace .co-outcome-row {
+  display: flex;
+  gap: 8px;
+}
+.co-workspace .co-outcome-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fe-t-m);
+  padding: 10px 12px;
+}
+.co-workspace .co-outcome-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.co-workspace .co-outcome-examples button {
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .co-outcome small {
+  color: var(--fe-fg-2);
+}
+.co-workspace .fe-cockpit-head {
+  gap: 8px;
+}
+.co-workspace .co-cockpit-add {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: var(--fe-t-s);
+}
+.co-workspace .fe-cockpit .fe-up-next > li {
+  animation: hz-note-in 0.3s ease-out both;
+}
+.co-workspace .fe-working-on.active .fe-up-next-title > span:first-child::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--hz-live);
+  vertical-align: middle;
+  animation: hz-pulse 1.8s ease-out infinite;
+}
+@keyframes hz-note-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .co-workspace .co-team-note,
+  .co-workspace .co-team-note-line,
+  .co-workspace .fe-cockpit .fe-up-next > li {
+    animation: none;
+  }
+}
+/* Between laptop and wide screens the cockpit keeps a narrower column so the page stays readable. */
+@media (min-width: 761px) and (max-width: 1279px) {
+  .co-workspace.with-cockpit {
+    grid-template-columns: var(--fe-rail-w) 238px minmax(0, 1fr) min(var(--fe-cockpit-w), 272px);
+  }
+}
+@media (max-width: 640px) {
+  .co-workspace .co-team-note-line {
+    flex-wrap: wrap;
+  }
+  .co-workspace .co-outcome-row {
+    flex-direction: column;
+  }
+}

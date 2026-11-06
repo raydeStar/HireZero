@@ -277,7 +277,8 @@ function CompanyWorkspaceContent({
     navigate({ ...routeRef.current, work: "" });
   }
   // The cockpit: docked on wide screens, resizable and hideable, otherwise a sheet (docs/adr/0040-the-muse-layout.md).
-  const roomy = useWide("(min-width: 1280px)"),
+  // Docked from laptop widths up: what the team is doing should never hide behind a button (2026-11-06).
+  const roomy = useWide("(min-width: 1024px)"),
     // Chat and work side by side only when both get a readable column beside the cockpit (UX round 10).
     splitWide = useWide("(min-width: 1600px)"),
     compactHub = useWide("(max-width: 640px)");
@@ -313,6 +314,7 @@ function CompanyWorkspaceContent({
     savePreference("cockpit-open", open);
   }
   const docked = roomy && cockpitOpen;
+  const [outcomeRequest, setOutcomeRequest] = useState(0);
   const { needs, error: needsError, loading: needsLoading, retry: retryNeeds } = useNeeds(snapshot?.data.cursor ?? 0);
   // Theme: System follows the operating system, and changes with it (UX round 3).
   const [theme, setTheme] = useState<ThemeChoice>(() => preference<ThemeChoice>("theme", "system"));
@@ -732,6 +734,15 @@ function CompanyWorkspaceContent({
       onOpenWork={openWork}
       onOpenNeed={openNeed}
       onClose={() => (sheet ? setSheet(false) : showCockpit(false))}
+      onNewOutcome={
+        canManage
+          ? () => {
+              setSheet(false);
+              setTab("home");
+              setOutcomeRequest((n) => n + 1);
+            }
+          : undefined
+      }
     />
   );
   const initiatingRoute = route;
@@ -1006,6 +1017,7 @@ function CompanyWorkspaceContent({
               refresh={refresh}
               onOpenConversation={openConversation}
               canPrepare={!memberRole || memberRole === "owner" || memberRole === "approver"}
+              outcomeRequest={outcomeRequest}
               onResumeHire={(employee) => {
                 setResumeHire(employee.id);
                 setTab("employees");

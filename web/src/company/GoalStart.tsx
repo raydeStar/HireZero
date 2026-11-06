@@ -33,14 +33,15 @@ export function GoalStart({
   openWork,
   onBusiness,
   onResumeHire,
-  nextTaskRequest = 0,
+  nextGoal,
 }: {
   snapshot: Snapshot;
   refresh: () => Promise<void>;
   openWork: (task: Work) => void;
   onBusiness?: () => void;
   onResumeHire?: (employee: Snapshot["data"]["employees"][number]) => void;
-  nextTaskRequest?: number;
+  // An outcome typed at the top of Home: it fills the goal and opens the form, never starts a run.
+  nextGoal?: { text: string; request: number };
 }) {
   const profile = approvedBusinessProfile(snapshot);
   const hasWork = snapshot.data.tasks.some((task) => task.kind !== "conversation");
@@ -87,27 +88,28 @@ export function GoalStart({
     current.current = next;
     setDraft(next);
   }
-  function startNextTask() {
+  function startNextTask(goal?: string) {
     setConsent(false);
     focusNextGoal.current = true;
     setFormOpen(true);
-    change({ ...draft, taskId: undefined, goal: draft.taskId ? "" : draft.goal });
+    const prior = current.current;
+    change({ ...prior, taskId: undefined, goal: goal ?? (prior.taskId ? "" : prior.goal) });
   }
   useEffect(() => {
-    if (!nextTaskRequest) return;
-    // A new-task shortcut may reveal recovery, but may never discard an uncertain request.
+    if (!nextGoal?.request) return;
+    // A new outcome may reveal recovery, but may never discard an uncertain request.
     if (current.current.flow || current.current.pending) {
       section.current?.focus();
-      section.current?.scrollIntoView({ block: "nearest" });
-    } else startNextTask();
-  }, [nextTaskRequest]);
+      section.current?.scrollIntoView({ block: "center" });
+    } else startNextTask(nextGoal.text);
+  }, [nextGoal?.request]);
   useEffect(() => {
     if (focusNextGoal.current && goalInput.current) {
       focusNextGoal.current = false;
       goalInput.current.focus();
-      goalInput.current.scrollIntoView({ block: "nearest" });
+      goalInput.current.scrollIntoView({ block: "center" });
     }
-  }, [formOpen, draft.taskId, nextTaskRequest]);
+  }, [formOpen, draft.taskId, nextGoal?.request]);
   const proposal: BusinessProfile = {
     ...(profile || { id: "goal-preview", businessVersion: 0, digest: "", state: "draft", version: 0, updatedAt: "" }),
     fields: (
@@ -401,7 +403,7 @@ export function GoalStart({
           </p>
           {/* Finished work points to the next goal first (dogfood, 2026-10-30). */}
           {saved?.state === "completed" && (
-            <button className="co-primary" onClick={startNextTask}>
+            <button className="co-primary" onClick={() => startNextTask()}>
               Start next task
             </button>
           )}
@@ -414,13 +416,13 @@ export function GoalStart({
           {/* A remembered request this company no longer has must not leave a first-time owner stuck (dogfood,
               2026-10-30). */}
           {saved?.state !== "completed" && (
-            <button onClick={startNextTask}>{saved ? "Start next task" : "Start a new goal"}</button>
+            <button onClick={() => startNextTask()}>{saved ? "Start next task" : "Start a new goal"}</button>
           )}
         </div>
       ) : !formOpen ? (
         <div>
           <p>Your earlier work is saved above. Start a new request using your saved business details.</p>
-          <button className="co-primary" onClick={startNextTask}>
+          <button className="co-primary" onClick={() => startNextTask()}>
             Start next task
           </button>
         </div>
