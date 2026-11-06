@@ -39,6 +39,9 @@ export function CreateFreeCompany() {
       location.assign("/?company=" + encodeURIComponent(created.id));
     } catch (cause) {
       setError((cause as Error).message + " Refresh your companies to check whether creation completed.");
+      // A second attempt is safe: the server allows one free company per account.
+      sending.current = false;
+      setBusy(false);
     }
   }
   return (
@@ -67,14 +70,18 @@ export function LeaveCompany() {
       const members = await api<{ id: string; version: number }[]>("/company/members");
       const member = members.find((item) => item.id === session.login);
       if (!member) throw new Error("Your membership could not be confirmed. Refresh access.");
-      await api("/company/commands", "POST", {
+      // A lost reply is settled by reading memberships; a refusal keeps the server's reason.
+      const refused = await api("/company/commands", "POST", {
         requestId: crypto.randomUUID(),
         action: "member.leave",
         expectedVersion: member.version,
-      }).catch(() => undefined);
+      }).then(
+        () => undefined,
+        (cause: Error) => cause,
+      );
       const companies = await api<{ id: string }[]>("/companies");
       if (companies.some((item) => item.id === company()))
-        throw new Error("Leaving was not confirmed. Refresh access before trying again.");
+        throw refused ?? new Error("Leaving was not confirmed. Refresh access before trying again.");
       savePreference("company", "");
       location.assign("/");
     } catch (cause) {
