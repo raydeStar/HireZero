@@ -19,6 +19,36 @@ approved ad changes, email and pipeline reviews), **Support** (customer replies,
 > Status: development. Automatic model execution is off by default; the company workspace offers explicitly
 > approved one-turn replies and drafts through a pinned runtime. See the [latest report](docs/history/PHASE3_IDENTITY_REPORT.md).
 
+## Try it on Vultr: [app.hirezero.app](https://app.hirezero.app)
+
+Sign in with Google and create your own company, with a free allowance of $0.50. Tell it what your business
+does and one goal. A Marketing employee writes a private draft once you approve the exact job and its spend limit.
+Nothing is posted, sent or bought. Every model call goes to Vultr Serverless Inference. The app runs on one Vultr
+Cloud Compute VM. [Submission](docs/agent-rush/submission.md) · [Deployment record](docs/history/2026-11-05-hosted-on-vultr.md)
+
+### What existed before Agent Rush, and what was built November 3–8, 2026
+
+The HireZero app existed before the event. That includes its employees, approvals bound to the exact version
+reviewed, budgets reserved before every model call, uncertain outcomes held for reconciliation, members, sign-in and
+companies per data root. The [last commit before the event](https://github.com/raydeStar/HireZero/commit/9f171b2) is
+dated November 1.
+
+[Everything since](https://github.com/raydeStar/HireZero/compare/9f171b2...main) is Agent Rush work:
+
+- **Vultr as the only model provider:** a `vultr` vendor and a Vultr-only setting that routes every model purpose to
+  `deepseek-v4.1-flash-1017` and refuses every other provider at startup.
+  [ADR 0179](docs/adr/0179-hosted-hirezero-on-vultr.md)
+- **Open sign-up with spending caps:** one company per verified Google account, a lifetime allowance per company and a
+  daily cap across the install. Both are checked against the worst case before anything is sent.
+  [ADR 0181](docs/adr/0181-open-signup-and-durable-spend-caps.md)
+- **Deployment:** the app runs behind nginx with TLS on a Vultr VM. Secrets load as systemd credentials. One real
+  marketing job ran end to end on Vultr for $0.0043.
+- **A public, scrubbed history:** the code you are reading. [ADR 0180](docs/adr/0180-public-copy-not-a-flipped-repo.md)
+
+The same week also produced a separate demo of HireZero's existing gVisor browser runtime, with Vultr drafting the
+steps and the owner approving them. It lives in [hirezero-engine](https://github.com/raydeStar/hirezero-engine) and
+runs at [rush.hirezero.app](https://rush.hirezero.app).
+
 ## Requirements
 
 - Windows with PowerShell 7 (the launchers are Windows-only for now).

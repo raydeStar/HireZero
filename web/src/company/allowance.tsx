@@ -73,7 +73,7 @@ export function FreeAllowance({
   return (
     <p className="co-muted" role="status">
       Free allowance remaining: <strong>{dollars(remainingCents)}</strong>
-      {remainingCents < companyRemainingCents && " � Limited by today's shared allowance; resets at midnight UTC."}
+      {remainingCents < companyRemainingCents && ". Limited by today's shared allowance, which resets at midnight UTC."}
       {remainingCents === 0 && " Your free allowance is used up or reserved for earlier work."}
     </p>
   );
