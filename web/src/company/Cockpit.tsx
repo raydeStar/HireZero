@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, CircleAlert, PanelRightClose, X } from "lucide-react";
+import { Check, CircleAlert, PanelRightClose, Plus, X } from "lucide-react";
 import { api } from "../lib/api";
 import type { Snapshot, Work } from "./api";
 import { taskState, workName } from "./labels";
@@ -95,6 +95,7 @@ export function Cockpit({
   onOpenWork,
   onOpenNeed,
   onClose,
+  onNewOutcome,
   needsError = "",
   needsLoading = false,
   onRetryNeeds,
@@ -107,6 +108,7 @@ export function Cockpit({
   onOpenWork: (task: Work) => void;
   onOpenNeed: (need: Need) => void;
   onClose: () => void;
+  onNewOutcome?: () => void;
   needsError?: string;
   needsLoading?: boolean;
   onRetryNeeds?: () => void;
@@ -171,6 +173,11 @@ export function Cockpit({
     <aside className="fe-cockpit co-cockpit" aria-label="Cockpit">
       <header className="fe-cockpit-head">
         <h2>Cockpit</h2>
+        {onNewOutcome && (
+          <button className="co-cockpit-add" onClick={onNewOutcome} title="Tell your team what you want next">
+            <Plus size={15} aria-hidden="true" /> New outcome
+          </button>
+        )}
         <button className="fe-icon-button" aria-label="Hide cockpit" onClick={onClose}>
           <PanelRightClose size={17} />
         </button>
@@ -275,7 +282,17 @@ export function Cockpit({
           {next.length ? (
             <ol className="fe-up-next">{next.slice(0, 10).map(row)}</ol>
           ) : (
-            <p className="fe-cockpit-clear">The queue is empty.</p>
+            <p className="fe-cockpit-clear">
+              The queue is empty.
+              {onNewOutcome && (
+                <>
+                  {" "}
+                  <button className="co-link" onClick={onNewOutcome}>
+                    Add something
+                  </button>
+                </>
+              )}
+            </p>
           )}
         </section>
         {done.length > 0 && (

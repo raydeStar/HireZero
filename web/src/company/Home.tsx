@@ -1,9 +1,9 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Check } from "lucide-react";
 import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workState, workTitle, type Need } from "./Cockpit";
 import { artifactState, employeeState, roleName, taskState } from "./labels";
-import { ago, isToday, useNow } from "./time";
+import { ago, useNow } from "./time";
 import { dollars } from "./money";
 import { approvedBusinessProfile, businessSetup, homeCards } from "../roles/company";
 import { FirstAssignment } from "./FirstAssignment";
@@ -12,6 +12,7 @@ import { WorkContext } from "./WorkContext";
 import { GoalStart } from "./GoalStart";
 import { optionalDraftReview, readyDraft, shiftRound } from "./readyDrafts";
 import { isDraftDayLabel } from "./draftCopySections";
+import { OutcomeBox, TeamNote } from "./TeamNote";
 
 export function initials(name: string) {
   return (
@@ -91,6 +92,7 @@ export function Home({
   refresh,
   onOpenConversation,
   canPrepare = true,
+  outcomeRequest = 0,
 }: {
   snapshot: Snapshot;
   needs: Need[];
@@ -107,6 +109,7 @@ export function Home({
   refresh: () => Promise<void>;
   onOpenConversation: (employee: string, thread: string) => void;
   canPrepare?: boolean;
+  outcomeRequest?: number;
 }) {
   const { canManage, canWork } = useMemberAccess();
   const goalStart = canManage && !!onBusiness;
@@ -126,7 +129,14 @@ export function Home({
   const [allResults, setAllResults] = useState(false);
   const [resultSearch, setResultSearch] = useState("");
   const [allRequests, setAllRequests] = useState(false);
-  const [nextTaskRequest, setNextTaskRequest] = useState(0);
+  const [nextGoal, setNextGoal] = useState<{ text: string; request: number }>();
+  const outcome = useRef<HTMLDivElement>(null);
+  // The cockpit's New outcome brings the owner here, to the one box that starts something new.
+  useEffect(() => {
+    if (!outcomeRequest) return;
+    outcome.current?.scrollIntoView({ block: "center" });
+    outcome.current?.querySelector("input")?.focus();
+  }, [outcomeRequest]);
   const results = [...d.artifacts]
     .reverse()
     .filter((a) => !["superseded", "revoked"].includes(a.state))
@@ -230,25 +240,10 @@ export function Home({
   ];
   const next = steps.findIndex((step) => !step.done);
   const spend = d.spend;
-  // Today so far (UX round 8): one sentence from the event times, in the viewer's day.
+  // The status summary is the employee's note (TeamNote); counts live in the cockpit.
   const now = useNow(60_000);
   const times = d.taskTimes ?? {};
-  const startedToday = work.filter((t) => isToday(times[t.id]?.started, now)).length;
-  const finishedToday = work.filter((t) => t.state === "completed" && isToday(times[t.id]?.updated, now)).length;
-  const draftsToday = ready.filter((t) => isToday(times[t.id]?.updated, now)).length;
-  const todayParts = [
-    startedToday && startedToday + " started",
-    draftsToday && draftsToday + (draftsToday === 1 ? " draft ready" : " drafts ready"),
-    finishedToday && finishedToday + " finished",
-  ].filter(Boolean);
   const hour = new Date(now).getHours();
-  // The first layer of status (UX round 10): a plain summary and live counts, each opening the place to look.
-  const pulse = [
-    ["Needs you", attentionNeeds.length, attentionNeeds[0] && (() => onOpenNeed(attentionNeeds[0]!))],
-    ["Drafts ready", ready.length, ready.at(-1) && (() => onOpenWork(ready.at(-1)!))],
-    ["Working", count(workGroups.progress), undefined],
-    ["Up next", count(workGroups.next), undefined],
-  ] as const;
   return (
     <div className="co-home">
       <header className="co-home-hello">
@@ -265,35 +260,19 @@ export function Home({
         )}
         {d.employees.length > 0 && (
           <>
-            <p className="co-home-today" aria-label="Today so far">
-              <b>Today so far:</b>{" "}
-              {todayParts.length
-                ? todayParts.join(" · ")
-                : results.length
-                  ? "No new activity today. Your saved work is below."
-                  : "nothing has happened yet."}
-            </p>
-            <div className="co-home-pulse" aria-label="Right now">
-              {pulse.map(([label, value, open]) =>
-                open ? (
-                  <button
-                    key={label}
-                    className={"co-pulse" + (label === "Needs you" ? " attention" : "")}
-                    onClick={open}
-                  >
-                    <strong>{label === "Needs you" && needsError ? "?" : value}</strong> {label}
-                  </button>
-                ) : (
-                  <span key={label} className={"co-pulse" + (label === "Working" && value ? " live" : "")}>
-                    <strong>{value}</strong> {label}
-                  </span>
-                ),
-              )}
-            </div>
+            <TeamNote
+              snapshot={snapshot}
+              needs={needsError ? [] : attentionNeeds}
+              canWork={canWork}
+              onOpenWork={onOpenWork}
+              onOpenNeed={onOpenNeed}
+            />
             {goalStart && work.length > 0 && (
-              <button className="co-primary co-home-new-task" onClick={() => setNextTaskRequest((value) => value + 1)}>
-                New task
-              </button>
+              <div ref={outcome}>
+                <OutcomeBox
+                  onSubmit={(text) => setNextGoal((prior) => ({ text, request: (prior?.request ?? 0) + 1 }))}
+                />
+              </div>
             )}
           </>
         )}
@@ -403,7 +382,7 @@ export function Home({
           openWork={onOpenWork}
           onBusiness={onBusiness}
           onResumeHire={onResumeHire}
-          nextTaskRequest={nextTaskRequest}
+          nextGoal={nextGoal}
         />
       )}
       {homeCards(d.roles).map(({ roleId, Card }) => (

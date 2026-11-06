@@ -304,8 +304,8 @@ try {
   assert.deepEqual(state.knowledge.find(k=>k.id===oldDraft.id),oldDraft,'The old unapproved note is preserved without blocking Home');
   const resultAddress = await evaluate('location.href');
   await send('Page.navigate',{url:url+'/?view=home'});
-  await until(()=>evaluate("[...document.querySelectorAll('[aria-label=\"Right now\"] button')].some(b=>b.textContent.includes('Needs you'))"),'saved knowledge decision on Home');
-  await evaluate("[...document.querySelectorAll('[aria-label=\"Right now\"] button')].find(b=>b.textContent.includes('Needs you')).click()");
+  await until(()=>evaluate("[...document.querySelectorAll('.co-team-note-line.needs button')].some(b=>b.textContent.includes('Show me'))"),'saved knowledge decision on Home');
+  await evaluate("document.querySelector('.co-team-note-line.needs button').click()");
   await until(()=>evaluate(`new URLSearchParams(location.search).get('knowledge')===${JSON.stringify(oldDraft.id)} && document.activeElement.id===${JSON.stringify('co-knowledge-'+oldDraft.id)}`),'Needs you opens and focuses the exact knowledge draft');
   assert.equal(await evaluate("(()=>{const r=document.activeElement.getBoundingClientRect();return r.top>=0 && r.top<innerHeight-60;})()"),true,'The knowledge draft is visible without digging');
   await send('Page.reload');
@@ -444,7 +444,7 @@ try {
   const tomorrow = Date.now()+24*60*60*1000;
   const nextDayClock = await send('Page.addScriptToEvaluateOnNewDocument',{source:`Date.now=()=>${tomorrow}`});
   await send('Page.navigate',{url:url+'/'});
-  await text('No new activity today. Your saved work is below.');
+  await until(()=>evaluate("!!document.querySelector('.co-team-note')"),'the employee note leads Home the next day');
   assert.equal(await evaluate("!!document.querySelector('.co-goal-start textarea')"),false,'A fresh session does not prefill the completed request');
   assert.ok(await evaluate("document.querySelector('[aria-label=\"Recent results\"] time')?.dateTime"),'Saved results show their update time');
   await capture('return-next-day-mobile');
@@ -456,9 +456,10 @@ try {
   await until(()=>evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(task.id)}`),'the older result opens directly');
   await send('Page.removeScriptToEvaluateOnNewDocument',{identifier:nextDayClock.identifier});
   await send('Page.navigate',{url:url+'/'});
-  await text('New task');
-  await click('New task');
-  await until(()=>evaluate("document.activeElement===document.querySelector('.co-goal-start textarea')"),'New task focuses its blank input');
+  await text('What do you want to happen next?');
+  await evaluate("(()=>{const i=document.querySelector('#co-outcome-input');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(i,'Promote the spring open day');i.dispatchEvent(new Event('input',{bubbles:true}));i.form.requestSubmit();})()");
+  await until(()=>evaluate("document.activeElement===document.querySelector('.co-goal-start textarea')&&document.activeElement.value==='Promote the spring open day'"),'a new outcome fills and focuses the goal');
+  await evaluate("(()=>{const t=document.querySelector('.co-goal-start textarea');const set=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;set.call(t,'');t.dispatchEvent(new Event('input',{bubbles:true}));})()");
   assert.equal(await evaluate("document.querySelector('.co-goal-start textarea').value"),'','Yesterday\'s goal is not reused');
   await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-check input')"),'next-task terms loaded');
   assert.equal(await evaluate("document.querySelector('.co-goal-start .co-check input').checked"),false,'A new task needs fresh consent');
