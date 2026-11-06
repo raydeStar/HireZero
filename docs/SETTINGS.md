@@ -57,11 +57,13 @@ Inside the host, the checked values are available to code as `IOptions<CompanySe
 
 Open sign-up is off by default and requires `--company-hosted`. Local mode refuses
 `HIREZERO_OPEN_SIGNUP=1`. The existing OIDC provider (Google for the hosted install) must supply a verified email.
-A verified visitor without a membership can choose **Create my company** and becomes its owner.
+A verified visitor who has not created a free company can choose **Create my company** and becomes its owner.
+Membership in someone else's company does not use that entitlement.
 
 | Setting | Meaning |
 | --- | --- |
 | `HIREZERO_OPEN_SIGNUP` | Default `0`. `1` enables the hosted enrollment flow. |
+| `HIREZERO_SIGNUP_INVITES` | Default `0`; hosted mode only. `1` enables owners of free companies to issue invitation links and invitees to accept them explicitly. `0` stops issuance and acceptance; existing access, revocation and leaving remain available. |
 | `HIREZERO_SIGNUP_MAX_COMPANIES` | Default `200`; maximum companies ever created through sign-up on this install. Integer 1–1,000,000. |
 | `HIREZERO_SIGNUP_COMPANY_CAP_CENTS` | Default `50` ($0.50); lifetime model allowance saved with each new sign-up company. Integer 0–1,000,000. Changing it affects future companies only. |
 | `HIREZERO_DAILY_CAP_CENTS` | Default `500` ($5.00); shared model allowance across **all** companies on this install per UTC day. Integer 0–1,000,000; zero pauses new spending. Applied when open sign-up is enabled. |
@@ -76,6 +78,26 @@ remainder and today's shared remainder, in dollars. Existing job, token, monthly
 Disabling open sign-up stops enrollment, but does **not** remove existing caps or reservations. The last configured
 daily limit remains durable. Signed-up companies keep their isolation and lifetime cap. Never erase their ledger
 to recover an uncertain request.
+
+### Teams in free companies
+
+With `HIREZERO_SIGNUP_INVITES=1`, an owner can invite **approvers or viewers** from Members. There are at most five
+unexpired pending invitations per company; this is not a limit of five active members. Each link is bound to one
+email and expires after seven days. Copy it when shown and send it yourself: the host sends no invitation email.
+An explicit replacement invalidates the old link. After a lost response, refresh Members and choose **Replace
+invite link** if needed; the secret cannot be recovered from saved command receipts.
+
+Opening the link and signing in do not add membership. The invitee reviews the company, role and account, then
+presses **Join**. The verified email must match. Ordinary sign-in continues to ignore pending free-company invites.
+The short-lived invitation cookie lasts 15 minutes; reopen the original link if it expires. Invites can be accepted
+while open enrollment is off, provided invitations remain enabled. All members share the same existing company
+allowance and install cap. They do not gain additional credit by joining.
+
+Non-owners can **Leave company** from Members or the joined banner even when invitations are disabled. Leaving
+ends future access; company work, audit history and identities already shared with other members remain.
+Free companies retain their original owner; additional owners and ownership transfer are not supported.
+The invitation routes permit 30 requests per client IP per minute, trusting only the configured reverse proxy.
+They do not consume or execute a link through GET. See [ADR 0182](adr/0182-consent-based-free-company-teams.md).
 
 A capped install uses its configured host API model. Codex and saved company model keys are refused at startup;
 new company model keys and the separate unbounded Jev/tool-provider paths are unavailable. Supported text roles,

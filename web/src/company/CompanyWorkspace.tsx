@@ -41,6 +41,7 @@ import { Usage } from "./Usage";
 const Billing = lazy(() => import("./Billing").then((module) => ({ default: module.Billing })));
 import { Progress } from "./Progress";
 import { Members } from "./Members";
+import { JoinedCompanyNotice } from "./FreeCompanyActions";
 import { Companies } from "./Companies";
 import { ContextEditor } from "./ContextEditor";
 import { Audit } from "./Audit";
@@ -138,15 +139,27 @@ function Submit({ children = "Save", busy = false }: { children?: string; busy?:
     </button>
   );
 }
-export function CompanyWorkspace({ memberRole, onSignOut }: { memberRole?: string; onSignOut?: () => void } = {}) {
+export function CompanyWorkspace({
+  memberRole,
+  onSignOut,
+  canSignup,
+}: { memberRole?: string; onSignOut?: () => void; canSignup?: boolean } = {}) {
   return (
     <MemberAccess role={memberRole}>
-      <CompanyWorkspaceContent memberRole={memberRole} onSignOut={onSignOut} />
+      <CompanyWorkspaceContent memberRole={memberRole} onSignOut={onSignOut} canSignup={canSignup} />
     </MemberAccess>
   );
 }
 
-function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: string; onSignOut?: () => void }) {
+function CompanyWorkspaceContent({
+  memberRole,
+  onSignOut,
+  canSignup,
+}: {
+  memberRole?: string;
+  onSignOut?: () => void;
+  canSignup?: boolean;
+}) {
   const { canManage, canWork } = useMemberAccess();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [events, setEvents] = useState<Event[]>([]),
@@ -847,6 +860,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
         </div>
       </aside>
       <main className={"co-main fe-main" + (chat ? " co-chat-main" : "")}>
+        {snapshot.capabilities.signupCompany && <JoinedCompanyNotice role={memberRole} />}
         {snapshot.capabilities.freeAllowance && <FreeAllowance {...snapshot.capabilities.freeAllowance} />}
         <header className="fe-topbar">
           <button
@@ -1242,7 +1256,15 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
             />
           )}
           {tab === "departments" && section === "members" && (
-            <Members open role={memberRole} version={d.cursor ?? 0} busy={busy} run={run} />
+            <Members
+              open
+              role={memberRole}
+              version={d.cursor ?? 0}
+              busy={busy}
+              run={run}
+              signupCompany={snapshot.capabilities.signupCompany}
+              signupInvites={snapshot.capabilities.signupInvites}
+            />
           )}
           {tab === "departments" && section === "integrations" && !snapshot.capabilities.signupCompany && (
             <Integrations
@@ -1258,6 +1280,7 @@ function CompanyWorkspaceContent({ memberRole, onSignOut }: { memberRole?: strin
           {tab === "departments" && section === "companies" && (
             <Companies
               canCreate={!snapshot.capabilities.signupCompany}
+              canSignup={canSignup}
               expanded
               role={memberRole}
               version={d.cursor ?? 0}

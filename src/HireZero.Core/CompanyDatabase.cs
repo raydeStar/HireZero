@@ -174,6 +174,7 @@ public sealed partial class CompanyStore
                     DecisionSchema,
                     ReadingSchema,
                     SignupSchema,
+                    InvitationSchema,
                 ];
                 try
                 {

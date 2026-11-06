@@ -17,6 +17,12 @@ public sealed class CompanySettings
     public static readonly Setting[] All =
     [
         new(
+            "HIREZERO_SIGNUP_INVITES",
+            "Hosted sign-up",
+            "1 enables consent-based invitations for free companies; 0 stops new invitations and joins.",
+            (s, v) => s.SignupInvites = Flag(v)
+        ),
+        new(
             ModelVendorPolicy.Variable,
             "Models",
             "vultr restricts the install to Vultr inference; unset preserves local behavior.",
@@ -398,6 +404,7 @@ public sealed class CompanySettings
     public string? CodingPackages { get; private set; }
     public bool SyntheticWiki { get; private set; }
     public bool OpenSignup { get; private set; }
+    public bool SignupInvites { get; private set; }
     public int SignupMaxCompanies { get; private set; } = 200;
     public int SignupCompanyCapCents { get; private set; } = 50;
     public int DailyCapCents { get; private set; } = 500;

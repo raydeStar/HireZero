@@ -27,7 +27,15 @@ public sealed record CompanyActor(string Subject, string Role)
 
 // A company member. Id is the identity provider's issuer and subject once they have signed in, or "invite:<email>"
 // while the invitation waits. State is invited, active or revoked.
-public sealed record CompanyMember(string Id, string Email, string Name, string Role, string State, int Version = 1);
+public sealed record CompanyMember(
+    string Id,
+    string Email,
+    string Name,
+    string Role,
+    string State,
+    int Version = 1,
+    DateTimeOffset? InviteExpiresAt = null
+);
 
 public static class CompanyAccess
 {
@@ -103,9 +111,9 @@ public static class CompanyAccess
         "member.revoke",
     ];
 
-    // A viewer can mark only their own inbox alerts. Work-changing commands require an approver or owner.
+    // A viewer can mark their own inbox alerts or leave their free team. Work changes need an approver or owner.
     public static string Required(string action) =>
-        action == "notification.mark" ? CompanyRoles.Viewer
+        action is "notification.mark" or "member.leave" ? CompanyRoles.Viewer
         : OwnerOnly.Contains(action) ? CompanyRoles.Owner
         : CompanyRoles.Approver;
 
