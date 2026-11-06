@@ -50,6 +50,7 @@ public sealed partial class CompanyStore
                             "co_audit",
                             "co_tool_calls",
                             "co_signups",
+                            "co_member_invites",
                             "co_model_spend",
                         }
                     )
