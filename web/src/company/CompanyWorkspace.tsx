@@ -4,7 +4,7 @@ import { api, ApiError, applyTheme, company, preference, savePreference, type Th
 import { ShortcutHelp, useShortcuts } from "./Shortcuts";
 import { Modal } from "./Modal";
 import { BrandMark } from "../components/BrandMark";
-import { panels } from "../roles/company";
+import { hireable, onboardingFlow, panels } from "../roles/company";
 import { MemberAccess, useMemberAccess } from "./MemberAccess";
 import { command, type Snapshot, type Employee, type ThreadDetail, type Event, type TaskSpec, type Work } from "./api";
 import { Cockpit, useNeeds, workGroups, workState, type Need } from "./Cockpit";
@@ -29,7 +29,7 @@ import {
 import { avatarStyle, Home, initials, isWorking, teamStatus } from "./Home";
 import { LiveStrip } from "./LiveStrip";
 import { Desk, deskReady } from "./Desk";
-import { goalStartUnfinished } from "./GoalStart";
+import { goalStartUnfinished, startedWork } from "./GoalStart";
 import { BusinessBrief } from "./BusinessBrief";
 import { Documents } from "./Documents";
 import { Memory } from "./Memory";
@@ -324,6 +324,16 @@ function CompanyWorkspaceContent({
   const arriving = useRef<"chat" | "overview" | undefined>(undefined);
   const deskAvailable = !!snapshot && deskReady(snapshot);
   const [deskLatched, setDeskLatched] = useState(false);
+  // A new company with no team starts in chat with HireZero (docs/adr/0186), unless the owner chose the form.
+  const freshCompany = (s: NonNullable<typeof snapshot>) =>
+    !!onboardingFlow(s.data.roles) &&
+    !s.data.employees.some((e) => {
+      const role = s.data.roles.find((r) => r.id === e.roleId);
+      return e.state !== "retired" && (!role || hireable(role));
+    }) &&
+    !s.data.tasks.some(startedWork) &&
+    preference<string>("onboarding", "chat") !== "form";
+  const [onboardLatched, setOnboardLatched] = useState(false);
   useEffect(() => {
     if (!snapshot || route.tab !== "home") return;
     // An unfinished goal start (mid-run, or a lost reply to check) keeps its form in view. ?home=overview, or the
@@ -334,6 +344,7 @@ function CompanyWorkspaceContent({
       goalStartUnfinished();
     setHomeView(arriving.current ?? (overviewFirst ? "overview" : "chat"));
     setDeskLatched(deskAvailable);
+    setOnboardLatched(freshCompany(snapshot));
     arriving.current = undefined;
   }, [route.tab, !!snapshot]);
   function showHomeView(view: "chat" | "overview") {
@@ -711,7 +722,9 @@ function CompanyWorkspaceContent({
     </div>
   );
   const chat = tab === "company" || tab === "employee";
-  const desk = tab === "home" && homeView === "chat" && deskLatched && deskAvailable;
+  const Onboard = snapshot ? onboardingFlow(snapshot.data.roles) : undefined;
+  const onboard = tab === "home" && onboardLatched && canManage && !!Onboard;
+  const desk = tab === "home" && homeView === "chat" && deskLatched && deskAvailable && !onboard;
   const mode = route.mode ?? "chat";
   const boardTasks = tab === "employee" ? d.tasks.filter((t) => t.employeeId === selected) : d.tasks;
   const activeWork = boardTasks.filter(
@@ -1023,7 +1036,7 @@ function CompanyWorkspaceContent({
             <button onClick={() => setError("")}>Dismiss</button>
           </div>
         )}
-        <div className={chat || desk ? "co-conversation-body" : "co-management"}>
+        <div className={chat || desk || onboard ? "co-conversation-body" : "co-management"}>
           {d.workControl?.paused && (
             <div className="co-work-paused" role="status">
               <strong>New work is paused for this company.</strong> Previously admitted work may still finish.
@@ -1064,7 +1077,29 @@ function CompanyWorkspaceContent({
               onOpenSetup={() => openHub("integrations")}
             />
           )}
-          {tab === "home" && !desk && (
+          {onboard && Onboard && (
+            <Onboard
+              snapshot={snapshot}
+              events={events}
+              busy={busy}
+              memberRole={memberRole}
+              drafts={drafts}
+              updateDraft={updateDraft}
+              run={run}
+              refresh={refresh}
+              onOpenWork={(task) => openWork(task)}
+              onDone={() => {
+                setOnboardLatched(false);
+                showHomeView("chat");
+              }}
+              onUseForm={() => {
+                savePreference("onboarding", "form");
+                setOnboardLatched(false);
+                showHomeView("overview");
+              }}
+            />
+          )}
+          {tab === "home" && !desk && !onboard && (
             <Home
               onDesk={deskAvailable ? () => showHomeView("chat") : undefined}
               snapshot={snapshot}
@@ -1484,7 +1519,7 @@ function CompanyWorkspaceContent({
                       onSubmit={form(async () => {
                         await run("employee.hire", {
                           name: newName,
-                          roleId: role || d.roles.find((r) => !r.unavailableReason)?.id,
+                          roleId: role || d.roles.filter(hireable).find((r) => !r.unavailableReason)?.id,
                           departmentId: department,
                           responsibility,
                         });
@@ -1499,10 +1534,10 @@ function CompanyWorkspaceContent({
                       <label>
                         Role
                         <select
-                          value={role || d.roles.find((r) => !r.unavailableReason)?.id}
+                          value={role || d.roles.filter(hireable).find((r) => !r.unavailableReason)?.id}
                           onChange={(e) => setRole(e.target.value)}
                         >
-                          {d.roles.map((r) => (
+                          {d.roles.filter(hireable).map((r) => (
                             <option value={r.id} key={r.id} disabled={!!r.unavailableReason}>
                               {r.name}
                               {r.unavailableReason ? " - unavailable on this install" : ""}

@@ -75,6 +75,8 @@ type Props = {
   // a shift's latest round, work running elsewhere).
   toolbar?: ReactNode;
   trailing?: ReactNode;
+  // Before the messages, in place of the empty-conversation hello: such as a guide greeting a new owner.
+  leading?: ReactNode;
 };
 
 export function CompanyConversation({
@@ -101,6 +103,7 @@ export function CompanyConversation({
   onOpenSetup,
   toolbar,
   trailing,
+  leading,
 }: Props) {
   const { canWork } = useMemberAccess();
   const scope = company ? "company" : (employee?.id || "missing") + ":" + thread,
@@ -549,7 +552,8 @@ export function CompanyConversation({
             </p>
           ) : (
             <>
-              {!messages.length && !tasks.length && (
+              {leading}
+              {!leading && !messages.length && !tasks.length && (
                 <div className="fe-hello">
                   <MessageSquareText size={24} />
                   <h2>

@@ -32,6 +32,7 @@
     <Project Path="src/HireZero.Tools.Web/HireZero.Tools.Web.csproj" />
     <Project Path="src/HireZero.Tools.Node/HireZero.Tools.Node.csproj" />
     <Project Path="src/HireZero.Tools.SemaForge/HireZero.Tools.SemaForge.csproj" />
+    <Project Path="src/HireZero.Roles.Host/HireZero.Roles.Host.csproj" />
     <Project Path="src/HireZero.Roles.Support/HireZero.Roles.Support.csproj" />
     <Project Path="src/HireZero.Tools.Advertising/HireZero.Tools.Advertising.csproj" />
     <Project Path="src/HireZero.Tools.AgentApps/HireZero.Tools.AgentApps.csproj" />
