@@ -10,6 +10,8 @@ export type Employee = {
   responsibility: string;
   state: string;
   version: number;
+  // The owner's edit of their personality; null or missing uses the role's soul (docs/adr/0184).
+  personality?: string | null;
 };
 export type Department = { id: string; name: string; guide: string | null; knowledge: string | null; version: number };
 export type Knowledge = {
@@ -263,6 +265,8 @@ export type Role = {
   tools?: { id: string; risk: "read" | "write" | "external" | "spend"; purpose: string }[] | null;
   kpis?: { id: string; name: string; unit: string; description: string }[] | null;
   uiSlots?: string[];
+  // The role's default personality with the owner (soul.md).
+  soul?: string | null;
   actions?: {
     id: string;
     name: string;

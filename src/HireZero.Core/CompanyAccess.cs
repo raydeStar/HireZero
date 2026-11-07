@@ -61,6 +61,7 @@ public static class CompanyAccess
         "goal.lookup.start",
         "employee.update",
         "employee.lifecycle",
+        "employee.personality",
         "knowledge.save",
         "document.save",
         "document.review",

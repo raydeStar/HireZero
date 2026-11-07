@@ -73,7 +73,9 @@ public sealed record CompanyEmployee(
     string Responsibility,
     string State = "onboarding",
     int Version = 1,
-    int Generation = 1
+    int Generation = 1,
+    // The owner's edit of this employee's personality (ADR 0184); null uses the role's default soul.
+    string? Personality = null
 );
 
 public sealed record CompanyKnowledge(

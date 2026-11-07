@@ -285,6 +285,17 @@ try {
   await click("Answer");
   await until(() => evaluate("document.querySelector('.co-desk .fe-composer textarea').value.startsWith('About your question')"), "question quoted in the message box");
   assert.equal(await evaluate("!!document.querySelector('.co-desk .co-shift-quick')"), false, "No start form in the thread");
+  // Personality (ADR 0184): the role's soul by default, edited per employee from Context & settings.
+  await evaluate("document.querySelector('.co-desk .co-private-context').open = true");
+  await until(() => evaluate("document.querySelector('.co-desk .co-personality textarea')?.value.includes('You are a colleague, not a tool.')"), "default personality");
+  await fill(".co-desk .co-personality textarea", "Cheerful and brief. Always say how long a job takes.");
+  await click("Save personality");
+  await text("Saved. Their next reply uses it.");
+  state = (await dashboard()).data;
+  assert.equal(state.employees[0].personality, "Cheerful and brief. Always say how long a job takes.");
+  await click("Use the default");
+  await until(async () => !(await dashboard()).data.employees[0].personality, "personality back to the default");
+  await evaluate("document.querySelector('.co-desk .co-private-context').open = false");
   await click("Collapse all");
   await until(() => evaluate("[...document.querySelectorAll('.co-desk .fe-thread details')].every((d) => !d.open)"), "folded thread");
   await click("Expand all");

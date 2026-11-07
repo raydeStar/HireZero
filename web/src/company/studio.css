@@ -1524,3 +1524,20 @@
   color: var(--fe-fg-2);
   cursor: default;
 }
+
+/* Personality, in Context & settings (2026-11-06). */
+.co-workspace .co-personality {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--fe-line);
+}
+.co-workspace .co-personality h4 {
+  margin: 0;
+}
+.co-workspace .co-personality textarea {
+  width: 100%;
+  font-size: var(--fe-t-s);
+  line-height: 1.5;
+}

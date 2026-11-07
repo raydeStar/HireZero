@@ -71,6 +71,10 @@ public sealed record EmployeeManifest(
     public EmployeeCapabilities Capabilities { get; init; } = new();
     public string[] UiSlots { get; init; } = [];
 
+    // How the employee talks with the owner in conversation replies and shift rounds (ADR 0184). The owner can edit it
+    // per employee; it shapes tone only and never changes what the employee may do.
+    public string? Soul { get; init; }
+
     // Read-only, tool-backed work the owner can start, such as gathering evidence (docs/adr/0011-employee-actions.md).
     public EmployeeAction[] Actions { get; init; } = [];
 

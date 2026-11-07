@@ -185,3 +185,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 
 | [0181](0181-open-signup-and-durable-spend-caps.md) | Open sign-up and durable free model allowances | Accepted; opt-in hosted enrollment, lifetime and shared daily reservations |
 | [0183](0183-one-sign-off-per-reply.md) | One sign-off per reply, and an employee with a soul | Accepted; Send prepares, checks and authorizes one reply; review-first stays optional; soul.md for owner-facing replies and rounds |
+| [0184](0184-editable-personality.md) | An editable personality per employee | Accepted; role soul via manifest, owner edit on the employee, replies and shift rounds only, no authority change |
