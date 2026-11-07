@@ -33,4 +33,5 @@ employee to feel like a person on the other side.
   free allowance are unchanged and enforced before sending.
 - Changing the soul changes the instructions digest of replies and rounds, so a reply prepared under the previous text
   is no longer current; it is prepared again.
-- Later: let the owner edit the soul per employee, and a standing reply allowance for replies outside the composer.
+- Later: a standing reply allowance for replies outside the composer. The soul became editable per employee in
+  [0184](0184-editable-personality.md).

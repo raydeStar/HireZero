@@ -229,6 +229,14 @@ public sealed partial class CompanyStore
     public const string ShiftInstructions =
         " scorecard holds the owner's recorded weekly numbers for this employee, oldest week first, named by the owner; a missing number is unknown, not zero. recentWork lists this employee's recent requests, newest first, and where each stands. Treat both as company records, not proof of why numbers moved: name a cause only as a guess. Move unfinished work forward rather than repeating it.";
 
+    // The employee's personality with the owner (ADR 0184): the owner's edit, else the role's default soul. Only
+    // conversation replies and shift rounds carry it; drafts keep the business's voice.
+    public const string PersonalityPreamble =
+        " Your personality with the owner follows. It shapes how you talk with them, never what you may do: every rule above still applies.\n\n";
+
+    private static string Personality(CompanyRole role, CompanyEmployee employee) =>
+        (employee.Personality ?? role.Manifest?.Soul) is { Length: > 0 } soul ? PersonalityPreamble + soul.Trim() : "";
+
     public const string LessonInstructions =
         " lessons are owner-approved decisions and feedback addressed to this employee, newest first. Follow them as the owner's settled direction unless a later lesson or businessBrief correction replaces one; they are not proof of results.";
 
@@ -268,6 +276,8 @@ public sealed partial class CompanyStore
                             ? "Return a complete, focused deliverable. Follow the owner's requested length and the skill's format guidance within the available output budget."
                         : "Reply in at most 80 words."
                     );
+        if (task.Kind != ContextDraftKind && (conversation || role.ShiftSkills.Contains(task.Skill)))
+            instructions += Personality(role, Need<CompanyEmployee>(db, task.EmployeeId));
         if (context.ScheduledOccurrence is not null)
             instructions +=
                 " scheduledOccurrence supplies the owner-approved calendar anchor for this run: scheduledFor includes its local UTC offset, timeZone names the schedule zone, and runNumber identifies this occurrence. Use it to interpret relative dates in the request. It is the planned time, not necessarily the actual execution time, proof of recent research, evidence of earlier results, or permission to act.";

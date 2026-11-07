@@ -21,6 +21,7 @@ import { ModelChoice } from "./ModelChoice";
 import { readableReply, replyFields, stoppedReply } from "./replyText";
 import { defaultAllowance, spendText, SpendLimit } from "./allowance";
 import { Fold, isLong } from "./Fold";
+import { Personality } from "./Personality";
 
 export type ConversationDraft = {
   body: string;
@@ -461,7 +462,9 @@ export function CompanyConversation({
               )}
             </>
           )}
-          {employee && privateReady && <PrivateContext employee={employee} detail={detail!} busy={busy} run={run} />}
+          {employee && privateReady && (
+            <PrivateContext employee={employee} soul={role?.soul} detail={detail!} busy={busy} run={run} />
+          )}
           {/* How a reply is authorized, one click away rather than in every header (UX audit, 2026-10-20). */}
           <details className="co-about">
             <summary aria-label="How replies work" title="How replies work">
@@ -1036,11 +1039,13 @@ function ReplyTurn({
 
 function PrivateContext({
   employee,
+  soul,
   detail,
   busy,
   run,
 }: {
   employee: Employee;
+  soul?: string | null;
   detail: ThreadDetail;
   busy: boolean;
   run: Props["run"];
@@ -1061,6 +1066,7 @@ function PrivateContext({
         <SlidersHorizontal size={14} aria-hidden="true" />
         <span className="co-toolbar-text">Context & settings</span>
       </summary>
+      <Personality employee={employee} soul={soul} busy={busy} canManage={canManage} run={run} />
       <p>
         Replies use this conversation, your attached text, approved facts and selected evidence. Attachments stay
         reference material in this conversation. They do not become shared company knowledge.

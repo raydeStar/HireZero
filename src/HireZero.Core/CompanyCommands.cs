@@ -201,6 +201,27 @@ public sealed partial class CompanyStore
                 Event(db, "employee.changed", e.Id, e.Id, "Employee updated: " + e.Name + " (" + state + ")");
                 return e;
             }
+            // A personality edit changes tone, not authority: running work continues (ADR 0184).
+            case "employee.personality":
+            {
+                var e = Need<CompanyEmployee>(db, c.Id);
+                Version(e.Version, c.ExpectedVersion);
+                if (e.State == "retired")
+                    throw new WorkspaceException("Retired employees remain read-only.");
+                var body = (c.Body ?? "").Trim();
+                e = e with { Personality = body == "" ? null : Text(body, 4000), Version = e.Version + 1 };
+                Put(db, e);
+                Event(
+                    db,
+                    "employee.changed",
+                    e.Id,
+                    e.Id,
+                    e.Personality is null
+                        ? e.Name + "'s personality is back to the default."
+                        : e.Name + "'s personality was edited."
+                );
+                return e;
+            }
             case "knowledge.save":
             {
                 CompanyDepartment? d = c.DepartmentId is null ? null : Need<CompanyDepartment>(db, c.DepartmentId);

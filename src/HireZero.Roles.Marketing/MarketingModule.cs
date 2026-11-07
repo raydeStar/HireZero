@@ -171,6 +171,8 @@ public sealed class MarketingModule : IEmployeeModule
                 "home-lead",
             ],
             DisplayOrder = 10,
+            // soul.md: the default personality the owner can edit per employee (ADR 0184).
+            Soul = MarketingSoul.Text,
         };
 
     public string ValidateInput(string skill, string input) =>
@@ -183,13 +185,12 @@ public sealed class MarketingModule : IEmployeeModule
             StarterPlan => MarketingText.StarterPlanInstructions,
             GoalDraft => MarketingText.GoalDraftInstructions,
             MarketingLadder.Skill => MarketingLadder.Instructions,
-            MarketingShift.Skill => MarketingShift.Instructions + MarketingSoul.Text,
+            MarketingShift.Skill => MarketingShift.Instructions,
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
             MarketingExperiments.Skill => MarketingExperiments.Instructions,
             MarketingAds.Review => MarketingAds.ReviewInstructions,
             MarketingLifecycle.Review => MarketingLifecycle.ReviewInstructions,
-            // Conversation replies: the employee's own voice.
-            _ => MarketingText.Instructions + MarketingSoul.Text,
+            _ => MarketingText.Instructions,
         };
 
     public Task<string> RunActionAsync(

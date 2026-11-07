@@ -533,6 +533,7 @@ public sealed partial class CompanyStore
                         }),
                         kpis = r.Manifest?.Kpis,
                         uiSlots = r.Manifest?.UiSlots ?? [],
+                        soul = r.Manifest?.Soul,
                         actions = r.Manifest?.Actions ?? [],
                     }),
                     taskTimes = TaskTimes(db),
