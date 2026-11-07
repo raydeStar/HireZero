@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Play, X } from "lucide-react";
 import { api, company, memberStorage } from "../../lib/api";
 import {
   command,
@@ -14,6 +15,7 @@ import { advanceGoal, currentGoalWork, type GoalFlow, type GoalTerms } from "../
 import { useMemberAccess } from "../../company/MemberAccess";
 import { providerName } from "../../company/ModelChoice";
 import { dollars, spendText } from "../../company/allowance";
+import { Modal } from "../../company/Modal";
 import type { HomeCardProps } from "../company";
 import { GoalLadder } from "./GoalLadder";
 import { ProposalCorrection, ProposalFeedback, useProposalFeedback } from "../../company/ProposalFeedback";
@@ -102,6 +104,121 @@ export function MarketingLead(props: HomeCardProps) {
   ) : null;
 }
 
+// The desk's header control (2026-11-06): the shift's state at a glance, and one button that starts a shift.
+export function MarketingShiftAction(props: HomeCardProps) {
+  const { role, employee, shift, loaded, changed } = useShift(props);
+  const { canManage } = useMemberAccess();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  if (!role || !employee || !loaded) return null;
+  const d = props.snapshot.data;
+  const department = d.departments.find((x) => x.id === employee.departmentId);
+  const ladder = valuesOf(d.knowledge.find((k) => k.id === department?.knowledge && k.state === "approved"));
+  const ready = !!ladder.goal?.trim() && !!ladder.steps?.trim();
+  const running = shift && ["active", "paused", "blocked"].includes(shift.state) && shift.reviewCurrent !== false;
+  const review = async (decision: string) => {
+    if (!shift) return;
+    setBusy(true);
+    setError("");
+    try {
+      await command("schedule.review", {
+        id: shift.id,
+        expectedVersion: shift.version,
+        digest: shift.digest,
+        decision,
+      });
+      await changed();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (running) {
+    const left = shift.definition.occurrences - shift.consumed;
+    const next = shift.state === "active" && left > 0 ? nextRoundLabel(shift.nextRunAt, new Date()) : "";
+    return (
+      <div className="co-desk-shift" role="group" aria-label="Shift">
+        <span className={"co-desk-shift-state" + (shift.state === "active" ? " live" : "")}>
+          {shift.state === "active" ? "On shift" : "Shift paused"}
+          <small>
+            {shift.consumed} of {shift.definition.occurrences} done{next ? ` · next ${next}` : ""}
+          </small>
+        </span>
+        {canManage && (
+          <button
+            disabled={busy}
+            onClick={() => void review(shift.state === "active" ? "pause" : "authorize-recurring-soft-limits")}
+          >
+            {shift.state === "active" ? "Pause shift" : "Resume shift"}
+          </button>
+        )}
+        {error && (
+          <span role="alert" className="co-desk-shift-error">
+            {error}
+          </span>
+        )}
+      </div>
+    );
+  }
+  if (!canManage) return null;
+  return (
+    <>
+      <button className="co-primary co-desk-start" onClick={() => setOpen(true)}>
+        <Play size={14} aria-hidden="true" /> Start shift
+      </button>
+      {open && (
+        <Modal label="Start a shift" className="co-dialog-layer" onClose={() => setOpen(false)}>
+          <section className="co-dialog co-shift-dialog">
+            <header>
+              <h2>Put {employee.name} on shift</h2>
+              <button className="fe-icon-button" aria-label="Close" onClick={() => setOpen(false)}>
+                <X size={16} />
+              </button>
+            </header>
+            {ready ? (
+              <Offer
+                snapshot={props.snapshot}
+                employee={employee}
+                roleId={role.id}
+                changed={async () => {
+                  await changed();
+                  setOpen(false);
+                }}
+                stale={shift}
+                quick
+              />
+            ) : (
+              <>
+                <p>
+                  Each round works from {employee.name}’s goal ladder: the goal and the steps toward it. Approve a
+                  ladder first, then start the shift.
+                </p>
+                {props.openOverview && (
+                  <div className="co-ladder-actions">
+                    <button
+                      className="co-primary"
+                      onClick={() => {
+                        setOpen(false);
+                        props.openOverview?.();
+                        // The overview renders on the next frame; bring the ladder into view once it has.
+                        setTimeout(() => document.querySelector(".co-ladder")?.scrollIntoView({ block: "start" }), 120);
+                      }}
+                    >
+                      Open the goal ladder
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 // Morning work has one loader in the lead card; the ladder stays below saved results.
 export function MarketingHome(props: HomeCardProps) {
   return <GoalLadder {...props} />;
@@ -116,6 +233,7 @@ function ShiftCard({
   shift,
   loaded,
   changed,
+  placement = "home",
 }: HomeCardProps & {
   employee: Employee;
   roleId: string;
@@ -131,7 +249,11 @@ function ShiftCard({
   const [error, setError] = useState("");
   if (!loaded) return null;
   const ready = !!ladder.goal?.trim() && !!ladder.steps?.trim() && canManage;
-  if (!shift) return ready ? <Offer snapshot={snapshot} employee={employee} roleId={roleId} changed={changed} /> : null;
+  // In the desk the header's Start shift button holds the form; the thread shows only a shift's rounds.
+  if (!shift)
+    return ready && placement !== "chat" ? (
+      <Offer snapshot={snapshot} employee={employee} roleId={roleId} changed={changed} />
+    ) : null;
   // A running shift whose approved context changed has stopped; an ended one keeps its last round in view.
   const running = ["active", "paused", "blocked"].includes(shift.state);
   const stale = running && shift.reviewCurrent === false;
@@ -228,7 +350,7 @@ function ShiftCard({
           changed={changed}
         />
       )}
-      {(stale || !running) && ready && (
+      {(stale || !running) && ready && placement !== "chat" && (
         <Offer
           snapshot={snapshot}
           employee={employee}
@@ -249,6 +371,7 @@ function Offer({
   changed,
   stale,
   embedded = false,
+  quick = false,
 }: {
   snapshot: Snapshot;
   employee: Employee;
@@ -258,14 +381,17 @@ function Offer({
   stale?: Shift;
   // Inside an ended or stopped shift's card: a button that opens the form.
   embedded?: boolean;
+  // From the desk's Start shift button: the first round a few minutes from now, then five mornings.
+  quick?: boolean;
 }) {
+  const [soon] = useState(quickStart);
   const [open, setOpen] = useState(!embedded);
   const [terms, setTerms] = useState<GoalTerms>();
   const [termsError, setTermsError] = useState("");
-  const [mornings, setMornings] = useState("14");
-  const [start, setStart] = useState<"today" | "tomorrow">("tomorrow");
-  const [time, setTime] = useState("08:00");
-  const [weekdays, setWeekdays] = useState(true);
+  const [mornings, setMornings] = useState(quick ? "5" : "14");
+  const [start, setStart] = useState<"today" | "tomorrow">(quick ? soon.start : "tomorrow");
+  const [time, setTime] = useState(quick ? soon.time : "08:00");
+  const [weekdays, setWeekdays] = useState(!quick);
   const [readSources, setReadSources] = useState(true);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -346,10 +472,13 @@ function Offer({
         </button>
       </div>
     );
-  const Frame = embedded ? "div" : "section";
+  const Frame = embedded || quick ? "div" : "section";
   return (
-    <Frame className={embedded ? "co-shift-again" : "co-shift"} aria-label={embedded ? undefined : "Shift"}>
-      {embedded ? <h3>Start a new shift</h3> : <h2>Put {employee.name} on shift</h2>}
+    <Frame
+      className={embedded ? "co-shift-again" : quick ? "co-shift-quick" : "co-shift"}
+      aria-label={embedded || quick ? undefined : "Shift"}
+    >
+      {quick ? null : embedded ? <h3>Start a new shift</h3> : <h2>Put {employee.name} on shift</h2>}
       {!embedded && (
         <p>
           Every morning, {employee.name} looks at your goal ladder, your numbers and the work in progress, picks up to
@@ -393,10 +522,10 @@ function Offer({
             </span>
           </label>
           <p>
-            Each {weekdays ? "weekday " : ""}morning {employee.name} writes one private report with your {provider}.
-            That’s {count} private drafts in all, one a {weekdays ? "weekday" : "day"}, and then the shift ends. Monday
-            sets the week’s priorities and Friday looks back at results and lessons. Nothing is posted, sent or bought,
-            and nothing is retried on its own. You can pause or end the shift at any time.
+            Each {weekdays ? "weekday " : ""}morning {employee.name} writes one private report using {provider}. That’s{" "}
+            {count} private {count === 1 ? "draft" : "drafts"} in all, one a {weekdays ? "weekday" : "day"}, and then
+            the shift ends. Monday sets the week’s priorities and Friday looks back at results and lessons. Nothing is
+            posted, sent or bought, and nothing is retried on its own. You can pause or end the shift at any time.
           </p>
           <details className="co-goal-run-details">
             <summary>Run details</summary>
@@ -844,4 +973,15 @@ function Report({
       )}
     </div>
   );
+}
+
+// A first round about five minutes from now (rounded up to the next five), or tomorrow at 8:00 near midnight.
+function quickStart(now = new Date()): { start: "today" | "tomorrow"; time: string } {
+  const at = new Date(now.getTime() + 5 * 60_000);
+  at.setMinutes(Math.ceil(at.getMinutes() / 5) * 5, 0, 0);
+  if (at.getDate() !== now.getDate()) return { start: "tomorrow", time: "08:00" };
+  return {
+    start: "today",
+    time: `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`,
+  };
 }

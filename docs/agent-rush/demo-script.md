@@ -34,7 +34,12 @@ own. One tick authorizes this one job, once."
 ### 1:45–2:25 · The draft (40 s)
 
 **Picture.** Wait out the run (cut the wait), then open **Drafts ready** and scroll the three posts. Show that the
-draft needs review.
+draft needs review. Click **Home**: it is now the Marketing employee's conversation, with the draft in the thread and
+the employee's note under it. Press **Collapse all** once to show the thread folding.
+
+*Optional, if a shift ran before recording:* hold on the header's "On shift · 1 of 5 done" and today's round in the
+thread, with its jobs and **Do it**. To have one ready, press **Start shift** (it needs an approved goal ladder) and
+leave the first round at its default, about five minutes away.
 
 **Narration.** "About half a minute later, the Marketing employee is done. It's a private draft for me to copy, edit or
 send back. It hasn't gone anywhere. Publishing would be a separate approval, bound to this exact version."

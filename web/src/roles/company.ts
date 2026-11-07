@@ -15,6 +15,11 @@ export type HomeCardProps = {
   refresh: () => Promise<void>;
   openWork: (task: Work) => void;
   openChat: (employee: Snapshot["data"]["employees"][number]) => void;
+  // "chat": shown inside Home's conversation (the desk), where forms that start something live behind the role's
+  // action button instead of filling the thread.
+  placement?: "home" | "chat";
+  // Switches Home to its overview, where the role's full cards (such as a goal ladder) are.
+  openOverview?: () => void;
 };
 export type CompanyRoleUi = {
   skillInputs?: Record<string, SkillInput>;
@@ -22,6 +27,8 @@ export type CompanyRoleUi = {
   homeCard?: ComponentType<HomeCardProps>;
   // Shown right after Home's greeting, before results: for what matters most today, such as a shift's morning round.
   homeLead?: ComponentType<HomeCardProps>;
+  // A compact control in the desk's header for the same standing work, such as starting a shift. Shown with homeLead.
+  homeAction?: ComponentType<HomeCardProps>;
   businessSetup?: (profile: BusinessProfile) => BusinessSetup;
   // Shared specificity: 3 requested work, 2 named deliverable, 1 topic, 0 general starting option.
   recommendation?: (profile: BusinessProfile) => { reason: string; priority: number; position?: number } | undefined;
@@ -117,5 +124,13 @@ export function homeCards(
     const ui = byRole[role.id];
     const Card = role.uiSlots?.includes(slot) ? (slot === "home-lead" ? ui?.homeLead : ui?.homeCard) : undefined;
     return Card ? [{ roleId: role.id, Card }] : [];
+  });
+}
+
+// Each role's desk header control, for roles that lead Home ("home-lead" slot).
+export function homeActions(roles: Role[]): { roleId: string; Action: ComponentType<HomeCardProps> }[] {
+  return roles.flatMap((role) => {
+    const Action = role.uiSlots?.includes("home-lead") ? byRole[role.id]?.homeAction : undefined;
+    return Action ? [{ roleId: role.id, Action }] : [];
   });
 }

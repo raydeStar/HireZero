@@ -47,6 +47,7 @@ function LadderCard({
   openWork,
   employee,
   roleId,
+  placement = "home",
 }: HomeCardProps & { employee: Employee; roleId: string }) {
   const { canManage, canWork } = useMemberAccess();
   const d = snapshot.data;
@@ -101,6 +102,9 @@ function LadderCard({
       </section>
     );
   }
+  // In the desk the ladder shows while it is offered, worked out or waiting for approval; once approved it lives in
+  // the overview with its weekly numbers.
+  if (ladder && placement === "chat") return null;
   if (ladder)
     return (
       <Scorecard

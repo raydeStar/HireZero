@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { avatarStyle, Home, initials, isWorking, teamStatus } from "./Home";
 import { LiveStrip } from "./LiveStrip";
+import { Desk, deskReady } from "./Desk";
+import { goalStartUnfinished } from "./GoalStart";
 import { BusinessBrief } from "./BusinessBrief";
 import { Documents } from "./Documents";
 import { Memory } from "./Memory";
@@ -315,6 +317,33 @@ function CompanyWorkspaceContent({
   }
   const docked = roomy && cockpitOpen;
   const [outcomeRequest, setOutcomeRequest] = useState(0);
+  // Home opens on the lead employee's conversation (the desk) once work has begun; the overview is one click away.
+  // The view is chosen on arrival, never while the owner is on Home: a goal started from the overview creates its
+  // task partway through, and its form must not be swapped out mid-run.
+  const [homeView, setHomeView] = useState<"chat" | "overview">("chat");
+  const arriving = useRef<"chat" | "overview" | undefined>(undefined);
+  const deskAvailable = !!snapshot && deskReady(snapshot);
+  const [deskLatched, setDeskLatched] = useState(false);
+  useEffect(() => {
+    if (!snapshot || route.tab !== "home") return;
+    // An unfinished goal start (mid-run, or a lost reply to check) keeps its form in view. ?home=overview, or the
+    // home-start preference, opens the overview first.
+    const overviewFirst =
+      new URLSearchParams(location.search).get("home") === "overview" ||
+      preference<string>("home-start", "chat") === "overview" ||
+      goalStartUnfinished();
+    setHomeView(arriving.current ?? (overviewFirst ? "overview" : "chat"));
+    setDeskLatched(deskAvailable);
+    arriving.current = undefined;
+  }, [route.tab, !!snapshot]);
+  function showHomeView(view: "chat" | "overview") {
+    if (routeRef.current.tab !== "home") {
+      arriving.current = view;
+      return;
+    }
+    setHomeView(view);
+    if (view === "chat") setDeskLatched(true);
+  }
   const { needs, error: needsError, loading: needsLoading, retry: retryNeeds } = useNeeds(snapshot?.data.cursor ?? 0);
   // Theme: System follows the operating system, and changes with it (UX round 3).
   const [theme, setTheme] = useState<ThemeChoice>(() => preference<ThemeChoice>("theme", "system"));
@@ -682,6 +711,7 @@ function CompanyWorkspaceContent({
     </div>
   );
   const chat = tab === "company" || tab === "employee";
+  const desk = tab === "home" && homeView === "chat" && deskLatched && deskAvailable;
   const mode = route.mode ?? "chat";
   const boardTasks = tab === "employee" ? d.tasks.filter((t) => t.employeeId === selected) : d.tasks;
   const activeWork = boardTasks.filter(
@@ -738,6 +768,7 @@ function CompanyWorkspaceContent({
         canManage
           ? () => {
               setSheet(false);
+              showHomeView("overview");
               setTab("home");
               setOutcomeRequest((n) => n + 1);
             }
@@ -981,7 +1012,7 @@ function CompanyWorkspaceContent({
             <button onClick={() => setError("")}>Dismiss</button>
           </div>
         )}
-        <div className={chat ? "co-conversation-body" : "co-management"}>
+        <div className={chat || desk ? "co-conversation-body" : "co-management"}>
           {d.workControl?.paused && (
             <div className="co-work-paused" role="status">
               <strong>New work is paused for this company.</strong> Previously admitted work may still finish.
@@ -992,8 +1023,39 @@ function CompanyWorkspaceContent({
               )}
             </div>
           )}
-          {tab === "home" && (
+          {desk && (
+            <Desk
+              snapshot={snapshot}
+              events={events}
+              needs={needs}
+              needsError={needsError}
+              busy={busy}
+              memberRole={memberRole}
+              drafts={drafts}
+              updateDraft={updateDraft}
+              run={run}
+              refresh={refresh}
+              onOpenWork={(task) => openWork(task)}
+              onOpenNeed={openNeed}
+              onOpenConversation={openConversation}
+              onOverview={() => showHomeView("overview")}
+              onNewOutcome={
+                canManage
+                  ? () => {
+                      showHomeView("overview");
+                      setOutcomeRequest((n) => n + 1);
+                    }
+                  : undefined
+              }
+              onOpenPlans={() => setTab("plans")}
+              onRememberResult={rememberResult}
+              onRepeatWork={repeatWork}
+              onOpenSetup={() => openHub("integrations")}
+            />
+          )}
+          {tab === "home" && !desk && (
             <Home
+              onDesk={deskAvailable ? () => showHomeView("chat") : undefined}
               snapshot={snapshot}
               needs={needs}
               needsError={needsError}

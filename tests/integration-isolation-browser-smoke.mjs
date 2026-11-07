@@ -618,7 +618,7 @@ try {
         role + " " + query + " fits",
       );
     };
-    await visit("view=home", ".co-home");
+    await visit("view=home&home=overview", ".co-home");
     assert.equal(
       await evaluate(
         "[...document.querySelectorAll('button')].some(button=>/Hire (your first|an) employee|Continue onboarding/.test(button.textContent))",
