@@ -154,7 +154,11 @@ public sealed record CompanyTask(
     [property: System.Text.Json.Serialization.JsonIgnore(
         Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     )]
-        string? GoalWebsiteLookupId = null
+        string? GoalWebsiteLookupId = null,
+    // The member whose message started a conversation reply (docs/adr/0185): who the employee is talking with.
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )] string? RequestedBy = null
 );
 
 public sealed record CompanyTaskRevision(

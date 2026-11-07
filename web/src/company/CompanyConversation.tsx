@@ -1,4 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { AboutYou } from "./AboutYou";
+import { EmployeeSays, Working } from "./EmployeeSays";
+import { useNow } from "./time";
 import { ArrowUp, Info, MessageSquareText, Paperclip, Plus, SlidersHorizontal, X, Zap } from "lucide-react";
 import {
   attachmentAccept,
@@ -361,12 +364,14 @@ export function CompanyConversation({
           sendNow
             ? started
               ? ""
-              : "Your message is saved. The reply couldn’t start on its own; review it below and send it."
+              : "Your message is saved, but the reply couldn’t start on its own. Check it below and send it."
             : reply
-              ? "Reply ready to review below. Nothing has been sent to the model."
+              ? "The reply is ready for you to check below. Nothing has been sent yet."
               : company || sent.skill === "chat"
-                ? "Message saved only. No AI reply or autonomous work was authorized."
-                : "Work saved. Its execution requires separate approval.",
+                ? company
+                  ? "Saved for the company. Nobody replies until you ask someone."
+                  : `Saved. ${employee?.name ?? "They"} will see it next time you ask for a reply.`
+                : `Saved. ${employee?.name ?? "They"} will start once you approve it below.`,
         );
         input.current?.focus();
       }
@@ -463,7 +468,14 @@ export function CompanyConversation({
             </>
           )}
           {employee && privateReady && (
-            <PrivateContext employee={employee} soul={role?.soul} detail={detail!} busy={busy} run={run} />
+            <PrivateContext
+              employee={employee}
+              soul={role?.soul}
+              detail={detail!}
+              busy={busy}
+              run={run}
+              snapshot={snapshot}
+            />
           )}
           {/* How a reply is authorized, one click away rather than in every header (UX audit, 2026-10-20). */}
           <details className="co-about">
@@ -553,7 +565,7 @@ export function CompanyConversation({
                       : snapshot.capabilities.conversationalReplies
                         ? company
                           ? "Save a company note, or select an employee to ask a question. Review the context before authorizing one reply."
-                          : "Ask a question below, review the context, then authorize one reply. You can also save a note without requesting a reply."
+                          : `Say hello or ask ${employee?.name ?? "them"} anything. They answer here, and nothing happens outside this chat without your go-ahead.`
                         : company
                           ? "Save a company note below. AI replies are unavailable."
                           : "Save a note or brief below to prepare for later. AI replies are unavailable; saving sends no model request."}
@@ -992,7 +1004,12 @@ function ReplyTurn({
   const entry = snapshot.data.measured?.find((a) => a.taskId === task.id),
     thread = snapshot.data.threads.find((t) => t.id === task.threadId),
     employee = snapshot.data.employees.find((e) => e.id === task.employeeId);
+  const now = useNow(5_000);
   const active = entry && ["proposed", "dispatched"].includes(entry.job.state),
+    // While the reply is on its way the employee is typing; a long one says so (docs/adr/0185).
+    writing = entry?.job.state === "dispatched",
+    started = snapshot.data.taskTimes?.[task.id]?.started,
+    slow = writing && !!started && now - Date.parse(started) > 30_000,
     contents = (
       <MeasuredJob
         conversational
@@ -1007,33 +1024,55 @@ function ReplyTurn({
       />
     );
   return (
-    // A finished turn is one quiet line; a turn that waits on you is a card (UX round 7).
-    <article className={"co-reply-turn" + (active ? "" : " finished")} data-reply-task={task.id} tabIndex={-1}>
-      <small>
-        Reply from {employee?.name} · {thread?.scope === "company" ? "company" : "private"} conversation
-      </small>
-      {active ? (
-        contents
-      ) : (
-        <details>
-          <summary>
-            {task.state === "completed" ? "Usage and receipt" : "Reply status · " + taskState(task.state)}
-          </summary>
-          {contents}
-        </details>
+    <>
+      {writing && employee && (
+        <EmployeeSays name={employee.name} label={employee.name + " is replying"}>
+          <Working>
+            {slow ? "Still writing. Longer replies take a little while." : "Reading your message and writing back…"}
+          </Working>
+        </EmployeeSays>
       )}
-      {entry?.job.state === "dispatched" && (
-        <p role="status" aria-live="polite">
-          Reply pending. Waiting for complete text and confirmed usage; no partial answer is published.
-        </p>
-      )}
-      {canWork && ["queued", "blocked", "running", "unknown", "failed"].includes(task.state) && (
-        <button disabled={busy} onClick={() => void run("task.cancel", { id: task.id, expectedVersion: task.version })}>
-          {entry?.job.state === "dispatched" ? "Stop reply" : "Cancel reply"}
-        </button>
-      )}
-      {entry?.error && <p role="alert">{stoppedReply(entry.error)}</p>}
-    </article>
+      {/* A finished turn is one quiet line; a turn that waits on you is a card (UX round 7). */}
+      <article
+        className={"co-reply-turn" + (active && !writing ? "" : " finished")}
+        data-reply-task={task.id}
+        tabIndex={-1}
+      >
+        {active && !writing && (
+          <small>
+            Reply from {employee?.name} · {thread?.scope === "company" ? "company" : "private"} conversation
+          </small>
+        )}
+        {active && !writing ? (
+          contents
+        ) : (
+          <details>
+            <summary>
+              {writing
+                ? "Reply details"
+                : task.state === "completed"
+                  ? "What this reply cost"
+                  : "Reply status · " + taskState(task.state)}
+            </summary>
+            {contents}
+          </details>
+        )}
+        {writing && (
+          <p className="co-hidden-label" role="status">
+            Reply pending. Nothing is shown until the whole reply and its usage are confirmed.
+          </p>
+        )}
+        {canWork && ["queued", "blocked", "running", "unknown", "failed"].includes(task.state) && (
+          <button
+            disabled={busy}
+            onClick={() => void run("task.cancel", { id: task.id, expectedVersion: task.version })}
+          >
+            {entry?.job.state === "dispatched" ? "Stop reply" : "Cancel reply"}
+          </button>
+        )}
+        {entry?.error && <p role="alert">{stoppedReply(entry.error)}</p>}
+      </article>
+    </>
   );
 }
 
@@ -1043,7 +1082,9 @@ function PrivateContext({
   detail,
   busy,
   run,
+  snapshot,
 }: {
+  snapshot: Snapshot;
   employee: Employee;
   soul?: string | null;
   detail: ThreadDetail;
@@ -1067,6 +1108,7 @@ function PrivateContext({
         <span className="co-toolbar-text">Context & settings</span>
       </summary>
       <Personality employee={employee} soul={soul} busy={busy} canManage={canManage} run={run} />
+      <AboutYou snapshot={snapshot} employeeName={employee.name} run={run} />
       <p>
         Replies use this conversation, your attached text, approved facts and selected evidence. Attachments stay
         reference material in this conversation. They do not become shared company knowledge.

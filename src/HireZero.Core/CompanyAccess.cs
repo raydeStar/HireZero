@@ -34,7 +34,11 @@ public sealed record CompanyMember(
     string Role,
     string State,
     int Version = 1,
-    DateTimeOffset? InviteExpiresAt = null
+    DateTimeOffset? InviteExpiresAt = null,
+    // What this person tells employees about themselves (docs/adr/0185): their own words, edited only by them.
+    [property: System.Text.Json.Serialization.JsonIgnore(
+        Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    )] string? About = null
 );
 
 public static class CompanyAccess
@@ -112,9 +116,9 @@ public static class CompanyAccess
         "member.revoke",
     ];
 
-    // A viewer can mark their own inbox alerts or leave their free team. Work changes need an approver or owner.
+    // A viewer can mark their own inbox alerts, describe themselves or leave their free team. Work changes need an approver or owner.
     public static string Required(string action) =>
-        action is "notification.mark" or "member.leave" ? CompanyRoles.Viewer
+        action is "notification.mark" or "member.leave" or "member.about" ? CompanyRoles.Viewer
         : OwnerOnly.Contains(action) ? CompanyRoles.Owner
         : CompanyRoles.Approver;
 

@@ -246,4 +246,25 @@ public sealed partial class CompanyStore
         Event(db, "member.left", subject, null, member.Email + " left the company.");
         return left;
     }
+
+    // About you (docs/adr/0185): each member describes only themselves; an empty body clears it.
+    private CompanyMember DescribeMember(StoreConnection db, CompanyCommand command)
+    {
+        var subject = CurrentActor.Value?.Subject ?? _owner;
+        if (command.Id is { } id && id != subject)
+            throw new WorkspaceException("You can describe only yourself.", 403);
+        var member = Need<CompanyMember>(db, subject);
+        Version(member.Version, command.ExpectedVersion);
+        var body = (command.Body ?? "").Trim();
+        var described = member with { About = body == "" ? null : Text(body, 2000), Version = member.Version + 1 };
+        Save(db, described, described.Id, state: described.State, version: described.Version);
+        Event(
+            db,
+            "member.changed",
+            subject,
+            null,
+            (member.Name is { Length: > 0 } n ? n : member.Email) + " updated what employees know about them."
+        );
+        return described;
+    }
 }

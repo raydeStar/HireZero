@@ -277,6 +277,12 @@ try {
   assert.equal(await evaluate("!!document.querySelector('.co-desk .fe-thread .co-round-msg')"), true, "Today's round is a message in the thread");
   assert.equal(await evaluate("document.querySelectorAll('.co-desk .co-round-msg .co-shift-jobs li').length"), 2);
   assert.match(await evaluate("document.querySelector('.co-desk .co-round-msg').innerText"), /Here’s what I’d do today/);
+  // The employee answers your approvals in the chat (ADR 0185): the ladder, then the shift, then the round.
+  assert.match(await evaluate("document.querySelector('.co-desk [aria-label$=\"on the approved goal ladder\"]')?.innerText ?? ''"), /Thanks, that’s our plan/);
+  assert.match(await evaluate("document.querySelector('.co-desk [aria-label$=\"on starting the shift\"]')?.innerText ?? ''"), /I’m on shift\. Each morning at .* I’ll read your goal ladder/);
+  assert.equal(await evaluate("(() => { const a = document.querySelector('.co-desk [aria-label$=\"on starting the shift\"]'), b = document.querySelector('.co-desk .co-round-msg'); return !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING); })()"), true, "The shift is acknowledged before the round arrives");
+  await evaluate("document.querySelector('.co-desk [aria-label$=\"on the approved goal ladder\"]').scrollIntoView({ block: 'start' })");
+  await capture("desk-acknowledgements");
   assert.match(await evaluate("document.querySelector('.co-desk .co-team-note').innerText"), /I’m on shift; my next round is/);
   assert.equal(await evaluate("getComputedStyle(document.querySelector('.co-desk .co-team-note-line.free') ?? document.body).display === 'none' || !document.querySelector('.co-desk .co-team-note-line.free')"), true, "On shift, the note does not say it is free");
   await evaluate("document.querySelector('.co-desk .co-round-msg').scrollIntoView({ block: 'start' })");
@@ -295,6 +301,14 @@ try {
   assert.equal(state.employees[0].personality, "Cheerful and brief. Always say how long a job takes.");
   await click("Use the default");
   await until(async () => !(await dashboard()).data.employees[0].personality, "personality back to the default");
+  // About you (ADR 0185): each person's own, beside the company everyone shares.
+  await until(() => evaluate("!!document.querySelector('.co-desk .co-about-you textarea')"), "about you");
+  assert.match(await evaluate("document.querySelector('.co-desk .co-about-company').innerText"), /Everyone here shares this/);
+  await fill(".co-desk .co-about-you textarea", "Call me Sam. I like short updates before 9.");
+  await click("Save about you");
+  await text("uses it from their next reply.");
+  const members = await fetch(url + "/api/company/members").then((r) => r.json());
+  assert.equal(members.find((m) => m.about)?.about, "Call me Sam. I like short updates before 9.");
   await evaluate("document.querySelector('.co-desk .co-private-context').open = false");
   await click("Collapse all");
   await until(() => evaluate("[...document.querySelectorAll('.co-desk .fe-thread details')].every((d) => !d.open)"), "folded thread");
