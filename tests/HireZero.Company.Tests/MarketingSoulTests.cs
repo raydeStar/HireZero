@@ -14,4 +14,11 @@ public sealed class MarketingSoulTests
         Assert.DoesNotContain(MarketingSoul.Text, module.InstructionsFor(MarketingModule.GoalDraft));
         Assert.DoesNotContain(MarketingSoul.Text, module.InstructionsFor(MarketingModule.StarterPlan));
     }
+
+    [Fact]
+    public void MorningRoundsFollowUpOnApprovedWorkOnce()
+    {
+        Assert.Contains("Follow up like a colleague would.", MarketingShift.Instructions);
+        Assert.Contains("never ask about the same piece twice", MarketingShift.Instructions);
+    }
 }

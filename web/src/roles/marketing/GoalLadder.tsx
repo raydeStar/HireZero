@@ -268,7 +268,7 @@ function Offer({
   return (
     <div className="co-goal-terms co-ladder-offer">
       <p>
-        {employee.name} writes one private draft with your {provider}, from your approved business brief
+        {employee.name} writes one private draft using {provider}, from your approved business brief
         {website ? ` and up to three public pages of ${website}` : ""}. It usually takes about a minute. Nothing is
         posted, sent or bought, and nothing is retried on its own.
       </p>

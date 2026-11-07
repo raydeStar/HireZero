@@ -21,7 +21,7 @@ export function developerBusinessSetup(profile: BusinessProfile): BusinessSetup 
   const objective = approvedGoal(profile) ?? "Choose a useful first technical improvement";
   return {
     reason: "Use the approved business brief to scope technical work before granting repository or tool access.",
-    responsibility: `Help with this goal: ${objective}. Prepare technical assessments and implementation proposals for owner review.`,
+    responsibility: `Help with this goal: ${objective.replace(/[.!?\s]+$/, "")}. Prepare technical assessments and implementation proposals for owner review.`,
     values: {
       purpose: "Support the owner's approved business goal with practical technical advice and bounded proposals.",
       architecture:

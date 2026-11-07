@@ -499,8 +499,8 @@ export function GoalStart({
                 <strong>What happens when you press Generate</strong>
                 <p>
                   {employee ? employee.name : `A new ${selected?.name ?? "marketing"} specialist`} writes one private
-                  draft with your {providerName(terms.terms?.provider || "host")}. It usually takes about a minute.
-                  Nothing is posted, sent or bought, and nothing is retried on its own.
+                  draft using {providerName(terms.terms?.provider || "host")}. It usually takes about a minute. Nothing
+                  is posted, sent or bought, and nothing is retried on its own.
                 </p>
                 <details className="co-goal-run-details">
                   <summary>Run details</summary>

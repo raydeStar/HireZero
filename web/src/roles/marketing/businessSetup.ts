@@ -38,7 +38,7 @@ export function marketingBusinessSetup(profile: BusinessProfile): BusinessSetup 
       };
   return {
     reason: "Use your approved business brief to prepare the marketing work requested in your goal.",
-    responsibility: `Help with this goal: ${objective}. Prepare focused marketing recommendations and drafts for owner review.`,
+    responsibility: `Help with this goal: ${objective.replace(/[.!?\s]+$/, "")}. Prepare focused marketing recommendations and drafts for owner review.`,
     // Refer to live company knowledge instead of making stale copies of its claims in a second department record.
     values: {
       purpose: "Prepare useful marketing work using the approved company brief and the owner's current goal.",
