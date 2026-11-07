@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Check } from "lucide-react";
+import { Check, MessageSquareText } from "lucide-react";
 import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workState, workTitle, type Need } from "./Cockpit";
 import { artifactState, employeeState, roleName, taskState } from "./labels";
@@ -93,6 +93,7 @@ export function Home({
   onOpenConversation,
   canPrepare = true,
   outcomeRequest = 0,
+  onDesk,
 }: {
   snapshot: Snapshot;
   needs: Need[];
@@ -110,6 +111,8 @@ export function Home({
   onOpenConversation: (employee: string, thread: string) => void;
   canPrepare?: boolean;
   outcomeRequest?: number;
+  // Back to the conversation view of Home (the desk), when there is one.
+  onDesk?: () => void;
 }) {
   const { canManage, canWork } = useMemberAccess();
   const goalStart = canManage && !!onBusiness;
@@ -250,7 +253,14 @@ export function Home({
         <p className="co-home-date">
           {new Date(now).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
         </p>
-        <h2>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}</h2>
+        <div className="co-home-hello-row">
+          <h2>{hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}</h2>
+          {onDesk && (
+            <button className="co-primary" onClick={onDesk}>
+              <MessageSquareText size={15} aria-hidden="true" /> Back to chat
+            </button>
+          )}
+        </div>
         {/* A first visit says what HireZero does and what happens next (dogfood, 2026-10-30). */}
         {d.employees.length === 0 && d.tasks.length === 0 && (
           <p className="co-home-intro">

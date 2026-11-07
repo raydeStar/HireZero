@@ -435,7 +435,7 @@ try {
   }`);
   await click("Run");
   await until(() => evaluate("typeof window.__releaseLateAction==='function'"), "Original action saved with its response held");
-  await evaluate("history.pushState({},'', '/?view=home'); dispatchEvent(new PopStateEvent('popstate'))");
+  await evaluate("history.pushState({},'', '/?view=home&home=overview'); dispatchEvent(new PopStateEvent('popstate'))");
   await until(() => evaluate("!document.querySelector('.co-action-strip')"), "Action form unmounted during navigation");
   await evaluate(`history.pushState({},'', ${JSON.stringify(`/?view=employee&employee=${employee.id}&thread=${thread.id}`)}); dispatchEvent(new PopStateEvent('popstate'))`);
   await until(() => evaluate("document.querySelector('.co-action')?.innerText.includes('This action needs a status check.')"), "Returning restores the same pending receipt");

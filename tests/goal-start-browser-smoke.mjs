@@ -193,6 +193,7 @@ try {
     mobile: false,
   });
   await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: "localStorage.setItem('dev-ui:home-start', '\"overview\"')" });
   await send("Page.navigate", { url: url + "/" });
   await until(
     () => evaluate("!!document.querySelector('.co-home')"),

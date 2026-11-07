@@ -131,6 +131,7 @@ try {
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: "localStorage.setItem('dev-ui:home-start', '\"overview\"')" });
   await send("Page.navigate", { url: url + "/" });
   await until(() => evaluate("!!document.querySelector('.co-home')"), "company home");
   const click = clicker(evaluate, until),
@@ -266,6 +267,21 @@ try {
   assert.ok(packet.call.context.recentWork.some((w) => w.title === "Work out my goal ladder: what to grow, and where to start"));
   assert.equal(await evaluate("document.querySelectorAll('.co-shift-jobs li').length"), 2);
   await text("Do people need a card to order? (yes / no)");
+
+  // The desk (2026-11-06): Home as Chip's conversation, with the shift's state in its header and today's round in the
+  // thread. Collapse all folds the thread; Overview returns to the cards.
+  await click("Back to chat");
+  await until(() => evaluate("!!document.querySelector('.co-desk .co-conversation')"), "the desk");
+  await until(() => evaluate("document.querySelector('.co-desk-shift')?.innerText.includes('On shift')"), "shift state in the header");
+  assert.match(await evaluate("document.querySelector('.co-desk-shift').innerText"), /1 of 3 done/);
+  assert.equal(await evaluate("!!document.querySelector('.co-desk .fe-thread .co-shift')"), true, "Today's round is in the thread");
+  assert.equal(await evaluate("document.querySelectorAll('.co-desk .co-shift-jobs li').length"), 2);
+  assert.equal(await evaluate("!!document.querySelector('.co-desk .co-shift-quick')"), false, "No start form in the thread");
+  await click("Collapse all");
+  await until(() => evaluate("[...document.querySelectorAll('.co-desk .fe-thread details')].every((d) => !d.open)"), "folded thread");
+  await click("Expand all");
+  await click("Overview");
+  await until(() => evaluate("!!document.querySelector('.co-home section[aria-label=Shift]')"), "overview again");
 
   // A failed morning lookup is not an empty schedule list or permission to offer a second shift.
   const unavailableShift = await send("Page.addScriptToEvaluateOnNewDocument", { source: `(()=>{

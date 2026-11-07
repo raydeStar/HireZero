@@ -3,7 +3,7 @@ import { EmployeeBrief, marketingFields } from "./EmployeeBrief";
 import { marketingBusinessSetup, marketingRecommendation } from "./businessSetup";
 import { starterPlanChecks } from "./draftChecks";
 import { ladderChecks } from "./ladder";
-import { MarketingHome, MarketingLead } from "./ShiftCard";
+import { MarketingHome, MarketingLead, MarketingShiftAction } from "./ShiftCard";
 import { morningChecks } from "./morning";
 
 export const companyUi: CompanyRoleUi = {
@@ -14,6 +14,7 @@ export const companyUi: CompanyRoleUi = {
   },
   homeCard: MarketingHome,
   homeLead: MarketingLead,
+  homeAction: MarketingShiftAction,
   businessSetup: marketingBusinessSetup,
   recommendation: marketingRecommendation,
   skillInputs: {

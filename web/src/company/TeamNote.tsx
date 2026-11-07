@@ -8,6 +8,16 @@ import { avatarStyle, initials } from "./Home";
 
 type Line = { key: string; text: ReactNode; action?: [string, () => void] };
 
+// The employee with the most recent work leads Home; the note is one voice, not a roll call.
+export function leadEmployee(snapshot: Snapshot): Employee | undefined {
+  const d = snapshot.data;
+  const times = d.taskTimes ?? {};
+  const work = d.tasks.filter((t) => t.kind !== "conversation");
+  const latest = (e: Employee) =>
+    Math.max(0, ...work.filter((t) => t.employeeId === e.id).map((t) => Date.parse(times[t.id]?.updated ?? "") || 0));
+  return [...d.employees.filter((e) => e.state === "active")].sort((a, b) => latest(b) - latest(a))[0];
+}
+
 // The employee speaks first (usefulness round, 2026-11-06): on arrival the owner reads a short note in the
 // employee's own voice — what they just finished, what they are doing, what comes next and what needs a go-ahead —
 // instead of working out where to look. Every line opens the place to act; nothing here approves anything.
@@ -17,10 +27,13 @@ export function TeamNote({
   canWork,
   onOpenWork,
   onOpenNeed,
+  employee,
 }: {
   snapshot: Snapshot;
   needs: Need[];
   canWork: boolean;
+  // Whose note: the desk's chosen employee, else whoever has the most recent work.
+  employee?: Employee;
   onOpenWork: (task: Work) => void;
   onOpenNeed: (need: Need) => void;
 }) {
@@ -28,11 +41,7 @@ export function TeamNote({
   const d = snapshot.data;
   const times = d.taskTimes ?? {};
   const work = d.tasks.filter((t) => t.kind !== "conversation");
-  const active = d.employees.filter((e) => e.state === "active");
-  // The employee with the most recent work leads; the note is one voice, not a roll call.
-  const latest = (e: Employee) =>
-    Math.max(0, ...work.filter((t) => t.employeeId === e.id).map((t) => Date.parse(times[t.id]?.updated ?? "") || 0));
-  const lead = [...active].sort((a, b) => latest(b) - latest(a))[0];
+  const lead = employee ?? leadEmployee(snapshot);
   if (!lead) return null;
   const mine = work.filter((t) => t.employeeId === lead.id);
   const inGroup = (group: readonly string[]) => mine.filter((t) => group.includes(workState(snapshot, t)));

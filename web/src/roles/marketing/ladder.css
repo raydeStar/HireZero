@@ -332,3 +332,35 @@
 .co-ladder-changes small {
   color: var(--fe-fg-3);
 }
+
+/* The desk header's shift control (2026-11-06). */
+.co-desk-shift {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.co-desk-shift-state {
+  display: inline-flex;
+  flex-direction: column;
+  font-size: var(--fe-t-s);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.co-desk-shift-state.live::first-line {
+  color: var(--hz-live);
+}
+.co-desk-shift-state small {
+  font-weight: 400;
+  color: var(--fe-fg-2);
+}
+.co-desk-shift-error {
+  flex-basis: 100%;
+  color: var(--fe-bad);
+  font-size: var(--fe-t-xs);
+}
+.co-desk-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

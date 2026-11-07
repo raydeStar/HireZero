@@ -1398,3 +1398,120 @@
     flex-direction: column;
   }
 }
+
+/* The desk (2026-11-06): Home as the lead employee's conversation, with a slim header above it. */
+.co-workspace .co-desk {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+.co-workspace .co-desk > .co-conversation {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.co-workspace .co-desk-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px clamp(16px, 3vw, 28px);
+  border-bottom: 1px solid var(--fe-line);
+  background: var(--fe-surface);
+}
+.co-workspace .co-desk-head > .co-avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+}
+.co-workspace .co-desk-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+}
+.co-workspace .co-desk-who select {
+  font-weight: 600;
+  width: auto;
+  padding: 2px 6px;
+}
+.co-workspace .co-desk-who small {
+  color: var(--fe-fg-2);
+  font-size: var(--fe-t-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.co-workspace .co-desk-spacer {
+  flex: 1 1 0;
+}
+.co-workspace .co-desk-head > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.co-workspace .co-desk-lead:empty {
+  display: none;
+}
+.co-workspace .co-desk-lead {
+  display: grid;
+  gap: 14px;
+}
+.co-workspace .co-desk-lead > section {
+  margin: 0;
+}
+.co-workspace .co-desk-note .co-team-note {
+  margin: 0;
+}
+.co-workspace .co-desk-fold-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.co-workspace .co-home-hello-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.co-workspace .co-home-hello-row > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.co-workspace .co-shift-dialog {
+  width: min(600px, 94vw);
+  max-height: 88vh;
+}
+
+/* Long replies fold to their first lines (2026-11-06). */
+.co-workspace .co-fold:not(.open) .co-fold-body {
+  max-height: 11em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+.co-workspace .co-fold-toggle {
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: var(--fe-t-xs);
+}
+@media (max-width: 640px) {
+  .co-workspace .co-desk-head {
+    gap: 8px;
+    padding: 8px 16px;
+  }
+  .co-workspace .co-desk-head > .co-avatar,
+  .co-workspace .co-desk-spacer {
+    display: none;
+  }
+  .co-workspace .co-desk-who {
+    flex: 1 1 100%;
+  }
+  .co-workspace .co-desk-label {
+    display: none;
+  }
+}

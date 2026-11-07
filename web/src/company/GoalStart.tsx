@@ -45,7 +45,7 @@ export function GoalStart({
 }) {
   const profile = approvedBusinessProfile(snapshot);
   const hasWork = snapshot.data.tasks.some((task) => task.kind !== "conversation");
-  const key = "hirezero-goal-start-v1:" + (company() || "local-company");
+  const key = goalStartKey();
   const [draft, setDraft] = useState<Draft>(() => {
     try {
       const stored = JSON.parse(memberStorage.getItem(key) || "null");
@@ -631,4 +631,16 @@ export function GoalStart({
       )}
     </section>
   );
+}
+
+const goalStartKey = () => "hirezero-goal-start-v1:" + (company() || "local-company");
+
+// A goal start that is mid-run or awaiting a check of its saved request; Home shows it rather than the desk.
+export function goalStartUnfinished() {
+  try {
+    const stored = JSON.parse(memberStorage.getItem(goalStartKey()) || "null");
+    return !!(stored?.pending || stored?.flow);
+  } catch {
+    return false;
+  }
 }

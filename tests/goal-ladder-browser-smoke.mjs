@@ -112,6 +112,7 @@ try {
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: "localStorage.setItem('dev-ui:home-start', '\"overview\"')" });
   await send("Page.navigate", { url: url + "/" });
   await until(() => evaluate("!!document.querySelector('.co-home')"), "company home");
   const click = clicker(evaluate, until),

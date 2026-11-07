@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUp, Info, MessageSquareText, Paperclip, Plus, SlidersHorizontal, X, Zap } from "lucide-react";
 import {
   attachmentAccept,
@@ -20,6 +20,7 @@ import { useMemberAccess } from "./MemberAccess";
 import { ModelChoice } from "./ModelChoice";
 import { readableReply, replyFields, stoppedReply } from "./replyText";
 import { defaultAllowance, SpendLimit } from "./allowance";
+import { Fold, isLong } from "./Fold";
 
 export type ConversationDraft = {
   body: string;
@@ -66,6 +67,10 @@ type Props = {
   onRepeatWork?: (taskId: string) => void;
   // Opens Company settings → Integrations, for a Connect card whose integration is set up there.
   onOpenSetup?: () => void;
+  // Home's desk: controls for the conversation's toolbar, and items after the last message (the employee's note,
+  // a shift's latest round, work running elsewhere).
+  toolbar?: ReactNode;
+  trailing?: ReactNode;
 };
 
 export function CompanyConversation({
@@ -90,6 +95,8 @@ export function CompanyConversation({
   onRememberResult,
   onRepeatWork,
   onOpenSetup,
+  toolbar,
+  trailing,
 }: Props) {
   const { canWork } = useMemberAccess();
   const scope = company ? "company" : (employee?.id || "missing") + ":" + thread,
@@ -207,6 +214,7 @@ export function CompanyConversation({
   const anchorOf = (t: Work) =>
     replyAfter(t) ?? messages.reduce((found, m) => (m.sequence <= t.watermark ? m.sequence : found), Number.NaN);
   const orphaned = tasks.filter((t) => Number.isNaN(anchorOf(t)));
+  const latestReply = messages.filter((m) => m.author !== "owner").at(-1)?.id;
   // An API model enforces the reply allowance as a cap in US cents; included usage has no per-job limit, so its
   // planning default is sent unasked (docs/adr/0177-plain-spend-limits.md).
   const cents =
@@ -443,6 +451,7 @@ export function CompanyConversation({
             <p>Replies are informational. Work and decisions still need your approval.</p>
             {company && <p>Private employee notes, department facts and private conversations are excluded.</p>}
           </details>
+          {toolbar}
         </div>
       </div>
       <div
@@ -562,7 +571,9 @@ export function CompanyConversation({
                             </dl>
                           ) : (
                             // Replies are written in Markdown; show the formatting, not its asterisks (dogfood).
-                            <DraftMarkdown>{readableReply(message.body)}</DraftMarkdown>
+                            <Fold long={isLong(message.body)} initiallyOpen={message.id === latestReply}>
+                              <DraftMarkdown>{readableReply(message.body)}</DraftMarkdown>
+                            </Fold>
                           )}
                         </div>
                         {message.attachments?.map((file, index) => (
@@ -596,6 +607,7 @@ export function CompanyConversation({
                       onOpenSetup={() => onOpenSetup?.()}
                     />
                   ))}
+              {trailing}
             </>
           )}
         </div>
