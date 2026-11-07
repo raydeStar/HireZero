@@ -10,6 +10,7 @@ import { homeActions, homeCards } from "../roles/company";
 import { useMemberAccess } from "./MemberAccess";
 import { foldAll } from "./Fold";
 import { leadEmployee, TeamNote } from "./TeamNote";
+import { startedWork } from "./GoalStart";
 
 // The conversation the desk opens: the employee's private thread with the most recent hands-on work (a goal's
 // thread, say), else their first private conversation. Scheduled rounds lead through their own card instead.
@@ -28,7 +29,7 @@ export function deskThread(snapshot: Snapshot, employee: Employee): string | und
 // The desk needs an active employee with a private conversation, and some work begun.
 export function deskReady(snapshot: Snapshot) {
   const lead = leadEmployee(snapshot);
-  return !!lead && !!deskThread(snapshot, lead) && snapshot.data.tasks.some((t) => t.kind !== "conversation");
+  return !!lead && !!deskThread(snapshot, lead) && snapshot.data.tasks.some(startedWork);
 }
 
 // Home is the conversation once work has begun (owner feedback, 2026-11-06): the lead employee's chat fills the page,

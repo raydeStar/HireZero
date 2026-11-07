@@ -363,7 +363,7 @@ try {
   await until(
     () =>
       evaluate(
-        "document.querySelector('.co-work-window header small')?.textContent.includes('Working')",
+        "document.querySelector('.co-work-window header small:not(.co-work-context)')?.textContent.includes('Working')",
       ),
     "parent task shows browser progress",
   );

@@ -2638,3 +2638,10 @@
 .co-workspace .co-connect code {
   font-size: 0.95em;
 }
+@media (max-width: 680px) {
+  /* On a phone the hiring guide's context starts within the first screen (2026-11-06). */
+  .co-workspace .co-onboarding .co-context-help {
+    margin: 4px 0;
+    padding: 4px 0;
+  }
+}

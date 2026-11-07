@@ -16,7 +16,11 @@ export function Modal({
   useLayoutEffect(() => {
     const dialog = ref.current!;
     dialog.showModal();
-    dialog.querySelector<HTMLButtonElement>('button:not(:disabled):not([tabindex="-1"])')?.focus();
+    // A panel can name its close control (data-autofocus); otherwise the first enabled button takes focus.
+    (
+      dialog.querySelector<HTMLElement>("[data-autofocus]") ??
+      dialog.querySelector<HTMLButtonElement>('button:not(:disabled):not([tabindex="-1"])')
+    )?.focus();
     return () => dialog.close();
   }, []);
   return (

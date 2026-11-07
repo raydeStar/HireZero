@@ -732,7 +732,13 @@ function CompanyWorkspaceContent({
       open={openConversation}
       onChat={
         mode === "work" || !splitWide
-          ? () => navigate({ ...routeRef.current, mode: "chat", work: splitWide ? workTask.id : "" })
+          ? () =>
+              // Read the width at the click: just after a resize the media listener may not have reported it yet.
+              navigate({
+                ...routeRef.current,
+                mode: "chat",
+                work: matchMedia("(min-width: 1600px)").matches ? workTask.id : "",
+              })
           : undefined
       }
       onExpand={
@@ -994,7 +1000,12 @@ function CompanyWorkspaceContent({
         </header>
         <LiveStrip
           snapshot={snapshot}
-          needs={needs.filter((need) => !optionalDraftReview(snapshot, need))}
+          // On People the hiring guide is the onboarding item itself; the strip does not repeat it (2026-11-06).
+          needs={needs.filter(
+            (need) =>
+              !optionalDraftReview(snapshot, need) &&
+              !(tab === "employees" && ["onboarding", "knowledge"].includes(need.kind)),
+          )}
           showNeeds={!docked && !needsError && tab !== "home" && !workTask}
           onOpenWork={(task) => openWork(task)}
           onOpenNeed={openNeed}

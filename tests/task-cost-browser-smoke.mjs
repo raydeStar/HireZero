@@ -236,6 +236,12 @@ try {
   );
   const costs = () => api("/company/tasks/" + task.id + "/costs");
   const open = async () => {
+    // Job cost details sit in the work's "Task costs and reconciliation" disclosure, loaded when it opens.
+    await until(
+      () => evaluate("!!document.querySelector('.co-job-costs summary')"),
+      "task costs disclosure",
+    );
+    await evaluate("document.querySelector('.co-job-costs').open=true");
     await until(
       () => evaluate("!!document.querySelector('.co-task-costs summary')"),
       "cost panel",

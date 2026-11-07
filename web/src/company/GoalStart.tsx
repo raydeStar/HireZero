@@ -44,7 +44,7 @@ export function GoalStart({
   nextGoal?: { text: string; request: number };
 }) {
   const profile = approvedBusinessProfile(snapshot);
-  const hasWork = snapshot.data.tasks.some((task) => task.kind !== "conversation");
+  const hasWork = snapshot.data.tasks.some(startedWork);
   const key = goalStartKey();
   const [draft, setDraft] = useState<Draft>(() => {
     try {
@@ -644,3 +644,8 @@ export function goalStartUnfinished() {
     return false;
   }
 }
+
+// Work the owner started: not a conversation turn, an onboarding context draft, or something cancelled. A first-time
+// company whose only task is a cancelled setup helper still leads with the goal form (2026-11-06).
+export const startedWork = (task: Work) =>
+  task.kind !== "conversation" && task.kind !== "context-draft" && !["canceled", "cancelled"].includes(task.state);

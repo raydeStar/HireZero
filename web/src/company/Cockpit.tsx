@@ -178,7 +178,7 @@ export function Cockpit({
             <Plus size={15} aria-hidden="true" /> New outcome
           </button>
         )}
-        <button className="fe-icon-button" aria-label="Hide cockpit" onClick={onClose}>
+        <button className="fe-icon-button" aria-label="Hide cockpit" onClick={onClose} data-autofocus>
           <PanelRightClose size={17} />
         </button>
       </header>

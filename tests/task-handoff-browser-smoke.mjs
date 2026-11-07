@@ -34,7 +34,7 @@ try{
   const dashboard=()=>fetch(url+'/api/company').then(r=>r.json());
   const starts=async()=>{const files=await fs.readdir(temporary,{recursive:true});let count=0;for(const file of files.filter(p=>p.endsWith('fixture-native-starts')))count+=(await fs.readFile(path.join(temporary,file),'utf8')).trim().split('\n').filter(Boolean).length;return count;};
   await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Browser draft fixture')).click()");await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'manual jobs employee');
-  await until(()=>evaluate("document.querySelector('.fe-send')?.textContent.trim()==='Prepare reply'"),'composer visibly names reply preparation');
+  await until(()=>evaluate("document.querySelector('.fe-send')?.textContent.trim()==='Send'"),'composer visibly names one-sign-off Send');await field('Message action','reply');assert.equal(await evaluate("document.querySelector('.fe-send').textContent.trim()"),'Prepare reply','Review-first preparation is still named');
   await field('Message action','save');assert.equal(await evaluate("document.querySelector('.fe-send').textContent.trim()"),'Save message','Saving a message is visible without hovering');
   await field('Message action','reply');
   await field('Work type','marketing-draft');
