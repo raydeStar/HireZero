@@ -232,6 +232,13 @@ try {
     { name: "Fictional Maple Bakery" },
     company,
   );
+  // A sign-up company is a customer of the install: what the install spends on AI is never shown to it in dollars,
+  // and Budgets and Usage are not among its settings (docs/adr/0187).
+  assert.doesNotMatch(
+    await owner.evaluate("document.body.innerText"),
+    /\$\d/,
+    "no AI spend in dollars on the customer's first screen",
+  );
   await owner.navigate(`/?company=${company}&view=departments&section=members`);
   await until(
     () =>
@@ -239,6 +246,19 @@ try {
         '!!document.querySelector(".co-members input[type=email]")',
       ),
     "owner invites",
+  );
+  const settings = await owner.evaluate(
+    "[...document.querySelectorAll('.co-hub-tabs button')].map((b) => b.textContent.trim())",
+  );
+  assert.ok(settings.includes("Members") && settings.includes("Progress"), "settings listed");
+  assert.ok(
+    !settings.includes("Budgets") && !settings.includes("Usage"),
+    "no spend settings for a customer",
+  );
+  assert.doesNotMatch(
+    await owner.evaluate("document.body.innerText"),
+    /\$\d/,
+    "no AI spend in dollars in the customer's settings",
   );
   await owner.evaluate(`(() => {
     const field=document.querySelector('.co-members input[type=email]');

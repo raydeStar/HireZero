@@ -146,6 +146,10 @@ try {
   await send("Runtime.enable");
   await send("Page.enable");
   await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  // The classic start, chosen as an owner can (docs/adr/0186).
+  await send("Page.addScriptToEvaluateOnNewDocument", {
+    source: "localStorage.setItem('dev-ui:onboarding','\"form\"')",
+  });
   // Home opens on the lead employee's desk once work exists; these checks read the overview's cards.
   await send("Page.addScriptToEvaluateOnNewDocument", {
     source: "localStorage.setItem('dev-ui:home-start','\"overview\"')",

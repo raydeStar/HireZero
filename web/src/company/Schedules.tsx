@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { memberStorage as sessionStorage } from "../lib/api";
 import { ScheduledBrowserReview, type ScheduledBrowser } from "./ScheduledBrowserReview";
 import { canRepeatWork, recurringInstructions } from "./recurringWork";
@@ -582,10 +583,12 @@ export function Schedules({
                   onChange={(value) => edit({ ...form, creditAllowance: Number(value) })}
                 />
                 <small>
-                  {cents
-                    ? "Nothing is sent if the most a run could cost is over this limit."
-                    : "Runs use your plan's included usage, which has no per-run limit."}{" "}
-                  Existing company and employee budgets also apply.
+                  {customerView()
+                    ? "Each run is included in your plan."
+                    : (cents
+                        ? "Nothing is sent if the most a run could cost is over this limit."
+                        : "Runs use your plan's included usage, which has no per-run limit.") +
+                      " Existing company and employee budgets also apply."}
                 </small>
               </>
             ) : form.kind === "browser-task" ? (
@@ -936,9 +939,11 @@ export function Schedules({
               {schedule.authority.policy.planningTokens.toLocaleString()} tokens per run;{" "}
               {(schedule.authority.policy.planningTokens * schedule.definition.occurrences).toLocaleString()} across
               this schedule.{" "}
-              {(schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)
-                ? `Spend limit: ${dollars(schedule.definition.creditAllowance)} per run. Time and observed token targets are local soft stops; spending is checked before dispatch.`
-                : "Runs use your plan's included usage, which has no per-run limit. Time and token targets are soft limits; a run may exceed them."}
+              {customerView()
+                ? "Each run is included in your plan. Time and token targets are soft limits; a run may exceed them."
+                : (schedule.authority.terms ? schedule.authority.terms.allowanceUnit === "usd-cents" : cents)
+                  ? `Spend limit: ${dollars(schedule.definition.creditAllowance)} per run. Time and observed token targets are local soft stops; spending is checked before dispatch.`
+                  : "Runs use your plan's included usage, which has no per-run limit. Time and token targets are soft limits; a run may exceed them."}
             </p>
           )}
           <details>

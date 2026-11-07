@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { canRepeatWork } from "./recurringWork";
 import { EmployeeSays, Working } from "./EmployeeSays";
 import { useMemberAccess } from "./MemberAccess";
@@ -535,7 +536,7 @@ export function ConversationJob({
             <BrowserTools key={`browser:${t.id}`} task={t} snapshot={snapshot} busy={busy} refresh={refresh} />
           </Suspense>
         )}
-        {snapshot.capabilities.costOwner && t.kind === "work" && (
+        {snapshot.capabilities.costOwner && !customerView() && t.kind === "work" && (
           <details
             className="co-job-costs"
             onToggle={(event) => {

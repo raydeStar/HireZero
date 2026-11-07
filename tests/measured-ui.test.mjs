@@ -54,13 +54,20 @@ const useEffect = (callback, deps) => {
 const jsx = (type, props) => ({ type, props });
 // The real spend-limit wording and defaults, so the card is checked against what owners see.
 const allowanceExports = {};
+// The owner's own install: spend shows in dollars (customers of a hosted install see none, docs/adr/0187).
+const audience = { customerView: () => false };
 vm.runInNewContext(
   ts.transpileModule(fs.readFileSync(new URL("../web/src/company/allowance.tsx", import.meta.url), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText,
   {
     exports: allowanceExports,
-    require: (name) => (name === "react" ? { useState, useRef, useEffect } : { jsx, jsxs: jsx, Fragment: "fragment" }),
+    require: (name) =>
+      name === "./audience"
+        ? audience
+        : name === "react"
+          ? { useState, useRef, useEffect }
+          : { jsx, jsxs: jsx, Fragment: "fragment" },
   },
 );
 const exports = {};
@@ -69,6 +76,8 @@ vm.runInNewContext(code, {
   require: (name) =>
     name === "./allowance"
       ? allowanceExports
+      : name === "./audience"
+      ? audience
       : name === "./MemberAccess"
       ? { useMemberAccess: () => ({ canWork, canManage: canWork }) }
       : name === "react"

@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { command, type MeasuredEntry, type Work } from "./api";
@@ -234,9 +235,11 @@ export function MeasuredJob({
             />
             <SpendLimit cents={formCents} value={shownAllowance} disabled={busy} onChange={setAllowance} />
             <p className="co-muted">
-              {formCents
-                ? "Nothing is sent if the most this could cost (the whole context and the longest reply at the model's listed price) is over your spend limit."
-                : "Uses your plan's included usage, which has no per-job limit. Nothing is bought or recharged, and no API key is used instead."}
+              {customerView()
+                ? "Included in your plan."
+                : formCents
+                  ? "Nothing is sent if the most this could cost (the whole context and the longest reply at the model's listed price) is over your spend limit."
+                  : "Uses your plan's included usage, which has no per-job limit. Nothing is bought or recharged, and no API key is used instead."}
             </p>
             <button disabled={busy} type="submit">
               Prepare job for review
@@ -422,9 +425,11 @@ export function MeasuredJob({
                   caps.
                 </p>
                 <p>
-                  {cents
-                    ? `Spend limit: ${dollars(entry.job.creditAllowance)}, checked against the most this could cost before sending.`
-                    : "Uses your plan's included usage. There is no per-job limit on it."}
+                  {customerView()
+                    ? "Included in your plan."
+                    : cents
+                      ? `Spend limit: ${dollars(entry.job.creditAllowance)}, checked against the most this could cost before sending.`
+                      : "Uses your plan's included usage. There is no per-job limit on it."}
                 </p>
                 <small>
                   Expires {new Date(entry.job.expiresAt).toLocaleString()}. Policy {entry.job.policy.version}. The

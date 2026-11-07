@@ -20,8 +20,9 @@ Status: accepted, 2026-11-07. Owner request. Builds on [0183](0183-one-sign-off-
   Approving sends "Looks right, that's us." so HireZero's next question is a real reply in place.
 - **Yes, bring them in** hires the teammate the approved brief recommends (Marketing today) through the existing goal
   start, with what the owner said they need added to the first assignment. The offer shows the provider, the model and
-  the most the first draft can cost before it is pressed (the classic start's run details), and Yes uses exactly those
-  terms; if they can't be loaded, the button stays off. HireZero then retires and Home becomes the new teammate's chat.
+  the most the first draft can cost before it is pressed (the classic start's run details; for a customer of a hosted
+  install, that it is included in their plan, [0187](0187-customers-see-tokens-not-spend.md)), and Yes uses exactly
+  those terms; if they can't be loaded, the button stays off. HireZero then retires and Home becomes the new teammate's chat.
 - The form stays one click away ("Use the form instead"), remembered in this browser.
 
 ## Consequences

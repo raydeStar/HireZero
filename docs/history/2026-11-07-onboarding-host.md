@@ -18,6 +18,8 @@ Decision record: [0186](../adr/0186-onboarding-host.md).
 - After the first deploy: the offer shows what **Yes** will do before it is pressed, the provider and model and the most
   the first draft can cost, as the classic start's run details did. The demo script and submission now follow this
   opening.
+- Later the same day: a customer of the hosted install sees no AI spend in dollars anywhere, only tokens used; the offer
+  reads "included in your plan" ([0187](../adr/0187-customers-see-tokens-not-spend.md)).
 - Browser checks of the classic start (company, company-onboarding, company-scope, goal-ladder, goal-start,
   marketing-shift, settings-recovery, team) choose the form, as the owner can.
 

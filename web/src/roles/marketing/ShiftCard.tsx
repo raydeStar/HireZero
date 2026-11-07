@@ -1,3 +1,4 @@
+import { customerView } from "../../company/audience";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Play, X } from "lucide-react";
 import { api, company, memberStorage } from "../../lib/api";
@@ -1098,9 +1099,11 @@ function Report({
               <p>
                 Do it approves one private draft from {employee.name} through{" "}
                 {providerName(terms.terms?.provider || "host")} · {terms.route}.
-                {terms.terms?.allowanceUnit === "usd-cents"
-                  ? " Spend limit: " + dollars(5) + "."
-                  : " It uses your plan's included usage."}
+                {customerView()
+                  ? " It's included in your plan."
+                  : terms.terms?.allowanceUnit === "usd-cents"
+                    ? " Spend limit: " + dollars(5) + "."
+                    : " It uses your plan's included usage."}
                 {busy ? ` ${employee.name} is finishing another draft first.` : ""}
               </p>
               <details>

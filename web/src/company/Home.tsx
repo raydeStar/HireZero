@@ -1,3 +1,4 @@
+import { customerView, tokensUsed } from "./audience";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Check, MessageSquareText } from "lucide-react";
 import type { Employee, Snapshot, Work } from "./api";
@@ -449,7 +450,7 @@ export function Home({
       )}
       {d.employees.length > 0 && (
         <details className="co-home-section">
-          <summary>Workspace activity and costs</summary>
+          <summary>{customerView() ? "Workspace activity" : "Workspace activity and costs"}</summary>
           <section className="co-home-tiles" aria-label="At a glance">
             {tiles.map(([label, value, attention]) =>
               // What needs you is listed in the cockpit; the tile opens the first item.
@@ -470,21 +471,28 @@ export function Home({
                 </div>
               ),
             )}
-            <div className="co-tile">
-              <strong>
-                {!spend
-                  ? "Unavailable"
-                  : spend.unpricedJobs > 0 && spend.pricedJobs === 0
-                    ? "Not priced"
-                    : dollars(spend.usd)}
-              </strong>
-              <span>Model costs &amp; estimates</span>
-              {spend && spend.unpricedJobs > 0 && (
-                <small>
-                  {spend.unpricedJobs} {spend.unpricedJobs === 1 ? "job has" : "jobs have"} no dollar price
-                </small>
-              )}
-            </div>
+            {customerView() ? (
+              <div className="co-tile">
+                <strong>{tokensUsed(d).toLocaleString()}</strong>
+                <span>Model tokens used</span>
+              </div>
+            ) : (
+              <div className="co-tile">
+                <strong>
+                  {!spend
+                    ? "Unavailable"
+                    : spend.unpricedJobs > 0 && spend.pricedJobs === 0
+                      ? "Not priced"
+                      : dollars(spend.usd)}
+                </strong>
+                <span>Model costs &amp; estimates</span>
+                {spend && spend.unpricedJobs > 0 && (
+                  <small>
+                    {spend.unpricedJobs} {spend.unpricedJobs === 1 ? "job has" : "jobs have"} no dollar price
+                  </small>
+                )}
+              </div>
+            )}
           </section>
         </details>
       )}

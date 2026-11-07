@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { useEffect, useRef, useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown, LayoutDashboard, Plus } from "lucide-react";
 import { api } from "../lib/api";
@@ -165,7 +166,11 @@ export function Desk({
             <Plus size={15} aria-hidden="true" /> <span className="co-desk-label">New outcome</span>
           </button>
         )}
-        <button onClick={onOverview} title="Results, goal ladder, team and costs" aria-label="Overview">
+        <button
+          onClick={onOverview}
+          title={customerView() ? "Results, goal ladder and team" : "Results, goal ladder, team and costs"}
+          aria-label="Overview"
+        >
           <LayoutDashboard size={15} aria-hidden="true" /> <span className="co-desk-label">Overview</span>
         </button>
       </header>

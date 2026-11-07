@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { memberStorage as sessionStorage } from "../lib/api";
 import { useEffect, useRef, useState } from "react";
 import { defaultAllowance, SpendLimit, spendText } from "./allowance";
@@ -274,9 +275,11 @@ export function MemoryAnalysis({
           ))}
           <SpendLimit cents={cents} value={sentAllowance} onChange={setAllowance} />
           <p className="co-muted">
-            {cents
-              ? "Nothing is sent if the most this could cost is over your spend limit."
-              : "Uses your plan's included usage, which has no per-job limit. Its token limits are safeguards, not hard caps."}{" "}
+            {customerView()
+              ? "Included in your plan."
+              : cents
+                ? "Nothing is sent if the most this could cost is over your spend limit."
+                : "Uses your plan's included usage, which has no per-job limit. Its token limits are safeguards, not hard caps."}{" "}
             Preparing a check sends nothing to the model.
           </p>
           <button
@@ -361,7 +364,7 @@ export function MemoryAnalysis({
                     />
                     <span>
                       I authorize one check of these records
-                      {cents ? " within the shown spend limit." : ", acknowledging the soft limits."}
+                      {cents && !customerView() ? " within the shown spend limit." : ", acknowledging the soft limits."}
                     </span>
                   </label>
                   <button

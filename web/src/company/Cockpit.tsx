@@ -1,3 +1,4 @@
+import { customerView, tokens, tokensUsed } from "./audience";
 import { useEffect, useState } from "react";
 import { Check, CircleAlert, PanelRightClose, Plus, X } from "lucide-react";
 import { api } from "../lib/api";
@@ -324,13 +325,16 @@ export function Cockpit({
             </ol>
           </section>
         )}
-        {spend && spend.pricedJobs + spend.unpricedJobs > 0 && (
-          <p className="co-cockpit-foot">
-            Model costs &amp; estimates: {spend.pricedJobs === 0 ? "no dollar price yet" : dollars(spend.usd)}
-            {spend.unpricedJobs > 0 &&
-              ` · ${spend.unpricedJobs} ${spend.unpricedJobs === 1 ? "job" : "jobs"} without a dollar price`}
-          </p>
-        )}
+        {customerView()
+          ? tokensUsed(d) > 0 && <p className="co-cockpit-foot">Model use: {tokens(tokensUsed(d))}</p>
+          : spend &&
+            spend.pricedJobs + spend.unpricedJobs > 0 && (
+              <p className="co-cockpit-foot">
+                Model costs &amp; estimates: {spend.pricedJobs === 0 ? "no dollar price yet" : dollars(spend.usd)}
+                {spend.unpricedJobs > 0 &&
+                  ` · ${spend.unpricedJobs} ${spend.unpricedJobs === 1 ? "job" : "jobs"} without a dollar price`}
+              </p>
+            )}
       </div>
     </aside>
   );

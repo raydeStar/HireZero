@@ -17,13 +17,13 @@ cap.
 
 Small business owners want help with marketing, but an AI agent with an owner's accounts and card can do a lot of
 damage. HireZero turns that around. Each employee drafts work, and the owner approves the exact job before any model
-request leaves the server, including the maximum it may cost.
+request leaves the server. What any company can use is capped on the server; customers see tokens used, never a bill.
 
 Anyone can try it at [app.hirezero.app](https://app.hirezero.app). Sign in with Google and create a company.
 HireZero greets the owner in chat, asks about the business and its goal, reads only the website the owner confirms,
 and drafts a company brief that cites its pages. The owner corrects any line and approves it. HireZero then offers a
-Marketing partner and shows, before anything runs, the model and the most the first draft can cost. One click gets a
-private draft to review. Each chat reply is the owner's own Send. Nothing is posted, sent or bought, and nothing is
+Marketing partner and shows, before anything runs, exactly what the first draft will do and which model writes it.
+One click gets a private draft to review. Each chat reply is the owner's own Send. Nothing is posted, sent or bought, and nothing is
 retried on its own.
 
 **Containment is designed in at every layer:**
@@ -79,7 +79,8 @@ browser was torn down. [hirezero-engine](https://github.com/raydeStar/hirezero-e
 ## Slide outline
 
 1. **The problem.** Owners want an AI marketing hire, but an agent with their accounts can post, send and spend.
-2. **HireZero.** Employees draft. You approve the exact job and the most it can cost. Live at app.hirezero.app.
+2. **HireZero.** Employees draft. You approve the exact job; the server caps what any company can use. Live at
+   app.hirezero.app.
 3. **One job, start to finish.** Sign in, tell HireZero about the business, correct and approve the brief, see the run
    details, say yes, read the draft. Use screenshots from the recording.
 4. **Blast radius zero.** Five layers: money, actions, tenants, providers, secrets, one line each.

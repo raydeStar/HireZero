@@ -16,6 +16,7 @@ import { EmployeeSays, Working } from "../../company/EmployeeSays";
 import { advanceGoal, type GoalFlow, type GoalTerms } from "../../company/goalFlow";
 import { defaultAllowance, spendText } from "../../company/allowance";
 import { providerName } from "../../company/ModelChoice";
+import { customerView, tokens } from "../../company/audience";
 import { approvedBusinessProfile, recommendationsForProfile, setupForProfile, type OnboardingProps } from "../company";
 import "./onboarding.css";
 
@@ -517,7 +518,7 @@ export function Onboarding(props: OnboardingProps) {
           onRewrite={(key, value) => void rewrite(key, value)}
           onAgain={() => void again()}
           onApprove={() => void approve()}
-          spent={job?.usage?.billedUsd ?? undefined}
+          usage={job?.usage ?? undefined}
         />
       )}
       {approved && afterApproval.length > 1 && pick && (
@@ -576,7 +577,8 @@ export function Onboarding(props: OnboardingProps) {
 }
 
 // The offer of the first teammate says what Yes does before it does it: the provider and model, and the most the first
-// draft can cost, from the same terms as the classic first-draft form. Yes uses exactly the terms shown.
+// draft can cost (or, for a customer of a hosted install, that it is included in their plan, docs/adr/0187), from the
+// same terms as the classic first-draft form. Yes uses exactly the terms shown.
 function Offer({
   role,
   skill,
@@ -631,7 +633,7 @@ function Offer({
           </details>
         </>
       ) : failed ? (
-        <p role="alert">I couldn’t check what this draft can cost, so I won’t start it: {failed}</p>
+        <p role="alert">I couldn’t load the details of this draft, so I won’t start it: {failed}</p>
       ) : (
         <p className="co-muted">Checking what this draft can cost…</p>
       )}
@@ -690,7 +692,9 @@ function Details({
         </label>
         <p className="co-muted">
           {value.website.trim()
-            ? "Reading your site is free. Writing your brief is one model request within your plan’s limit."
+            ? customerView()
+              ? "Reading your site and writing your brief are included in your plan."
+              : "Reading your site is free. Writing your brief is one model request within your plan’s limit."
             : "No website? No problem: your brief starts from your words, and you can fill in the rest."}
         </p>
         <div className="co-actions">
@@ -712,7 +716,7 @@ function Findings({
   onRewrite,
   onAgain,
   onApprove,
-  spent,
+  usage,
 }: {
   unread: string;
   profile: BusinessProfile;
@@ -721,7 +725,7 @@ function Findings({
   onRewrite: (key: string, value: string) => void;
   onAgain: () => void;
   onApprove: () => void;
-  spent?: number;
+  usage?: { inputTokens: number; outputTokens: number; billedUsd?: number | null };
 }) {
   const [editing, setEditing] = useState("");
   const [text, setText] = useState("");
@@ -794,7 +798,13 @@ function Findings({
           </button>
         )}
       </div>
-      {spent != null && <p className="co-muted">Writing this brief cost ${spent.toFixed(4)}.</p>}
+      {/* A customer of a hosted install sees tokens, never what the install paid (docs/adr/0187). */}
+      {usage &&
+        (customerView() ? (
+          <p className="co-muted">Writing this brief used {tokens(usage.inputTokens + usage.outputTokens)}.</p>
+        ) : (
+          usage.billedUsd != null && <p className="co-muted">Writing this brief cost ${usage.billedUsd.toFixed(4)}.</p>
+        ))}
     </EmployeeSays>
   );
 }
