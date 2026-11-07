@@ -47,7 +47,11 @@ export function TeamNote({
   // Work is named by what the owner asked for (the goal's conversation title), not by the kind of job.
   const named = (t: Work) => {
     const thread = d.threads.find((h) => h.id === t.threadId);
-    return thread && (thread.scope ?? "employee") === "employee" && !/^Private conversation/.test(thread.title)
+    // Scheduled work keeps its kind ("Morning round"); its thread is named after the schedule, not a goal.
+    return !t.scheduleRunId &&
+      thread &&
+      (thread.scope ?? "employee") === "employee" &&
+      !/^Private conversation/.test(thread.title)
       ? thread.title
       : workTitle(snapshot, t);
   };
