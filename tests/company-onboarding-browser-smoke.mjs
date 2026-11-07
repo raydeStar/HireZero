@@ -1,116 +1,931 @@
 // Runs an installed headless Chrome against a disposable company-local host. No user browser profile or live provider.
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import os from 'node:os';
-import {spawn} from 'node:child_process';
-import assert from 'node:assert/strict';
-import {clicker,delay,fetchTracker,freeLocalUrl,pageDiagnosis,pageIdle,waiter} from './browser-smoke-wait.mjs';
-const repo=path.resolve(import.meta.dirname,'..');
-const temporary=await fs.mkdtemp(path.join(os.tmpdir(),'hirezero-manual-ui-'));
-const chrome=process.env.HIREZERO_TEST_CHROME||path.join(process.env.ProgramFiles||'C:/Program Files','Google/Chrome/Application/chrome.exe');
-const hostDir=path.join(repo,'src/HireZero.Host');
-const url=process.env.HIREZERO_TEST_URL||await freeLocalUrl();
-const webRoot=process.env.HIREZERO_TEST_WEB_ROOT||path.join(hostDir,'wwwroot');
-const host=spawn('dotnet',[path.join(repo,'tests/HireZero.Company.Tests/bin/Debug/net10.0/HireZero.Company.Tests.dll'),'--company-browser-fixture',temporary,url,webRoot],{cwd:hostDir,windowsHide:true,env:{...process.env,HIREZERO_LOCAL_OWNER:'1',HIREZERO_OWNER_LOGIN:'owner@example.invalid',HIREZERO_DATA_ROOT:path.join(temporary,'data'),HIREZERO_EXECUTION_HOLD:'0'},stdio:['ignore','pipe','pipe']});
-let hostLog='';host.stdout.on('data',b=>hostLog+=b);host.stderr.on('data',b=>hostLog+=b);let browser,ws;
-const until=waiter();
-try{
-  await until(()=>hostLog.includes('Now listening on: '+url),'this test host owns the listener');
-  await until(async()=>{const r=await fetch(url+'/health');return r.ok;},'fresh host health');
-  const health=await fetch(url+'/health').then(r=>r.json());assert.equal(health.modelExecution,false);
-  browser=spawn(chrome,['--headless=new','--disable-gpu','--disable-background-networking','--disable-sync','--disable-default-apps','--no-first-run','--no-default-browser-check','--no-proxy-server','--remote-debugging-port=0','--remote-debugging-address=127.0.0.1','--user-data-dir='+path.join(temporary,'browser'),'about:blank'],{windowsHide:true,stdio:'ignore'});
-  const port=await until(async()=>{const text=await fs.readFile(path.join(temporary,'browser','DevToolsActivePort'),'utf8');return Number(text.split('\n')[0]);},'isolated browser debugger');
-  const targets=await fetch(`http://127.0.0.1:${port}/json/list`).then(r=>r.json());const target=targets.find(t=>t.type==='page');assert.ok(target);
-  ws=new WebSocket(target.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
-  let sequence=0;const pending=new Map();const errors=[];
-  ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(!p)return;clearTimeout(p.timer);pending.delete(m.id);if(m.error)p.reject(new Error(m.error.message));else p.resolve(m.result);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text);});
-  const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;const timer=setTimeout(()=>{pending.delete(id);reject(new Error('Debugger command timed out: '+method));},10000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}));});
-  const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};until.diagnose=pageDiagnosis(evaluate);
-  await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});await send('Page.addScriptToEvaluateOnNewDocument',{source:fetchTracker});await send('Page.navigate',{url:url+'/'});
-  await until(()=>evaluate("document.body.innerText.includes('Company conversation')"),'company UI');
-  const click=clicker(evaluate,until),idle=pageIdle(evaluate,until);
-  const field=async(label,value)=>{await evaluate(`(()=>{const label=[...document.querySelectorAll('.co-main label')].find(l=>l.childNodes[0]?.textContent.trim().toLowerCase()===${JSON.stringify(label.toLowerCase())});if(!label)throw Error('Field missing: '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);await delay(70);};
-  const dashboard=()=>fetch(url+'/api/company').then(r=>r.json());
-  const reload=async()=>{await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Guided hiring\"]')"),'guide resumed');};
-  const twice=()=>evaluate("(()=>{const f=document.querySelector('.co-onboarding form');f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()");
-  const guideText=()=>evaluate("document.querySelector('.co-onboarding').innerText");
-  const inject=async(action,mode)=>evaluate(`(()=>{const original=window.fetch;window.fetch=async(input,options)=>{const body=options?.body?JSON.parse(options.body):{};if(body.action===${JSON.stringify(action)}){window.fetch=original;if(${JSON.stringify(mode)}==='definitive')return new Response(JSON.stringify({error:'Synthetic definitive refusal'}),{status:422,headers:{'Content-Type':'application/json'}});await new Promise(resolve=>setTimeout(resolve,250));const response=await original(input,options);window.fetch=async(input,options)=>{if(String(input).includes('/operations/'))throw new TypeError('Synthetic unavailable receipt');return original(input,options);};throw new TypeError('Synthetic lost saved response');}return original(input,options);};})()`);
-  const headingVisible=async label=>{assert.equal(await evaluate("(()=>{const h=document.querySelector('.co-onboarding h2'),r=h.getBoundingClientRect();return r.top>=document.querySelector('.fe-topbar').getBoundingClientRect().bottom&&r.bottom<innerHeight-60&&document.activeElement===h;})()"),true,label+' heading is visible and focused after footer submission');};
-  assert.equal(await evaluate("!!document.querySelector('[aria-label=\"Start with a goal\"]')"),true,'An empty Home explains the first step');
-  assert.equal(await evaluate("document.querySelectorAll('.co-home .co-primary').length"),1,'An empty Home has one clear next action');
-  await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
-  const homeDesktop=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/ux-home-desktop.png'),Buffer.from(homeDesktop.data,'base64'));
-  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(150);
-  assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'First-run Home fits the mobile viewport');
-  await evaluate("document.querySelector('.co-home .co-primary').scrollIntoView({block:'center'})");assert.equal(await evaluate("(()=>{const r=document.querySelector('.co-home .co-primary').getBoundingClientRect();return r.top>=document.querySelector('.fe-topbar').getBoundingClientRect().bottom&&r.bottom<=innerHeight;})()"),true,'The first Home action is fully visible on mobile');
-  const homeMobile=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/ux-home-mobile.png'),Buffer.from(homeMobile.data,'base64'));
-  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
-  assert.equal(await evaluate("document.querySelector('.co-home .co-primary').textContent.trim()"),'Generate my first draft','New companies start with a goal');
-  await click('People');assert.match(await guideText(),/Hire your first employee/);
-  assert.match(await guideText(),/Hiring creates a private chat/);
-  assert.equal(await evaluate("document.querySelector('.co-onboarding select').value"),'marketing','Marketing default');
-  await field('Name','');await click('Create employee & continue');assert.equal((await dashboard()).data.departments.length,0,'Empty required profile is invalid');await field('Name','   ');await twice();await delay(150);assert.equal((await dashboard()).data.departments.length,0,'Whitespace never creates a department');
-  await field('Name','Strategy fixture');await field('New department name','Fictional Marketing');
-  await click('Home');await click('People');assert.equal(await evaluate("document.querySelector('.co-onboarding input').value"),'Strategy fixture','Navigation keeps draft');
-  await reload();assert.equal(await evaluate("document.querySelector('.co-onboarding input').value"),'Strategy fixture','Reload keeps draft');
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { spawn } from "node:child_process";
+import assert from "node:assert/strict";
+import {
+  clicker,
+  delay,
+  fetchTracker,
+  freeLocalUrl,
+  pageDiagnosis,
+  pageIdle,
+  waiter,
+} from "./browser-smoke-wait.mjs";
+const repo = path.resolve(import.meta.dirname, "..");
+const temporary = await fs.mkdtemp(
+  path.join(os.tmpdir(), "hirezero-manual-ui-"),
+);
+const chrome =
+  process.env.HIREZERO_TEST_CHROME ||
+  path.join(
+    process.env.ProgramFiles || "C:/Program Files",
+    "Google/Chrome/Application/chrome.exe",
+  );
+const hostDir = path.join(repo, "src/HireZero.Host");
+const url = process.env.HIREZERO_TEST_URL || (await freeLocalUrl());
+const webRoot =
+  process.env.HIREZERO_TEST_WEB_ROOT || path.join(hostDir, "wwwroot");
+const host = spawn(
+  "dotnet",
+  [
+    path.join(
+      repo,
+      "tests/HireZero.Company.Tests/bin/Debug/net10.0/HireZero.Company.Tests.dll",
+    ),
+    "--company-browser-fixture",
+    temporary,
+    url,
+    webRoot,
+  ],
+  {
+    cwd: hostDir,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      HIREZERO_LOCAL_OWNER: "1",
+      HIREZERO_OWNER_LOGIN: "owner@example.invalid",
+      HIREZERO_DATA_ROOT: path.join(temporary, "data"),
+      HIREZERO_EXECUTION_HOLD: "0",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  },
+);
+let hostLog = "";
+host.stdout.on("data", (b) => (hostLog += b));
+host.stderr.on("data", (b) => (hostLog += b));
+let browser, ws;
+const until = waiter();
+try {
+  await until(
+    () => hostLog.includes("Now listening on: " + url),
+    "this test host owns the listener",
+  );
+  await until(async () => {
+    const r = await fetch(url + "/health");
+    return r.ok;
+  }, "fresh host health");
+  const health = await fetch(url + "/health").then((r) => r.json());
+  assert.equal(health.modelExecution, false);
+  browser = spawn(
+    chrome,
+    [
+      "--headless=new",
+      "--disable-gpu",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--disable-default-apps",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--no-proxy-server",
+      "--remote-debugging-port=0",
+      "--remote-debugging-address=127.0.0.1",
+      "--user-data-dir=" + path.join(temporary, "browser"),
+      "about:blank",
+    ],
+    { windowsHide: true, stdio: "ignore" },
+  );
+  const port = await until(async () => {
+    const text = await fs.readFile(
+      path.join(temporary, "browser", "DevToolsActivePort"),
+      "utf8",
+    );
+    return Number(text.split("\n")[0]);
+  }, "isolated browser debugger");
+  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) =>
+    r.json(),
+  );
+  const target = targets.find((t) => t.type === "page");
+  assert.ok(target);
+  ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    ws.addEventListener("open", resolve, { once: true });
+    ws.addEventListener("error", reject, { once: true });
+  });
+  let sequence = 0;
+  const pending = new Map();
+  const errors = [];
+  ws.addEventListener("message", (e) => {
+    const m = JSON.parse(e.data);
+    if (m.id) {
+      const p = pending.get(m.id);
+      if (!p) return;
+      clearTimeout(p.timer);
+      pending.delete(m.id);
+      if (m.error) p.reject(new Error(m.error.message));
+      else p.resolve(m.result);
+    }
+    if (m.method === "Runtime.exceptionThrown")
+      errors.push(m.params.exceptionDetails.text);
+  });
+  const send = (method, params = {}) =>
+    new Promise((resolve, reject) => {
+      const id = ++sequence;
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error("Debugger command timed out: " + method));
+      }, 10000);
+      pending.set(id, { resolve, reject, timer });
+      ws.send(JSON.stringify({ id, method, params }));
+    });
+  const evaluate = async (expression) => {
+    const r = await send("Runtime.evaluate", {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (r.exceptionDetails)
+      throw new Error(
+        r.exceptionDetails.exception?.description || r.exceptionDetails.text,
+      );
+    return r.result.value;
+  };
+  until.diagnose = pageDiagnosis(evaluate);
+  await send("Runtime.enable");
+  await send("Page.enable");
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1100,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  await send("Page.addScriptToEvaluateOnNewDocument", {
+    source: "localStorage.setItem('dev-ui:onboarding','\"form\"')",
+  });
+  await send("Page.navigate", { url: url + "/" });
+  await until(
+    () => evaluate("document.body.innerText.includes('Company conversation')"),
+    "company UI",
+  );
+  const click = clicker(evaluate, until),
+    idle = pageIdle(evaluate, until);
+  const field = async (label, value) => {
+    await evaluate(
+      `(()=>{const label=[...document.querySelectorAll('.co-main label')].find(l=>l.childNodes[0]?.textContent.trim().toLowerCase()===${JSON.stringify(label.toLowerCase())});if(!label)throw Error('Field missing: '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`,
+    );
+    await delay(70);
+  };
+  const dashboard = () => fetch(url + "/api/company").then((r) => r.json());
+  const reload = async () => {
+    await send("Page.reload");
+    await until(
+      () =>
+        evaluate("!!document.querySelector('[aria-label=\"Guided hiring\"]')"),
+      "guide resumed",
+    );
+  };
+  const twice = () =>
+    evaluate(
+      "(()=>{const f=document.querySelector('.co-onboarding form');f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));})()",
+    );
+  const guideText = () =>
+    evaluate("document.querySelector('.co-onboarding').innerText");
+  const inject = async (action, mode) =>
+    evaluate(
+      `(()=>{const original=window.fetch;window.fetch=async(input,options)=>{const body=options?.body?JSON.parse(options.body):{};if(body.action===${JSON.stringify(action)}){window.fetch=original;if(${JSON.stringify(mode)}==='definitive')return new Response(JSON.stringify({error:'Synthetic definitive refusal'}),{status:422,headers:{'Content-Type':'application/json'}});await new Promise(resolve=>setTimeout(resolve,250));const response=await original(input,options);window.fetch=async(input,options)=>{if(String(input).includes('/operations/'))throw new TypeError('Synthetic unavailable receipt');return original(input,options);};throw new TypeError('Synthetic lost saved response');}return original(input,options);};})()`,
+    );
+  const headingVisible = async (label) => {
+    assert.equal(
+      await evaluate(
+        "(()=>{const h=document.querySelector('.co-onboarding h2'),r=h.getBoundingClientRect();return r.top>=document.querySelector('.fe-topbar').getBoundingClientRect().bottom&&r.bottom<innerHeight-60&&document.activeElement===h;})()",
+      ),
+      true,
+      label + " heading is visible and focused after footer submission",
+    );
+  };
+  assert.equal(
+    await evaluate(
+      "!!document.querySelector('[aria-label=\"Start with a goal\"]')",
+    ),
+    true,
+    "An empty Home explains the first step",
+  );
+  assert.equal(
+    await evaluate("document.querySelectorAll('.co-home .co-primary').length"),
+    1,
+    "An empty Home has one clear next action",
+  );
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  const homeDesktop = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.writeFile(
+    path.join(repo, "test-results/ux-home-desktop.png"),
+    Buffer.from(homeDesktop.data, "base64"),
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await delay(150);
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth"),
+    true,
+    "First-run Home fits the mobile viewport",
+  );
+  await evaluate(
+    "document.querySelector('.co-home .co-primary').scrollIntoView({block:'center'})",
+  );
+  assert.equal(
+    await evaluate(
+      "(()=>{const r=document.querySelector('.co-home .co-primary').getBoundingClientRect();return r.top>=document.querySelector('.fe-topbar').getBoundingClientRect().bottom&&r.bottom<=innerHeight;})()",
+    ),
+    true,
+    "The first Home action is fully visible on mobile",
+  );
+  const homeMobile = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.writeFile(
+    path.join(repo, "test-results/ux-home-mobile.png"),
+    Buffer.from(homeMobile.data, "base64"),
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1100,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-home .co-primary').textContent.trim()",
+    ),
+    "Generate my first draft",
+    "New companies start with a goal",
+  );
+  await click("People");
+  assert.match(await guideText(), /Hire your first employee/);
+  assert.match(await guideText(), /Hiring creates a private chat/);
+  assert.equal(
+    await evaluate("document.querySelector('.co-onboarding select').value"),
+    "marketing",
+    "Marketing default",
+  );
+  await field("Name", "");
+  await click("Create employee & continue");
+  assert.equal(
+    (await dashboard()).data.departments.length,
+    0,
+    "Empty required profile is invalid",
+  );
+  await field("Name", "   ");
+  await twice();
+  await delay(150);
+  assert.equal(
+    (await dashboard()).data.departments.length,
+    0,
+    "Whitespace never creates a department",
+  );
+  await field("Name", "Strategy fixture");
+  await field("New department name", "Fictional Marketing");
+  await click("Home");
+  await click("People");
+  assert.equal(
+    await evaluate("document.querySelector('.co-onboarding input').value"),
+    "Strategy fixture",
+    "Navigation keeps draft",
+  );
+  await reload();
+  assert.equal(
+    await evaluate("document.querySelector('.co-onboarding input').value"),
+    "Strategy fixture",
+    "Reload keeps draft",
+  );
   // A department saved with a lost reply is reconciled without replay or an automatic hire.
-  await inject('department.create','uncertain');await twice();await until(()=>evaluate("document.body.innerText.includes('Creating department')"),'visible saving status');await until(()=>evaluate("document.body.innerText.includes('Check saved state')"),'unconfirmed department');assert.equal((await dashboard()).data.departments.length,1);assert.equal((await dashboard()).data.employees.length,0);
-  await reload();await evaluate("(()=>{const original=window.fetch;window.fetch=async(input,options)=>{if(String(input)==='/api/company'){window.fetch=original;throw new TypeError('Synthetic view refresh failure');}return original(input,options);};})()");await click('Check saved state');await until(()=>evaluate("!document.body.innerText.includes('Check saved state')"),'department reconciled');assert.match(await guideText(),/Saved. Refresh the workspace/,'A confirmed receipt stays confirmed when its view refresh fails');await click('Refresh saved view');assert.equal((await dashboard()).data.employees.length,0,'Reconciliation never continues a multi-step mutation automatically');
-  await inject('employee.hire','definitive');await click('Create employee & continue');await until(()=>evaluate("document.body.innerText.includes('Synthetic definitive refusal')"),'definitive hire failure');assert.equal((await dashboard()).data.departments.length,1);assert.equal(await evaluate("document.querySelector('.co-onboarding select').disabled"),true,'A saved department pins its role after a rejected hire');assert.equal(await evaluate("document.querySelectorAll('.co-onboarding select')[1].disabled"),true,'A saved department cannot be accidentally replaced during retry');await field('Responsibility','Revised fictional responsibility after refusal');assert.equal(await evaluate("document.querySelector('.co-onboarding input').value"),'Strategy fixture','Definitive failure retains draft');
-  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await evaluate("document.querySelector('.co-onboarding button[type=submit]').scrollIntoView({block:'end'})");await inject('employee.hire','uncertain');await twice();await until(()=>evaluate("document.body.innerText.includes('Check saved state')"),'unconfirmed hire');await reload();assert.equal((await dashboard()).data.employees.length,1);await click('Check saved state');await until(()=>evaluate("document.body.innerText.includes('Shared department context')"),'hire reconciled');await headingVisible('Context');assert.equal(await evaluate("document.querySelector('.co-onboarding fieldset textarea').getBoundingClientRect().top<innerHeight*.65"),true,'Mobile context begins within the first screen without repeated setup explanation');const mobileContext=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/company-onboarding-context-mobile.png'),Buffer.from(mobileContext.data,'base64'));await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
-  let state=await dashboard();const marketing=state.data.employees[0],dep=state.data.departments[0].id;assert.equal(marketing.state,'onboarding');assert.equal(state.data.knowledge.length,0);assert.equal(state.data.tasks.length,0);
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-onboarding textarea')].every(e=>e.value==='')"),true,'Company facts and boundaries start blank');
-  for(const name of ['Purpose','Audience','Positioning','Voice','Claims','Constraints'])await field(name,'   ');await twice();await delay(150);assert.equal((await dashboard()).data.knowledge.length,0,'Whitespace context is invalid');
-  await field('Purpose','Fictional marketing purpose');await click('Back to employee');await field('Name','Strategy fixture revised');await click('Save employee & continue');await idle();assert.equal(await evaluate("document.querySelector('.co-onboarding fieldset textarea').value"),'Fictional marketing purpose','Back editing retains context');
-  for(const name of ['audience','positioning','voice','claims','constraints'])await field(name,'Approved fictional '+name);
-  await click('Company');await click('People');await reload();assert.equal(await evaluate("document.querySelector('.co-onboarding fieldset textarea').value"),'Fictional marketing purpose','Unsent context survives navigation/reload');
-  await inject('knowledge.save','definitive');await click('Save context for review');await until(()=>evaluate("document.body.innerText.includes('Synthetic definitive refusal')"),'context failure');assert.equal((await dashboard()).data.knowledge.length,0);
-  await inject('knowledge.save','uncertain');await twice();await until(()=>evaluate("document.body.innerText.includes('Check saved state')"),'unconfirmed context draft');await reload();assert.equal((await dashboard()).data.employees[0].state,'onboarding');await click('Check saved state');await until(()=>evaluate("document.body.innerText.includes('Approve shared context')"),'saved context review');state=await dashboard();assert.equal(state.data.knowledge.length,1,'Duplicate submit creates one context');assert.equal(state.data.employees[0].state,'onboarding','Save does not approve');
-  await evaluate("sessionStorage.removeItem('hirezero-hire-draft-v2:local-company')");await reload();await click('Home');
-  await until(()=>evaluate("!!document.querySelector('.co-goal-start .co-primary')"),'Home onboarding next action');
-  assert.equal(await evaluate("document.querySelector('.co-goal-start .co-primary').textContent"),'Continue '+(await dashboard()).data.employees[0].name+'’s setup');
-  await evaluate("document.querySelector('.co-goal-start .co-primary').click()");
-  await until(()=>evaluate("document.body.innerText.includes('Approve shared context')"),'Home resumes the existing saved hire after draft loss');assert.match(await guideText(),/Fictional marketing purpose/,'Saved draft is resumed without re-entry');
-  assert.equal((await dashboard()).data.employees.length,1,'Continuing from Home does not start another hire');
+  await inject("department.create", "uncertain");
+  await twice();
+  await until(
+    () => evaluate("document.body.innerText.includes('Creating department')"),
+    "visible saving status",
+  );
+  await until(
+    () => evaluate("document.body.innerText.includes('Check saved state')"),
+    "unconfirmed department",
+  );
+  assert.equal((await dashboard()).data.departments.length, 1);
+  assert.equal((await dashboard()).data.employees.length, 0);
+  await reload();
+  await evaluate(
+    "(()=>{const original=window.fetch;window.fetch=async(input,options)=>{if(String(input)==='/api/company'){window.fetch=original;throw new TypeError('Synthetic view refresh failure');}return original(input,options);};})()",
+  );
+  await click("Check saved state");
+  await until(
+    () => evaluate("!document.body.innerText.includes('Check saved state')"),
+    "department reconciled",
+  );
+  assert.match(
+    await guideText(),
+    /Saved. Refresh the workspace/,
+    "A confirmed receipt stays confirmed when its view refresh fails",
+  );
+  await click("Refresh saved view");
+  assert.equal(
+    (await dashboard()).data.employees.length,
+    0,
+    "Reconciliation never continues a multi-step mutation automatically",
+  );
+  await inject("employee.hire", "definitive");
+  await click("Create employee & continue");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Synthetic definitive refusal')",
+      ),
+    "definitive hire failure",
+  );
+  assert.equal((await dashboard()).data.departments.length, 1);
+  assert.equal(
+    await evaluate("document.querySelector('.co-onboarding select').disabled"),
+    true,
+    "A saved department pins its role after a rejected hire",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('.co-onboarding select')[1].disabled",
+    ),
+    true,
+    "A saved department cannot be accidentally replaced during retry",
+  );
+  await field(
+    "Responsibility",
+    "Revised fictional responsibility after refusal",
+  );
+  assert.equal(
+    await evaluate("document.querySelector('.co-onboarding input').value"),
+    "Strategy fixture",
+    "Definitive failure retains draft",
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await evaluate(
+    "document.querySelector('.co-onboarding button[type=submit]').scrollIntoView({block:'end'})",
+  );
+  await inject("employee.hire", "uncertain");
+  await twice();
+  await until(
+    () => evaluate("document.body.innerText.includes('Check saved state')"),
+    "unconfirmed hire",
+  );
+  await reload();
+  assert.equal((await dashboard()).data.employees.length, 1);
+  await click("Check saved state");
+  await until(
+    () =>
+      evaluate("document.body.innerText.includes('Shared department context')"),
+    "hire reconciled",
+  );
+  await headingVisible("Context");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-onboarding fieldset textarea').getBoundingClientRect().top<innerHeight*.65",
+    ),
+    true,
+    "Mobile context begins within the first screen without repeated setup explanation",
+  );
+  const mobileContext = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, "test-results/company-onboarding-context-mobile.png"),
+    Buffer.from(mobileContext.data, "base64"),
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1100,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  let state = await dashboard();
+  const marketing = state.data.employees[0],
+    dep = state.data.departments[0].id;
+  assert.equal(marketing.state, "onboarding");
+  assert.equal(state.data.knowledge.length, 0);
+  assert.equal(state.data.tasks.length, 0);
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-onboarding textarea')].every(e=>e.value==='')",
+    ),
+    true,
+    "Company facts and boundaries start blank",
+  );
+  for (const name of [
+    "Purpose",
+    "Audience",
+    "Positioning",
+    "Voice",
+    "Claims",
+    "Constraints",
+  ])
+    await field(name, "   ");
+  await twice();
+  await delay(150);
+  assert.equal(
+    (await dashboard()).data.knowledge.length,
+    0,
+    "Whitespace context is invalid",
+  );
+  await field("Purpose", "Fictional marketing purpose");
+  await click("Back to employee");
+  await field("Name", "Strategy fixture revised");
+  await click("Save employee & continue");
+  await idle();
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-onboarding fieldset textarea').value",
+    ),
+    "Fictional marketing purpose",
+    "Back editing retains context",
+  );
+  for (const name of [
+    "audience",
+    "positioning",
+    "voice",
+    "claims",
+    "constraints",
+  ])
+    await field(name, "Approved fictional " + name);
+  await click("Company");
+  await click("People");
+  await reload();
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-onboarding fieldset textarea').value",
+    ),
+    "Fictional marketing purpose",
+    "Unsent context survives navigation/reload",
+  );
+  await inject("knowledge.save", "definitive");
+  await click("Save context for review");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Synthetic definitive refusal')",
+      ),
+    "context failure",
+  );
+  assert.equal((await dashboard()).data.knowledge.length, 0);
+  await inject("knowledge.save", "uncertain");
+  await twice();
+  await until(
+    () => evaluate("document.body.innerText.includes('Check saved state')"),
+    "unconfirmed context draft",
+  );
+  await reload();
+  assert.equal((await dashboard()).data.employees[0].state, "onboarding");
+  await click("Check saved state");
+  await until(
+    () =>
+      evaluate("document.body.innerText.includes('Approve shared context')"),
+    "saved context review",
+  );
+  state = await dashboard();
+  assert.equal(
+    state.data.knowledge.length,
+    1,
+    "Duplicate submit creates one context",
+  );
+  assert.equal(
+    state.data.employees[0].state,
+    "onboarding",
+    "Save does not approve",
+  );
+  await evaluate(
+    "sessionStorage.removeItem('hirezero-hire-draft-v2:local-company')",
+  );
+  await reload();
+  await click("Home");
+  await until(
+    () => evaluate("!!document.querySelector('.co-goal-start .co-primary')"),
+    "Home onboarding next action",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-goal-start .co-primary').textContent",
+    ),
+    "Continue " + (await dashboard()).data.employees[0].name + "’s setup",
+  );
+  await evaluate(
+    "document.querySelector('.co-goal-start .co-primary').click()",
+  );
+  await until(
+    () =>
+      evaluate("document.body.innerText.includes('Approve shared context')"),
+    "Home resumes the existing saved hire after draft loss",
+  );
+  assert.match(
+    await guideText(),
+    /Fictional marketing purpose/,
+    "Saved draft is resumed without re-entry",
+  );
+  assert.equal(
+    (await dashboard()).data.employees.length,
+    1,
+    "Continuing from Home does not start another hire",
+  );
   // The full activity view recovers in place and opens the same review as Home and the cockpit.
-  await evaluate("(()=>{const original=window.fetch;window.fetch=async(input,options)=>{if(String(input)==='/api/company/today'){window.fetch=original;throw new TypeError('Synthetic activity read failure');}return original(input,options);};})()");
-  await click('Settings');await evaluate("document.querySelector('.co-advanced-settings').open=true");await click('Today');await until(()=>evaluate("document.body.innerText.includes('Retry activity')"),'Activity exposes a retry after a read failure');
-  await click('Retry activity');await until(()=>evaluate("!!document.querySelector('.co-today button[aria-label^=\"Open \"]')"),'Activity retry loads actionable needs');
-  await evaluate("document.querySelector('.co-today button[aria-label^=\"Open \"]').click()");
-  await until(()=>evaluate("document.body.innerText.includes('Approve shared context')"),'Activity opens the unfinished hire review');
-  await evaluate("document.querySelector('.co-onboarding input[type=checkbox]').click()");await reload();assert.equal(await evaluate("document.querySelector('.co-onboarding input[type=checkbox]').checked"),false,'Approval consent is never persisted');
-  await click('Back to edit context');await field('voice','Revised fictional voice');await evaluate("document.querySelector('.co-onboarding button[type=submit]').scrollIntoView({block:'end'})");await click('Save context for review');await headingVisible('Review');state=await dashboard();assert.equal(state.data.knowledge.length,1,'Editing updates exact draft');assert.equal(JSON.parse(state.data.knowledge[0].body).voice,'Revised fictional voice');
-  const reviewImage=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/company-onboarding-review.png'),Buffer.from(reviewImage.data,'base64'));
-  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(150);assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Mobile onboarding stays within viewport');const onboardingMobile=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/company-onboarding-mobile.png'),Buffer.from(onboardingMobile.data,'base64'));
-  await evaluate("document.querySelector('.co-onboarding input[type=checkbox]').click();document.querySelector('.co-onboarding .co-primary').scrollIntoView({block:'end'})");await inject('knowledge.review','uncertain');await click('Approve shared context');await until(()=>evaluate("document.body.innerText.includes('Check saved state')"),'unconfirmed approval');await reload();assert.equal((await dashboard()).data.employees[0].state,'active');await click('Check saved state');await until(()=>evaluate("document.body.innerText.includes('Open Strategy fixture revised’s private chat')"),'approval reconciled without replay');await headingVisible('Ready');assert.equal(await evaluate("document.querySelector('.co-onboarding .co-primary').getBoundingClientRect().bottom<=innerHeight-60"),true,'New employee private-chat next action is visible on mobile');const mobileReady=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/company-onboarding-ready-mobile.png'),Buffer.from(mobileReady.data,'base64'));await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
-  const approved=(await dashboard()).data.knowledge[0];assert.equal(approved.version,3,'One saved draft edit and one approval despite lost replies');
-  await click('Open Strategy fixture revised’s private chat');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'exact first employee chat');assert.equal(new URL(await evaluate('location.href')).searchParams.get('employee'),marketing.id);
+  await evaluate(
+    "(()=>{const original=window.fetch;window.fetch=async(input,options)=>{if(String(input)==='/api/company/today'){window.fetch=original;throw new TypeError('Synthetic activity read failure');}return original(input,options);};})()",
+  );
+  await click("Settings");
+  await evaluate("document.querySelector('.co-advanced-settings').open=true");
+  await click("Today");
+  await until(
+    () => evaluate("document.body.innerText.includes('Retry activity')"),
+    "Activity exposes a retry after a read failure",
+  );
+  await click("Retry activity");
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('.co-today button[aria-label^=\"Open \"]')",
+      ),
+    "Activity retry loads actionable needs",
+  );
+  await evaluate(
+    "document.querySelector('.co-today button[aria-label^=\"Open \"]').click()",
+  );
+  await until(
+    () =>
+      evaluate("document.body.innerText.includes('Approve shared context')"),
+    "Activity opens the unfinished hire review",
+  );
+  await evaluate(
+    "document.querySelector('.co-onboarding input[type=checkbox]').click()",
+  );
+  await reload();
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-onboarding input[type=checkbox]').checked",
+    ),
+    false,
+    "Approval consent is never persisted",
+  );
+  await click("Back to edit context");
+  await field("voice", "Revised fictional voice");
+  await evaluate(
+    "document.querySelector('.co-onboarding button[type=submit]').scrollIntoView({block:'end'})",
+  );
+  await click("Save context for review");
+  await headingVisible("Review");
+  state = await dashboard();
+  assert.equal(state.data.knowledge.length, 1, "Editing updates exact draft");
+  assert.equal(
+    JSON.parse(state.data.knowledge[0].body).voice,
+    "Revised fictional voice",
+  );
+  const reviewImage = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, "test-results/company-onboarding-review.png"),
+    Buffer.from(reviewImage.data, "base64"),
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await delay(150);
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth"),
+    true,
+    "Mobile onboarding stays within viewport",
+  );
+  const onboardingMobile = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.writeFile(
+    path.join(repo, "test-results/company-onboarding-mobile.png"),
+    Buffer.from(onboardingMobile.data, "base64"),
+  );
+  await evaluate(
+    "document.querySelector('.co-onboarding input[type=checkbox]').click();document.querySelector('.co-onboarding .co-primary').scrollIntoView({block:'end'})",
+  );
+  await inject("knowledge.review", "uncertain");
+  await click("Approve shared context");
+  await until(
+    () => evaluate("document.body.innerText.includes('Check saved state')"),
+    "unconfirmed approval",
+  );
+  await reload();
+  assert.equal((await dashboard()).data.employees[0].state, "active");
+  await click("Check saved state");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Open Strategy fixture revised’s private chat')",
+      ),
+    "approval reconciled without replay",
+  );
+  await headingVisible("Ready");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-onboarding .co-primary').getBoundingClientRect().bottom<=innerHeight-60",
+    ),
+    true,
+    "New employee private-chat next action is visible on mobile",
+  );
+  const mobileReady = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.writeFile(
+    path.join(repo, "test-results/company-onboarding-ready-mobile.png"),
+    Buffer.from(mobileReady.data, "base64"),
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1100,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  const approved = (await dashboard()).data.knowledge[0];
+  assert.equal(
+    approved.version,
+    3,
+    "One saved draft edit and one approval despite lost replies",
+  );
+  await click("Open Strategy fixture revised’s private chat");
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('[aria-label=\"Private employee conversation\"]')",
+      ),
+    "exact first employee chat",
+  );
+  assert.equal(
+    new URL(await evaluate("location.href")).searchParams.get("employee"),
+    marketing.id,
+  );
   // Store isolated employee notes; another hire must never inherit them.
-  await evaluate(`fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action:'notes.save',employeeId:${JSON.stringify(marketing.id)},expectedVersion:0,body:'PRIVATE_MARKETING_SENTINEL'})}).then(r=>{if(!r.ok)throw Error('notes fixture');return r.json()})`);
-  await click('People');await click('Hire another employee');await field('Name','Copy fixture');await field('Responsibility','Fictional copy drafting');await twice();await until(async()=>(await dashboard()).data.employees.length===2,'second hire');await until(()=>evaluate("document.body.innerText.includes('Open Copy fixture’s private chat')"),'reused context next action');
-  state=await dashboard();assert.equal(state.data.employees[1].state,'active');assert.deepEqual(state.data.knowledge,[approved],'Subsequent hire does not save or review knowledge');assert.equal(state.data.departments.length,1);assert.doesNotMatch(await guideText(),/PRIVATE_MARKETING_SENTINEL/);
-  await click('Open Copy fixture’s private chat');await until(()=>evaluate("!!document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]:not(:disabled)')"),'second private composer');assert.match(await evaluate("document.querySelector('.fe-hello').innerText"),/AI replies are unavailable/);assert.doesNotMatch(await evaluate("document.querySelector('.fe-hello').innerText"),/Prepare one reply/);const second=state.data.employees[1],secondThread=state.data.threads.find(t=>t.employeeId===second.id);assert.equal(new URL(await evaluate('location.href')).searchParams.get('employee'),second.id);assert.equal(new URL(await evaluate('location.href')).searchParams.get('thread'),secondThread.id);assert.doesNotMatch(await evaluate('document.body.innerText'),/PRIVATE_MARKETING_SENTINEL/);
+  await evaluate(
+    `fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action:'notes.save',employeeId:${JSON.stringify(marketing.id)},expectedVersion:0,body:'PRIVATE_MARKETING_SENTINEL'})}).then(r=>{if(!r.ok)throw Error('notes fixture');return r.json()})`,
+  );
+  await click("People");
+  await click("Hire another employee");
+  await field("Name", "Copy fixture");
+  await field("Responsibility", "Fictional copy drafting");
+  await twice();
+  await until(
+    async () => (await dashboard()).data.employees.length === 2,
+    "second hire",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Open Copy fixture’s private chat')",
+      ),
+    "reused context next action",
+  );
+  state = await dashboard();
+  assert.equal(state.data.employees[1].state, "active");
+  assert.deepEqual(
+    state.data.knowledge,
+    [approved],
+    "Subsequent hire does not save or review knowledge",
+  );
+  assert.equal(state.data.departments.length, 1);
+  assert.doesNotMatch(await guideText(), /PRIVATE_MARKETING_SENTINEL/);
+  await click("Open Copy fixture’s private chat");
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]:not(:disabled)')",
+      ),
+    "second private composer",
+  );
+  assert.match(
+    await evaluate("document.querySelector('.fe-hello').innerText"),
+    /AI replies are unavailable/,
+  );
+  assert.doesNotMatch(
+    await evaluate("document.querySelector('.fe-hello').innerText"),
+    /Prepare one reply/,
+  );
+  const second = state.data.employees[1],
+    secondThread = state.data.threads.find((t) => t.employeeId === second.id);
+  assert.equal(
+    new URL(await evaluate("location.href")).searchParams.get("employee"),
+    second.id,
+  );
+  assert.equal(
+    new URL(await evaluate("location.href")).searchParams.get("thread"),
+    secondThread.id,
+  );
+  assert.doesNotMatch(
+    await evaluate("document.body.innerText"),
+    /PRIVATE_MARKETING_SENTINEL/,
+  );
   // First Developer hire has its own role-owned defaults and department context.
-  await click('People');await click('Hire another employee');await field('Role','developer');await field('Name','Engineering fixture');await click('Create employee & continue');await until(()=>evaluate("document.body.innerText.includes('Set up Engineering context')"),'Developer context');
-  await until(()=>evaluate("[...document.querySelectorAll('.co-onboarding label')].some(label=>label.textContent.trim().startsWith('Purpose'))"),'Developer context fields loaded');for(const name of ['Purpose','Architecture','Standards','Acceptance','Constraints'])await field(name,'Fictional engineering '+name.toLowerCase());
-  await click('Save context for review');await idle();assert.doesNotMatch(await guideText(),/Revised fictional voice|PRIVATE_MARKETING_SENTINEL/,'Department context isolation');await evaluate("document.querySelector('.co-onboarding input[type=checkbox]').click()");await click('Approve shared context');await until(()=>evaluate("document.body.innerText.includes('Open Engineering fixture’s private chat')"),'Developer ready');await click('Open Engineering fixture’s private chat');state=await dashboard();const developer=state.data.employees.find(e=>e.name==='Engineering fixture');assert.equal(developer.state,'active');assert.equal(new URL(await evaluate('location.href')).searchParams.get('employee'),developer.id);assert.equal(state.data.departments.length,2);assert.equal(state.data.knowledge.length,2);assert.equal(state.data.tasks.length,0,'Hiring and approval never create inference or work');
-  await click('People');await evaluate(`fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action:'employee.lifecycle',id:${JSON.stringify(developer.id)},expectedVersion:${developer.version},decision:'pause'})}).then(r=>{if(!r.ok)throw Error('pause fixture');return r.json()})`);await reload();assert.match(await guideText(),/Engineering fixture is paused/);assert.doesNotMatch(await guideText(),/Engineering fixture is ready/);
+  await click("People");
+  await click("Hire another employee");
+  await field("Role", "developer");
+  await field("Name", "Engineering fixture");
+  await click("Create employee & continue");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Set up Engineering context')",
+      ),
+    "Developer context",
+  );
+  await until(
+    () =>
+      evaluate(
+        "[...document.querySelectorAll('.co-onboarding label')].some(label=>label.textContent.trim().startsWith('Purpose'))",
+      ),
+    "Developer context fields loaded",
+  );
+  for (const name of [
+    "Purpose",
+    "Architecture",
+    "Standards",
+    "Acceptance",
+    "Constraints",
+  ])
+    await field(name, "Fictional engineering " + name.toLowerCase());
+  await click("Save context for review");
+  await idle();
+  assert.doesNotMatch(
+    await guideText(),
+    /Revised fictional voice|PRIVATE_MARKETING_SENTINEL/,
+    "Department context isolation",
+  );
+  await evaluate(
+    "document.querySelector('.co-onboarding input[type=checkbox]').click()",
+  );
+  await click("Approve shared context");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Open Engineering fixture’s private chat')",
+      ),
+    "Developer ready",
+  );
+  await click("Open Engineering fixture’s private chat");
+  state = await dashboard();
+  const developer = state.data.employees.find(
+    (e) => e.name === "Engineering fixture",
+  );
+  assert.equal(developer.state, "active");
+  assert.equal(
+    new URL(await evaluate("location.href")).searchParams.get("employee"),
+    developer.id,
+  );
+  assert.equal(state.data.departments.length, 2);
+  assert.equal(state.data.knowledge.length, 2);
+  assert.equal(
+    state.data.tasks.length,
+    0,
+    "Hiring and approval never create inference or work",
+  );
+  await click("People");
+  await evaluate(
+    `fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action:'employee.lifecycle',id:${JSON.stringify(developer.id)},expectedVersion:${developer.version},decision:'pause'})}).then(r=>{if(!r.ok)throw Error('pause fixture');return r.json()})`,
+  );
+  await reload();
+  assert.match(await guideText(), /Engineering fixture is paused/);
+  assert.doesNotMatch(await guideText(), /Engineering fixture is ready/);
   // Restricted browser storage still permits in-memory receipt recovery without replay.
-  await click('Hire another employee');await field('Name','Storage restricted fixture');await evaluate("window.fixtureFetchOriginal=window.fetch;Object.defineProperty(window,'sessionStorage',{configurable:true,get(){throw new Error('Synthetic storage restriction');}});void 0");await inject('employee.hire','uncertain');await twice();await until(()=>evaluate("document.body.innerText.includes('Check saved state')"),'restricted-storage uncertain identity retained');await evaluate('window.fetch=window.fixtureFetchOriginal');await click('Check saved state');await until(()=>evaluate("document.body.innerText.includes('Open Storage restricted fixture’s private chat')"),'restricted-storage receipt reconciled');assert.equal((await dashboard()).data.employees.length,4,'Restricted storage does not duplicate the saved hire');
+  await click("Hire another employee");
+  await field("Name", "Storage restricted fixture");
+  await evaluate(
+    "window.fixtureFetchOriginal=window.fetch;Object.defineProperty(window,'sessionStorage',{configurable:true,get(){throw new Error('Synthetic storage restriction');}});void 0",
+  );
+  await inject("employee.hire", "uncertain");
+  await twice();
+  await until(
+    () => evaluate("document.body.innerText.includes('Check saved state')"),
+    "restricted-storage uncertain identity retained",
+  );
+  await evaluate("window.fetch=window.fixtureFetchOriginal");
+  await click("Check saved state");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Open Storage restricted fixture’s private chat')",
+      ),
+    "restricted-storage receipt reconciled",
+  );
+  assert.equal(
+    (await dashboard()).data.employees.length,
+    4,
+    "Restricted storage does not duplicate the saved hire",
+  );
   // A fresh tab draft selects the one matching approved department, rather than creating another.
-  await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Guided hiring\"]')"),'fresh guide after restricted storage');await evaluate("sessionStorage.removeItem('hirezero-hire-draft-v2:local-company')");await reload();assert.equal(await evaluate("document.querySelectorAll('.co-onboarding select')[1].value"),dep,'Fresh guide defaults to the matching approved department');assert.match(await guideText(),/reuse the department/);
-  await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Copy fixture')).click()");
-  await until(()=>evaluate("!!document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]:not(:disabled)')"),'employee composer loaded');
-  await evaluate("(()=>{const input=document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'Prepare fictional copy');input.dispatchEvent(new Event('input',{bubbles:true}));})()");await evaluate("document.querySelector('button[aria-label=\"Save message\"]').click()");
-  await until(()=>evaluate("document.querySelector('.fe-thread').textContent.includes('Prepare fictional copy')"),'saved message');assert.equal((await dashboard()).data.tasks.length,0,'Saving a conversation message creates no autonomous work');
-  await until(()=>evaluate("document.body.innerText.includes('No AI reply or autonomous work was authorized.')"),'blocked state visible in the UI');
-  assert.equal(errors.length,0,'No uncaught UI exceptions');await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
-  const desktop=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/company-desktop.png'),Buffer.from(desktop.data,'base64'));
-  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(250);assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Mobile layout does not overflow');
-  assert.equal(await evaluate("document.querySelector('.fe-topbar').getBoundingClientRect().bottom<=document.querySelector('.co-conversation-context').getBoundingClientRect().top"),true,'Mobile header and conversation context do not overlap');
-  const mobile=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/company-mobile.png'),Buffer.from(mobile.data,'base64'));
+  await send("Page.reload");
+  await until(
+    () =>
+      evaluate("!!document.querySelector('[aria-label=\"Guided hiring\"]')"),
+    "fresh guide after restricted storage",
+  );
+  await evaluate(
+    "sessionStorage.removeItem('hirezero-hire-draft-v2:local-company')",
+  );
+  await reload();
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('.co-onboarding select')[1].value",
+    ),
+    dep,
+    "Fresh guide defaults to the matching approved department",
+  );
+  assert.match(await guideText(), /reuse the department/);
+  await evaluate(
+    "[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Copy fixture')).click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]:not(:disabled)')",
+      ),
+    "employee composer loaded",
+  );
+  await evaluate(
+    "(()=>{const input=document.querySelector('textarea[aria-label=\"Message to Copy fixture\"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'Prepare fictional copy');input.dispatchEvent(new Event('input',{bubbles:true}));})()",
+  );
+  await evaluate(
+    "document.querySelector('button[aria-label=\"Save message\"]').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.fe-thread').textContent.includes('Prepare fictional copy')",
+      ),
+    "saved message",
+  );
+  assert.equal(
+    (await dashboard()).data.tasks.length,
+    0,
+    "Saving a conversation message creates no autonomous work",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('No AI reply or autonomous work was authorized.')",
+      ),
+    "blocked state visible in the UI",
+  );
+  assert.equal(errors.length, 0, "No uncaught UI exceptions");
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  const desktop = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.writeFile(
+    path.join(repo, "test-results/company-desktop.png"),
+    Buffer.from(desktop.data, "base64"),
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await delay(250);
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth"),
+    true,
+    "Mobile layout does not overflow",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.fe-topbar').getBoundingClientRect().bottom<=document.querySelector('.co-conversation-context').getBoundingClientRect().top",
+    ),
+    true,
+    "Mobile header and conversation context do not overlap",
+  );
+  const mobile = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.writeFile(
+    path.join(repo, "test-results/company-mobile.png"),
+    Buffer.from(mobile.data, "base64"),
+  );
   // Google choices and saved settings are fictional read responses; no sign-in or settings write is allowed.
-  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1100,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
   await evaluate(`(()=>{
     const original=window.fetch;
     window.googlePickerFixture={ga4Property:'properties/222',searchConsoleSite:'sc-domain:second.example',writes:0};
@@ -129,24 +944,90 @@ try{
       return original(input,options);
     };
   })()`);
-  const googleValues=()=>evaluate("[...document.querySelectorAll('[aria-label=\"Google sign-in\"] select')].map(select=>select.value)");
-  await click('Settings');await evaluate("[...document.querySelectorAll('.co-hub-tabs button')].find(button=>button.textContent==='Integrations').click()");
-  await until(async()=>(await googleValues()).length===2,'Google fixture choices loaded');
-  assert.deepEqual(await googleValues(),['222','sc-domain:second.example'],'Google picker preserves saved choices instead of selecting the first account resource');
-  await click('Home');await evaluate("window.googlePickerFixture.ga4Property='999'");await click('Settings');
-  await until(async()=>(await googleValues()).length===2,'Google picker reload with unavailable saved property');
-  assert.deepEqual(await googleValues(),['','sc-domain:second.example'],'Unavailable property is not silently replaced with another resource');
-  assert.match(await evaluate("document.querySelector('[aria-label=\"Google sign-in\"]').textContent"),/saved selection is unavailable/);
-  await click('Home');await evaluate("window.googlePickerFixture.ga4Property='';window.googlePickerFixture.searchConsoleSite=''");await click('Settings');
-  await until(async()=>(await googleValues()).length===2,'Google picker without configured choices');
-  assert.deepEqual(await googleValues(),['',''],'A fresh connection waits for the owner to choose resources');
-  assert.equal(await evaluate("window.googlePickerFixture.writes"),0,'Opening Google choices never saves settings or starts sign-in');
-  assert.equal(errors.length,0,'No uncaught UI exceptions after mocked Google settings checks');
-  console.log('PASS guided onboarding (first Marketing/Developer, reuse, isolation, private chat, back/edit/reload, duplicate submit, whitespace, definitive and uncertain failure) plus headless browser: department, first hire, knowledge approval, inherited second hire, employee drill-down, saved-only conversation without a provider, desktop/mobile rendering');
-  await send('Browser.close').catch(()=>{});
-}catch(e){await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/company-browser-host.log'),hostLog);throw e;}
-finally{
-  ws?.close();browser?.kill();host.kill();await delay(400);
+  const googleValues = () =>
+    evaluate(
+      "[...document.querySelectorAll('[aria-label=\"Google sign-in\"] select')].map(select=>select.value)",
+    );
+  await click("Settings");
+  await evaluate(
+    "[...document.querySelectorAll('.co-hub-tabs button')].find(button=>button.textContent==='Integrations').click()",
+  );
+  await until(
+    async () => (await googleValues()).length === 2,
+    "Google fixture choices loaded",
+  );
+  assert.deepEqual(
+    await googleValues(),
+    ["222", "sc-domain:second.example"],
+    "Google picker preserves saved choices instead of selecting the first account resource",
+  );
+  await click("Home");
+  await evaluate("window.googlePickerFixture.ga4Property='999'");
+  await click("Settings");
+  await until(
+    async () => (await googleValues()).length === 2,
+    "Google picker reload with unavailable saved property",
+  );
+  assert.deepEqual(
+    await googleValues(),
+    ["", "sc-domain:second.example"],
+    "Unavailable property is not silently replaced with another resource",
+  );
+  assert.match(
+    await evaluate(
+      "document.querySelector('[aria-label=\"Google sign-in\"]').textContent",
+    ),
+    /saved selection is unavailable/,
+  );
+  await click("Home");
+  await evaluate(
+    "window.googlePickerFixture.ga4Property='';window.googlePickerFixture.searchConsoleSite=''",
+  );
+  await click("Settings");
+  await until(
+    async () => (await googleValues()).length === 2,
+    "Google picker without configured choices",
+  );
+  assert.deepEqual(
+    await googleValues(),
+    ["", ""],
+    "A fresh connection waits for the owner to choose resources",
+  );
+  assert.equal(
+    await evaluate("window.googlePickerFixture.writes"),
+    0,
+    "Opening Google choices never saves settings or starts sign-in",
+  );
+  assert.equal(
+    errors.length,
+    0,
+    "No uncaught UI exceptions after mocked Google settings checks",
+  );
+  console.log(
+    "PASS guided onboarding (first Marketing/Developer, reuse, isolation, private chat, back/edit/reload, duplicate submit, whitespace, definitive and uncertain failure) plus headless browser: department, first hire, knowledge approval, inherited second hire, employee drill-down, saved-only conversation without a provider, desktop/mobile rendering",
+  );
+  await send("Browser.close").catch(() => {});
+} catch (e) {
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, "test-results/company-browser-host.log"),
+    hostLog,
+  );
+  throw e;
+} finally {
+  ws?.close();
+  browser?.kill();
+  host.kill();
+  await delay(400);
   // Delete only this script's verified mkdtemp root after its own processes have exited.
-  if(path.dirname(temporary)===path.resolve(os.tmpdir())&&path.basename(temporary).startsWith('hirezero-manual-ui-'))await fs.rm(temporary,{recursive:true,force:true,maxRetries:5,retryDelay:200});
+  if (
+    path.dirname(temporary) === path.resolve(os.tmpdir()) &&
+    path.basename(temporary).startsWith("hirezero-manual-ui-")
+  )
+    await fs.rm(temporary, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 200,
+    });
 }

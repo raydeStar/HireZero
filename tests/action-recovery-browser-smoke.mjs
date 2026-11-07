@@ -270,7 +270,18 @@ try {
     "Submitted inputs",
   );
   await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
-  await fs.writeFile(path.join(repo, "test-results/action-recovery-position.png"), Buffer.from((await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false })).data, "base64"));
+  await fs.writeFile(
+    path.join(repo, "test-results/action-recovery-position.png"),
+    Buffer.from(
+      (
+        await send("Page.captureScreenshot", {
+          format: "png",
+          captureBeyondViewport: false,
+        })
+      ).data,
+      "base64",
+    ),
+  );
   assert.equal(
     await evaluate(`(() => {
     const button = [...document.querySelectorAll('.co-action button')].find(b => b.textContent === 'Retry refresh');
@@ -384,9 +395,17 @@ try {
       el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
     })()`);
   }
-  await evaluate(`window.__storageSet = Storage.prototype.setItem; Storage.prototype.setItem = function(key,value) { if(key.includes('hirezero-action-receipts-v1:')) throw new Error('Synthetic unavailable storage'); return window.__storageSet.call(this,key,value); }`);
+  await evaluate(
+    `window.__storageSet = Storage.prototype.setItem; Storage.prototype.setItem = function(key,value) { if(key.includes('hirezero-action-receipts-v1:')) throw new Error('Synthetic unavailable storage'); return window.__storageSet.call(this,key,value); }`,
+  );
   await click("Run");
-  await until(() => evaluate("document.body.innerText.includes('The action recovery receipt could not be saved.')"), "Storage refusal before sending");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('The action recovery receipt could not be saved.')",
+      ),
+    "Storage refusal before sending",
+  );
   assert.equal(await evaluate("window.__actionPosts"), 1);
   await evaluate(`Storage.prototype.setItem = window.__storageSet; window.fetch = async (...args) => {
     const target = typeof args[0] === 'string' ? args[0] : args[0].url;
@@ -397,25 +416,81 @@ try {
     return window.__actionBaseFetch(...args);
   }`);
   await click("Run");
-  await until(() => evaluate("document.body.innerText.includes('This action needs a status check.')"), "Lost reply retains exact receipt");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('This action needs a status check.')",
+      ),
+    "Lost reply retains exact receipt",
+  );
   assert.equal(await evaluate("window.__actionPosts"), 2);
   assert.deepEqual(await inputValues(), submitted);
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-action input,.co-action textarea,.co-action select')].every(e=>e.disabled)"), true);
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-action input,.co-action textarea,.co-action select')].every(e=>e.disabled)",
+    ),
+    true,
+  );
   await click("Check saved status");
-  await until(() => evaluate("document.body.innerText.includes('The saved action could not be confirmed.')"), "Unavailable receipt leaves read-only recovery");
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('The saved action could not be confirmed.')",
+      ),
+    "Unavailable receipt leaves read-only recovery",
+  );
   assert.equal(await evaluate("window.__actionPosts"), 2);
-  const beforeReload = (await dashboard()).data.tasks.filter(t => t.kind === "action" && t.skill === action.id);
+  const beforeReload = (await dashboard()).data.tasks.filter(
+    (t) => t.kind === "action" && t.skill === action.id,
+  );
   assert.equal(beforeReload.length, 2);
-  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
   await send("Page.reload");
-  await until(() => evaluate("document.querySelector('.co-action')?.innerText.includes('This action needs a status check.')"), "Reload restores the same action receipt and submitted inputs");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-action')?.innerText.includes('This action needs a status check.')",
+      ),
+    "Reload restores the same action receipt and submitted inputs",
+  );
   assert.deepEqual(await inputValues(), submitted);
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-action button')].some(b=>b.textContent==='Run')"), false);
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-action button')].some(b=>b.textContent==='Run')",
+    ),
+    false,
+  );
   await click("Check saved status");
-  await until(() => evaluate("document.querySelector('.co-action')?.innerText.includes('Action saved. Review its result in this conversation.')"), "Read-only recovery finds the original completed action");
-  assert.equal((await dashboard()).data.tasks.filter(t => t.kind === "action" && t.skill === action.id).length, 2, "Reload recovery does not rerun work");
-  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
-  await fs.writeFile(path.join(repo, "test-results/action-reload-mobile.png"), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-action')?.innerText.includes('Action saved. Review its result in this conversation.')",
+      ),
+    "Read-only recovery finds the original completed action",
+  );
+  assert.equal(
+    (await dashboard()).data.tasks.filter(
+      (t) => t.kind === "action" && t.skill === action.id,
+    ).length,
+    2,
+    "Reload recovery does not rerun work",
+  );
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
+    true,
+  );
+  await fs.writeFile(
+    path.join(repo, "test-results/action-reload-mobile.png"),
+    Buffer.from(
+      (await send("Page.captureScreenshot", { format: "png" })).data,
+      "base64",
+    ),
+  );
   // A late reply from an unmounted form must not resurrect a receipt already recovered and cleared.
   await click("Start another run");
   for (const field of action.fields) {
@@ -434,20 +509,61 @@ try {
     return response;
   }`);
   await click("Run");
-  await until(() => evaluate("typeof window.__releaseLateAction==='function'"), "Original action saved with its response held");
-  await evaluate("history.pushState({},'', '/?view=home&home=overview'); dispatchEvent(new PopStateEvent('popstate'))");
-  await until(() => evaluate("!document.querySelector('.co-action-strip')"), "Action form unmounted during navigation");
-  await evaluate(`history.pushState({},'', ${JSON.stringify(`/?view=employee&employee=${employee.id}&thread=${thread.id}`)}); dispatchEvent(new PopStateEvent('popstate'))`);
-  await until(() => evaluate("document.querySelector('.co-action')?.innerText.includes('This action needs a status check.')"), "Returning restores the same pending receipt");
+  await until(
+    () => evaluate("typeof window.__releaseLateAction==='function'"),
+    "Original action saved with its response held",
+  );
+  await evaluate(
+    "history.pushState({},'', '/?view=home&home=overview'); dispatchEvent(new PopStateEvent('popstate'))",
+  );
+  await until(
+    () => evaluate("!document.querySelector('.co-action-strip')"),
+    "Action form unmounted during navigation",
+  );
+  await evaluate(
+    `history.pushState({},'', ${JSON.stringify(`/?view=employee&employee=${employee.id}&thread=${thread.id}`)}); dispatchEvent(new PopStateEvent('popstate'))`,
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-action')?.innerText.includes('This action needs a status check.')",
+      ),
+    "Returning restores the same pending receipt",
+  );
   await click("Check saved status");
-  await until(() => evaluate("document.querySelector('.co-action')?.innerText.includes('Action saved. Review its result in this conversation.')"), "Existing task recovered before its old response arrives");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-action')?.innerText.includes('Action saved. Review its result in this conversation.')",
+      ),
+    "Existing task recovered before its old response arrives",
+  );
   await click("Start another run");
   await evaluate("window.__releaseLateAction()");
-  await until(() => evaluate("window.__lateActionDelivered===true"), "Late original response delivered once");
-  await evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
-  assert.equal(await evaluate(`Object.keys(JSON.parse(sessionStorage.getItem(${JSON.stringify(`hirezero-action-receipts-v1:local-company:${employee.id}:${thread.id}`)}))).length`), 0, "Unmounted response cannot restore an old receipt");
-  assert.equal((await dashboard()).data.tasks.filter(t => t.kind === "action" && t.skill === action.id).length, 3);
-  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
+  await until(
+    () => evaluate("window.__lateActionDelivered===true"),
+    "Late original response delivered once",
+  );
+  await evaluate(
+    "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
+  );
+  assert.equal(
+    await evaluate(
+      `Object.keys(JSON.parse(sessionStorage.getItem(${JSON.stringify(`hirezero-action-receipts-v1:local-company:${employee.id}:${thread.id}`)}))).length`,
+    ),
+    0,
+    "Unmounted response cannot restore an old receipt",
+  );
+  assert.equal(
+    (await dashboard()).data.tasks.filter(
+      (t) => t.kind === "action" && t.skill === action.id,
+    ).length,
+    3,
+  );
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
+    true,
+  );
   const files = await fs.readdir(temporary, { recursive: true });
   assert.equal(
     files.filter((file) => file.endsWith("fixture-native-starts")).length,

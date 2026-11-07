@@ -153,41 +153,91 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await send("Page.navigate", { url: url + "/?view=departments&section=integrations" });
-  await until(() => evaluate("!!document.querySelector('.co-decisions input')"), "decision workspace");
+  await send("Page.navigate", {
+    url: url + "/?view=departments&section=integrations",
+  });
+  await until(
+    () => evaluate("!!document.querySelector('.co-decisions input')"),
+    "decision workspace",
+  );
   const click = clicker(evaluate, until);
-  await evaluate("document.querySelector('a[href=\"#company-jev-decisions\"]').click()");
-  await until(() => evaluate("document.querySelector('.co-decisions').getBoundingClientRect().top >= 0 && document.querySelector('.co-decisions').getBoundingClientRect().top < innerHeight"), "decision section link");
+  await evaluate(
+    "document.querySelector('a[href=\"#company-jev-decisions\"]').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-decisions').getBoundingClientRect().top >= 0 && document.querySelector('.co-decisions').getBoundingClientRect().top < innerHeight",
+      ),
+    "decision section link",
+  );
   const field = async (name, value) => {
-    await evaluate(`(()=>{const label=[...document.querySelectorAll('.co-decisions label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===${JSON.stringify(name)}); if(!label)throw Error('Missing field '+${JSON.stringify(name)}); const el=label.querySelector('input,textarea,select'); const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);
+    await evaluate(
+      `(()=>{const label=[...document.querySelectorAll('.co-decisions label')].find(l=>[...l.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').trim()===${JSON.stringify(name)}); if(!label)throw Error('Missing field '+${JSON.stringify(name)}); const el=label.querySelector('input,textarea,select'); const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`,
+    );
     await delay(30);
   };
-  const text = () => evaluate("document.querySelector('.co-decisions')?.innerText || ''");
-  const waitText = value => until(async () => (await text()).includes(value), value);
-  const calls = () => fetch(url + "/__fixture/decisions").then(r => r.json()).then(r => r.calls);
-  const listing = () => fetch(url + "/api/company/decisions").then(r => r.json());
-  const model = () => fetch(url + "/api/company/model-connection").then(r => r.json());
+  const text = () =>
+    evaluate("document.querySelector('.co-decisions')?.innerText || ''");
+  const waitText = (value) =>
+    until(async () => (await text()).includes(value), value);
+  const calls = () =>
+    fetch(url + "/__fixture/decisions")
+      .then((r) => r.json())
+      .then((r) => r.calls);
+  const listing = () =>
+    fetch(url + "/api/company/decisions").then((r) => r.json());
+  const model = () =>
+    fetch(url + "/api/company/model-connection").then((r) => r.json());
   const before = await model();
   assert.equal(before.mode, "host-and-company-key");
-  await field("What needs deciding?", "Which next step respects the fictional client's request?");
-  await field("Situation and relevant facts", "Fictional bakery: the owner wants a cake FAQ, but the order deadline is missing. Do not invent it.");
+  await field(
+    "What needs deciding?",
+    "Which next step respects the fictional client's request?",
+  );
+  await field(
+    "Situation and relevant facts",
+    "Fictional bakery: the owner wants a cake FAQ, but the order deadline is missing. Do not invent it.",
+  );
   await field("Option 1", "Draft an FAQ and invent a deadline");
   await field("Option 2", "Ask the owner for the missing order deadline");
   await click("Review decision request");
   await waitText("Ready for your approval");
   assert.equal(await calls(), 0);
   assert.match(await text(), /soft limits/);
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-decisions button')].find(b=>b.textContent==='Run this decision once').disabled"), true);
-  assert.match(await evaluate("document.querySelector('.co-decision-context').innerText"), /order deadline is missing/);
-  await evaluate("document.querySelector('.co-decisions article').scrollIntoView({block:'start'})");
-  await fs.mkdir(path.join(repo,"test-results"), {recursive:true});
-  const reviewShot = await send("Page.captureScreenshot", {format:"png"});
-  await fs.writeFile(path.join(repo,"test-results/decisions-review.png"), Buffer.from(reviewShot.data,"base64"));
-  await evaluate("[...document.querySelectorAll('.co-decisions details')].find(d=>d.querySelector('summary')?.textContent==='Exact data sent to OpenRouter').open=true");
-  assert.match(await evaluate("document.querySelector('.co-decisions pre').textContent"), /order deadline is missing/);
-  await evaluate("[...document.querySelectorAll('.co-decisions article input[type=checkbox]')].forEach(c=>c.click())");
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-decisions button')].find(b=>b.textContent==='Run this decision once').disabled",
+    ),
+    true,
+  );
+  assert.match(
+    await evaluate("document.querySelector('.co-decision-context').innerText"),
+    /order deadline is missing/,
+  );
+  await evaluate(
+    "document.querySelector('.co-decisions article').scrollIntoView({block:'start'})",
+  );
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  const reviewShot = await send("Page.captureScreenshot", { format: "png" });
+  await fs.writeFile(
+    path.join(repo, "test-results/decisions-review.png"),
+    Buffer.from(reviewShot.data, "base64"),
+  );
+  await evaluate(
+    "[...document.querySelectorAll('.co-decisions details')].find(d=>d.querySelector('summary')?.textContent==='Exact data sent to OpenRouter').open=true",
+  );
+  assert.match(
+    await evaluate("document.querySelector('.co-decisions pre').textContent"),
+    /order deadline is missing/,
+  );
+  await evaluate(
+    "[...document.querySelectorAll('.co-decisions article input[type=checkbox]')].forEach(c=>c.click())",
+  );
   // Lose the command reply and its first status read after the server has saved the result.
-  await evaluate(`(()=>{const original=window.fetch;window.fetch=async (resource,init)=>{const path=String(resource);if(path==='/api/company/commands'&&init?.body&&JSON.parse(init.body).action==='decision.run'){await original(resource,init);throw new TypeError('Fictional lost response');}if(path.startsWith('/api/company/operations/'))throw new TypeError('Fictional status outage');return original(resource,init);};})()`);
+  await evaluate(
+    `(()=>{const original=window.fetch;window.fetch=async (resource,init)=>{const path=String(resource);if(path==='/api/company/commands'&&init?.body&&JSON.parse(init.body).action==='decision.run'){await original(resource,init);throw new TypeError('Fictional lost response');}if(path.startsWith('/api/company/operations/'))throw new TypeError('Fictional status outage');return original(resource,init);};})()`,
+  );
   await click("Run this decision once");
   await waitText("Check saved decision request");
   assert.equal(await calls(), 1);
@@ -195,55 +245,118 @@ try {
   await waitText("Check saved decision request");
   await click("Check saved decision request");
   await waitText("Recommendation ready");
-  assert.match(await text(), /Recommendation: Ask the owner for the missing order deadline/);
+  assert.match(
+    await text(),
+    /Recommendation: Ask the owner for the missing order deadline/,
+  );
   assert.equal(await calls(), 1);
   assert.equal((await listing()).items.length, 1);
   // A denied receipt write must stop before even preparing a second request.
-  await evaluate("window.fixtureSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key.includes('hirezero-decision-request'))throw new Error('Fictional storage denial');return window.fixtureSetItem.call(this,key,value)};[...document.querySelectorAll('.co-decisions details')].find(d=>d.querySelector('summary')?.textContent==='Prepare a decision').open=true");
+  await evaluate(
+    "window.fixtureSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key.includes('hirezero-decision-request'))throw new Error('Fictional storage denial');return window.fixtureSetItem.call(this,key,value)};[...document.querySelectorAll('.co-decisions details')].find(d=>d.querySelector('summary')?.textContent==='Prepare a decision').open=true",
+  );
   await field("What needs deciding?", "Which task fits this fictional brief?");
-  await field("Situation and relevant facts", "Fictional request with two clear options.");
+  await field(
+    "Situation and relevant facts",
+    "Fictional request with two clear options.",
+  );
   await field("Option 1", "Gather more information");
   await field("Option 2", "Ask the owner");
   await click("Review decision request");
   await waitText("Fictional storage denial");
   assert.equal((await listing()).items.length, 1);
   await evaluate("Storage.prototype.setItem=window.fixtureSetItem");
-  const modeResponse = await fetch(url + "/__fixture/decision-mode", {method:"POST",headers:{"Content-Type":"application/json","Origin":url,"X-Dev-Request":"1"},body:JSON.stringify({unknown:true})});
-  assert.equal(modeResponse.status, 200, "The fictional provider must enter incomplete-usage mode");
+  const modeResponse = await fetch(url + "/__fixture/decision-mode", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: url,
+      "X-Dev-Request": "1",
+    },
+    body: JSON.stringify({ unknown: true }),
+  });
+  assert.equal(
+    modeResponse.status,
+    200,
+    "The fictional provider must enter incomplete-usage mode",
+  );
   await click("Review decision request");
   await waitText("Ready for your approval");
-  await evaluate("[...document.querySelectorAll('.co-decisions article input[type=checkbox]')].forEach(c=>c.click())");
+  await evaluate(
+    "[...document.querySelectorAll('.co-decisions article input[type=checkbox]')].forEach(c=>c.click())",
+  );
   await click("Run this decision once");
   await waitText("Usage needs confirmation");
   assert.match(await text(), /Reported usage: unknown/);
   assert.equal(await calls(), 2);
-  await evaluate("[...document.querySelectorAll('.co-decisions details')].find(d=>d.querySelector('summary')?.textContent==='Reconcile provider usage').open=true");
-  await field("Input tokens", "100"); await field("Output tokens", "20");
+  await evaluate(
+    "[...document.querySelectorAll('.co-decisions details')].find(d=>d.querySelector('summary')?.textContent==='Reconcile provider usage').open=true",
+  );
+  await field("Input tokens", "100");
+  await field("Output tokens", "20");
   await field("Actual charge (USD)", "0.00002");
-  await field("Evidence checked", "Fictional provider receipt and termination verified.");
-  await evaluate("document.querySelector('.co-decisions article input[type=checkbox]').click()");
+  await field(
+    "Evidence checked",
+    "Fictional provider receipt and termination verified.",
+  );
+  await evaluate(
+    "document.querySelector('.co-decisions article input[type=checkbox]').click()",
+  );
   await click("Record confirmed usage");
   await waitText("Usage reconciled");
   assert.equal(await calls(), 2);
   const after = await model();
-  assert.deepEqual(after, before, "Decision work must not change text model routing or funding");
-  const usage = await fetch(url + "/api/company/usage").then(r => r.json());
+  assert.deepEqual(
+    after,
+    before,
+    "Decision work must not change text model routing or funding",
+  );
+  const usage = await fetch(url + "/api/company/usage").then((r) => r.json());
   assert.equal(usage.current.heldJobs, 0);
-  await send("Emulation.setDeviceMetricsOverride", {width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
   await delay(120);
-  assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth + 1"), false);
-  await evaluate("document.querySelector('.co-decisions article').scrollIntoView({block:'start'})");
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth > innerWidth + 1"),
+    false,
+  );
+  await evaluate(
+    "document.querySelector('.co-decisions article').scrollIntoView({block:'start'})",
+  );
   await delay(100);
-  await fs.mkdir(path.join(repo,"test-results"), {recursive:true});
-  const screenshot = await send("Page.captureScreenshot", {format:"png"});
-  await fs.writeFile(path.join(repo,"test-results/decisions-mobile.png"), Buffer.from(screenshot.data,"base64"));
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  const screenshot = await send("Page.captureScreenshot", { format: "png" });
+  await fs.writeFile(
+    path.join(repo, "test-results/decisions-mobile.png"),
+    Buffer.from(screenshot.data, "base64"),
+  );
   assert.deepEqual(errors, []);
-  await fs.writeFile(path.join(repo,"test-results/decisions-browser.json"), JSON.stringify({
-    passed:true, exactReview:true, lostReplyRecoveredWithoutReplay:true, deniedStoragePreventsDispatch:true,
-    unknownUsageReconciled:true, textRoutingUnchanged:true, mobileOverflow:false, fictionalDecisionCalls:2, liveProviderCalls:0
-  },null,2));
-  console.log("PASS decisions: one question, one receipt; the butler resists the encore.");
-  await send("Browser.close").catch(()=>{});
+  await fs.writeFile(
+    path.join(repo, "test-results/decisions-browser.json"),
+    JSON.stringify(
+      {
+        passed: true,
+        exactReview: true,
+        lostReplyRecoveredWithoutReplay: true,
+        deniedStoragePreventsDispatch: true,
+        unknownUsageReconciled: true,
+        textRoutingUnchanged: true,
+        mobileOverflow: false,
+        fictionalDecisionCalls: 2,
+        liveProviderCalls: 0,
+      },
+      null,
+      2,
+    ),
+  );
+  console.log(
+    "PASS decisions: one question, one receipt; the butler resists the encore.",
+  );
+  await send("Browser.close").catch(() => {});
 } catch (error) {
   await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
   await fs.writeFile(

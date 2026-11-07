@@ -275,17 +275,46 @@ export function Onboarding(props: OnboardingProps) {
       }
       const cents = snapshot.capabilities.allowanceUnit === "usd-cents";
       let sources: string[] = [];
-      if (business.website) {
-        setWorking("Reading " + business.website.replace(/^https?:\/\//, "") + "…");
+      const readSite = async (confirmed: BusinessIdentity) => {
+        setWorking("Reading " + confirmed.website!.replace(/^https?:\/\//, "").replace(/\/$/, "") + "…");
         let read = (await command("business.lookup.start", {
           body: "discovery",
-          expectedVersion: business.version,
-          digest: business.digest,
+          expectedVersion: confirmed.version,
+          digest: confirmed.digest,
           decision: "authorize-one-lookup",
         })) as BusinessLookup;
         for (let i = 0; i < 60 && read.state === "running"; i++) {
           await wait(2000);
           read = await api<BusinessLookup>("/company/business/lookups/" + encodeURIComponent(read.id));
+        }
+        return read;
+      };
+      if (business.website) {
+        let read = await readSite(business);
+        // Many sites send example.com on to www.example.com; the reader never follows a site off its confirmed
+        // address, so HireZero confirms the www address once and reads that instead.
+        const host = new URL(business.website).hostname;
+        if (
+          !read.sourceIds?.length &&
+          !host.startsWith("www.") &&
+          read.notices?.some((n) => n.includes("left the confirmed website"))
+        ) {
+          const www = business.website.replace("://" + host, "://www." + host);
+          business = (await command("business.identify", {
+            expectedVersion: business.version,
+            body: JSON.stringify({
+              name: business.name,
+              website: www,
+              goal: business.goal,
+              location: "",
+              industry: "",
+            }),
+          })) as BusinessIdentity;
+          business = (await command("business.confirm", {
+            expectedVersion: business.version,
+            digest: business.digest,
+          })) as BusinessIdentity;
+          read = await readSite(business);
         }
         sources = (read.sourceIds ?? []).slice(0, 3);
       }
@@ -473,6 +502,13 @@ export function Onboarding(props: OnboardingProps) {
       )}
       {profile?.state === "draft" && !approved && (
         <Findings
+          unread={
+            identity?.website && !lookup?.sourceIds?.length
+              ? `I couldn’t read ${identity.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}${
+                  lookup?.notices?.[0] ? ` (${lookup.notices[0].replace(/\.$/, "")})` : ""
+                }, so this starts from what you told me. Add what you can, or check the address.`
+              : ""
+          }
           profile={profile}
           busy={!!working}
           canRetry={!!lookup?.sourceIds?.length}
@@ -601,6 +637,7 @@ function Details({
 
 // "Here's what I found": each line can be rewritten, the whole draft redone, or approved.
 function Findings({
+  unread,
   profile,
   busy,
   canRetry,
@@ -609,6 +646,7 @@ function Findings({
   onApprove,
   spent,
 }: {
+  unread: string;
   profile: BusinessProfile;
   busy: boolean;
   canRetry: boolean;
@@ -622,7 +660,11 @@ function Findings({
   const fields = keys.map((key) => profile.fields.find((f) => f.key === key)).filter(Boolean) as ProfileField[];
   return (
     <EmployeeSays name="HireZero" label="HireZero shows what it found">
-      <p>Here’s what I found. If a line is wrong, rewrite it in your own words; your version always wins.</p>
+      {unread ? (
+        <p>{unread}</p>
+      ) : (
+        <p>Here’s what I found. If a line is wrong, rewrite it in your own words; your version always wins.</p>
+      )}
       <dl className="co-onboard-found">
         {fields.map((f) => (
           <div key={f.key} className={"co-onboard-fact " + f.verification}>
