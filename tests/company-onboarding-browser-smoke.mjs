@@ -51,7 +51,7 @@ try{
   assert.equal(await evaluate("document.querySelector('.co-onboarding select').value"),'marketing','Marketing default');
   await field('Name','');await click('Create employee & continue');assert.equal((await dashboard()).data.departments.length,0,'Empty required profile is invalid');await field('Name','   ');await twice();await delay(150);assert.equal((await dashboard()).data.departments.length,0,'Whitespace never creates a department');
   await field('Name','Strategy fixture');await field('New department name','Fictional Marketing');
-  await click('Chat');await click('People');assert.equal(await evaluate("document.querySelector('.co-onboarding input').value"),'Strategy fixture','Navigation keeps draft');
+  await click('Home');await click('People');assert.equal(await evaluate("document.querySelector('.co-onboarding input').value"),'Strategy fixture','Navigation keeps draft');
   await reload();assert.equal(await evaluate("document.querySelector('.co-onboarding input').value"),'Strategy fixture','Reload keeps draft');
   // A department saved with a lost reply is reconciled without replay or an automatic hire.
   await inject('department.create','uncertain');await twice();await until(()=>evaluate("document.body.innerText.includes('Creating department')"),'visible saving status');await until(()=>evaluate("document.body.innerText.includes('Check saved state')"),'unconfirmed department');assert.equal((await dashboard()).data.departments.length,1);assert.equal((await dashboard()).data.employees.length,0);
@@ -74,7 +74,7 @@ try{
   assert.equal((await dashboard()).data.employees.length,1,'Continuing from Home does not start another hire');
   // The full activity view recovers in place and opens the same review as Home and the cockpit.
   await evaluate("(()=>{const original=window.fetch;window.fetch=async(input,options)=>{if(String(input)==='/api/company/today'){window.fetch=original;throw new TypeError('Synthetic activity read failure');}return original(input,options);};})()");
-  await click('Company');await until(()=>evaluate("document.body.innerText.includes('Retry activity')"),'Activity exposes a retry after a read failure');
+  await click('Settings');await evaluate("document.querySelector('.co-advanced-settings').open=true");await click('Today');await until(()=>evaluate("document.body.innerText.includes('Retry activity')"),'Activity exposes a retry after a read failure');
   await click('Retry activity');await until(()=>evaluate("!!document.querySelector('.co-today button[aria-label^=\"Open \"]')"),'Activity retry loads actionable needs');
   await evaluate("document.querySelector('.co-today button[aria-label^=\"Open \"]').click()");
   await until(()=>evaluate("document.body.innerText.includes('Approve shared context')"),'Activity opens the unfinished hire review');
@@ -130,14 +130,14 @@ try{
     };
   })()`);
   const googleValues=()=>evaluate("[...document.querySelectorAll('[aria-label=\"Google sign-in\"] select')].map(select=>select.value)");
-  await click('Company');await evaluate("[...document.querySelectorAll('.co-hub-tabs button')].find(button=>button.textContent==='Integrations').click()");
+  await click('Settings');await evaluate("[...document.querySelectorAll('.co-hub-tabs button')].find(button=>button.textContent==='Integrations').click()");
   await until(async()=>(await googleValues()).length===2,'Google fixture choices loaded');
   assert.deepEqual(await googleValues(),['222','sc-domain:second.example'],'Google picker preserves saved choices instead of selecting the first account resource');
-  await click('Home');await evaluate("window.googlePickerFixture.ga4Property='999'");await click('Company');
+  await click('Home');await evaluate("window.googlePickerFixture.ga4Property='999'");await click('Settings');
   await until(async()=>(await googleValues()).length===2,'Google picker reload with unavailable saved property');
   assert.deepEqual(await googleValues(),['','sc-domain:second.example'],'Unavailable property is not silently replaced with another resource');
   assert.match(await evaluate("document.querySelector('[aria-label=\"Google sign-in\"]').textContent"),/saved selection is unavailable/);
-  await click('Home');await evaluate("window.googlePickerFixture.ga4Property='';window.googlePickerFixture.searchConsoleSite=''");await click('Company');
+  await click('Home');await evaluate("window.googlePickerFixture.ga4Property='';window.googlePickerFixture.searchConsoleSite=''");await click('Settings');
   await until(async()=>(await googleValues()).length===2,'Google picker without configured choices');
   assert.deepEqual(await googleValues(),['',''],'A fresh connection waits for the owner to choose resources');
   assert.equal(await evaluate("window.googlePickerFixture.writes"),0,'Opening Google choices never saves settings or starts sign-in');

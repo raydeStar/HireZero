@@ -316,8 +316,14 @@ try {
   );
   await click("Save brief draft");
   await waitText("Brief draft saved.");
-  await click("Approve brief for my team");
-  await waitText("explicitly revoke the previous approved brief");
+  // A replacement draft cannot be approved while the previous brief is still approved: the owner withdraws it first.
+  await waitText("To use this draft instead, review and withdraw");
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Approve brief for my team').disabled",
+    ),
+    true,
+  );
   await evaluate(
     "[...document.querySelectorAll('.co-business-recovery')].find(d=>d.querySelector('summary')?.textContent.includes('Replace or withdraw')).open=true",
   );

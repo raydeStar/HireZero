@@ -45,7 +45,14 @@ try{
   await until(()=>evaluate("!!document.querySelector('.co-cockpit .co-needs-error button')"),'failed needs load exposes a retry');
   assert.equal(await evaluate("document.querySelector('.co-cockpit [aria-label=\"Needs you\"]').innerText.includes('Nothing needs you')"),false,'A failed first read never reports all clear');
   assert.equal(await evaluate("document.querySelector('.co-cockpit [aria-label=\"Needs you\"] .fe-count').textContent"),'?','An unknown count is not zero');
-  await evaluate("document.querySelector('.co-navigation button[aria-label=\"Home\"]').click()");
+  // Home opens on the lead employee's desk once work exists; the overview is one click away.
+  const homeOverview=async()=>{
+    await evaluate("document.querySelector('.co-navigation button[aria-label=\"Home\"]').click()");
+    await until(()=>evaluate("!!document.querySelector('.co-home')||!!document.querySelector('.co-desk button[aria-label=\"Overview\"]')"),'Home');
+    await evaluate("document.querySelector('.co-desk button[aria-label=\"Overview\"]')?.click()");
+    await until(()=>evaluate("!!document.querySelector('.co-home')"),'Home overview');
+  };
+  await homeOverview();
   await until(()=>evaluate("!!document.querySelector('.co-home .co-needs-error')"),'Home also explains the unavailable needs count');
   await evaluate("window.fixtureNeedsUnavailable=false;document.querySelector('.co-home .co-needs-error button').click()");
   await until(()=>evaluate("!document.querySelector('.co-needs-error')&&!!document.querySelector('.co-cockpit [aria-label=\"Needs you\"] .fe-up-next-title')"),'read-only retry restores the waiting review');
@@ -56,8 +63,11 @@ try{
   await evaluate("window.fixtureNeedsUnavailable=false;document.querySelector('.co-cockpit .co-needs-error button').click()");
   await until(()=>evaluate("!document.querySelector('.co-needs-error')"),'later failed read recovers in place');
   await send('Page.removeScriptToEvaluateOnNewDocument',{identifier:unavailableNeeds.identifier});
-  // Opening it shows the work window beside the chat, which stays loaded.
+  // Opening it shows the work in focused review (docs/adr/0145-focused-deliverable-review.md); Show in chat puts the
+  // work window beside the chat, which stays loaded.
   await evaluate("document.querySelector('[aria-label=\"Needs you\"] .fe-up-next-title').click()");
+  await until(()=>evaluate("location.search.includes('work=')&&location.search.includes('mode=work')&&!!document.querySelector('.co-work-window button[aria-label=\"Show in chat\"]')"),'needs item opens focused work review');
+  await evaluate("document.querySelector('.co-work-window button[aria-label=\"Show in chat\"]').click()");
   await until(()=>evaluate("location.search.includes('work=')&&!!document.querySelector('.co-chat-and-work .co-work-window')&&!!document.querySelector('.co-chat-and-work .co-conversation')"),'work window beside the chat');
   await until(()=>evaluate("!document.body.innerText.includes('Opening this conversation')"),'the conversation stays loaded');
   // The chat shows a placeholder for the open work instead of a second, separately loading copy (UX round 5).
@@ -68,7 +78,7 @@ try{
   await evaluate("document.querySelector('button[aria-label=\"Close work\"]').click()");
   await until(()=>evaluate("!!document.querySelector('.co-work-board [aria-label=\"Needs review\"] .co-work-item')"),'the Work board groups the work');
   // An explicit Chat action keeps its promise even after working in board mode.
-  await evaluate("document.querySelector('.co-navigation button[aria-label=\"Home\"]').click()");
+  await homeOverview();
   await until(()=>evaluate("!!document.querySelector('.co-home button[aria-label^=\"Chat with\"]')"),'Home chat action');
   await evaluate("document.querySelector('.co-home button[aria-label^=\"Chat with\"]').click()");
   await until(()=>evaluate("!!document.querySelector('.co-conversation')&&!location.search.includes('mode=work')"),'Home Chat opens Chat after Work mode');
@@ -103,7 +113,7 @@ try{
   await until(()=>evaluate("document.documentElement.dataset.theme==='light'"),'light theme');
   await evaluate("document.querySelector('button[aria-label^=\"Theme:\"]').click()");
   await until(()=>evaluate("document.documentElement.dataset.theme==='dark'"),'dark theme');
-  await key('g');await key('h');await until(()=>evaluate("!!document.querySelector('.co-home')"),'g h goes Home');
+  await key('g');await key('h');await until(()=>evaluate("!!document.querySelector('.co-home,.co-desk')"),'g h goes Home');
   // Below laptop width (1024 px): no docked cockpit; the top bar opens it as a sheet.
   await send('Emulation.setDeviceMetricsOverride',{width:900,height:750,deviceScaleFactor:1,mobile:false});
   await until(()=>evaluate("!document.querySelector('.co-workspace.with-cockpit')&&!!document.querySelector('button.co-cockpit-toggle')"),'cockpit toggle on a narrow screen');
@@ -128,7 +138,7 @@ try{
   await until(()=>evaluate("!!document.querySelector('dialog:modal')"),'cockpit opens before resize');
   await send('Emulation.setDeviceMetricsOverride',{width:1600,height:900,deviceScaleFactor:1,mobile:false});
   await until(()=>evaluate("!document.querySelector('dialog')&&!!document.querySelector('.co-workspace.with-cockpit')"),'wide layout replaces the modal with the dock');
-  await send('Emulation.setDeviceMetricsOverride',{width:1100,height:750,deviceScaleFactor:1,mobile:false});
+  await send('Emulation.setDeviceMetricsOverride',{width:1000,height:750,deviceScaleFactor:1,mobile:false});
   await until(()=>evaluate("!document.querySelector('.co-workspace.with-cockpit')"),'narrow layout restored');
   assert.equal(await evaluate("!!document.querySelector('dialog')"),false,'An old sheet does not reopen after a wide-to-narrow resize');
   // On a phone the conversation list is a drawer, closed until opened (UX round 4).
@@ -148,19 +158,24 @@ try{
   await until(()=>evaluate("!document.querySelector('dialog')&&location.search.includes('work=')&&!!document.querySelector('.co-work-window')"),'a cockpit item closes the modal and opens its exact work');
   assert.equal(await evaluate('document.querySelectorAll("dialog:modal").length'),0,'Work navigation releases the modal background');
 
-  // Company sections belong to browser history, including when revisiting from the rail or reloading.
+  // Company and Settings sections belong to browser history, including when returning from Home or reloading. The
+  // Company rail opens company knowledge; Settings opens Integrations, with Budgets under Advanced settings.
   await send('Emulation.setDeviceMetricsOverride',{width:1600,height:900,deviceScaleFactor:1,mobile:false});
   await evaluate("document.querySelector('.co-navigation button[aria-label=\"Company\"]').click()");
   const hub=label=>evaluate(`[...document.querySelectorAll('.co-hub-tabs button')].find(b=>b.textContent===${JSON.stringify(label)}).click()`);
   const selectedSection=()=>evaluate("document.querySelector('.co-hub-tabs [aria-current=page]')?.textContent");
-  await until(async()=>(await selectedSection())==='Today','Company opens Today');
-  await hub('Integrations');await until(async()=>(await selectedSection())==='Integrations','Integrations opens');
+  await until(async()=>(await selectedSection())==='Company knowledge','Company opens company knowledge');
+  await hub('Recurring work');await until(async()=>(await selectedSection())==='Recurring work','Recurring work opens');
+  await hub('Inbox');await until(async()=>(await selectedSection())==='Inbox','Inbox opens');
+  await evaluate('history.back()');await until(async()=>(await selectedSection())==='Recurring work','Back restores the previous company section');
+  await evaluate('history.forward()');await until(async()=>(await selectedSection())==='Inbox','Forward restores Inbox');
+  await evaluate("document.querySelector('.co-navigation button[aria-label=\"Company settings\"]').click()");
+  await until(async()=>(await selectedSection())==='Integrations','Settings opens Integrations');
   await hub('Budgets');await until(async()=>(await selectedSection())==='Budgets','Budgets opens');
-  await evaluate('history.back()');await until(async()=>(await selectedSection())==='Integrations','Back restores the previous section');
+  await evaluate('history.back()');await until(async()=>(await selectedSection())==='Integrations','Back restores the previous settings section');
   await evaluate('history.forward()');await until(async()=>(await selectedSection())==='Budgets','Forward restores Budgets');
-  await key('g');await key('h');await until(()=>evaluate("!!document.querySelector('.co-home')"),'Home after company sections');
-  await evaluate("document.querySelector('.co-navigation button[aria-label=\"Company\"]').click()");
-  await until(async()=>(await selectedSection())==='Budgets','rail restores the last company section');
+  await key('g');await key('h');await until(()=>evaluate("!!document.querySelector('.co-home,.co-desk')"),'Home after company sections');
+  await evaluate('history.back()');await until(async()=>(await selectedSection())==='Budgets','Back from Home restores the last section');
   assert.equal(await evaluate("new URLSearchParams(location.search).get('section')"),'budgets','visible section matches the address');
   await send('Page.reload');await until(async()=>(await selectedSection())==='Budgets','reload preserves the visible section');
 

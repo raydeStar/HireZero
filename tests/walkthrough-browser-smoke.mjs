@@ -38,7 +38,7 @@ try{
     const dept=await cmd('department.create',{name:'Support'});const state=await (await fetch('/api/company')).json();const fields=state.data.roles.find(r=>r.id==='support').onboardingFields;
     const k=await cmd('knowledge.save',{departmentId:dept.id,body:JSON.stringify(Object.fromEntries(fields.map(f=>[f,'Approved fictional '+f])))});await cmd('knowledge.review',{id:k.id,expectedVersion:k.version,digest:k.digest,decision:'approve'});
     const e=await cmd('employee.hire',{departmentId:dept.id,roleId:'support',name:'Support partner',responsibility:'Fictional customers'});const th=await cmd('thread.create',{employeeId:e.id,name:'Inbox'});return '/?view=employee&employee='+e.id+'&thread='+th.id;})()`);
-  await send('Page.navigate',{url:url+route});await until(()=>evaluate("!!document.querySelector('button[aria-label=\"Prepare reply for review\"]')"),'Support conversation');
+  await send('Page.navigate',{url:url+route});await until(()=>evaluate("!!document.querySelector('.co-conversation-composer button.fe-send')&&!!document.querySelector('.co-action-strip summary')"),'Support conversation');
 
   // P0 2: a long action field is multi-line, so separated messages stay separate.
   await evaluate("document.querySelector('.co-action-strip summary').click()");
@@ -55,7 +55,11 @@ try{
 
   // P0 3: a prepared reply loads its exact review without another click; consent stays unchecked.
   await evaluate("document.querySelector('.co-action-strip summary').click()");
-  await evaluate(`(()=>{const set=(el,v)=>{const p=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));};set(document.querySelector('.co-conversation-composer input[type=number]'),'5');set(document.querySelector('textarea[placeholder^="Message"]'),'What do customers ask most often?');})()`);await delay(100);
+  // A spend limit shows only for a cents-capped model; included usage sends its planning default unasked.
+  // Send is now one sign-off (docs/adr/0183-one-sign-off-per-reply.md); "Prepare one reply for review first" keeps the review step.
+  await evaluate(`(()=>{const s=[...document.querySelectorAll('.co-composer-options label')].find(l=>l.textContent.startsWith('Message action')).querySelector('select');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'reply');s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await until(()=>evaluate("!!document.querySelector('button[aria-label=\"Prepare reply for review\"]')"),'review-first message action');
+  await evaluate(`(()=>{const set=(el,v)=>{const p=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));};const limit=document.querySelector('.co-conversation-composer input[type=number]');if(limit)set(limit,'0.05');set(document.querySelector('textarea[placeholder^="Message"]'),'What do customers ask most often?');})()`);await delay(100);
   await evaluate("document.querySelector('button[aria-label=\"Prepare reply for review\"]').click()");
   const box="[...document.querySelectorAll('input[type=checkbox]')].find(c=>c.closest('label')?.textContent.includes('I authorize'))";
   await until(()=>evaluate("!!document.querySelector('.co-reply-turn .co-packet')"),'reply review loaded automatically');

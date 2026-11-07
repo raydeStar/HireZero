@@ -44,7 +44,7 @@ export function GoalStart({
   nextGoal?: { text: string; request: number };
 }) {
   const profile = approvedBusinessProfile(snapshot);
-  const hasWork = snapshot.data.tasks.some((task) => task.kind !== "conversation");
+  const hasWork = snapshot.data.tasks.some(startedWork);
   const key = goalStartKey();
   const [draft, setDraft] = useState<Draft>(() => {
     try {
@@ -499,8 +499,8 @@ export function GoalStart({
                 <strong>What happens when you press Generate</strong>
                 <p>
                   {employee ? employee.name : `A new ${selected?.name ?? "marketing"} specialist`} writes one private
-                  draft with your {providerName(terms.terms?.provider || "host")}. It usually takes about a minute.
-                  Nothing is posted, sent or bought, and nothing is retried on its own.
+                  draft using {providerName(terms.terms?.provider || "host")}. It usually takes about a minute. Nothing
+                  is posted, sent or bought, and nothing is retried on its own.
                 </p>
                 <details className="co-goal-run-details">
                   <summary>Run details</summary>
@@ -644,3 +644,8 @@ export function goalStartUnfinished() {
     return false;
   }
 }
+
+// Work the owner started: not a conversation turn, an onboarding context draft, or something cancelled. A first-time
+// company whose only task is a cancelled setup helper still leads with the goal form (2026-11-06).
+export const startedWork = (task: Work) =>
+  task.kind !== "conversation" && task.kind !== "context-draft" && !["canceled", "cancelled"].includes(task.state);

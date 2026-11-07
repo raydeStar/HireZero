@@ -146,6 +146,10 @@ try {
   await send("Runtime.enable");
   await send("Page.enable");
   await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  // Home opens on the lead employee's desk once work exists; these checks read the overview's cards.
+  await send("Page.addScriptToEvaluateOnNewDocument", {
+    source: "localStorage.setItem('dev-ui:home-start','\"overview\"')",
+  });
   until.diagnose = pageDiagnosis(evaluate);
   await send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
@@ -516,7 +520,8 @@ try {
   await bodyText("Shared department context");
   assert.equal(
     await evaluate(
-      "[...document.querySelectorAll('.co-onboarding form textarea')].every(t=>t.value.trim().length>0)",
+      // Required context comes from the brief; the optional goal-ladder fields stay empty until a ladder is approved (ADR 0170).
+      "(()=>{const fields=[...document.querySelectorAll('.co-onboarding form textarea[required]')];return fields.length>0&&fields.every(t=>t.value.trim().length>0);})()",
     ),
     true,
     "Approved brief supplies role setup without another blank questionnaire",
@@ -691,7 +696,8 @@ try {
   );
   assert.equal(
     await evaluate(
-      "document.querySelector('.co-goal-start button').disabled",
+      // The form gives way to progress while saving; no enabled button can submit it again.
+      "[...document.querySelectorAll('.co-goal-start button')].every((b) => b.disabled)",
     ),
     true,
   );
@@ -1240,11 +1246,16 @@ try {
       labelled.push({ task, label: `${name} · Request ${number}` });
     }
   }
+  // A conversation with a single request is labelled by its title alone (WorkContext).
+  for (const item of labelled) {
+    const [name] = item.label.split(" · Request ");
+    if (labelled.filter((other) => other.label.startsWith(name + " · ")).length === 1) item.label = name;
+  }
   await send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
   await send("Page.navigate", { url: `${url}/?view=employee&employee=${nextRevision.employeeId}&thread=${labelled[0].task.threadId}&mode=work` });
   for (const item of labelled) {
-    await until(() => evaluate(`Array.from(document.querySelectorAll('.co-needs .co-work-context')).some(e=>e.textContent===${JSON.stringify(item.label)})`), "Distinct review label appears");
-    await evaluate(`Array.from(document.querySelectorAll('.co-needs .co-work-context')).find(e=>e.textContent===${JSON.stringify(item.label)}).closest('button').click()`);
+    await until(() => evaluate(`Array.from(document.querySelectorAll('.co-cockpit .co-work-context')).some(e=>e.textContent===${JSON.stringify(item.label)})`), "Distinct review label appears");
+    await evaluate(`Array.from(document.querySelectorAll('.co-cockpit .co-work-context')).find(e=>e.textContent===${JSON.stringify(item.label)}).closest('button').click()`);
     await until(() => evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(item.task.id)}&&document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(item.label)}`), "Review label opens the exact task and matches its header");
   }
   await send("Page.reload");

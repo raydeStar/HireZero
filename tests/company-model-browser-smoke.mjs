@@ -391,8 +391,11 @@ try {
       ),
     "fresh packet ready",
   );
+  // The fresh packet loads collapsed: the old expanded context preview is never carried into its replacement.
   assert.equal(
-    await evaluate("!!document.querySelector('.co-work-window .co-packet')"),
+    await evaluate(
+      "!!document.querySelector('.co-work-window .co-packet details[open]')",
+    ),
     false,
   );
   assert.equal(
@@ -409,7 +412,10 @@ try {
   );
   await click("Review task and context");
   await until(
-    () => evaluate("!!document.querySelector('.co-work-window .co-packet')"),
+    () =>
+      evaluate(
+        "!!document.querySelector('.co-work-window .co-packet details[open]')",
+      ),
     "fresh context inspected",
   );
   await evaluate(

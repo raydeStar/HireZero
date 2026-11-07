@@ -242,7 +242,7 @@ export function MarketingNoteLine({ snapshot, employee }: { snapshot: Snapshot; 
       {report && today && (
         <li className="co-team-note-line focus">
           <span>
-            Today I’m focused on <b>{firstLine(report.focus, 160).replace(/[.!]$/, "")}</b>.
+            Today’s focus: <b>{firstSentence(report.focus)}</b>
           </span>
         </li>
       )}
@@ -1127,6 +1127,14 @@ function quickStart(now = new Date()): { start: "today" | "tomorrow"; time: stri
     start: "today",
     time: `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`,
   };
+}
+
+// The first sentence of the round's focus, cut at a word near 140 characters.
+function firstSentence(text: string) {
+  const line = firstLine(text, 400);
+  const sentence = /^.*?[.!?](?=\s|$)/.exec(line)?.[0] ?? line;
+  if (sentence.length <= 140) return sentence;
+  return sentence.slice(0, sentence.lastIndexOf(" ", 137)).replace(/[,;:—–-]+$/, "") + "…";
 }
 
 // The round's greeting, by the hour it started.

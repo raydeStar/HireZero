@@ -21,7 +21,7 @@ export function ceoBusinessSetup(profile: BusinessProfile): BusinessSetup {
   const objective = approvedGoal(profile) ?? "Choose priorities for the company's next week";
   return {
     reason: "Start with a short priority plan grounded in the approved business brief; a full team is not required.",
-    responsibility: `Help with this goal: ${objective}. Clarify priorities, propose bounded work and surface decisions for the human owner.`,
+    responsibility: `Help with this goal: ${objective.replace(/[.!?\s]+$/, "")}. Clarify priorities, propose bounded work and surface decisions for the human owner.`,
     values: {
       purpose:
         "Help the company achieve the goal in its current approved brief with practical priorities and visible decisions.",
