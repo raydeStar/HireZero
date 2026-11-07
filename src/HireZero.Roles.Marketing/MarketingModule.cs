@@ -183,12 +183,13 @@ public sealed class MarketingModule : IEmployeeModule
             StarterPlan => MarketingText.StarterPlanInstructions,
             GoalDraft => MarketingText.GoalDraftInstructions,
             MarketingLadder.Skill => MarketingLadder.Instructions,
-            MarketingShift.Skill => MarketingShift.Instructions,
+            MarketingShift.Skill => MarketingShift.Instructions + MarketingSoul.Text,
             MarketingAnalytics.Digest => MarketingAnalytics.DigestInstructions,
             MarketingExperiments.Skill => MarketingExperiments.Instructions,
             MarketingAds.Review => MarketingAds.ReviewInstructions,
             MarketingLifecycle.Review => MarketingLifecycle.ReviewInstructions,
-            _ => MarketingText.Instructions,
+            // Conversation replies: the employee's own voice.
+            _ => MarketingText.Instructions + MarketingSoul.Text,
         };
 
     public Task<string> RunActionAsync(

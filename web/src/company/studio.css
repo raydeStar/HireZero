@@ -1515,3 +1515,12 @@
     display: none;
   }
 }
+
+/* On shift, the role's own line replaces "I'm free" in the note (2026-11-06). */
+.co-workspace .co-team-note ul:has(.co-note-onshift) .co-team-note-line.free {
+  display: none;
+}
+.co-workspace .co-composer-limit {
+  color: var(--fe-fg-2);
+  cursor: default;
+}

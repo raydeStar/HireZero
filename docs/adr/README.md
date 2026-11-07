@@ -184,3 +184,4 @@ is never rewritten after acceptance; a changed decision gets a new record that s
 | [0177](0177-plain-spend-limits.md) | Spend limits in the owner's terms | Accepted; no allowance asked for included usage, paid-model caps in dollars, server checks unchanged |
 
 | [0181](0181-open-signup-and-durable-spend-caps.md) | Open sign-up and durable free model allowances | Accepted; opt-in hosted enrollment, lifetime and shared daily reservations |
+| [0183](0183-one-sign-off-per-reply.md) | One sign-off per reply, and an employee with a soul | Accepted; Send prepares, checks and authorizes one reply; review-first stays optional; soul.md for owner-facing replies and rounds |

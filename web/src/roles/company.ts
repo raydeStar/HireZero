@@ -20,6 +20,8 @@ export type HomeCardProps = {
   placement?: "home" | "chat";
   // Switches Home to its overview, where the role's full cards (such as a goal ladder) are.
   openOverview?: () => void;
+  // In the desk: answer a question the employee asked, in the conversation's message box.
+  onAnswer?: (question: string) => void;
 };
 export type CompanyRoleUi = {
   skillInputs?: Record<string, SkillInput>;
@@ -29,6 +31,8 @@ export type CompanyRoleUi = {
   homeLead?: ComponentType<HomeCardProps>;
   // A compact control in the desk's header for the same standing work, such as starting a shift. Shown with homeLead.
   homeAction?: ComponentType<HomeCardProps>;
+  // Lines in the employee's note (Home and the desk), in their own words: <li className="co-team-note-line">.
+  noteLine?: ComponentType<{ snapshot: Snapshot; employee: Snapshot["data"]["employees"][number] }>;
   businessSetup?: (profile: BusinessProfile) => BusinessSetup;
   // Shared specificity: 3 requested work, 2 named deliverable, 1 topic, 0 general starting option.
   recommendation?: (profile: BusinessProfile) => { reason: string; priority: number; position?: number } | undefined;
@@ -132,5 +136,15 @@ export function homeActions(roles: Role[]): { roleId: string; Action: ComponentT
   return roles.flatMap((role) => {
     const Action = role.uiSlots?.includes("home-lead") ? byRole[role.id]?.homeAction : undefined;
     return Action ? [{ roleId: role.id, Action }] : [];
+  });
+}
+
+// Each role's note lines, for roles that lead Home ("home-lead" slot).
+export function noteLines(
+  roles: Role[],
+): { roleId: string; Line: ComponentType<{ snapshot: Snapshot; employee: Snapshot["data"]["employees"][number] }> }[] {
+  return roles.flatMap((role) => {
+    const Line = role.uiSlots?.includes("home-lead") ? byRole[role.id]?.noteLine : undefined;
+    return Line ? [{ roleId: role.id, Line }] : [];
   });
 }

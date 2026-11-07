@@ -5,6 +5,7 @@
     <ProjectReference Include="../HireZero.Tools.Advertising/HireZero.Tools.Advertising.csproj" />
     <ProjectReference Include="../HireZero.Tools.Email/HireZero.Tools.Email.csproj" />
     <ProjectReference Include="../HireZero.Tools.Crm/HireZero.Tools.Crm.csproj" />
+    <EmbeddedResource Include="soul.md" LogicalName="HireZero.Roles.Marketing.soul.md" />
     <Using Include="HireZero.Core" />
   </ItemGroup>
 </Project>

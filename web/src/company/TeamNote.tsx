@@ -3,6 +3,7 @@ import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workState, workTitle, type Need } from "./Cockpit";
 import { roleName } from "./labels";
 import { readyDraft } from "./readyDrafts";
+import { noteLines } from "../roles/company";
 import { ago, elapsed, useNow } from "./time";
 import { avatarStyle, initials } from "./Home";
 
@@ -43,6 +44,13 @@ export function TeamNote({
   const work = d.tasks.filter((t) => t.kind !== "conversation");
   const lead = employee ?? leadEmployee(snapshot);
   if (!lead) return null;
+  // Work is named by what the owner asked for (the goal's conversation title), not by the kind of job.
+  const named = (t: Work) => {
+    const thread = d.threads.find((h) => h.id === t.threadId);
+    return thread && (thread.scope ?? "employee") === "employee" && !/^Private conversation/.test(thread.title)
+      ? thread.title
+      : workTitle(snapshot, t);
+  };
   const mine = work.filter((t) => t.employeeId === lead.id);
   const inGroup = (group: readonly string[]) => mine.filter((t) => group.includes(workState(snapshot, t)));
   const running = inGroup(workGroups.progress)[0];
@@ -61,7 +69,7 @@ export function TeamNote({
       key: "ready",
       text: (
         <>
-          I finished <b>{workTitle(snapshot, lastReady)}</b>
+          I finished <b>{named(lastReady)}</b>
           {times[lastReady.id]?.updated ? " " + ago(times[lastReady.id].updated, now) : ""}. It’s ready for you to read
           {ready.length > 1 ? `, with ${ready.length - 1} more draft${ready.length > 2 ? "s" : ""} behind it` : ""}.
         </>
@@ -73,7 +81,7 @@ export function TeamNote({
       key: "done",
       text: (
         <>
-          Last thing I finished: <b>{workTitle(snapshot, finished)}</b>
+          Last thing I finished: <b>{named(finished)}</b>
           {times[finished.id]?.updated ? " " + ago(times[finished.id].updated, now) : ""}.
         </>
       ),
@@ -83,7 +91,7 @@ export function TeamNote({
       key: "running",
       text: (
         <>
-          Right now I’m working on <b>{workTitle(snapshot, running)}</b>
+          Right now I’m working on <b>{named(running)}</b>
           {times[running.id]?.started ? " · " + elapsed(times[running.id].started, now) : ""}.
         </>
       ),
@@ -105,7 +113,7 @@ export function TeamNote({
       key: "next",
       text: (
         <>
-          {running ? "After that" : "Next up"}: <b>{workTitle(snapshot, queued[0]!)}</b>
+          {running ? "After that" : "Next up"}: <b>{named(queued[0]!)}</b>
           {queued.length > 1 ? ` and ${queued.length - 1} more` : ""}.
         </>
       ),
@@ -130,16 +138,30 @@ export function TeamNote({
           {running && <span className="co-team-note-live">working</span>}
         </p>
         <ul>
-          {lines.map((line) => (
-            <li key={line.key} className={"co-team-note-line " + line.key}>
-              <span>{line.text}</span>
-              {line.action && (
-                <button className={line.key === "needs" ? "co-primary" : ""} onClick={line.action[1]}>
-                  {line.action[0]}
-                </button>
-              )}
-            </li>
+          {lines
+            .filter((line) => line.key !== "free")
+            .map((line) => (
+              <li key={line.key} className={"co-team-note-line " + line.key}>
+                <span>{line.text}</span>
+                {line.action && (
+                  <button className={line.key === "needs" ? "co-primary" : ""} onClick={line.action[1]}>
+                    {line.action[0]}
+                  </button>
+                )}
+              </li>
+            ))}
+          {/* What the employee's role adds in their own words, such as today's focus from a shift's round. A role line
+              marked co-note-onshift replaces "I'm free". */}
+          {noteLines(d.roles).map(({ roleId, Line }) => (
+            <Line key={roleId} snapshot={snapshot} employee={lead} />
           ))}
+          {lines
+            .filter((line) => line.key === "free")
+            .map((line) => (
+              <li key={line.key} className="co-team-note-line free">
+                <span>{line.text}</span>
+              </li>
+            ))}
         </ul>
       </div>
     </section>

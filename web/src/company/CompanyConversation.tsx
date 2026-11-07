@@ -19,7 +19,7 @@ import { employeeState, humanize, taskState, workName } from "./labels";
 import { useMemberAccess } from "./MemberAccess";
 import { ModelChoice } from "./ModelChoice";
 import { readableReply, replyFields, stoppedReply } from "./replyText";
-import { defaultAllowance, SpendLimit } from "./allowance";
+import { defaultAllowance, spendText, SpendLimit } from "./allowance";
 import { Fold, isLong } from "./Fold";
 
 export type ConversationDraft = {
@@ -39,7 +39,7 @@ const emptyDraft = (): ConversationDraft => ({
   brief: {},
   evidence: [],
   recipient: "",
-  delivery: "reply",
+  delivery: "send",
 });
 type Props = {
   memberRole?: string;
@@ -234,7 +234,10 @@ export function CompanyConversation({
       target?.state === "active" &&
       !!d.roles.find((r) => r.id === target.roleId)?.skills.includes("chat") &&
       (company || draft.skill === "chat"),
-    reply = eligible && draft.delivery !== "save";
+    reply = eligible && draft.delivery !== "save",
+    // One sign-off (owner decision, 2026-11-06, docs/adr/0183-one-sign-off-per-reply.md): Send prepares the reply,
+    // checks the server's sealed context and authorizes it, within the spend limit shown on the button.
+    sendNow = reply && (draft.delivery ?? "send") === "send";
   const held = d.measured?.some((a) =>
     ["provider-accounting-unconfirmed", "provider-termination-unconfirmed"].includes(a.error || ""),
   );
@@ -345,6 +348,8 @@ export function CompanyConversation({
           attachments: sent.attachments,
         });
       if (!result) return;
+      let started = false;
+      if (sendNow) started = await authorizePrepared(result as { task?: Work });
       updateDraft(scope, (current) =>
         JSON.stringify(current ?? sent) === JSON.stringify(sent)
           ? { ...sent, body: "", brief: {}, attachments: [] }
@@ -352,16 +357,40 @@ export function CompanyConversation({
       );
       if (mounted.current) {
         setNotice(
-          reply
-            ? "Reply ready to review below. Nothing has been sent to the model."
-            : company || sent.skill === "chat"
-              ? "Message saved only. No AI reply or autonomous work was authorized."
-              : "Work saved. Its execution requires separate approval.",
+          sendNow
+            ? started
+              ? ""
+              : "Your message is saved. The reply couldn’t start on its own; review it below and send it."
+            : reply
+              ? "Reply ready to review below. Nothing has been sent to the model."
+              : company || sent.skill === "chat"
+                ? "Message saved only. No AI reply or autonomous work was authorized."
+                : "Work saved. Its execution requires separate approval.",
         );
         input.current?.focus();
       }
     } finally {
       sending.current = false;
+    }
+  }
+  // The second half of one sign-off: the sealed context the server will send must be the one just prepared.
+  async function authorizePrepared(prepared: { task?: Work }) {
+    try {
+      const latest = await api<Snapshot>("/company");
+      const entry = latest.data.measured?.find((m) => m.taskId === prepared.task?.id && m.job.state === "proposed");
+      if (!entry) return false;
+      const packet = await api<{ attempt: { id: string; measured: { digest: string } } }>(
+        "/company/measured/" + entry.id,
+      );
+      if (packet.attempt.id !== entry.id || packet.attempt.measured.digest !== entry.job.digest) return false;
+      return !!(await run("measured.run", {
+        id: entry.id,
+        expectedVersion: entry.version,
+        digest: entry.job.digest,
+        decision: "accept-soft-limits",
+      }));
+    } catch {
+      return false;
     }
   }
   const job = (task: Work) =>
@@ -802,10 +831,11 @@ export function CompanyConversation({
                         <label>
                           Message action
                           <select
-                            value={draft.delivery ?? "reply"}
+                            value={draft.delivery ?? "send"}
                             onChange={(e) => update({ delivery: e.target.value })}
                           >
-                            <option value="reply">Prepare one reply for review</option>
+                            <option value="send">Send and get a reply</option>
+                            <option value="reply">Prepare one reply for review first</option>
                             <option value="save">Save message only</option>
                           </select>
                         </label>
@@ -854,40 +884,55 @@ export function CompanyConversation({
                       )}
                     </div>
                     <p className="co-composer-disclosure">
-                      {reply
-                        ? "Prepare reply makes no model call. You review the reply before anything is sent or spent."
-                        : "Saves your message without an AI reply."}
+                      {sendNow
+                        ? "Send is your one sign-off: it authorizes one text reply within the spend limit. Nothing is posted, sent elsewhere or bought."
+                        : reply
+                          ? "Prepare reply makes no model call. You review the reply before anything is sent or spent."
+                          : "Saves your message without an AI reply."}
                     </p>
                   </div>
                 </details>
                 {/* What the message will do is never hidden: a setting changed from the plain default shows here. */}
                 {readingFile && <span className="co-composer-chip">Reading the file…</span>}
-                {(draft.skill !== "chat" || draft.delivery === "save") && (
+                {(draft.skill !== "chat" || draft.delivery === "save" || draft.delivery === "reply") && (
                   <button type="button" className="co-composer-chip" onClick={openOptions}>
-                    {draft.skill !== "chat" ? workName(role, draft.skill) : "Save only"}
+                    {draft.skill !== "chat"
+                      ? workName(role, draft.skill)
+                      : draft.delivery === "save"
+                        ? "Save only"
+                        : "Review first"}
                   </button>
+                )}
+                {sendNow && (
+                  <span className="co-composer-chip co-composer-limit" title="The most this reply can cost">
+                    {spendText(cents, Number(allowanceValue))}
+                  </span>
                 )}
                 <span className="co-composer-spacer" />
                 <button
                   className="fe-send"
                   type="submit"
                   aria-label={
-                    reply
-                      ? "Prepare reply for review"
-                      : company
-                        ? "Save company note"
-                        : draft.skill === "chat"
-                          ? "Save message"
-                          : "Assign work"
+                    sendNow
+                      ? "Send and authorize one reply"
+                      : reply
+                        ? "Prepare reply for review"
+                        : company
+                          ? "Save company note"
+                          : draft.skill === "chat"
+                            ? "Save message"
+                            : "Assign work"
                   }
                   title={
-                    reply
-                      ? "Prepare reply for review without a model call"
-                      : company
-                        ? "Save company note"
-                        : draft.skill === "chat"
-                          ? "Save message only"
-                          : "Assign work"
+                    sendNow
+                      ? "Send: authorizes one reply within the spend limit"
+                      : reply
+                        ? "Prepare reply for review without a model call"
+                        : company
+                          ? "Save company note"
+                          : draft.skill === "chat"
+                            ? "Save message only"
+                            : "Assign work"
                   }
                   disabled={
                     busy ||
@@ -898,13 +943,15 @@ export function CompanyConversation({
                 >
                   <ArrowUp size={17} aria-hidden="true" />
                   <span>
-                    {reply
-                      ? "Prepare reply"
-                      : company
-                        ? "Save company note"
-                        : draft.skill === "chat"
-                          ? "Save message"
-                          : "Assign work"}
+                    {sendNow
+                      ? "Send"
+                      : reply
+                        ? "Prepare reply"
+                        : company
+                          ? "Save company note"
+                          : draft.skill === "chat"
+                            ? "Save message"
+                            : "Assign work"}
                   </span>
                 </button>
               </div>
