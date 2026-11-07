@@ -104,8 +104,8 @@ try{
   await evaluate("document.querySelector('button[aria-label^=\"Theme:\"]').click()");
   await until(()=>evaluate("document.documentElement.dataset.theme==='dark'"),'dark theme');
   await key('g');await key('h');await until(()=>evaluate("!!document.querySelector('.co-home')"),'g h goes Home');
-  // A narrower screen: no docked cockpit; the top bar opens it as a sheet.
-  await send('Emulation.setDeviceMetricsOverride',{width:1100,height:750,deviceScaleFactor:1,mobile:false});
+  // Below laptop width (1024 px): no docked cockpit; the top bar opens it as a sheet.
+  await send('Emulation.setDeviceMetricsOverride',{width:900,height:750,deviceScaleFactor:1,mobile:false});
   await until(()=>evaluate("!document.querySelector('.co-workspace.with-cockpit')&&!!document.querySelector('button.co-cockpit-toggle')"),'cockpit toggle on a narrow screen');
   assert.match(await evaluate("document.querySelector('button.co-cockpit-toggle').getAttribute('aria-label')"),/^Open cockpit, 1 need you$/);
   await evaluate("document.querySelector('button.co-cockpit-toggle').focus();document.querySelector('button.co-cockpit-toggle').click()");
