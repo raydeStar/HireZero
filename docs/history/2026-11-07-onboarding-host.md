@@ -26,8 +26,8 @@ Decision record: [0186](../adr/0186-onboarding-host.md).
 
 ## Real run (throwaway instance, Vultr, DeepSeek V4.1 Flash)
 
-A public bakery site, typed as `example.com`. The first run showed the redirect problem: the site sends the bare
-address to `www.`, the reader refused to follow it, and every brief line came back Unknown with no explanation. Fixed by
+A real, public bakery website, typed as its bare address (`example.com` style). The first run showed the redirect
+problem: the site sends the bare address to `www.`, the reader refused to follow it, and every brief line came back Unknown with no explanation. Fixed by
 the one `www.` retry and a plain "I couldn't read…" note. The second run, end to end:
 
 | Step | Input tokens | Output tokens |
