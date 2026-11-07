@@ -22,3 +22,24 @@ Decision record: [0186](../adr/0186-onboarding-host.md).
 - Browser: `onboarding-browser-smoke` covers the whole path with a fictional site and model, including an owner
   correction, the approved brief, the needs answer reaching the first assignment, and HireZero retiring.
 - A real run on a throwaway instance with Vultr is recorded below.
+
+## Real run (throwaway instance, Vultr, DeepSeek V4.1 Flash)
+
+A public bakery site, typed as `example.com`. The first run showed the redirect problem: the site sends the bare
+address to `www.`, the reader refused to follow it, and every brief line came back Unknown with no explanation. Fixed by
+the one `www.` retry and a plain "I couldn't read…" note. The second run, end to end:
+
+| Step | Input tokens | Output tokens |
+| --- | ---: | ---: |
+| Reply: name | 821 | 90 |
+| Reply: website | 1,069 | 99 |
+| Reply: goal | 1,311 | 69 |
+| Company brief from three site pages | 5,335 | 3,210 |
+| Reply: "Looks right" → needs question | 2,609 | 100 |
+| Reply: needs → Marketing recommendation | 2,850 | 116 |
+| Marketing partner's first draft | 2,727 | 2,020 |
+
+The replies followed the script in their own words, the brief was specific and sourced, the needs answer reached the
+first assignment, and HireZero retired as the Marketing partner's draft landed. The first run also called the owner
+"Owner", the placeholder name of a local owner; employees now skip it. The provider reports no billed amount; at the
+pinned route's rates this run is about a cent. The instance and its data were removed afterwards.

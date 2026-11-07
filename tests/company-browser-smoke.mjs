@@ -275,7 +275,7 @@ try {
   await until(
     () =>
       evaluate(
-        "document.body.innerText.includes('No AI reply or autonomous work was authorized.')",
+        "document.body.innerText.includes('will see it next time you ask for a reply.')",
       ),
     "blocked state visible in the UI",
   );
