@@ -11,6 +11,7 @@ import { useMemberAccess } from "./MemberAccess";
 import { foldAll } from "./Fold";
 import { leadEmployee, TeamNote } from "./TeamNote";
 import { startedWork } from "./GoalStart";
+import { CatchUp, catchUpNews, useLastSeen } from "./CatchUp";
 
 // The conversation the desk opens: the employee's private thread with the most recent hands-on work (a goal's
 // thread, say), else their first private conversation. Scheduled rounds lead through their own card instead.
@@ -109,6 +110,7 @@ export function Desk({
     openChat: (e: Employee) => setWho(e.id),
     openOverview: onOverview,
     placement: "chat" as const,
+    threadId: thread,
     // Answering the employee's question starts a message that quotes it, ready to finish and send.
     onAnswer: (question: string) => {
       updateDraft(employee.id + ":" + thread, (previous) => ({
@@ -123,6 +125,8 @@ export function Desk({
     },
   };
   const attention = needsError ? [] : needs;
+  const [since, arrived] = useLastSeen(employee.id);
+  const news = catchUpNews(snapshot, employee, since, arrived);
   return (
     <div className="co-desk" ref={root}>
       <header className="co-desk-head">
@@ -225,8 +229,19 @@ export function Desk({
                 <Card key={"card:" + roleId} {...cardProps} />
               ))}
             </div>
+            {news && (
+              <CatchUp
+                snapshot={snapshot}
+                employee={employee}
+                news={news}
+                needs={attention}
+                onOpenWork={onOpenWork}
+                onOpenNeed={onOpenNeed}
+              />
+            )}
             <div className="co-desk-note">
               <TeamNote
+                quiet={!!news}
                 snapshot={snapshot}
                 needs={attention}
                 canWork={canWork}

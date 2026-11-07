@@ -29,10 +29,13 @@ export function TeamNote({
   onOpenWork,
   onOpenNeed,
   employee,
+  quiet,
 }: {
   snapshot: Snapshot;
   needs: Need[];
   canWork: boolean;
+  // The employee already caught you up on finished work in the chat, so the note leaves it out.
+  quiet?: boolean;
   // Whose note: the desk's chosen employee, else whoever has the most recent work.
   employee?: Employee;
   onOpenWork: (task: Work) => void;
@@ -68,7 +71,9 @@ export function TeamNote({
     .at(-1);
   const waiting = needs.filter((n) => n.employeeId === lead.id || !n.employeeId);
   const lines: Line[] = [];
-  if (lastReady)
+  if (quiet) {
+    // Said in the catch-up message above.
+  } else if (lastReady)
     lines.push({
       key: "ready",
       text: (

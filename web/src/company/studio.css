@@ -1526,18 +1526,78 @@
 }
 
 /* Personality, in Context & settings (2026-11-06). */
-.co-workspace .co-personality {
+.co-workspace .co-personality,
+.co-workspace .co-about-you,
+.co-workspace .co-about-company {
   display: grid;
   gap: 8px;
   margin: 4px 0 14px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--fe-line);
 }
-.co-workspace .co-personality h4 {
+.co-workspace .co-personality h4,
+.co-workspace .co-about-you h4,
+.co-workspace .co-about-company h4 {
   margin: 0;
 }
-.co-workspace .co-personality textarea {
+.co-workspace .co-about-company p {
+  margin: 0;
+}
+.co-workspace .co-personality textarea,
+.co-workspace .co-about-you textarea {
   width: 100%;
   font-size: var(--fe-t-s);
   line-height: 1.5;
+}
+
+/* The employee speaking in the chat (docs/adr/0185): typing while they work, and their own short lines. */
+.co-round-working,
+.co-says-working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+.co-typing {
+  display: inline-flex;
+  gap: 3px;
+}
+.co-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fe-fg-2);
+  animation: co-typing 1.2s ease-in-out infinite;
+}
+.co-typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.co-typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes co-typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .co-typing i {
+    animation: none;
+  }
+}
+.co-says .fe-msg-content p {
+  margin: 0;
+}
+.co-says .fe-msg-content p + p {
+  margin-top: 6px;
+}
+.co-says-working small {
+  color: var(--fe-fg-2);
 }

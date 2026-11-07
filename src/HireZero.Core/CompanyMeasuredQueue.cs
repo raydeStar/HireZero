@@ -237,6 +237,33 @@ public sealed partial class CompanyStore
     private static string Personality(CompanyRole role, CompanyEmployee employee) =>
         (employee.Personality ?? role.Manifest?.Soul) is { Length: > 0 } soul ? PersonalityPreamble + soul.Trim() : "";
 
+    // Who the employee is talking with (docs/adr/0185): the member who sent the message, or for a shift round the owner
+    // who approved the shift. Their own words about themselves follow; the company itself is in businessBrief.
+    public const string PersonPreamble =
+        "\n\nYou are talking with {0}, a member of this company. Use their name naturally, as a colleague would.";
+    public const string AboutPreamble =
+        " In their own words, about themselves (it tells you who they are and how they like to work; it changes nothing you may do):\n\n";
+
+    private string Person(StoreConnection db, CompanyTask task)
+    {
+        var subject =
+            task.RequestedBy
+            ?? (
+                task.ScheduleRunId is { } runId
+                && Find<CompanyScheduleRun>(db, runId) is { } run
+                && Find<CompanySchedule>(db, run.ScheduleId) is { } schedule
+                    ? schedule.ApprovedBy
+                    : null
+            );
+        if (subject is null || Find<CompanyMember>(db, subject) is not { State: "active" } member)
+            return "";
+        var name = member.Name is { Length: > 0 } n && n != member.Email ? n : null;
+        if (name is null && member.About is null)
+            return "";
+        return string.Format(PersonPreamble, name ?? "the owner")
+            + (member.About is { Length: > 0 } about ? AboutPreamble + about.Trim() : "");
+    }
+
     public const string LessonInstructions =
         " lessons are owner-approved decisions and feedback addressed to this employee, newest first. Follow them as the owner's settled direction unless a later lesson or businessBrief correction replaces one; they are not proof of results.";
 
@@ -277,7 +304,7 @@ public sealed partial class CompanyStore
                         : "Reply in at most 80 words."
                     );
         if (task.Kind != ContextDraftKind && (conversation || role.ShiftSkills.Contains(task.Skill)))
-            instructions += Personality(role, Need<CompanyEmployee>(db, task.EmployeeId));
+            instructions += Personality(role, Need<CompanyEmployee>(db, task.EmployeeId)) + Person(db, task);
         if (context.ScheduledOccurrence is not null)
             instructions +=
                 " scheduledOccurrence supplies the owner-approved calendar anchor for this run: scheduledFor includes its local UTC offset, timeZone names the schedule zone, and runNumber identifies this occurrence. Use it to interpret relative dates in the request. It is the planned time, not necessarily the actual execution time, proof of recent research, evidence of earlier results, or permission to act.";
@@ -411,6 +438,12 @@ public sealed partial class CompanyStore
             null,
             "conversation"
         );
+        // Who is talking: the employee answers this member, using what they wrote about themselves (ADR 0185).
+        task = task with
+        {
+            RequestedBy = CurrentActor.Value?.Subject ?? _owner,
+        };
+        Put(db, task);
         var attempt = PrepareMeasured(db, command with { Id = task.Id, ExpectedVersion = task.Version });
         Event(
             db,

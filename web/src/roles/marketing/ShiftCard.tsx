@@ -18,10 +18,12 @@ import { dollars, spendText } from "../../company/allowance";
 import { Modal } from "../../company/Modal";
 import { Fold } from "../../company/Fold";
 import { avatarStyle, firstLine, initials } from "../../company/Home";
+import { EmployeeSays } from "../../company/EmployeeSays";
 import type { HomeCardProps } from "../company";
 import { GoalLadder } from "./GoalLadder";
 import { ProposalCorrection, ProposalFeedback, useProposalFeedback } from "../../company/ProposalFeedback";
 import "./ladder.css";
+import { ladderSkill } from "./ladder";
 import { goalTitle, morningSkill, nextRoundLabel, openQuestion, parseMorningReport, type ShiftJob } from "./morning";
 
 type Shift = {
@@ -221,6 +223,32 @@ export function MarketingShiftAction(props: HomeCardProps) {
   );
 }
 
+// When the owner approves the goal ladder, the employee says what they'll do with it (docs/adr/0185).
+export function MarketingLadderApproved({ snapshot, employee }: { snapshot: Snapshot; employee: Employee }) {
+  const props = { snapshot, refresh: async () => {}, openWork: () => {}, openChat: () => {} };
+  const { shift } = useShift(props);
+  const d = snapshot.data;
+  const department = d.departments.find((x) => x.id === employee.departmentId);
+  const ladder = valuesOf(d.knowledge.find((k) => k.id === department?.knowledge && k.state === "approved"));
+  const focus = firstSentence(ladder.focus || ladder.start || "").replace(/[.!?…]+$/, "");
+  const goal = firstSentence(ladder.goal || "").replace(/[.!?…]+$/, "");
+  const onShift = !!shift && ["active", "paused", "blocked"].includes(shift.state);
+  return (
+    <EmployeeSays name={employee.name} label={employee.name + " on the approved goal ladder"}>
+      <p>Thanks, that’s our plan{goal ? `: ${goal}` : ""}.</p>
+      <p>
+        {/* A focus that opens with its step's name ("Order: …") keeps it as written. */}
+        {focus
+          ? `I’ll start with ${/^[^:]{1,30}:/.test(focus) ? focus : focus.charAt(0).toLowerCase() + focus.slice(1)}. `
+          : ""}
+        {onShift
+          ? "I’ll work from it on every round of my shift."
+          : "Start a shift and each morning I’ll bring you that day’s jobs here, with the first one drafted."}
+      </p>
+    </EmployeeSays>
+  );
+}
+
 // The employee's own words in their note (2026-11-06): today's focus from this shift's latest round, and when the next
 // round is. On shift, the note no longer says "I'm free".
 export function MarketingNoteLine({ snapshot, employee }: { snapshot: Snapshot; employee: Employee }) {
@@ -274,6 +302,7 @@ function ShiftCard({
   changed,
   placement = "home",
   onAnswer,
+  threadId,
 }: HomeCardProps & {
   employee: Employee;
   roleId: string;
@@ -289,11 +318,23 @@ function ShiftCard({
   const [error, setError] = useState("");
   if (!loaded) return null;
   const ready = !!ladder.goal?.trim() && !!ladder.steps?.trim() && canManage;
+  // The answer to approving the ladder, when its card isn't in the conversation on screen, comes before the shift and
+  // its first round (docs/adr/0185).
+  const ladderWork = d.tasks
+    .filter((t) => t.employeeId === employee.id && t.skill === ladderSkill)
+    .filter((t) => d.artifacts.some((a) => a.taskId === t.id && a.state === "approved"))
+    .at(-1);
+  const ladderRounds = d.tasks.filter((t) => t.employeeId === employee.id && t.skill === morningSkill).length;
+  const ladderSaid = placement === "chat" && ladderWork && ladderWork.threadId !== threadId && ladderRounds <= 1 && (
+    <MarketingLadderApproved snapshot={snapshot} employee={employee} />
+  );
   // In the desk the header's Start shift button holds the form; the thread shows only a shift's rounds.
   if (!shift)
     return ready && placement !== "chat" ? (
       <Offer snapshot={snapshot} employee={employee} roleId={roleId} changed={changed} />
-    ) : null;
+    ) : (
+      ladderSaid || null
+    );
   // A running shift whose approved context changed has stopped; an ended one keeps its last round in view.
   const running = ["active", "paused", "blocked"].includes(shift.state);
   const stale = running && shift.reviewCurrent === false;
@@ -384,28 +425,41 @@ function ShiftCard({
           />
         </Fold>
       );
+    // Starting the shift is answered first ("I'll do this and bring you that"), then the round arrives as its own message.
+    const onIt = round && rounds.length <= 1 && (
+      <EmployeeSays name={employee.name} label={`${employee.name} on starting the shift`} tag="On shift">
+        <p>
+          I’m on shift. Each morning at {shiftTime(shift.definition.localTime)} I’ll read your goal ladder, your numbers
+          and recent work, pick up to three jobs for the day and bring you the first one drafted, right here.
+        </p>
+      </EmployeeSays>
+    );
     return (
-      <article className="fe-msg assistant co-round-msg" aria-label={`${employee.name}’s morning round`}>
-        <span className="co-avatar co-msg-avatar" aria-hidden="true" style={avatarStyle(employee.name)}>
-          {initials(employee.name)}
-        </span>
-        <div className="fe-msg-body">
-          <div className="fe-msg-meta">
-            <strong>{employee.name}</strong>
-            <span className="co-ai-tag">{artifact ? "Morning round" : "On shift"}</span>
-            {time && <small>{time}</small>}
+      <>
+        {ladderSaid}
+        {onIt}
+        <article className="fe-msg assistant co-round-msg" aria-label={`${employee.name}’s morning round`}>
+          <span className="co-avatar co-msg-avatar" aria-hidden="true" style={avatarStyle(employee.name)}>
+            {initials(employee.name)}
+          </span>
+          <div className="fe-msg-body">
+            <div className="fe-msg-meta">
+              <strong>{employee.name}</strong>
+              <span className="co-ai-tag">{artifact ? "Morning round" : "On shift"}</span>
+              {time && <small>{time}</small>}
+            </div>
+            <div className="fe-msg-content">
+              {error && <p role="alert">{error}</p>}
+              {content}
+              {!running && !stale ? (
+                <p className="co-muted">That was my last round on this shift.</p>
+              ) : artifact && next ? (
+                <p className="co-muted">My next round is {next}.</p>
+              ) : null}
+            </div>
           </div>
-          <div className="fe-msg-content">
-            {error && <p role="alert">{error}</p>}
-            {content}
-            {!running && !stale ? (
-              <p className="co-muted">That was my last round on this shift.</p>
-            ) : artifact && next ? (
-              <p className="co-muted">My next round is {next}.</p>
-            ) : null}
-          </div>
-        </div>
-      </article>
+        </article>
+      </>
     );
   }
   return (
@@ -1127,6 +1181,12 @@ function quickStart(now = new Date()): { start: "today" | "tomorrow"; time: stri
     start: "today",
     time: `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`,
   };
+}
+
+// "07:30" as the owner's clock shows it.
+function shiftTime(local: string) {
+  const [h, m] = local.split(":").map(Number);
+  return new Date(2000, 0, 1, h || 0, m || 0).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 // The first sentence of the round's focus, cut at a word near 140 characters.

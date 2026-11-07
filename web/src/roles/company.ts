@@ -22,6 +22,8 @@ export type HomeCardProps = {
   openOverview?: () => void;
   // In the desk: answer a question the employee asked, in the conversation's message box.
   onAnswer?: (question: string) => void;
+  // In the desk: the conversation on screen, so a card can tell what that thread already shows.
+  threadId?: string;
 };
 export type CompanyRoleUi = {
   skillInputs?: Record<string, SkillInput>;
@@ -33,6 +35,9 @@ export type CompanyRoleUi = {
   homeAction?: ComponentType<HomeCardProps>;
   // Lines in the employee's note (Home and the desk), in their own words: <li className="co-team-note-line">.
   noteLine?: ComponentType<{ snapshot: Snapshot; employee: Snapshot["data"]["employees"][number] }>;
+  // What the employee says in the chat when the owner approves a draft of one of these skills (docs/adr/0185), in
+  // place of the general "I'll treat it as final". Shown with homeLead.
+  approvedSay?: Record<string, ComponentType<{ snapshot: Snapshot; employee: Snapshot["data"]["employees"][number] }>>;
   businessSetup?: (profile: BusinessProfile) => BusinessSetup;
   // Shared specificity: 3 requested work, 2 named deliverable, 1 topic, 0 general starting option.
   recommendation?: (profile: BusinessProfile) => { reason: string; priority: number; position?: number } | undefined;
@@ -140,6 +145,10 @@ export function homeActions(roles: Role[]): { roleId: string; Action: ComponentT
 }
 
 // Each role's note lines, for roles that lead Home ("home-lead" slot).
+export function approvedSay(role: Role | undefined, skill: string) {
+  return role?.uiSlots?.includes("home-lead") ? byRole[role.id]?.approvedSay?.[skill] : undefined;
+}
+
 export function noteLines(
   roles: Role[],
 ): { roleId: string; Line: ComponentType<{ snapshot: Snapshot; employee: Snapshot["data"]["employees"][number] }> }[] {
