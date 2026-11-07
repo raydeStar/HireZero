@@ -274,8 +274,16 @@ try {
   await until(() => evaluate("!!document.querySelector('.co-desk .co-conversation')"), "the desk");
   await until(() => evaluate("document.querySelector('.co-desk-shift')?.innerText.includes('On shift')"), "shift state in the header");
   assert.match(await evaluate("document.querySelector('.co-desk-shift').innerText"), /1 of 3 done/);
-  assert.equal(await evaluate("!!document.querySelector('.co-desk .fe-thread .co-shift')"), true, "Today's round is in the thread");
-  assert.equal(await evaluate("document.querySelectorAll('.co-desk .co-shift-jobs li').length"), 2);
+  assert.equal(await evaluate("!!document.querySelector('.co-desk .fe-thread .co-round-msg')"), true, "Today's round is a message in the thread");
+  assert.equal(await evaluate("document.querySelectorAll('.co-desk .co-round-msg .co-shift-jobs li').length"), 2);
+  assert.match(await evaluate("document.querySelector('.co-desk .co-round-msg').innerText"), /Here’s what I’d do today/);
+  assert.match(await evaluate("document.querySelector('.co-desk .co-team-note').innerText"), /I’m on shift; my next round is/);
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('.co-desk .co-team-note-line.free') ?? document.body).display === 'none' || !document.querySelector('.co-desk .co-team-note-line.free')"), true, "On shift, the note does not say it is free");
+  await evaluate("document.querySelector('.co-desk .co-round-msg').scrollIntoView({ block: 'start' })");
+  await capture("desk-morning-round");
+  // Answer puts the employee's question into the message box.
+  await click("Answer");
+  await until(() => evaluate("document.querySelector('.co-desk .fe-composer textarea').value.startsWith('About your question')"), "question quoted in the message box");
   assert.equal(await evaluate("!!document.querySelector('.co-desk .co-shift-quick')"), false, "No start form in the thread");
   await click("Collapse all");
   await until(() => evaluate("[...document.querySelectorAll('.co-desk .fe-thread details')].every((d) => !d.open)"), "folded thread");

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Play, X } from "lucide-react";
 import { api, company, memberStorage } from "../../lib/api";
 import {
@@ -16,6 +16,8 @@ import { useMemberAccess } from "../../company/MemberAccess";
 import { providerName } from "../../company/ModelChoice";
 import { dollars, spendText } from "../../company/allowance";
 import { Modal } from "../../company/Modal";
+import { Fold } from "../../company/Fold";
+import { avatarStyle, firstLine, initials } from "../../company/Home";
 import type { HomeCardProps } from "../company";
 import { GoalLadder } from "./GoalLadder";
 import { ProposalCorrection, ProposalFeedback, useProposalFeedback } from "../../company/ProposalFeedback";
@@ -219,6 +221,43 @@ export function MarketingShiftAction(props: HomeCardProps) {
   );
 }
 
+// The employee's own words in their note (2026-11-06): today's focus from this shift's latest round, and when the next
+// round is. On shift, the note no longer says "I'm free".
+export function MarketingNoteLine({ snapshot, employee }: { snapshot: Snapshot; employee: Employee }) {
+  const props = { snapshot, refresh: async () => {}, openWork: () => {}, openChat: () => {} };
+  const { role, employee: lead, shift } = useShift(props);
+  if (!role || !shift || lead?.id !== employee.id) return null;
+  const d = snapshot.data;
+  const round = d.tasks.filter((t) => t.threadId === shift.threadId && t.skill === morningSkill).at(-1);
+  const artifact =
+    round && d.artifacts.filter((a) => a.taskId === round.id && !["superseded", "revoked"].includes(a.state)).at(-1);
+  const report = artifact ? parseMorningReport(artifact.body) : undefined;
+  const started = round ? Date.parse(d.taskTimes?.[round.id]?.started ?? "") : NaN;
+  const today = !Number.isNaN(started) && new Date(started).toDateString() === new Date().toDateString();
+  const active = shift.state === "active" && shift.reviewCurrent !== false;
+  const next =
+    active && shift.definition.occurrences - shift.consumed > 0 ? nextRoundLabel(shift.nextRunAt, new Date()) : "";
+  return (
+    <>
+      {report && today && (
+        <li className="co-team-note-line focus">
+          <span>
+            Today I’m focused on <b>{firstLine(report.focus, 160).replace(/[.!]$/, "")}</b>.
+          </span>
+        </li>
+      )}
+      {active && (
+        <li className="co-team-note-line co-note-onshift">
+          <span>
+            I’m on shift{next ? `; my next round is ${next}` : ""}. I’ll bring you the day’s jobs with the first one
+            drafted.
+          </span>
+        </li>
+      )}
+    </>
+  );
+}
+
 // Morning work has one loader in the lead card; the ladder stays below saved results.
 export function MarketingHome(props: HomeCardProps) {
   return <GoalLadder {...props} />;
@@ -234,6 +273,7 @@ function ShiftCard({
   loaded,
   changed,
   placement = "home",
+  onAnswer,
 }: HomeCardProps & {
   employee: Employee;
   roleId: string;
@@ -281,6 +321,93 @@ function ShiftCard({
     round && d.artifacts.filter((a) => a.taskId === round.id && !["superseded", "revoked"].includes(a.state)).at(-1);
   const left = shift.definition.occurrences - shift.consumed;
   const next = shift.state === "active" && left > 0 ? nextRoundLabel(shift.nextRunAt, new Date()) : "";
+  // In the desk the round is a message from the employee, in their own voice (owner feedback, 2026-11-06). The shift's
+  // controls are in the desk's header.
+  if (placement === "chat") {
+    const at = round && (d.taskTimes?.[round.id]?.updated || d.taskTimes?.[round.id]?.started);
+    const time = at ? new Date(at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "";
+    let content: ReactNode;
+    if (stale)
+      content = (
+        <p>
+          My shift stopped because your goal ladder or my context changed. Start a new shift when you’re ready and I’ll
+          work from what you approved most recently.
+        </p>
+      );
+    else if (!round)
+      content = (
+        <p>
+          I’m on shift. {next ? `My first round is ${next}. ` : ""}I’ll read your goal ladder, your numbers and recent
+          work, pick up to three jobs for the day and draft the first one.
+        </p>
+      );
+    else if (!artifact)
+      content =
+        round.state === "failed" || round.state === "canceled" ? (
+          <p>
+            This morning’s round didn’t finish.{" "}
+            <button className="co-link" onClick={() => openWork(round)}>
+              Open it to see why
+            </button>
+          </p>
+        ) : (
+          <>
+            <p className="co-round-working">
+              <span className="co-typing" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+              I’m doing this morning’s round: reading your ladder, your numbers and recent work.
+            </p>
+            <div className="co-ladder-actions">
+              <button onClick={() => openWork(round)}>Watch me work</button>
+            </div>
+          </>
+        );
+    else
+      content = (
+        <Fold long initiallyOpen>
+          <Report
+            key={employee.id}
+            snapshot={snapshot}
+            employee={employee}
+            roleId={roleId}
+            round={round}
+            body={artifact.body}
+            openWork={openWork}
+            openChat={openChat}
+            canManage={canManage}
+            changed={changed}
+            voice
+            onAnswer={onAnswer}
+          />
+        </Fold>
+      );
+    return (
+      <article className="fe-msg assistant co-round-msg" aria-label={`${employee.name}’s morning round`}>
+        <span className="co-avatar co-msg-avatar" aria-hidden="true" style={avatarStyle(employee.name)}>
+          {initials(employee.name)}
+        </span>
+        <div className="fe-msg-body">
+          <div className="fe-msg-meta">
+            <strong>{employee.name}</strong>
+            <span className="co-ai-tag">{artifact ? "Morning round" : "On shift"}</span>
+            {time && <small>{time}</small>}
+          </div>
+          <div className="fe-msg-content">
+            {error && <p role="alert">{error}</p>}
+            {content}
+            {!running && !stale ? (
+              <p className="co-muted">That was my last round on this shift.</p>
+            ) : artifact && next ? (
+              <p className="co-muted">My next round is {next}.</p>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    );
+  }
   return (
     <section className="co-shift" aria-label="Shift">
       <div className="co-ladder-head">
@@ -350,7 +477,7 @@ function ShiftCard({
           changed={changed}
         />
       )}
-      {(stale || !running) && ready && placement !== "chat" && (
+      {(stale || !running) && ready && (
         <Offer
           snapshot={snapshot}
           employee={employee}
@@ -566,6 +693,8 @@ function Report({
   openChat,
   canManage,
   changed,
+  voice = false,
+  onAnswer,
 }: {
   snapshot: Snapshot;
   employee: Employee;
@@ -576,6 +705,9 @@ function Report({
   openChat: (employee: Employee) => void;
   canManage: boolean;
   changed: () => Promise<void>;
+  // In the desk: the round reads as the employee talking ("Here's what I'd do today").
+  voice?: boolean;
+  onAnswer?: (question: string) => void;
 }) {
   const d = snapshot.data;
   const report = parseMorningReport(body);
@@ -807,15 +939,24 @@ function Report({
 
   return (
     <div className="co-shift-report">
-      <p className="co-shift-when">{when ? `${when}’s round` : "This morning’s round"}</p>
+      {voice ? (
+        <p className="co-round-hello">{greeting(roundStarted)} Here’s my round for today.</p>
+      ) : (
+        <p className="co-shift-when">{when ? `${when}’s round` : "This morning’s round"}</p>
+      )}
       <div className="co-ladder-md">
-        <b>What changed</b>
+        <b>{voice ? "What’s changed" : "What changed"}</b>
         <DraftMarkdown>{report.changed || "Nothing yet."}</DraftMarkdown>
       </div>
       <div className="co-ladder-focus co-ladder-md">
-        <b>Today’s focus</b>
+        <b>{voice ? "Where I’d focus today" : "Today’s focus"}</b>
         <DraftMarkdown>{report.focus}</DraftMarkdown>
       </div>
+      {voice && (
+        <p className="co-round-jobs-intro">
+          <b>Here’s what I’d do today.</b> I’ve drafted the first one; say the word and I’ll start the others.
+        </p>
+      )}
       {recovering && canManage && (
         <div className="co-shift-recovery" role="status">
           <p>
@@ -850,7 +991,7 @@ function Report({
               <div className="co-ladder-actions">
                 {i === 0 ? (
                   <button className="co-primary" onClick={() => openWork(round)}>
-                    Read the draft
+                    {voice ? "Read my draft" : "Read the draft"}
                   </button>
                 ) : task ? (
                   <button onClick={() => openWork(task)}>Started · open it</button>
@@ -943,9 +1084,11 @@ function Report({
       )}
       {question && (
         <div className="co-shift-question">
-          <b>One question from {employee.name}</b>
+          <b>{voice ? "One question for you" : `One question from ${employee.name}`}</b>
           <p>{question}</p>
-          <button onClick={() => openChat(employee)}>Answer in chat</button>
+          <button onClick={() => (onAnswer ? onAnswer(question) : openChat(employee))}>
+            {onAnswer ? "Answer" : "Answer in chat"}
+          </button>
         </div>
       )}
       {report.lessons.length > 0 && (
@@ -984,4 +1127,10 @@ function quickStart(now = new Date()): { start: "today" | "tomorrow"; time: stri
     start: "today",
     time: `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`,
   };
+}
+
+// The round's greeting, by the hour it started.
+function greeting(started: string) {
+  const hour = started ? new Date(started).getHours() : new Date().getHours();
+  return hour < 12 ? "Good morning!" : hour < 18 ? "Good afternoon!" : "Good evening!";
 }

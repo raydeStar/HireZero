@@ -364,3 +364,64 @@
   align-items: center;
   gap: 6px;
 }
+
+/* The morning round as a message from the employee (2026-11-06). */
+.co-round-msg .fe-msg-meta small {
+  color: var(--fe-fg-3, var(--fe-fg-2));
+  font-size: var(--fe-t-xs);
+}
+.co-round-msg .fe-msg-content {
+  display: grid;
+  gap: 10px;
+}
+.co-round-msg .co-shift-report {
+  display: grid;
+  gap: 12px;
+}
+.co-round-hello {
+  margin: 0;
+  font-weight: 600;
+}
+.co-round-jobs-intro {
+  margin: 4px 0 0;
+}
+.co-round-working {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+.co-typing {
+  display: inline-flex;
+  gap: 3px;
+}
+.co-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fe-fg-2);
+  animation: co-typing 1.2s ease-in-out infinite;
+}
+.co-typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.co-typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes co-typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .co-typing i {
+    animation: none;
+  }
+}

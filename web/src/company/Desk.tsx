@@ -108,6 +108,18 @@ export function Desk({
     openChat: (e: Employee) => setWho(e.id),
     openOverview: onOverview,
     placement: "chat" as const,
+    // Answering the employee's question starts a message that quotes it, ready to finish and send.
+    onAnswer: (question: string) => {
+      updateDraft(employee.id + ":" + thread, (previous) => ({
+        ...(previous ?? { body: "", skill: "chat", brief: {}, evidence: [], recipient: "", delivery: "send" }),
+        body: `About your question ("${question}"): `,
+      }));
+      requestAnimationFrame(() => {
+        const box = root.current?.querySelector<HTMLTextAreaElement>(".fe-composer textarea");
+        box?.focus();
+        box?.setSelectionRange(box.value.length, box.value.length);
+      });
+    },
   };
   const attention = needsError ? [] : needs;
   return (
