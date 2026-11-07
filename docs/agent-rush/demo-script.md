@@ -3,8 +3,13 @@
 Record on <https://app.hirezero.app>. Caption hosted shots **Vultr VM · Vultr Serverless Inference**.
 
 Use a fresh Google account in a private window for the sign-up chapters, so the "Create my company" screen and the
-$0.50 allowance appear. Every run is a real, paid Vultr request of a few cents. Record a run from start to finish
+$0.50 allowance appear. A new company opens on HireZero's chat. Free sign-up allows one company per Google account, so a
+rehearsal uses up that account: record with a second fresh account, or keep a clean rehearsal as the take. Every
+reply and draft is a real, paid Vultr request; the whole onboarding is about a cent. Record a run from start to finish
 rather than replaying an approval. Crop email addresses, account pictures and browser bookmarks.
+
+Have ready: the business name, its website (or one sentence about it if it has none), one goal for the next month or
+two, and what it needs help with most. Pick one line of the brief to correct on camera.
 
 ### 0:00–0:20 · The problem (20 s)
 
@@ -13,36 +18,47 @@ rather than replaying an approval. Crop email addresses, account pictures and br
 **Narration.** "Small business owners want an AI marketing hire. But an agent with your accounts and your card can
 post, send and spend. How much damage can this one do? With HireZero, the answer is none you didn't approve."
 
-### 0:20–0:55 · A stranger signs up (35 s)
+### 0:20–0:40 · A stranger signs up (20 s)
 
 **Picture.** Sign in with Google in the private window. The screen reads "Welcome to HireZero". Click **Create my
-company** and hold on the workspace's "Free allowance remaining: $0.50".
+company**. HireZero says "Hi, I'm HireZero!" under the "Free allowance remaining: $0.50" line; hold on both.
 
 **Narration.** "Anyone can sign in with Google and create one company. It comes with a hard allowance of fifty cents,
 and the whole install has a daily cap. The money limit is enforced on the server, before any model is called."
 
-### 0:55–1:45 · Describe the business, approve one job (50 s)
+### 0:40–1:25 · HireZero learns the business (45 s)
 
-**Picture.** Fill in Home: one sentence about the business and one goal, for example three LinkedIn posts for this week.
-Open **Run details** and hold on "Vultr · vultr/deepseek-v4.1-flash-1017" and "One private draft · up to $0.05". Tick
-the box and press **Generate my first draft**.
+**Picture.** Type the business name and press **Send**. Answer with the website, then the goal; cut each wait for the
+reply. Check the details HireZero picked up and press **Look us up**. Cut the wait, then hold on "Here's what I found":
+each line names the page it came from. Press **This is wrong** on one line, type the correction and **Save**; the line
+now reads as yours. Press **Looks right**.
 
-**Narration.** "I describe the business and one goal. Before anything runs, HireZero shows exactly what will happen:
-which model, on whose account, and the most it can cost. Nothing is posted, sent or bought, and nothing retries on its
-own. One tick authorizes this one job, once."
+**Narration.** "HireZero is the first hire: a Vultr model following a short script, in its own words. Every message I
+send authorizes one reply, and I can see what each one cost. It reads only the website I confirmed, and every line of
+the company brief cites its page. If something's wrong, I fix it in my own words."
 
-### 1:45–2:25 · The draft (40 s)
+### 1:25–1:55 · The first teammate, and what Yes will do (30 s)
 
-**Picture.** Wait out the run (cut the wait), then open **Drafts ready** and scroll the three posts. Show that the
-draft needs review. Click **Home**: it is now the Marketing employee's conversation, with the draft in the thread and
-the employee's note under it. Press **Collapse all** once to show the thread folding.
+**Picture.** HireZero asks what you need help with most; answer it. It recommends a Marketing partner. On the offer, hold
+on "Yes writes one private draft using Vultr, up to $0.05. Nothing is posted, sent or bought, and nothing is retried on
+its own." Open **Run details** and hold on "Vultr · vultr/deepseek-v4.1-flash-1017" and "One private draft · up to
+$0.05". Press **Yes, bring them in**.
+
+**Narration.** "Before anything runs, HireZero shows exactly what will happen: which model, and the most it can cost.
+Nothing is posted, sent or bought, and nothing retries on its own. One click authorizes this one job, once."
+
+### 1:55–2:25 · The draft (30 s)
+
+**Picture.** Cut the wait. HireZero steps aside and Home becomes the Marketing partner's conversation, with "I'll start
+on…" and then the first draft in the thread. Scroll the draft and show that it needs review.
 
 *Optional, if a shift ran before recording:* hold on the header's "On shift · 1 of 5 done" and today's round in the
 thread, with its jobs and **Do it**. To have one ready, press **Start shift** (it needs an approved goal ladder) and
 leave the first round at its default, about five minutes away.
 
-**Narration.** "About half a minute later, the Marketing employee is done. It's a private draft for me to copy, edit or
-send back. It hasn't gone anywhere. Publishing would be a separate approval, bound to this exact version."
+**Narration.** "About half a minute later, my Marketing partner's first draft is in, shaped by what I said I need most.
+It's a private draft for me to copy, edit or send back. It hasn't gone anywhere. Publishing would be a separate
+approval, bound to this exact version."
 
 ### 2:25–3:20 · What it cannot do (55 s)
 
@@ -80,4 +96,5 @@ down."
 [event changes](https://github.com/raydeStar/HireZero/compare/9f171b2...main).
 
 **Narration.** "HireZero's employees and approvals existed before this week. For Agent Rush we moved it fully onto
-Vultr, opened it to the public with hard spending caps, and deployed it. Try it at app.hirezero.app."
+Vultr, opened it to the public with hard spending caps, gave new owners a guided start in chat, and deployed it. Try it
+at app.hirezero.app."

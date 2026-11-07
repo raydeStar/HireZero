@@ -293,6 +293,12 @@ try {
     "Say yes below and I'll bring them in.",
   );
   await text("Bring in a Marketing partner?");
+  // Yes says what it does before it does it: the model, and the most the first draft can cost.
+  await text("Yes writes one private draft using");
+  assert.match(
+    await evaluate("document.querySelector('.co-onboard .co-goal-run-details').textContent"),
+    /One private draft · (up to \$\d+\.\d\d|included usage) · \d+s local deadline\./,
+  );
   await capture("onboarding-offer");
 
   // Yes: the first teammate starts on a draft and HireZero steps aside; Home becomes their chat.

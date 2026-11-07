@@ -15,6 +15,9 @@ Decision record: [0186](../adr/0186-onboarding-host.md).
   draft and Home becomes their chat. HireZero retires.
 - Sites that send `example.com` to `www.example.com` are read at the `www.` address after one automatic retry; a site
   that still can't be read is said plainly, and the brief starts from the owner's words.
+- After the first deploy: the offer shows what **Yes** will do before it is pressed, the provider and model and the most
+  the first draft can cost, as the classic start's run details did. The demo script and submission now follow this
+  opening.
 - Browser checks of the classic start (company, company-onboarding, company-scope, goal-ladder, goal-start,
   marketing-shift, settings-recovery, team) choose the form, as the owner can.
 
