@@ -8,12 +8,14 @@ import {
   type BusinessProfile,
   type Employee,
   type ProfileField,
+  type Role,
   type ThreadDetail,
 } from "../../company/api";
 import { CompanyConversation } from "../../company/CompanyConversation";
 import { EmployeeSays, Working } from "../../company/EmployeeSays";
 import { advanceGoal, type GoalFlow, type GoalTerms } from "../../company/goalFlow";
-import { defaultAllowance } from "../../company/allowance";
+import { defaultAllowance, spendText } from "../../company/allowance";
+import { providerName } from "../../company/ModelChoice";
 import { approvedBusinessProfile, recommendationsForProfile, setupForProfile, type OnboardingProps } from "../company";
 import "./onboarding.css";
 
@@ -66,7 +68,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // A new company's first screen (docs/adr/0186): HireZero greets the owner in chat, learns the business, reads its site,
 // drafts the company brief for the owner to correct and approve, asks what they need, and brings in the first teammate.
-// Every reply is the owner's own Send; research and hiring are buttons with their own sign-off.
+// Every reply is the owner's own Send; research and hiring are buttons with their own sign-off, and the hiring button
+// shows the model and the most the first draft can cost before it is pressed.
 export function Onboarding(props: OnboardingProps) {
   const { snapshot, refresh, run, onDone, onUseForm } = props;
   const d = snapshot.data;
@@ -409,8 +412,9 @@ export function Onboarding(props: OnboardingProps) {
     });
   }
 
-  // Yes: hire the recommended teammate with their first assignment, then HireZero steps aside.
-  async function hire() {
+  // Yes: hire the recommended teammate with their first assignment, on the terms the offer showed, then HireZero steps
+  // aside.
+  async function hire(terms: GoalTerms) {
     if (!approved) return;
     const pick = recommendationsForProfile(d.roles, approved)[0]?.role;
     const setup = pick && setupForProfile(approved, pick);
@@ -418,9 +422,6 @@ export function Onboarding(props: OnboardingProps) {
     await step(`Bringing in your ${pick.onboarding?.name || pick.name}…`, async () => {
       let flow = load().flow;
       if (!flow) {
-        const terms = await api<GoalTerms>(
-          "/company/goals/terms?" + new URLSearchParams({ roleId: pick.id, skill: setup.firstAssignment.skill }),
-        );
         const knowledge = d.knowledge.find((k) => k.id === approved.knowledgeId)!;
         const needs = afterApproval
           .slice(1)
@@ -476,6 +477,7 @@ export function Onboarding(props: OnboardingProps) {
   }
 
   const pick = approved && recommendationsForProfile(d.roles, approved)[0]?.role;
+  const pickSetup = approved && pick ? setupForProfile(approved, pick) : undefined;
   const researching = !!working && !profile;
   const trailing = (
     <>
@@ -519,17 +521,14 @@ export function Onboarding(props: OnboardingProps) {
         />
       )}
       {approved && afterApproval.length > 1 && pick && (
-        <EmployeeSays name="HireZero" label="HireZero offers your first teammate">
-          <p>
-            <b>Bring in a {pick.onboarding?.name || pick.name}?</b> They’ll start on a first draft for{" "}
-            {identity?.name || "your business"} straight away, and you’ll review it before anything goes anywhere.
-          </p>
-          <div className="co-actions">
-            <button className="co-primary" disabled={!!working} onClick={() => void hire()}>
-              Yes, bring them in
-            </button>
-          </div>
-        </EmployeeSays>
+        <Offer
+          role={pick}
+          skill={pickSetup?.firstAssignment.skill}
+          business={identity?.name || "your business"}
+          cents={snapshot.capabilities.allowanceUnit === "usd-cents"}
+          busy={!!working}
+          onYes={(terms) => void hire(terms)}
+        />
       )}
       {(working || researching) && (
         <EmployeeSays name="HireZero" label="HireZero is working">
@@ -573,6 +572,75 @@ export function Onboarding(props: OnboardingProps) {
         trailing={trailing}
       />
     </div>
+  );
+}
+
+// The offer of the first teammate says what Yes does before it does it: the provider and model, and the most the first
+// draft can cost, from the same terms as the classic first-draft form. Yes uses exactly the terms shown.
+function Offer({
+  role,
+  skill,
+  business,
+  cents,
+  busy,
+  onYes,
+}: {
+  role: Role;
+  skill?: string;
+  business: string;
+  cents: boolean;
+  busy: boolean;
+  onYes: (terms: GoalTerms) => void;
+}) {
+  const [terms, setTerms] = useState<GoalTerms>();
+  const [failed, setFailed] = useState("");
+  useEffect(() => {
+    if (!skill) return;
+    let live = true;
+    setTerms(undefined);
+    setFailed("");
+    api<GoalTerms>("/company/goals/terms?" + new URLSearchParams({ roleId: role.id, skill }))
+      .then((next) => live && setTerms(next))
+      .catch((e) => live && setFailed((e as Error).message));
+    return () => {
+      live = false;
+    };
+  }, [role.id, skill]);
+  const provider = providerName(terms?.terms?.provider || "host");
+  const limit = spendText(cents, Number(defaultAllowance(cents)));
+  return (
+    <EmployeeSays name="HireZero" label="HireZero offers your first teammate">
+      <p>
+        <b>Bring in a {role.onboarding?.name || role.name}?</b> They’ll start on a first draft for {business} straight
+        away, and you’ll review it before anything goes anywhere.
+      </p>
+      {terms ? (
+        <>
+          <p className="co-onboard-terms">
+            Yes writes one private draft using {provider}, {limit}. Nothing is posted, sent or bought, and nothing is
+            retried on its own.
+          </p>
+          <details className="co-goal-run-details">
+            <summary>Run details</summary>
+            <p>
+              {provider} · {terms.route}
+            </p>
+            <p>
+              One private draft · {limit} · {terms.policy.localDeadlineSeconds}s local deadline.
+            </p>
+          </details>
+        </>
+      ) : failed ? (
+        <p role="alert">I couldn’t check what this draft can cost, so I won’t start it: {failed}</p>
+      ) : (
+        <p className="co-muted">Checking what this draft can cost…</p>
+      )}
+      <div className="co-actions">
+        <button className="co-primary" disabled={busy || !terms} onClick={() => terms && onYes(terms)}>
+          Yes, bring them in
+        </button>
+      </div>
+    </EmployeeSays>
   );
 }
 

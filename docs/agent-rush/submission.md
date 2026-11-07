@@ -19,10 +19,12 @@ Small business owners want help with marketing, but an AI agent with an owner's 
 damage. HireZero turns that around. Each employee drafts work, and the owner approves the exact job before any model
 request leaves the server, including the maximum it may cost.
 
-Anyone can try it at [app.hirezero.app](https://app.hirezero.app). Sign in with Google and create a company. Describe
-the business and one goal. A Marketing employee prepares one job, and the screen shows the model, the account and the
-most it can cost. The owner ticks one box and gets a private draft to review. Nothing is posted, sent or bought, and
-nothing is retried on its own.
+Anyone can try it at [app.hirezero.app](https://app.hirezero.app). Sign in with Google and create a company.
+HireZero greets the owner in chat, asks about the business and its goal, reads only the website the owner confirms,
+and drafts a company brief that cites its pages. The owner corrects any line and approves it. HireZero then offers a
+Marketing partner and shows, before anything runs, the model and the most the first draft can cost. One click gets a
+private draft to review. Each chat reply is the owner's own Send. Nothing is posted, sent or bought, and nothing is
+retried on its own.
 
 **Containment is designed in at every layer:**
 
@@ -46,7 +48,8 @@ The first real job drafted three LinkedIn posts on `deepseek-v4.1-flash-1017` in
 
 **What was built during the event.** HireZero's employees, approvals, budgets and hosted sign-in existed before
 November 3. The event added the Vultr provider and Vultr-only mode, open sign-up with durable spending caps, the
-hosted deployment on Vultr, fixes found by review and the first real run, and this public history.
+hosted deployment on Vultr, onboarding in chat with HireZero, fixes found by review and the first real run, and this
+public history.
 [Before the event](https://github.com/raydeStar/HireZero/commit/9f171b2) ·
 [Event changes](https://github.com/raydeStar/HireZero/compare/9f171b2...main)
 
@@ -77,8 +80,8 @@ browser was torn down. [hirezero-engine](https://github.com/raydeStar/hirezero-e
 
 1. **The problem.** Owners want an AI marketing hire, but an agent with their accounts can post, send and spend.
 2. **HireZero.** Employees draft. You approve the exact job and the most it can cost. Live at app.hirezero.app.
-3. **One job, start to finish.** Sign in, describe the business, review the run details, approve, read the draft.
-   Use screenshots from the recording.
+3. **One job, start to finish.** Sign in, tell HireZero about the business, correct and approve the brief, see the run
+   details, say yes, read the draft. Use screenshots from the recording.
 4. **Blast radius zero.** Five layers: money, actions, tenants, providers, secrets, one line each.
 5. **Running on Vultr.** nginx → app on loopback → Vultr Serverless Inference, with the VM size, model and first-run
    cost ($0.0043).
