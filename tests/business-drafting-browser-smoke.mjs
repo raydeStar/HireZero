@@ -173,25 +173,36 @@ try {
   const ownerPost = async (action, fields) => {
     if (action === "artifact.create") {
       // The fixture worker may park an unqualified task between creation and seeding.
-      fields = { ...fields, expectedVersion: (await snapshot()).data.tasks.find(t => t.id === fields.id).version };
-    }
-    const post = () => fetch(url + "/api/company/commands", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Origin: url,
-        "X-Dev-Request": "1",
-      },
-      body: JSON.stringify({
-        requestId: crypto.randomUUID(),
-        action,
+      fields = {
         ...fields,
-      }),
-    });
+        expectedVersion: (await snapshot()).data.tasks.find(
+          (t) => t.id === fields.id,
+        ).version,
+      };
+    }
+    const post = () =>
+      fetch(url + "/api/company/commands", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: url,
+          "X-Dev-Request": "1",
+        },
+        body: JSON.stringify({
+          requestId: crypto.randomUUID(),
+          action,
+          ...fields,
+        }),
+      });
     let response = await post();
     if (action === "artifact.create" && response.status === 409) {
       // A confirmed version refusal wrote nothing. Refresh this fictional setup once; never replay an uncertain write.
-      fields = { ...fields, expectedVersion: (await snapshot()).data.tasks.find(t => t.id === fields.id).version };
+      fields = {
+        ...fields,
+        expectedVersion: (await snapshot()).data.tasks.find(
+          (t) => t.id === fields.id,
+        ).version,
+      };
       response = await post();
     }
     assert.equal(response.status, 200, await response.clone().text());
@@ -214,8 +225,13 @@ try {
         ),
       text,
     );
-  await send("Page.navigate", { url: url + "/?view=departments&section=business" });
-  await until(() => evaluate("!!document.querySelector('.co-business')"), "Business brief editor");
+  await send("Page.navigate", {
+    url: url + "/?view=departments&section=business",
+  });
+  await until(
+    () => evaluate("!!document.querySelector('.co-business')"),
+    "Business brief editor",
+  );
   await field("Business name", "Fictional Paper Studio");
   await field(
     "What would you like help achieving?",
@@ -278,8 +294,15 @@ try {
   );
   await click("Discover website pages");
   await waitText("Looking up website evidence…");
-  assert.equal(await evaluate("document.body.innerText.includes('This request needs confirmation.')"), false);
-  await evaluate("window.releaseDiscovery();window.fetch=window.discoveryFetch");
+  assert.equal(
+    await evaluate(
+      "document.body.innerText.includes('This request needs confirmation.')",
+    ),
+    false,
+  );
+  await evaluate(
+    "window.releaseDiscovery();window.fetch=window.discoveryFetch",
+  );
   await waitText("3 saved sources available below.");
   discoveryData = (await snapshot()).data;
   assert.equal(discoveryData.businessLookups.length, 2);
@@ -310,7 +333,9 @@ try {
       ),
     "exact request review",
   );
-  const reviewTerms = await evaluate("document.querySelector('[aria-label=\"Brief request model and limits\"]').innerText");
+  const reviewTerms = await evaluate(
+    "document.querySelector('[aria-label=\"Brief request model and limits\"]').innerText",
+  );
   assert.ok(reviewTerms.includes(data.businessDrafts[0].job.route));
   assert.ok(reviewTerms.includes("Reasoning effort: low"));
   assert.ok(reviewTerms.includes("Output target: 3,000 tokens"));
@@ -350,12 +375,28 @@ try {
   );
   await click("Save brief draft");
   await waitText("Brief draft saved.");
-  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), true);
-  assert.equal(await evaluate("document.querySelector('.co-business-readonly').innerText.includes('Warm and patient, from my unsaved edit')"), true);
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-profile fieldset').hidden",
+    ),
+    true,
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-readonly').innerText.includes('Warm and patient, from my unsaved edit')",
+    ),
+    true,
+  );
   await evaluate("document.querySelector('.co-business-research').open=true");
   await click("Review generated brief");
   await waitText("Generated brief loaded.");
-  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), true, "Loading without unfinished edits opens the readable review");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-profile fieldset').hidden",
+    ),
+    true,
+    "Loading without unfinished edits opens the readable review",
+  );
   await click("Approve brief for my team");
   await waitText("Business brief approved.");
   data = (await snapshot()).data;
@@ -441,7 +482,9 @@ try {
     1,
     "Unknown output was never imported",
   );
-  await evaluate("document.querySelector('.co-business-research').open=true;document.querySelector('.co-business-drafting > details').open=true");
+  await evaluate(
+    "document.querySelector('.co-business-research').open=true;document.querySelector('.co-business-drafting > details').open=true",
+  );
   await click("Prepare brief draft");
   await waitText("Prepared for authorization");
   await click("Review draft request");
@@ -458,9 +501,17 @@ try {
     "const select=[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('Evidence type')).querySelector('select');select.value='local-refusal';select.dispatchEvent(new Event('change',{bubbles:true}));",
   );
   await waitText("Local diagnostic receipt");
-  assert.equal(await evaluate("document.querySelector('.co-business-drafting').innerText.includes('Confirmed output tokens')"), false);
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-drafting').innerText.includes('Confirmed output tokens')",
+    ),
+    false,
+  );
   await field("Local diagnostic receipt", "fictional-local-refusal");
-  await field("How was this verified?", "Fictional dispatch log establishes refusal before any model request.");
+  await field(
+    "How was this verified?",
+    "Fictional dispatch log establishes refusal before any model request.",
+  );
   await evaluate(
     "[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('I verified from local evidence')).querySelector('input').click()",
   );
@@ -472,7 +523,9 @@ try {
   await waitText("Local refusal recorded");
   data = (await snapshot()).data;
   assert.equal(data.businessDrafts.length, 3);
-  const locallyResolved = data.businessDrafts.find(d => d.localRefusalReceipt);
+  const locallyResolved = data.businessDrafts.find(
+    (d) => d.localRefusalReceipt,
+  );
   assert.equal(locallyResolved.localRefusalReceipt, "fictional-local-refusal");
   assert.equal(locallyResolved.providerReceipt, null);
   assert.equal(locallyResolved.reportedUsage, 0);
@@ -509,7 +562,9 @@ try {
         evaluate(`document.body.innerText.includes(${JSON.stringify(text)})`),
       text,
     );
-  await bodyText("Use your approved business brief to prepare the marketing work requested in your goal.");
+  await bodyText(
+    "Use your approved business brief to prepare the marketing work requested in your goal.",
+  );
   assert.match(
     await evaluate(
       "[...document.querySelectorAll('.co-onboarding label')].find(l=>l.childNodes[0]?.textContent.trim()==='Responsibility').querySelector('textarea').value",
@@ -588,15 +643,11 @@ try {
   await send("Page.reload");
   await until(
     () =>
-      evaluate(
-        "!!document.querySelector('.co-home .co-goal-start textarea')",
-      ),
+      evaluate("!!document.querySelector('.co-home .co-goal-start textarea')"),
     "Home resumes the suggested assignment after leaving onboarding and reloading",
   );
   assert.match(
-    await evaluate(
-      "document.querySelector('.co-goal-output').textContent",
-    ),
+    await evaluate("document.querySelector('.co-goal-output').textContent"),
     /Your first marketing plan/,
   );
   assert.equal(
@@ -663,9 +714,7 @@ try {
   );
   await bodyText("Workspace updates are unavailable.");
   assert.equal(
-    await evaluate(
-      "document.querySelector('.co-goal-start textarea').value",
-    ),
+    await evaluate("document.querySelector('.co-goal-start textarea').value"),
     unsavedFirstRequest,
   );
   await evaluate("window.failWorkspaceRefresh=false");
@@ -675,17 +724,21 @@ try {
     "Recovered reads clear their own notice",
   );
   assert.equal(
-    await evaluate(
-      "document.querySelector('.co-goal-start textarea').value",
-    ),
+    await evaluate("document.querySelector('.co-goal-start textarea').value"),
     unsavedFirstRequest,
   );
   // While a save is still pending, show progress. A lost reply is reconciled without a duplicate assignment.
   await evaluate(
     "window.firstPlanFetch=window.fetch;window.loseFirstPlan=true;window.fetch=async(input,init)=>{const body=init?.body?JSON.parse(init.body):{};if(window.loseFirstPlan&&body.action==='goal.prepare'){window.loseFirstPlan=false;await new Promise(resolve=>window.releaseFirstPlan=resolve);await window.firstPlanFetch(input,init);throw new TypeError('Synthetic lost first-plan reply');}return window.firstPlanFetch(input,init);};",
   );
-  await until(() => evaluate("!!document.querySelector('.co-goal-start .co-check input')"), "Home run terms");
-  await evaluate("document.querySelector('.co-goal-start .co-check input').click()");
+  await until(
+    () =>
+      evaluate("!!document.querySelector('.co-goal-start .co-check input')"),
+    "Home run terms",
+  );
+  await evaluate(
+    "document.querySelector('.co-goal-start .co-check input').click()",
+  );
   await click("Generate my first draft");
   await bodyText("Preparing your request…");
   assert.equal(
@@ -705,7 +758,14 @@ try {
   await bodyText("DRAFT FOR INTERNAL REVIEW").catch(async (error) => {
     await fs.writeFile(
       path.join(repo, "test-results/business-drafting-browser-failure.json"),
-      JSON.stringify({ text: await evaluate("document.body.innerText"), workspace: await snapshot() }, null, 2),
+      JSON.stringify(
+        {
+          text: await evaluate("document.body.innerText"),
+          workspace: await snapshot(),
+        },
+        null,
+        2,
+      ),
     );
     throw error;
   });
@@ -724,7 +784,10 @@ try {
   );
   assert.ok(firstMeasured);
   assert.equal(firstMeasured.job.state, "completed");
-  assert.ok(data.budgets.find((b) => b.id === "company-total").used > 360, "Single Home consent dispatches the draft");
+  assert.ok(
+    data.budgets.find((b) => b.id === "company-total").used > 360,
+    "Single Home consent dispatches the draft",
+  );
   await home();
   await until(
     () =>
@@ -734,14 +797,16 @@ try {
     "Home offers the saved assignment before it runs",
   );
   assert.equal(
-    await evaluate(
-      "!!document.querySelector('.co-home .co-goal-start form')",
-    ),
+    await evaluate("!!document.querySelector('.co-home .co-goal-start form')"),
     false,
     "No duplicate preparation form after a saved assignment",
   );
   await click("Continue my work");
-  const firstPacket = JSON.stringify(await fetch(url + "/api/company/measured/" + firstMeasured.id).then(r => r.json()));
+  const firstPacket = JSON.stringify(
+    await fetch(url + "/api/company/measured/" + firstMeasured.id).then((r) =>
+      r.json(),
+    ),
+  );
   assert.match(firstPacket, /Paper craft kits for adult hobbyists/);
   assert.match(firstPacket, /Warm and patient, from my unsaved edit/);
   assert.match(firstPacket, /businessBrief/);
@@ -770,19 +835,33 @@ try {
   );
   await click("Copy draft");
   await bodyText("Draft copied.");
-  assert.equal(await evaluate("window.copiedDraft"), savedDraft, "Copy retains the exact saved draft");
+  assert.equal(
+    await evaluate("window.copiedDraft"),
+    savedDraft,
+    "Copy retains the exact saved draft",
+  );
   await evaluate(
     "window.savedCreateObjectURL=URL.createObjectURL;window.savedAnchorClick=HTMLAnchorElement.prototype.click;URL.createObjectURL=blob=>{window.downloadedDraft=blob.text();return window.savedCreateObjectURL(blob)};HTMLAnchorElement.prototype.click=function(){window.downloadName=this.download};",
   );
   await click("Download draft");
-  assert.equal(await evaluate("window.downloadedDraft"), savedDraft, "Download retains the exact saved draft");
+  assert.equal(
+    await evaluate("window.downloadedDraft"),
+    savedDraft,
+    "Download retains the exact saved draft",
+  );
   assert.equal(await evaluate("window.downloadName"), "hirezero-draft.md");
   await evaluate(
     "URL.createObjectURL=window.savedCreateObjectURL;HTMLAnchorElement.prototype.click=window.savedAnchorClick;navigator.clipboard.writeText=async()=>{throw Error('Fictional blocked clipboard')};",
   );
   await click("Copy draft");
-  await bodyText("Clipboard unavailable. Use Download draft or select the text below.");
-  assert.equal((await snapshot()).data.artifacts[0].state, "needs_review", "Using a draft does not approve it");
+  await bodyText(
+    "Clipboard unavailable. Use Download draft or select the text below.",
+  );
+  assert.equal(
+    (await snapshot()).data.artifacts[0].state,
+    "needs_review",
+    "Using a draft does not approve it",
+  );
   assert.equal(
     await evaluate(
       "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Complete after review').disabled",
@@ -798,8 +877,13 @@ try {
       ),
     "Approving a result alone does not finish the first assignment",
   );
-  assert.equal((await snapshot()).data.tasks.find(t=>t.id===firstTask().id).state,"awaiting_review");
-  await evaluate("document.querySelector('[aria-label=\"Recent results\"] .co-home-row').click()");
+  assert.equal(
+    (await snapshot()).data.tasks.find((t) => t.id === firstTask().id).state,
+    "awaiting_review",
+  );
+  await evaluate(
+    "document.querySelector('[aria-label=\"Recent results\"] .co-home-row').click()",
+  );
   await until(
     () =>
       evaluate(
@@ -900,7 +984,9 @@ try {
   );
   // Progress comes from the same persisted journey; a refresh cannot invent another completion or a lower cost.
   await click("Settings");
-  await evaluate("document.querySelector('.co-advanced-settings > summary').click()");
+  await evaluate(
+    "document.querySelector('.co-advanced-settings > summary').click()",
+  );
   await click("Progress");
   await bodyText("Average recorded model cost per completed task");
   const progress = await fetch(url + "/api/company/progress").then((r) =>
@@ -1045,248 +1131,675 @@ try {
     body: "Prepare one useful fictional paper-craft week, including the complete example.",
   });
   const editorialBody = [
-    "## Monday — Prepare your folding space", "", "Place your paper and the printed guide on a clear surface.", "",
-    "## Wednesday — Show one step", "", "Use the guide to choose a step. Describe that step without promising a finished result.", "",
-    "## Friday — Review the explanation", "", "Name the instruction that was unclear and propose one wording change.", "",
-    "### Complete review checklist", "", "- Can the reader identify the next step?", "- Is the example present?",
-    "- Are product claims supported?", "", "### Owner notes", "", "Fictional internal draft only. No publication or offer.",
+    "## Monday — Prepare your folding space",
+    "",
+    "Place your paper and the printed guide on a clear surface.",
+    "",
+    "## Wednesday — Show one step",
+    "",
+    "Use the guide to choose a step. Describe that step without promising a finished result.",
+    "",
+    "## Friday — Review the explanation",
+    "",
+    "Name the instruction that was unclear and propose one wording change.",
+    "",
+    "### Complete review checklist",
+    "",
+    "- Can the reader identify the next step?",
+    "- Is the example present?",
+    "- Are product claims supported?",
+    "",
+    "### Owner notes",
+    "",
+    "Fictional internal draft only. No publication or offer.",
   ].join("\n");
-  await ownerPost("artifact.create", { id: editorial.id, expectedVersion: editorial.version, body: editorialBody });
+  await ownerPost("artifact.create", {
+    id: editorial.id,
+    expectedVersion: editorial.version,
+    body: editorialBody,
+  });
   const editorialUrl = `${url}/?view=employee&employee=${editorial.employeeId}&thread=${editorial.threadId}&work=${editorial.id}`;
   await send("Page.navigate", { url: editorialUrl });
   await bodyText("Complete review checklist");
-  assert.match(await evaluate("document.querySelector('[aria-label=\"Conversation mode\"] [aria-current=\"page\"]').textContent"), /^Work/,
-    "A narrow work link without an explicit mode selects the visible Work tab");
-  await evaluate("[...document.querySelectorAll('[aria-label=\"Conversation mode\"] button')].find(button=>button.textContent.trim()==='Chat').click()");
-  await until(() => evaluate("!!document.querySelector('.fe-composer') && !document.querySelector('.co-work-window')"),
-    "Chat exits the full-width work window instead of leaving the owner stuck");
+  assert.match(
+    await evaluate(
+      'document.querySelector(\'[aria-label="Conversation mode"] [aria-current="page"]\').textContent',
+    ),
+    /^Work/,
+    "A narrow work link without an explicit mode selects the visible Work tab",
+  );
+  await evaluate(
+    "[...document.querySelectorAll('[aria-label=\"Conversation mode\"] button')].find(button=>button.textContent.trim()==='Chat').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('.fe-composer') && !document.querySelector('.co-work-window')",
+      ),
+    "Chat exits the full-width work window instead of leaving the owner stuck",
+  );
   await send("Page.navigate", { url: editorialUrl });
   await bodyText("Complete review checklist");
-  assert.equal(await evaluate("document.querySelectorAll('.co-work-window .co-report.clamped').length"), 0,
-    "The full multi-section draft opens without hiding the useful asset");
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-work-window button')].some(b=>b.textContent.trim()==='Read result')"), false,
-    "A focused result does not offer to open itself again");
-  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
-  await fs.writeFile(path.join(repo, "test-results/content-result-mobile.png"),
-    Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('.co-work-window .co-report.clamped').length",
+    ),
+    0,
+    "The full multi-section draft opens without hiding the useful asset",
+  );
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-work-window button')].some(b=>b.textContent.trim()==='Read result')",
+    ),
+    false,
+    "A focused result does not offer to open itself again",
+  );
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
+    true,
+  );
+  await fs.writeFile(
+    path.join(repo, "test-results/content-result-mobile.png"),
+    Buffer.from(
+      (await send("Page.captureScreenshot", { format: "png" })).data,
+      "base64",
+    ),
+  );
   const beforeCopy = (await snapshot()).data;
-  const sourceCopy = beforeCopy.artifacts.find(artifact => artifact.taskId === editorial.id);
+  const sourceCopy = beforeCopy.artifacts.find(
+    (artifact) => artifact.taskId === editorial.id,
+  );
   await click("Edit a copy");
-  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), editorialBody);
-  const editedBody = editorialBody.replace("Describe that step", "Show the fold with its printed step number, then describe it");
-  await send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-artifact-editor textarea').value",
+    ),
+    editorialBody,
+  );
+  const editedBody = editorialBody.replace(
+    "Describe that step",
+    "Show the fold with its printed step number, then describe it",
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1600,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
   const taskEditors = `.co-job-card[data-task-id="${editorial.id}"] .co-artifact-editor textarea`;
-  await until(() => evaluate(`document.querySelectorAll(${JSON.stringify(taskEditors)}).length===1 && !!document.querySelector('.co-work-placeholder')`),
-    "Wide Chat defers to the task's one work editor");
-  await evaluate(`(()=>{const el=document.querySelector(${JSON.stringify(taskEditors)});Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(editedBody)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
-  await evaluate("document.querySelector('.co-work-window [aria-label=\"Close work\"]').click()");
-  await until(() => evaluate(`!document.querySelector('.co-work-window') && document.querySelector(${JSON.stringify(taskEditors)})?.value===${JSON.stringify(editedBody)}`),
-    "Closing wide work restores the draft in its conversation card");
-  await evaluate(`[...document.querySelectorAll('.co-job-card[data-task-id="${editorial.id}"] button')].find(button=>button.textContent.trim()==='Read result').click()`);
-  await until(() => evaluate(`!!document.querySelector('.co-work-window') && document.querySelector(${JSON.stringify(taskEditors)})?.value===${JSON.stringify(editedBody)}`),
-    "Reopening the focused result retains unfinished edits");
-  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await until(
+    () =>
+      evaluate(
+        `document.querySelectorAll(${JSON.stringify(taskEditors)}).length===1 && !!document.querySelector('.co-work-placeholder')`,
+      ),
+    "Wide Chat defers to the task's one work editor",
+  );
+  await evaluate(
+    `(()=>{const el=document.querySelector(${JSON.stringify(taskEditors)});Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(editedBody)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+  );
+  await evaluate(
+    "document.querySelector('.co-work-window [aria-label=\"Close work\"]').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        `!document.querySelector('.co-work-window') && document.querySelector(${JSON.stringify(taskEditors)})?.value===${JSON.stringify(editedBody)}`,
+      ),
+    "Closing wide work restores the draft in its conversation card",
+  );
+  await evaluate(
+    `[...document.querySelectorAll('.co-job-card[data-task-id="${editorial.id}"] button')].find(button=>button.textContent.trim()==='Read result').click()`,
+  );
+  await until(
+    () =>
+      evaluate(
+        `!!document.querySelector('.co-work-window') && document.querySelector(${JSON.stringify(taskEditors)})?.value===${JSON.stringify(editedBody)}`,
+      ),
+    "Reopening the focused result retains unfinished edits",
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
   await send("Page.reload");
   await bodyText("Complete review checklist");
-  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), editedBody,
-    "Unfinished edits survive refresh");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-artifact-editor textarea').value",
+    ),
+    editedBody,
+    "Unfinished edits survive refresh",
+  );
   await click("Edit a copy");
   await bodyText("You already have an unsaved draft");
-  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), editedBody,
-    "Opening a copy never replaces unfinished edits");
-  await fs.writeFile(path.join(repo, "test-results/content-editor-mobile.png"),
-    Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-artifact-editor textarea').value",
+    ),
+    editedBody,
+    "Opening a copy never replaces unfinished edits",
+  );
+  await fs.writeFile(
+    path.join(repo, "test-results/content-editor-mobile.png"),
+    Buffer.from(
+      (await send("Page.captureScreenshot", { format: "png" })).data,
+      "base64",
+    ),
+  );
   await click("Save for review");
-  await until(async () => (await snapshot()).data.artifacts.some(artifact => artifact.taskId === editorial.id && artifact.body === editedBody),
-    "The edited copy saves as its own draft");
+  await until(
+    async () =>
+      (await snapshot()).data.artifacts.some(
+        (artifact) =>
+          artifact.taskId === editorial.id && artifact.body === editedBody,
+      ),
+    "The edited copy saves as its own draft",
+  );
   const afterCopy = (await snapshot()).data;
-  const savedCopy = afterCopy.artifacts.find(artifact => artifact.taskId === editorial.id && artifact.body === editedBody);
+  const savedCopy = afterCopy.artifacts.find(
+    (artifact) =>
+      artifact.taskId === editorial.id && artifact.body === editedBody,
+  );
   assert.equal(savedCopy.provenance, "owner-authored");
   assert.equal(savedCopy.state, "needs_review");
-  assert.deepEqual(afterCopy.artifacts.find(artifact => artifact.id === sourceCopy.id), sourceCopy,
-    "Editing preserves the original body, provenance, digest and review state");
-  assert.deepEqual(afterCopy.measured, beforeCopy.measured, "Manual editing makes no model request");
+  assert.deepEqual(
+    afterCopy.artifacts.find((artifact) => artifact.id === sourceCopy.id),
+    sourceCopy,
+    "Editing preserves the original body, provenance, digest and review state",
+  );
+  assert.deepEqual(
+    afterCopy.measured,
+    beforeCopy.measured,
+    "Manual editing makes no model request",
+  );
   await send("Page.reload");
   await bodyText("Show the fold with its printed step number");
-  assert.equal(await evaluate("document.querySelector('.co-work-window .co-artifact')?.dataset.artifactId"), savedCopy.id,
-    "The newest saved copy is the first result after refresh");
-  assert.match(await evaluate(`document.querySelector('[data-artifact-id="${savedCopy.id}"] small').innerText`), /Draft 2/);
-  assert.match(await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"] small').innerText`), /Draft 1/);
-  assert.deepEqual(await evaluate("[...document.querySelectorAll('.co-work-window .co-artifact')].map(draft => draft.open)"), [true, false],
-    "Review opens the newest copy and collapses older bodies, leaving their labels visible");
-  await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"] > summary').click()`);
-  assert.equal(await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"]').open`), true,
-    "The earlier draft remains available for comparison");
-  await evaluate(`document.querySelector('[data-artifact-id="${sourceCopy.id}"] > summary').click()`);
-  assert.equal(await evaluate("!!document.querySelector('.co-artifact-editor textarea')"), false,
-    "Confirmed save clears this tab's recovery draft and leaves the editor collapsed after reload");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-work-window .co-artifact')?.dataset.artifactId",
+    ),
+    savedCopy.id,
+    "The newest saved copy is the first result after refresh",
+  );
+  assert.match(
+    await evaluate(
+      `document.querySelector('[data-artifact-id="${savedCopy.id}"] small').innerText`,
+    ),
+    /Draft 2/,
+  );
+  assert.match(
+    await evaluate(
+      `document.querySelector('[data-artifact-id="${sourceCopy.id}"] small').innerText`,
+    ),
+    /Draft 1/,
+  );
+  assert.deepEqual(
+    await evaluate(
+      "[...document.querySelectorAll('.co-work-window .co-artifact')].map(draft => draft.open)",
+    ),
+    [true, false],
+    "Review opens the newest copy and collapses older bodies, leaving their labels visible",
+  );
+  await evaluate(
+    `document.querySelector('[data-artifact-id="${sourceCopy.id}"] > summary').click()`,
+  );
+  assert.equal(
+    await evaluate(
+      `document.querySelector('[data-artifact-id="${sourceCopy.id}"]').open`,
+    ),
+    true,
+    "The earlier draft remains available for comparison",
+  );
+  await evaluate(
+    `document.querySelector('[data-artifact-id="${sourceCopy.id}"] > summary').click()`,
+  );
+  assert.equal(
+    await evaluate("!!document.querySelector('.co-artifact-editor textarea')"),
+    false,
+    "Confirmed save clears this tab's recovery draft and leaves the editor collapsed after reload",
+  );
   await click("Refine draft");
-  const reviewFeedback = "Keep the checklist. Replace the vague Wednesday instruction with the full worked example.";
-  await evaluate(`(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(reviewFeedback)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  const reviewFeedback =
+    "Keep the checklist. Replace the vague Wednesday instruction with the full worked example.";
+  await evaluate(
+    `(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(reviewFeedback)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+  );
   await send("Page.reload");
   await click("Continue requested changes");
-  assert.equal(await evaluate("document.querySelector('.co-revision-feedback textarea').value"), reviewFeedback);
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-revision-feedback textarea').value",
+    ),
+    reviewFeedback,
+  );
   await click("Create revision request");
   await until(async () => {
     const state = await snapshot();
-    const revision = state.data.tasks.find(t => t.revision?.sourceTaskId === editorial.id);
-    return revision && await evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(revision.id)}`);
+    const revision = state.data.tasks.find(
+      (t) => t.revision?.sourceTaskId === editorial.id,
+    );
+    return (
+      revision &&
+      (await evaluate(
+        `document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(revision.id)}`,
+      ))
+    );
   }, "Creating a revision opens that exact request in focused work");
   const revisedState = (await snapshot()).data;
-  const revision = revisedState.tasks.find(t => t.revision?.sourceTaskId === editorial.id);
-  assert.equal(revisedState.tasks.find(t => t.id === editorial.id).state, "superseded");
+  const revision = revisedState.tasks.find(
+    (t) => t.revision?.sourceTaskId === editorial.id,
+  );
+  assert.equal(
+    revisedState.tasks.find((t) => t.id === editorial.id).state,
+    "superseded",
+  );
   assert.equal(revision.state, "blocked");
   await send("Page.reload");
   await bodyText(reviewFeedback);
-  assert.equal(await evaluate("document.querySelector('.co-work-window .co-job-card')?.dataset.taskId"), revision.id);
-  await fs.writeFile(path.join(repo, "test-results/content-revision-mobile.png"),
-    Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-work-window .co-job-card')?.dataset.taskId",
+    ),
+    revision.id,
+  );
+  await fs.writeFile(
+    path.join(repo, "test-results/content-revision-mobile.png"),
+    Buffer.from(
+      (await send("Page.captureScreenshot", { format: "png" })).data,
+      "base64",
+    ),
+  );
   await send("Page.navigate", { url: editorialUrl });
   await bodyText("Draft ready");
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-work-window button')].some(b=>b.textContent.trim()==='Approve result')"), false,
-    "Superseded work does not offer a review command the store refuses");
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-work-window button')].some(b=>b.textContent.trim()==='Approve result')",
+    ),
+    false,
+    "Superseded work does not offer a review command the store refuses",
+  );
   await click("Review revision request");
-  await until(() => evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(revision.id)}`),
-    "History opens the exact revision instead of dropping into the chat");
-  assert.equal(await evaluate("!!document.querySelector('.fe-composer')"), false);
-  const taskNeeds = async (taskId) => (await fetch(url + "/api/company/today").then(r => r.json())).needsYou.filter(n => n.taskId === taskId);
-  assert.deepEqual(await taskNeeds(editorial.id), [], "Superseded drafts leave the active review queue");
+  await until(
+    () =>
+      evaluate(
+        `document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(revision.id)}`,
+      ),
+    "History opens the exact revision instead of dropping into the chat",
+  );
+  assert.equal(
+    await evaluate("!!document.querySelector('.fe-composer')"),
+    false,
+  );
+  const taskNeeds = async (taskId) =>
+    (
+      await fetch(url + "/api/company/today").then((r) => r.json())
+    ).needsYou.filter((n) => n.taskId === taskId);
+  assert.deepEqual(
+    await taskNeeds(editorial.id),
+    [],
+    "Superseded drafts leave the active review queue",
+  );
   const completion = await ownerPost("task.create", {
-    employeeId: editorial.employeeId, threadId: editorial.threadId, skill: editorial.skill,
+    employeeId: editorial.employeeId,
+    threadId: editorial.threadId,
+    skill: editorial.skill,
     body: "Prepare a fictional folding instruction for final review.",
   });
   const original = await ownerPost("artifact.create", {
-    id: completion.id, expectedVersion: completion.version, body: "Original fictional instruction: fold the paper.",
+    id: completion.id,
+    expectedVersion: completion.version,
+    body: "Original fictional instruction: fold the paper.",
   });
   const completionState = (await snapshot()).data;
   const corrected = await ownerPost("artifact.create", {
-    id: completion.id, expectedVersion: completionState.tasks.find(t => t.id === completion.id).version,
+    id: completion.id,
+    expectedVersion: completionState.tasks.find((t) => t.id === completion.id)
+      .version,
     body: "Corrected fictional instruction: align opposite corners, then crease the diagonal.",
   });
   const pendingReview = await taskNeeds(completion.id);
-  assert.equal(pendingReview.length, 1, "Two drafts produce one active review request");
+  assert.equal(
+    pendingReview.length,
+    1,
+    "Two drafts produce one active review request",
+  );
   assert.match(pendingReview[0].detail, /2 drafts/);
   const completionUrl = `${url}/?view=employee&employee=${completion.employeeId}&thread=${completion.threadId}&work=${completion.id}`;
   await send("Page.navigate", { url: completionUrl });
   await bodyText("Corrected fictional instruction");
-  await evaluate(`[...document.querySelectorAll('[data-artifact-id="${corrected.id}"] button')].find(button=>button.textContent.trim()==='Approve result').click()`);
-  await until(async () => (await taskNeeds(completion.id)).some(n => n.kind === "completion"),
-    "Approval offers the completion step");
+  await evaluate(
+    `[...document.querySelectorAll('[data-artifact-id="${corrected.id}"] button')].find(button=>button.textContent.trim()==='Approve result').click()`,
+  );
+  await until(
+    async () =>
+      (await taskNeeds(completion.id)).some((n) => n.kind === "completion"),
+    "Approval offers the completion step",
+  );
   assert.equal((await taskNeeds(completion.id)).length, 1);
-  assert.deepEqual((await snapshot()).data.artifacts.find(a => a.id === original.id), original);
+  assert.deepEqual(
+    (await snapshot()).data.artifacts.find((a) => a.id === original.id),
+    original,
+  );
   await click("Complete after review");
-  await until(async () => (await snapshot()).data.tasks.find(t => t.id === completion.id).state === "completed",
-    "Owner completes the task using the corrected copy");
+  await until(
+    async () =>
+      (await snapshot()).data.tasks.find((t) => t.id === completion.id)
+        .state === "completed",
+    "Owner completes the task using the corrected copy",
+  );
   await send("Page.reload");
   await bodyText("Draft ready");
   const completedState = (await snapshot()).data;
-  assert.deepEqual(await taskNeeds(completion.id), [], "Completed work leaves no stale review request");
-  assert.deepEqual(completedState.artifacts.find(a => a.id === original.id), original,
-    "Completion does not approve or change the original draft");
-  assert.equal(completedState.artifacts.find(a => a.id === corrected.id).state, "approved");
-  assert.equal(await evaluate("document.querySelector('.co-work-window [data-artifact-id]')?.dataset.artifactId"), corrected.id,
-    "Completed work opens with the approved copy first");
-  assert.deepEqual(await evaluate("[...document.querySelectorAll('.co-work-window .co-artifact')].map(draft => draft.open)"), [true, false],
-    "Completed work keeps the approved copy expanded and earlier alternatives collapsed");
-  assert.deepEqual(completedState.measured, completionState.measured, "Review and completion make no model request");
-  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
-  await fs.writeFile(path.join(repo, "test-results/content-completed-mobile.png"),
-    Buffer.from((await send("Page.captureScreenshot", { format: "png" })).data, "base64"));
+  assert.deepEqual(
+    await taskNeeds(completion.id),
+    [],
+    "Completed work leaves no stale review request",
+  );
+  assert.deepEqual(
+    completedState.artifacts.find((a) => a.id === original.id),
+    original,
+    "Completion does not approve or change the original draft",
+  );
+  assert.equal(
+    completedState.artifacts.find((a) => a.id === corrected.id).state,
+    "approved",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-work-window [data-artifact-id]')?.dataset.artifactId",
+    ),
+    corrected.id,
+    "Completed work opens with the approved copy first",
+  );
+  assert.deepEqual(
+    await evaluate(
+      "[...document.querySelectorAll('.co-work-window .co-artifact')].map(draft => draft.open)",
+    ),
+    [true, false],
+    "Completed work keeps the approved copy expanded and earlier alternatives collapsed",
+  );
+  assert.deepEqual(
+    completedState.measured,
+    completionState.measured,
+    "Review and completion make no model request",
+  );
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
+    true,
+  );
+  await fs.writeFile(
+    path.join(repo, "test-results/content-completed-mobile.png"),
+    Buffer.from(
+      (await send("Page.captureScreenshot", { format: "png" })).data,
+      "base64",
+    ),
+  );
   const revisionCopy = await ownerPost("artifact.create", {
-    id: revision.id, expectedVersion: completedState.tasks.find(t => t.id === revision.id).version,
-    body: "Fictional folding checklist. " + "Fold the fictional paper. ".repeat(130),
+    id: revision.id,
+    expectedVersion: completedState.tasks.find((t) => t.id === revision.id)
+      .version,
+    body:
+      "Fictional folding checklist. " +
+      "Fold the fictional paper. ".repeat(130),
   });
-  await send("Page.navigate", { url: `${url}/?view=employee&employee=${revision.employeeId}&thread=${revision.threadId}&work=${revision.id}&mode=work` });
-  await until(() => evaluate(`!!document.querySelector('[data-artifact-id="${revisionCopy.id}"] .co-draft-checks')`), "Advisory checks for the latest draft");
-  await evaluate(`(()=>{const checks=document.querySelector('[data-artifact-id="${revisionCopy.id}"] .co-draft-checks');if(!checks.open)checks.querySelector('summary').click();})()`);
+  await send("Page.navigate", {
+    url: `${url}/?view=employee&employee=${revision.employeeId}&thread=${revision.threadId}&work=${revision.id}&mode=work`,
+  });
+  await until(
+    () =>
+      evaluate(
+        `!!document.querySelector('[data-artifact-id="${revisionCopy.id}"] .co-draft-checks')`,
+      ),
+    "Advisory checks for the latest draft",
+  );
+  await evaluate(
+    `(()=>{const checks=document.querySelector('[data-artifact-id="${revisionCopy.id}"] .co-draft-checks');if(!checks.open)checks.querySelector('summary').click();})()`,
+  );
   await bodyText("up to about 750–900");
-  assert.equal(await evaluate("document.querySelector('.co-draft-checks').textContent.includes('Outside limit')"), false, "Modest length differences are not failures");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-draft-checks').textContent.includes('Outside limit')",
+    ),
+    false,
+    "Modest length differences are not failures",
+  );
   await click("Refine draft");
-  assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Use draft check findings')"), false);
-  const repairText = "Make the opening more concrete and preserve earlier feedback.";
-  await evaluate(`(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(repairText)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Use draft check findings')",
+    ),
+    false,
+  );
+  const repairText =
+    "Make the opening more concrete and preserve earlier feedback.";
+  await evaluate(
+    `(()=>{const el=document.querySelector('.co-revision-feedback textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(repairText)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+  );
   const measuredBeforeRepair = (await snapshot()).data.measured;
   await send("Page.reload");
   await bodyText("Continue requested changes");
   await click("Continue requested changes");
-  assert.equal(await evaluate("document.querySelector('.co-revision-feedback textarea').value"), repairText);
-  assert.deepEqual((await snapshot()).data.measured, measuredBeforeRepair, "Draft check findings never dispatch a model request");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-revision-feedback textarea').value",
+    ),
+    repairText,
+  );
+  assert.deepEqual(
+    (await snapshot()).data.measured,
+    measuredBeforeRepair,
+    "Draft check findings never dispatch a model request",
+  );
   await click("Keep draft and close");
-  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
-  const latestFeedback = "Keep the worked example and checklist. Remove the closing question.";
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
+    true,
+  );
+  const latestFeedback =
+    "Keep the worked example and checklist. Remove the closing question.";
   const nextRevision = await ownerPost("artifact.revise", {
-    id: revisionCopy.id, expectedVersion: revisionCopy.version, digest: revisionCopy.digest, body: latestFeedback,
+    id: revisionCopy.id,
+    expectedVersion: revisionCopy.version,
+    digest: revisionCopy.digest,
+    body: latestFeedback,
   });
   const preparedRevision = await ownerPost("measured.prepare", {
-    id: nextRevision.id, expectedVersion: nextRevision.version, creditAllowance: 1,
+    id: nextRevision.id,
+    expectedVersion: nextRevision.version,
+    creditAllowance: 1,
   });
-  const revisionPacket = await fetch(url + "/api/company/measured/" + preparedRevision.id).then(r => r.json());
-  assert.equal(revisionPacket.call.context.revision.priorFeedback[0].feedback, reviewFeedback);
-  assert.equal(revisionPacket.call.context.revision.request.feedback, latestFeedback);
-  assert.equal(revisionPacket.call.context.revision.originalDraft, revisionCopy.body);
+  const revisionPacket = await fetch(
+    url + "/api/company/measured/" + preparedRevision.id,
+  ).then((r) => r.json());
+  assert.equal(
+    revisionPacket.call.context.revision.priorFeedback[0].feedback,
+    reviewFeedback,
+  );
+  assert.equal(
+    revisionPacket.call.context.revision.request.feedback,
+    latestFeedback,
+  );
+  assert.equal(
+    revisionPacket.call.context.revision.originalDraft,
+    revisionCopy.body,
+  );
   assert.equal(preparedRevision.measured.policy.effort, "high");
   assert.equal(preparedRevision.measured.policy.outputTarget, 6000);
-  await send("Page.navigate", { url: `${url}/?view=employee&employee=${nextRevision.employeeId}&thread=${nextRevision.threadId}&work=${nextRevision.id}&mode=work` });
+  await send("Page.navigate", {
+    url: `${url}/?view=employee&employee=${nextRevision.employeeId}&thread=${nextRevision.threadId}&work=${nextRevision.id}&mode=work`,
+  });
   await click("Review task and context");
   await bodyText("Earlier requested changes retained");
   await bodyText(reviewFeedback);
   await bodyText(latestFeedback);
-  await evaluate("document.querySelector('.co-work-window .co-safety summary').click()");
+  await evaluate(
+    "document.querySelector('.co-work-window .co-safety summary').click()",
+  );
   await bodyText("Reasoning effort: high");
   await bodyText("6,000 observed output tokens");
-  assert.equal((await snapshot()).data.measured.find(m => m.id === preparedRevision.id).job.state, "proposed");
+  assert.equal(
+    (await snapshot()).data.measured.find((m) => m.id === preparedRevision.id)
+      .job.state,
+    "proposed",
+  );
   // Same skill, repeated requests and separate conversations must remain distinguishable before opening a result.
   const measuredBeforeLabels = (await snapshot()).data.measured;
   const labelled = [];
-  for (const [name, count] of [["Fictional paper-kit week one", 2], ["Fictional paper-kit week two", 1]]) {
-    const thread = await ownerPost("thread.create", { employeeId: nextRevision.employeeId, name });
+  for (const [name, count] of [
+    ["Fictional paper-kit week one", 2],
+    ["Fictional paper-kit week two", 1],
+  ]) {
+    const thread = await ownerPost("thread.create", {
+      employeeId: nextRevision.employeeId,
+      name,
+    });
     for (let number = 1; number <= count; number++) {
-      const task = await ownerPost("task.create", { employeeId: nextRevision.employeeId, threadId: thread.id, skill: "marketing-starter-plan", body: "Prepare the fictional weekly content plan." });
-      await ownerPost("artifact.create", { id: task.id, expectedVersion: task.version, body: `Fictional result for ${name}, request ${number}.` });
+      const task = await ownerPost("task.create", {
+        employeeId: nextRevision.employeeId,
+        threadId: thread.id,
+        skill: "marketing-starter-plan",
+        body: "Prepare the fictional weekly content plan.",
+      });
+      await ownerPost("artifact.create", {
+        id: task.id,
+        expectedVersion: task.version,
+        body: `Fictional result for ${name}, request ${number}.`,
+      });
       labelled.push({ task, label: `${name} · Request ${number}` });
     }
   }
   // A conversation with a single request is labelled by its title alone (WorkContext).
   for (const item of labelled) {
     const [name] = item.label.split(" · Request ");
-    if (labelled.filter((other) => other.label.startsWith(name + " · ")).length === 1) item.label = name;
+    if (
+      labelled.filter((other) => other.label.startsWith(name + " · "))
+        .length === 1
+    )
+      item.label = name;
   }
-  await send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
-  await send("Page.navigate", { url: `${url}/?view=employee&employee=${nextRevision.employeeId}&thread=${labelled[0].task.threadId}&mode=work` });
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1600,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await send("Page.navigate", {
+    url: `${url}/?view=employee&employee=${nextRevision.employeeId}&thread=${labelled[0].task.threadId}&mode=work`,
+  });
   for (const item of labelled) {
-    await until(() => evaluate(`Array.from(document.querySelectorAll('.co-cockpit .co-work-context')).some(e=>e.textContent===${JSON.stringify(item.label)})`), "Distinct review label appears");
-    await evaluate(`Array.from(document.querySelectorAll('.co-cockpit .co-work-context')).find(e=>e.textContent===${JSON.stringify(item.label)}).closest('button').click()`);
-    await until(() => evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(item.task.id)}&&document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(item.label)}`), "Review label opens the exact task and matches its header");
+    await until(
+      () =>
+        evaluate(
+          `Array.from(document.querySelectorAll('.co-cockpit .co-work-context')).some(e=>e.textContent===${JSON.stringify(item.label)})`,
+        ),
+      "Distinct review label appears",
+    );
+    await evaluate(
+      `Array.from(document.querySelectorAll('.co-cockpit .co-work-context')).find(e=>e.textContent===${JSON.stringify(item.label)}).closest('button').click()`,
+    );
+    await until(
+      () =>
+        evaluate(
+          `document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(item.task.id)}&&document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(item.label)}`,
+        ),
+      "Review label opens the exact task and matches its header",
+    );
   }
   await send("Page.reload");
-  await until(() => evaluate(`document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(labelled[2].label)}`), "Selected review label survives reload");
-  const firstLabelTask = (await snapshot()).data.tasks.find(t => t.id === labelled[0].task.id);
-  await ownerPost("task.cancel", { id: firstLabelTask.id, expectedVersion: firstLabelTask.version });
-  await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  await send("Page.navigate", { url: `${url}/?view=departments&section=today` });
-  await until(() => evaluate(`Array.from(document.querySelectorAll('.co-today .co-work-context')).some(e=>e.textContent===${JSON.stringify(labelled[1].label)})`), "Request number is stable after earlier work is canceled");
-  await evaluate(`Array.from(document.querySelectorAll('.co-today .co-work-context')).find(e=>e.textContent===${JSON.stringify(labelled[1].label)}).closest('button').click()`);
-  await until(() => evaluate(`document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(labelled[1].task.id)}&&document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(labelled[1].label)}`), "Mobile Today opens the exact labelled request");
-  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
-  assert.deepEqual((await snapshot()).data.measured, measuredBeforeLabels, "Labelling and opening saved work makes no model request");
+  await until(
+    () =>
+      evaluate(
+        `document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(labelled[2].label)}`,
+      ),
+    "Selected review label survives reload",
+  );
+  const firstLabelTask = (await snapshot()).data.tasks.find(
+    (t) => t.id === labelled[0].task.id,
+  );
+  await ownerPost("task.cancel", {
+    id: firstLabelTask.id,
+    expectedVersion: firstLabelTask.version,
+  });
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await send("Page.navigate", {
+    url: `${url}/?view=departments&section=today`,
+  });
+  await until(
+    () =>
+      evaluate(
+        `Array.from(document.querySelectorAll('.co-today .co-work-context')).some(e=>e.textContent===${JSON.stringify(labelled[1].label)})`,
+      ),
+    "Request number is stable after earlier work is canceled",
+  );
+  await evaluate(
+    `Array.from(document.querySelectorAll('.co-today .co-work-context')).find(e=>e.textContent===${JSON.stringify(labelled[1].label)}).closest('button').click()`,
+  );
+  await until(
+    () =>
+      evaluate(
+        `document.querySelector('.co-work-window .co-job-card')?.dataset.taskId===${JSON.stringify(labelled[1].task.id)}&&document.querySelector('.co-work-window-head .co-work-context')?.textContent===${JSON.stringify(labelled[1].label)}`,
+      ),
+    "Mobile Today opens the exact labelled request",
+  );
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
+    true,
+  );
+  assert.deepEqual(
+    (await snapshot()).data.measured,
+    measuredBeforeLabels,
+    "Labelling and opening saved work makes no model request",
+  );
   assert.deepEqual(errors, []);
-  await send("Page.navigate", { url: `${url}/?view=departments&section=business` });
+  await send("Page.navigate", {
+    url: `${url}/?view=departments&section=business`,
+  });
   await bodyText("Website sources and draft requests");
-  await evaluate("document.querySelector('.co-business-research').open=true;document.querySelector('.co-business-drafting > details').open=true");
+  await evaluate(
+    "document.querySelector('.co-business-research').open=true;document.querySelector('.co-business-drafting > details').open=true",
+  );
   await click("Prepare brief draft");
   await waitText("Prepared for authorization");
   await click("Review draft request");
   await waitText("I authorize one draft");
-  await evaluate("[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('I authorize one draft')).querySelector('input').click()");
+  await evaluate(
+    "[...document.querySelectorAll('.co-business-drafting label')].find(l=>l.textContent.includes('I authorize one draft')).querySelector('input').click()",
+  );
   await click("Authorize one brief draft");
   await waitText("The response did not pass evidence checks");
   await waitText("not valid brief JSON");
-  await evaluate("[...document.querySelectorAll('.co-business-drafting details')].find(d=>d.querySelector('summary').textContent==='Inspect rejected model response').open=true");
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-business-drafting pre')].some(p=>p.textContent==='not JSON <script>fictional()</script>')"), true);
-  assert.equal(await evaluate("document.querySelectorAll('.co-business-drafting script').length"), 0);
+  await evaluate(
+    "[...document.querySelectorAll('.co-business-drafting details')].find(d=>d.querySelector('summary').textContent==='Inspect rejected model response').open=true",
+  );
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-business-drafting pre')].some(p=>p.textContent==='not JSON <script>fictional()</script>')",
+    ),
+    true,
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('.co-business-drafting script').length",
+    ),
+    0,
+  );
   data = (await snapshot()).data;
-  assert.equal(data.businessProfiles.length, 1, "Rejected text never became a profile");
-  assert.equal(data.businessDrafts.find(d=>d.state==='invalid').rejectedResponse, "not JSON <script>fictional()</script>");
+  assert.equal(
+    data.businessProfiles.length,
+    1,
+    "Rejected text never became a profile",
+  );
+  assert.equal(
+    data.businessDrafts.find((d) => d.state === "invalid").rejectedResponse,
+    "not JSON <script>fictional()</script>",
+  );
   await send("Page.reload");
   await waitText("Website sources and draft requests");
   await evaluate("document.querySelector('.co-business-research').open=true");

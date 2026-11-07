@@ -13,7 +13,7 @@ import {
 import { humanize } from "./labels";
 import { ContextFromSources } from "./ContextFromSources";
 import { valuesOf } from "./contextDraft";
-import { businessSetup } from "../roles/company";
+import { businessSetup, hireable } from "../roles/company";
 import { FirstAssignment } from "./FirstAssignment";
 
 type Draft = {
@@ -32,7 +32,10 @@ type Draft = {
 const key = "hirezero-hire-draft-v2:" + (company() || "local-company");
 const legacyKey = "hirezero-hire-draft-v1";
 const suggestion = (snapshot: Snapshot, role: string) => snapshot.data.roles.find((r) => r.id === role)?.onboarding;
-function fresh(snapshot: Snapshot, role = snapshot.data.roles.find((r) => !r.unavailableReason)?.id ?? ""): Draft {
+function fresh(
+  snapshot: Snapshot,
+  role = snapshot.data.roles.filter(hireable).find((r) => !r.unavailableReason)?.id ?? "",
+): Draft {
   const defaults = suggestion(snapshot, role);
   const setup = businessSetup(snapshot, role);
   return {
@@ -516,7 +519,7 @@ export function HireOnboarding({
                   })
                 }
               >
-                {data.roles.map((r) => (
+                {data.roles.filter(hireable).map((r) => (
                   <option key={r.id} value={r.id} disabled={!!r.unavailableReason}>
                     {r.name}
                     {r.unavailableReason ? " - unavailable on this install" : ""}

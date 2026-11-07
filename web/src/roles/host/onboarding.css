@@ -1,0 +1,98 @@
+/* Onboarding with HireZero (docs/adr/0186): the company chat a new owner starts in. */
+.co-onboard {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.co-onboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--fe-line);
+}
+.co-onboard-start {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 16px;
+}
+.co-onboard-first {
+  display: flex;
+  gap: 8px;
+  padding-left: 44px;
+}
+.co-onboard-first input {
+  flex: 1;
+  min-width: 0;
+}
+.co-onboard-details {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.co-onboard-details label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+.co-onboard-details label small {
+  font-weight: 400;
+  color: var(--fe-fg-2);
+}
+.co-onboard-details input,
+.co-onboard-details textarea,
+.co-onboard-found textarea {
+  width: 100%;
+  font: inherit;
+  font-weight: 400;
+}
+.co-onboard-found {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0;
+}
+.co-onboard-fact dt {
+  font-weight: 600;
+}
+.co-onboard-fact dt small {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--fe-fg-2);
+}
+.co-onboard-fact dd {
+  margin: 2px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+.co-onboard-fact dd form {
+  width: 100%;
+}
+.co-onboard-fact.unknown dd > span {
+  color: var(--fe-fg-2);
+}
+.co-onboard-error {
+  margin: 0 0 0 44px;
+}
+@media (max-width: 640px) {
+  .co-onboard-head {
+    padding: 10px 16px;
+  }
+  .co-onboard-first {
+    padding-left: 0;
+  }
+  .co-onboard-error {
+    margin-left: 0;
+  }
+}
+/* Setting up is one conversation: no thread switching or settings while HireZero leads. */
+.co-onboard .co-conversation-context {
+  display: none;
+}

@@ -318,25 +318,60 @@ try {
     "document.querySelector('.co-work-window .co-measured input[type=checkbox]').click()",
   );
   await click("Authorize and run one job");
-  await until(async () => (await snapshot()).data.artifacts.some(a => a.taskId === originalTask.id),
-    "First deliverable saved for editing");
+  await until(
+    async () =>
+      (await snapshot()).data.artifacts.some(
+        (a) => a.taskId === originalTask.id,
+      ),
+    "First deliverable saved for editing",
+  );
   const generated = (await snapshot()).data;
-  const originalResult = generated.artifacts.find(a => a.taskId === originalTask.id);
-  const earlierFeedback = "Include a complete folding checklist, not just content themes.";
-  const fullEarlierFeedback = earlierFeedback + "\n" + "Keep a complete fictional folding checklist. ".repeat(55);
-  const latestFeedback = "Keep the checklist. Replace a broad closing question with a specific reader action.";
-  const firstRevision = await post("artifact.revise", { id: originalResult.id, expectedVersion: originalResult.version, digest: originalResult.digest, body: fullEarlierFeedback });
-  const firstRevisionResult = await post("artifact.create", { id: firstRevision.id, expectedVersion: firstRevision.version, body: "Fictional intermediate checklist for owner correction." });
-  const acceptedTask = await post("artifact.revise", { id: firstRevisionResult.id, expectedVersion: firstRevisionResult.version, digest: firstRevisionResult.digest, body: latestFeedback });
+  const originalResult = generated.artifacts.find(
+    (a) => a.taskId === originalTask.id,
+  );
+  const earlierFeedback =
+    "Include a complete folding checklist, not just content themes.";
+  const fullEarlierFeedback =
+    earlierFeedback +
+    "\n" +
+    "Keep a complete fictional folding checklist. ".repeat(55);
+  const latestFeedback =
+    "Keep the checklist. Replace a broad closing question with a specific reader action.";
+  const firstRevision = await post("artifact.revise", {
+    id: originalResult.id,
+    expectedVersion: originalResult.version,
+    digest: originalResult.digest,
+    body: fullEarlierFeedback,
+  });
+  const firstRevisionResult = await post("artifact.create", {
+    id: firstRevision.id,
+    expectedVersion: firstRevision.version,
+    body: "Fictional intermediate checklist for owner correction.",
+  });
+  const acceptedTask = await post("artifact.revise", {
+    id: firstRevisionResult.id,
+    expectedVersion: firstRevisionResult.version,
+    digest: firstRevisionResult.digest,
+    body: latestFeedback,
+  });
   const editedResult = await post("artifact.create", {
     id: acceptedTask.id,
     expectedVersion: acceptedTask.version,
     body: "Fictional edited plan: give readers a complete folding checklist. Align the corners, crease the diagonal, and check the edge. Ask which step they used or changed.",
   });
-  await send("Page.navigate", { url: `${url}/?view=employee&employee=${employee.id}&thread=${privateThread.id}&work=${acceptedTask.id}&mode=work` });
-  await until(() => evaluate(`!!document.querySelector('[data-artifact-id="${editedResult.id}"]')`),
-    "Edited result ready for review");
-  await evaluate(`[...document.querySelectorAll('[data-artifact-id="${editedResult.id}"] button')].find(b=>b.textContent.trim()==='Approve result').click()`);
+  await send("Page.navigate", {
+    url: `${url}/?view=employee&employee=${employee.id}&thread=${privateThread.id}&work=${acceptedTask.id}&mode=work`,
+  });
+  await until(
+    () =>
+      evaluate(
+        `!!document.querySelector('[data-artifact-id="${editedResult.id}"]')`,
+      ),
+    "Edited result ready for review",
+  );
+  await evaluate(
+    `[...document.querySelectorAll('[data-artifact-id="${editedResult.id}"] button')].find(b=>b.textContent.trim()==='Approve result').click()`,
+  );
   await click("Complete after review");
   await until(
     async () =>
@@ -354,34 +389,69 @@ try {
   );
   assert.ok(await evaluate("location.search.includes('repeatWork=')"));
   const referenceSection = '[aria-label="Selected result references"]';
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('${referenceSection} [data-reference-id]')].map(el=>el.dataset.referenceId)`),
-    [editedResult.id], "Only the approved edited result is included in the new recurring draft");
-  await evaluate(`document.querySelector('${referenceSection} summary').click()`);
-  assert.equal(await evaluate(`document.querySelector('${referenceSection} pre').innerText`), editedResult.body,
-    "The owner can inspect the exact accepted copy before saving");
-  assert.equal((await snapshot()).data.artifacts.find(a => a.id === originalResult.id).state, "changes_requested");
+  assert.deepEqual(
+    await evaluate(
+      `[...document.querySelectorAll('${referenceSection} [data-reference-id]')].map(el=>el.dataset.referenceId)`,
+    ),
+    [editedResult.id],
+    "Only the approved edited result is included in the new recurring draft",
+  );
+  await evaluate(
+    `document.querySelector('${referenceSection} summary').click()`,
+  );
+  assert.equal(
+    await evaluate(
+      `document.querySelector('${referenceSection} pre').innerText`,
+    ),
+    editedResult.body,
+    "The owner can inspect the exact accepted copy before saving",
+  );
+  assert.equal(
+    (await snapshot()).data.artifacts.find((a) => a.id === originalResult.id)
+      .state,
+    "changes_requested",
+  );
   assert.equal(
     await evaluate(
       "JSON.parse(sessionStorage.getItem('hirezero-schedule-draft-v1:local-company')).name",
     ),
     "Unfinished original draft",
   );
-  const copiedInstructions = await evaluate("document.querySelector('.co-schedule-editor textarea').value");
+  const copiedInstructions = await evaluate(
+    "document.querySelector('.co-schedule-editor textarea').value",
+  );
   assert.ok(copiedInstructions.startsWith(originalTask.input));
-  assert.ok(copiedInstructions.includes(firstRevision.revision.feedback), "Exact saved feedback reaches the draft without truncation");
-  assert.ok(copiedInstructions.indexOf(latestFeedback) > copiedInstructions.indexOf(earlierFeedback));
-  assert.ok(copiedInstructions.length > 2000, "Oversized revision history is kept in full for explicit consolidation");
+  assert.ok(
+    copiedInstructions.includes(firstRevision.revision.feedback),
+    "Exact saved feedback reaches the draft without truncation",
+  );
+  assert.ok(
+    copiedInstructions.indexOf(latestFeedback) >
+      copiedInstructions.indexOf(earlierFeedback),
+  );
+  assert.ok(
+    copiedInstructions.length > 2000,
+    "Oversized revision history is kept in full for explicit consolidation",
+  );
   await waitText("Consolidate the request and feedback");
-  assert.equal(await evaluate("document.querySelector('.co-schedule-editor button[type=submit]').disabled"), true);
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-schedule-editor button[type=submit]').disabled",
+    ),
+    true,
+  );
   await evaluate(
     "sessionStorage.removeItem('hirezero-schedule-draft-v1:local-company')",
   );
   await field("Schedule name", "Fictional content rhythm");
-  const instructionsForRuns = originalTask.input + "\n\nOwner feedback (consolidated):\n" + earlierFeedback + "\n" + latestFeedback + "\n\nUse a different fictional example each time.";
-  await field(
-    "Instructions for each run",
-    instructionsForRuns,
-  );
+  const instructionsForRuns =
+    originalTask.input +
+    "\n\nOwner feedback (consolidated):\n" +
+    earlierFeedback +
+    "\n" +
+    latestFeedback +
+    "\n\nUse a different fictional example each time.";
+  await field("Instructions for each run", instructionsForRuns);
   await field("Repeat", "daily");
   await field("Number of occurrences", "2");
   await field("Time zone", "UTC");
@@ -393,7 +463,13 @@ try {
       ),
     "Unsaved schedule survives reload",
   );
-  assert.equal(await evaluate("document.querySelector('.co-schedule-editor textarea').value"), instructionsForRuns, "Restoring a saved draft never replaces owner consolidation");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-schedule-editor textarea').value",
+    ),
+    instructionsForRuns,
+    "Restoring a saved draft never replaces owner consolidation",
+  );
   await send("Emulation.setDeviceMetricsOverride", {
     width: 390,
     height: 844,
@@ -432,13 +508,21 @@ try {
   assert.equal(records.length, 1);
   assert.equal(records[0].definition.skill, "marketing-starter-plan");
   assert.equal(records[0].definition.prompt, instructionsForRuns);
-  assert.equal(records[0].definition.includeOccurrenceTime, true,
-    "New recurring work includes reviewed calendar context by default");
+  assert.equal(
+    records[0].definition.includeOccurrenceTime,
+    true,
+    "New recurring work includes reviewed calendar context by default",
+  );
   await waitText("Each request includes its scheduled date and time");
   assert.deepEqual(records[0].definition.evidence, [editedResult.id]);
-  assert.ok(records[0].authority.context.selectedResults.includes(editedResult.body));
-  assert.equal(records[0].authority.context.selectedResults.includes(originalResult.body), false,
-    "Unapproved original output does not enter the schedule authority");
+  assert.ok(
+    records[0].authority.context.selectedResults.includes(editedResult.body),
+  );
+  assert.equal(
+    records[0].authority.context.selectedResults.includes(originalResult.body),
+    false,
+    "Unapproved original output does not enter the schedule authority",
+  );
   assert.equal(records[0].authority.policy.planningTokens, 22000);
   assert.equal(records[0].authority.policy.outputTarget, 6000);
   await waitText("6,000 observed output-token target per run");
@@ -495,12 +579,22 @@ try {
   await waitText("1 of 2 occurrences consumed.");
   let first = await detail(id);
   assert.equal(first.runs.length, 1);
-  const firstAttempt = (await snapshot()).data.measured.find(m => m.taskId === first.runs[0].taskId);
-  const firstPacket = await fetch(url + "/api/company/measured/" + firstAttempt.id).then(r => r.json());
+  const firstAttempt = (await snapshot()).data.measured.find(
+    (m) => m.taskId === first.runs[0].taskId,
+  );
+  const firstPacket = await fetch(
+    url + "/api/company/measured/" + firstAttempt.id,
+  ).then((r) => r.json());
   assert.ok(firstPacket.call.context.input.includes(earlierFeedback));
   assert.equal(firstPacket.call.context.scheduledOccurrence.runNumber, 1);
-  assert.equal(firstPacket.call.context.scheduledOccurrence.timeZone, approved.definition.timeZone);
-  assert.equal(Date.parse(firstPacket.call.context.scheduledOccurrence.scheduledFor), Date.parse(first.runs[0].dueAt));
+  assert.equal(
+    firstPacket.call.context.scheduledOccurrence.timeZone,
+    approved.definition.timeZone,
+  );
+  assert.equal(
+    Date.parse(firstPacket.call.context.scheduledOccurrence.scheduledFor),
+    Date.parse(first.runs[0].dueAt),
+  );
   assert.ok(firstPacket.call.context.input.includes(latestFeedback));
   assert.equal(
     (await snapshot()).data.budgets.find((b) => b.id === "schedule:" + id).used,
@@ -517,54 +611,169 @@ try {
   const beforeEdit = (await snapshot()).data;
   await evaluate("document.querySelector('.co-job-receipt > summary').click()");
   await click("View scheduled request date");
-  await until(() => evaluate("document.querySelector('[aria-label=\"Scheduled date in this request\"]')?.innerText.includes('Run 1 of 2')"),
-    "The saved occurrence date is readable in its execution receipt");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('[aria-label=\"Scheduled date in this request\"]')?.innerText.includes('Run 1 of 2')",
+      ),
+    "The saved occurrence date is readable in its execution receipt",
+  );
   await screenshot("recurring-request-date.png");
   await evaluate("document.querySelector('.co-job-receipt > summary').click()");
-  assert.equal(await evaluate("!!document.querySelector('.fe-composer')"), false,
-    "Opening a saved deliverable prioritizes the full Work view");
-  assert.ok(await evaluate("document.querySelector('.co-work-window').getBoundingClientRect().width > 700"),
-    "The desktop result has room for readable copy");
-  const originalOccurrenceArtifact = beforeEdit.artifacts.find(a => a.taskId === first.runs[0].taskId);
+  assert.equal(
+    await evaluate("!!document.querySelector('.fe-composer')"),
+    false,
+    "Opening a saved deliverable prioritizes the full Work view",
+  );
+  assert.ok(
+    await evaluate(
+      "document.querySelector('.co-work-window').getBoundingClientRect().width > 700",
+    ),
+    "The desktop result has room for readable copy",
+  );
+  const originalOccurrenceArtifact = beforeEdit.artifacts.find(
+    (a) => a.taskId === first.runs[0].taskId,
+  );
   const scheduleBeforeEdit = await detail(id);
   await click("Edit a copy");
-  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), originalOccurrenceArtifact.body);
-  const correctedOccurrence = originalOccurrenceArtifact.body + "\n\nOwner correction: show the completed paper-folding example before asking readers to try it.";
-  await evaluate(`(()=>{const el=document.querySelector('.co-artifact-editor textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(correctedOccurrence)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-artifact-editor textarea').value",
+    ),
+    originalOccurrenceArtifact.body,
+  );
+  const correctedOccurrence =
+    originalOccurrenceArtifact.body +
+    "\n\nOwner correction: show the completed paper-folding example before asking readers to try it.";
+  await evaluate(
+    `(()=>{const el=document.querySelector('.co-artifact-editor textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(el,${JSON.stringify(correctedOccurrence)});el.dispatchEvent(new Event('input',{bubbles:true}));})()`,
+  );
   // Split chat deliberately starts at 1600px; narrower desktops keep the copy readable in one pane.
-  await send("Emulation.setDeviceMetricsOverride", { width: 1700, height: 1000, deviceScaleFactor: 1, mobile: false });
-  await until(() => evaluate("innerWidth >= 1600"), "wide desktop for explicit split chat");
-  await evaluate("document.querySelector('[aria-label=\"Show in chat\"]').click()");
-  await until(() => evaluate("!!document.querySelector('.co-chat-and-work') && !!document.querySelector('[aria-label=\"Expand work\"]')"), "Split chat remains an explicit choice");
-  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), correctedOccurrence,
-    "Switching to split chat preserves the unsaved edit");
-  assert.equal(await evaluate("(()=>{const form=document.querySelector('.co-composer-form');return form.scrollWidth<=form.clientWidth+1 && [...form.querySelectorAll('input,select,small')].every(el=>el.getBoundingClientRect().right<=form.getBoundingClientRect().right+1);})()"), true,
-    "Model selection and help text fit the narrow composer");
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1700,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await until(
+    () => evaluate("innerWidth >= 1600"),
+    "wide desktop for explicit split chat",
+  );
+  await evaluate(
+    "document.querySelector('[aria-label=\"Show in chat\"]').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('.co-chat-and-work') && !!document.querySelector('[aria-label=\"Expand work\"]')",
+      ),
+    "Split chat remains an explicit choice",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-artifact-editor textarea').value",
+    ),
+    correctedOccurrence,
+    "Switching to split chat preserves the unsaved edit",
+  );
+  assert.equal(
+    await evaluate(
+      "(()=>{const form=document.querySelector('.co-composer-form');return form.scrollWidth<=form.clientWidth+1 && [...form.querySelectorAll('input,select,small')].every(el=>el.getBoundingClientRect().right<=form.getBoundingClientRect().right+1);})()",
+    ),
+    true,
+    "Model selection and help text fit the narrow composer",
+  );
   await screenshot("recurring-result-split-chat.png");
-  await evaluate("document.querySelector('[aria-label=\"Expand work\"]').click()");
-  await until(() => evaluate("!!document.querySelector('.co-work-window') && !document.querySelector('.fe-composer')"), "Expand work returns to focused review");
-  assert.equal(await evaluate("document.querySelector('.co-artifact-editor textarea').value"), correctedOccurrence,
-    "Expanding work preserves the unsaved edit");
-  await until(() => evaluate("document.activeElement.classList.contains('co-work-window')"),
-    "Keyboard focus follows the expanded result");
+  await evaluate(
+    "document.querySelector('[aria-label=\"Expand work\"]').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('.co-work-window') && !document.querySelector('.fe-composer')",
+      ),
+    "Expand work returns to focused review",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-artifact-editor textarea').value",
+    ),
+    correctedOccurrence,
+    "Expanding work preserves the unsaved edit",
+  );
+  await until(
+    () =>
+      evaluate("document.activeElement.classList.contains('co-work-window')"),
+    "Keyboard focus follows the expanded result",
+  );
   await send("Page.reload");
-  await until(() => evaluate(`document.querySelector('.co-artifact-editor textarea')?.value===${JSON.stringify(correctedOccurrence)}`), "Unfinished recurring-result edit survives reload");
-  assert.ok(await evaluate("document.body.innerText.includes('Later scheduled runs keep their approved instructions and references.')"));
+  await until(
+    () =>
+      evaluate(
+        `document.querySelector('.co-artifact-editor textarea')?.value===${JSON.stringify(correctedOccurrence)}`,
+      ),
+    "Unfinished recurring-result edit survives reload",
+  );
+  assert.ok(
+    await evaluate(
+      "document.body.innerText.includes('Later scheduled runs keep their approved instructions and references.')",
+    ),
+  );
   await click("Save for review");
-  await until(async () => (await snapshot()).data.artifacts.some(a => a.taskId === first.runs[0].taskId && a.body === correctedOccurrence), "Separate owner-edited recurring result saved");
+  await until(
+    async () =>
+      (await snapshot()).data.artifacts.some(
+        (a) =>
+          a.taskId === first.runs[0].taskId && a.body === correctedOccurrence,
+      ),
+    "Separate owner-edited recurring result saved",
+  );
   const afterEdit = (await snapshot()).data;
-  const editedOccurrence = afterEdit.artifacts.find(a => a.taskId === first.runs[0].taskId && a.body === correctedOccurrence);
+  const editedOccurrence = afterEdit.artifacts.find(
+    (a) => a.taskId === first.runs[0].taskId && a.body === correctedOccurrence,
+  );
   assert.equal(editedOccurrence.provenance, "owner-authored");
   assert.equal(editedOccurrence.state, "needs_review");
-  assert.deepEqual(afterEdit.artifacts.find(a => a.id === originalOccurrenceArtifact.id), originalOccurrenceArtifact);
-  assert.deepEqual(afterEdit.measured, beforeEdit.measured, "An owner edit creates no model request or receipt");
-  assert.deepEqual(afterEdit.budgets, beforeEdit.budgets, "An owner edit spends no additional allowance");
-  assert.deepEqual(await detail(id), scheduleBeforeEdit, "Editing a result leaves the remaining schedule unchanged");
-  await until(() => evaluate(`document.querySelector('.co-artifact')?.dataset.artifactId===${JSON.stringify(editedOccurrence.id)}`), "Edited recurring draft is shown first");
-  await evaluate(`document.querySelector('[data-artifact-id="${editedOccurrence.id}"]').scrollIntoView({behavior:'instant',block:'start'})`);
+  assert.deepEqual(
+    afterEdit.artifacts.find((a) => a.id === originalOccurrenceArtifact.id),
+    originalOccurrenceArtifact,
+  );
+  assert.deepEqual(
+    afterEdit.measured,
+    beforeEdit.measured,
+    "An owner edit creates no model request or receipt",
+  );
+  assert.deepEqual(
+    afterEdit.budgets,
+    beforeEdit.budgets,
+    "An owner edit spends no additional allowance",
+  );
+  assert.deepEqual(
+    await detail(id),
+    scheduleBeforeEdit,
+    "Editing a result leaves the remaining schedule unchanged",
+  );
+  await until(
+    () =>
+      evaluate(
+        `document.querySelector('.co-artifact')?.dataset.artifactId===${JSON.stringify(editedOccurrence.id)}`,
+      ),
+    "Edited recurring draft is shown first",
+  );
+  await evaluate(
+    `document.querySelector('[data-artifact-id="${editedOccurrence.id}"]').scrollIntoView({behavior:'instant',block:'start'})`,
+  );
   await screenshot("recurring-deliverable-owner-edit.png");
-  await evaluate(`(()=>{const a=document.querySelector('[data-artifact-id="${editedOccurrence.id}"]');[...a.querySelectorAll('button')].find(b=>b.textContent.trim()==='Approve result').click();})()`);
-  await until(async () => (await snapshot()).data.artifacts.find(a => a.id === editedOccurrence.id)?.state === "approved", "Edited recurring draft approved separately");
+  await evaluate(
+    `(()=>{const a=document.querySelector('[data-artifact-id="${editedOccurrence.id}"]');[...a.querySelectorAll('button')].find(b=>b.textContent.trim()==='Approve result').click();})()`,
+  );
+  await until(
+    async () =>
+      (await snapshot()).data.artifacts.find(
+        (a) => a.id === editedOccurrence.id,
+      )?.state === "approved",
+    "Edited recurring draft approved separately",
+  );
   await click("Complete after review");
   await until(
     async () =>
@@ -575,25 +784,67 @@ try {
   const beforeFeedback = await detail(id);
   await click("Remember feedback for future work");
   await click("Capture feedback from this result");
-  const learnedFeedback = "The fictional owner used the paper-folding content plan. Include numbered steps in the next weekly outline.";
+  const learnedFeedback =
+    "The fictional owner used the paper-folding content plan. Include numbered steps in the next weekly outline.";
   await field("Title", "Weekly content plan feedback", ".co-memory-editor");
   await field("Statement", learnedFeedback, ".co-memory-editor");
   await click("Save memory draft");
-  const memories = () => fetch(url + "/api/company/memory").then(r => r.json());
-  await until(async () => (await memories()).some(row => row.memory.definition.statement === learnedFeedback), "Recurring-result feedback draft saved");
-  let feedbackRow = (await memories()).find(row => row.memory.definition.statement === learnedFeedback);
-  assert.equal(feedbackRow.usable, false, "Unapproved feedback cannot enter future model context");
+  const memories = () =>
+    fetch(url + "/api/company/memory").then((r) => r.json());
+  await until(
+    async () =>
+      (await memories()).some(
+        (row) => row.memory.definition.statement === learnedFeedback,
+      ),
+    "Recurring-result feedback draft saved",
+  );
+  let feedbackRow = (await memories()).find(
+    (row) => row.memory.definition.statement === learnedFeedback,
+  );
+  assert.equal(
+    feedbackRow.usable,
+    false,
+    "Unapproved feedback cannot enter future model context",
+  );
   assert.equal(feedbackRow.memory.origin.artifactId, editedOccurrence.id);
-  assert.equal(feedbackRow.memory.origin.quote, correctedOccurrence.slice(0,600).trim());
-  assert.equal(feedbackRow.memory.definition.employeeId, editedOccurrence.employeeId);
-  await until(() => evaluate("!!document.querySelector('.co-memory-check input') && window.__smokeIdle()"), "Feedback ready for separate approval");
+  assert.equal(
+    feedbackRow.memory.origin.quote,
+    correctedOccurrence.slice(0, 600).trim(),
+  );
+  assert.equal(
+    feedbackRow.memory.definition.employeeId,
+    editedOccurrence.employeeId,
+  );
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('.co-memory-check input') && window.__smokeIdle()",
+      ),
+    "Feedback ready for separate approval",
+  );
   await evaluate("document.querySelector('.co-memory-check input').click()");
   await click("Approve memory");
-  await until(async () => (await memories()).find(row => row.memory.id === feedbackRow.memory.id)?.usable, "Approved feedback available to its employee");
-  feedbackRow = (await memories()).find(row => row.memory.id === feedbackRow.memory.id);
-  assert.deepEqual(await detail(id), beforeFeedback, "Feedback approval preserves the exact remaining schedule");
-  await until(() => evaluate("window.__smokeIdle() && !document.querySelector('.co-memory-review button')?.disabled && !document.body.innerText.includes('Review memory: Weekly content plan feedback')"),
-    "Approved feedback clears its attention item after refresh");
+  await until(
+    async () =>
+      (await memories()).find((row) => row.memory.id === feedbackRow.memory.id)
+        ?.usable,
+    "Approved feedback available to its employee",
+  );
+  feedbackRow = (await memories()).find(
+    (row) => row.memory.id === feedbackRow.memory.id,
+  );
+  assert.deepEqual(
+    await detail(id),
+    beforeFeedback,
+    "Feedback approval preserves the exact remaining schedule",
+  );
+  await until(
+    () =>
+      evaluate(
+        "window.__smokeIdle() && !document.querySelector('.co-memory-review button')?.disabled && !document.body.innerText.includes('Review memory: Weekly content plan feedback')",
+      ),
+    "Approved feedback clears its attention item after refresh",
+  );
   await screenshot("recurring-result-feedback.png");
   await send("Page.navigate", {
     url: url + "/?view=departments&section=schedules",
@@ -627,16 +878,37 @@ try {
     false,
   );
   assert.equal((await detail(id)).runs.length, 2);
-  const secondRun = (await detail(id)).runs.find(run => run.taskId !== first.runs[0].taskId);
-  const secondAttempt = (await snapshot()).data.measured.find(attempt => attempt.taskId === secondRun.taskId);
-  const secondPacket = await fetch(url + "/api/company/measured/" + secondAttempt.id).then(r => r.json());
+  const secondRun = (await detail(id)).runs.find(
+    (run) => run.taskId !== first.runs[0].taskId,
+  );
+  const secondAttempt = (await snapshot()).data.measured.find(
+    (attempt) => attempt.taskId === secondRun.taskId,
+  );
+  const secondPacket = await fetch(
+    url + "/api/company/measured/" + secondAttempt.id,
+  ).then((r) => r.json());
   assert.equal(secondPacket.call.context.scheduledOccurrence.runNumber, 2);
-  assert.equal(Date.parse(secondPacket.call.context.scheduledOccurrence.scheduledFor), Date.parse(secondRun.dueAt));
-  assert.notEqual(secondPacket.call.context.scheduledOccurrence.scheduledFor, firstPacket.call.context.scheduledOccurrence.scheduledFor);
-  const rememberedFeedback = secondPacket.call.context.memory.items.find(item => item.memoryId === feedbackRow.memory.id);
-  assert.equal(rememberedFeedback.statement, learnedFeedback, "Later scheduled work receives the owner's actual guidance");
+  assert.equal(
+    Date.parse(secondPacket.call.context.scheduledOccurrence.scheduledFor),
+    Date.parse(secondRun.dueAt),
+  );
+  assert.notEqual(
+    secondPacket.call.context.scheduledOccurrence.scheduledFor,
+    firstPacket.call.context.scheduledOccurrence.scheduledFor,
+  );
+  const rememberedFeedback = secondPacket.call.context.memory.items.find(
+    (item) => item.memoryId === feedbackRow.memory.id,
+  );
+  assert.equal(
+    rememberedFeedback.statement,
+    learnedFeedback,
+    "Later scheduled work receives the owner's actual guidance",
+  );
   assert.equal(rememberedFeedback.origin.artifactId, editedOccurrence.id);
-  assert.equal(rememberedFeedback.origin.quote, correctedOccurrence.slice(0,600).trim());
+  assert.equal(
+    rememberedFeedback.origin.quote,
+    correctedOccurrence.slice(0, 600).trim(),
+  );
   assert.equal(
     (await snapshot()).data.budgets.find((b) => b.id === "schedule:" + id).used,
     60,
@@ -719,9 +991,16 @@ try {
       ),
     "Scheduled source result opens evidence review",
   );
-  await send("Page.navigate", { url: `${url}/?view=departments&section=schedules&schedule=${id}` });
-  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'"),
-    "Original completed schedule opens");
+  await send("Page.navigate", {
+    url: `${url}/?view=departments&section=schedules&schedule=${id}`,
+  });
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'",
+      ),
+    "Original completed schedule opens",
+  );
   const beforeNavigation = (await snapshot()).data.measured;
   await click("Copy into a new draft");
   await field("Schedule name", "Fictional revised rhythm");
@@ -729,35 +1008,89 @@ try {
   copyStart.setUTCDate(copyStart.getUTCDate() + 1);
   await field("First date", copyStart.toISOString().slice(0, 10));
   await click("Save schedule draft");
-  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'"),
-    "Copied schedule saved for review");
-  const copied = (await schedules()).find(s => s.definition.name === "Fictional revised rhythm");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'",
+      ),
+    "Copied schedule saved for review",
+  );
+  const copied = (await schedules()).find(
+    (s) => s.definition.name === "Fictional revised rhythm",
+  );
   assert.equal(copied.state, "draft");
-  assert.equal(await evaluate("new URLSearchParams(location.search).get('schedule')"), copied.id,
-    "The copied draft owns the address, not the earlier approval");
+  assert.equal(
+    await evaluate("new URLSearchParams(location.search).get('schedule')"),
+    copied.id,
+    "The copied draft owns the address, not the earlier approval",
+  );
   await send("Page.reload");
-  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'"),
-    "Reload keeps the copied review");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'",
+      ),
+    "Reload keeps the copied review",
+  );
   await consent();
-  await evaluate("[...document.querySelectorAll('.co-schedule-list button')].find(b=>b.textContent.includes('Fictional weekly outline')).click()");
-  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'"),
-    "Selection opens the original schedule");
-  assert.equal(await evaluate("new URLSearchParams(location.search).get('schedule')"), id);
+  await evaluate(
+    "[...document.querySelectorAll('.co-schedule-list button')].find(b=>b.textContent.includes('Fictional weekly outline')).click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'",
+      ),
+    "Selection opens the original schedule",
+  );
+  assert.equal(
+    await evaluate("new URLSearchParams(location.search).get('schedule')"),
+    id,
+  );
   await evaluate("history.back()");
-  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'"),
-    "Back restores the copied review");
-  assert.equal(await evaluate("document.querySelector('.co-schedule-review input[type=checkbox]').checked"), false,
-    "Returning to a review never carries consent from a different selection");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'",
+      ),
+    "Back restores the copied review",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-schedule-review input[type=checkbox]').checked",
+    ),
+    false,
+    "Returning to a review never carries consent from a different selection",
+  );
   await evaluate("history.forward()");
-  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'"),
-    "Forward restores the original review");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review h3')?.textContent==='Fictional weekly outline'",
+      ),
+    "Forward restores the original review",
+  );
   await evaluate("history.back()");
-  await until(() => evaluate("document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'"),
-    "Copied review remains reachable on mobile");
-  assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+1"), true);
-  await evaluate("document.querySelector('.co-schedule-review').scrollIntoView({block:'start'})");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-schedule-review h3')?.textContent==='Fictional revised rhythm'",
+      ),
+    "Copied review remains reachable on mobile",
+  );
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
+    true,
+  );
+  await evaluate(
+    "document.querySelector('.co-schedule-review').scrollIntoView({block:'start'})",
+  );
   await screenshot("recurring-review-navigation-mobile.png");
-  assert.deepEqual((await snapshot()).data.measured, beforeNavigation, "Review navigation never dispatches a model");
+  assert.deepEqual(
+    (await snapshot()).data.measured,
+    beforeNavigation,
+    "Review navigation never dispatches a model",
+  );
   assert.equal((await detail(copied.id)).schedule.state, "draft");
   assert.deepEqual(errors, []);
   await fs.writeFile(

@@ -119,6 +119,7 @@ static class BrowserQueueFixture
             : usageMode ? new UsageModel()
             : scheduleMode ? new ScheduleModel()
             : businessDraft ? new BusinessModel(businessMode == "success-then-unknown")
+            : Environment.GetEnvironmentVariable("HIREZERO_BROWSER_ONBOARDING") == "1" ? new OnboardingModel()
             : args[0] == "--company-browser-fixture" ? null
             : MeasuredQueueChecks.Model(root, mode);
         await using var app = CompanyWorkspace.TryCreate(
@@ -964,6 +965,68 @@ static class BrowserQueueFixture
                     "fictional-memory-receipt",
                     new(100, 40, BilledUsd: .001m)
                 )
+            );
+        }
+    }
+
+    // Onboarding with HireZero (docs/adr/0186): the host's replies follow its script, the brief comes from the
+    // fictional site, and the first teammate's plan is a short fictional draft.
+    private sealed class OnboardingModel : IModelProvider, IMeasuredModelProvider
+    {
+        public bool Qualified => false;
+        public string Status => "Fictional onboarding fixture";
+        public string RuntimeIdentity => "fictional-onboarding-browser-v1";
+
+        public ModelInputAccounting CountInput(ModelCall call) => throw new NotSupportedException();
+
+        public Task<ModelReply> CompleteAsync(ModelCall call, CancellationToken token) =>
+            throw new NotSupportedException();
+
+        public Task<ModelReply> CompleteMeasuredAsync(ModelCall call, CompanyMeasuredJob job, CancellationToken token)
+        {
+            string text;
+            if (call.Context.Scope == "business-profile")
+                text = CompanyJson.Encode(
+                    new
+                    {
+                        fields = CompanyStore
+                            .BusinessProfileFields.Select(key =>
+                                key is "business" or "services"
+                                    ? new CompanyProfileField(
+                                        key,
+                                        "Paper craft kits for adult hobbyists",
+                                        "sourced",
+                                        [new(call.Context.Evidence[0].Id, "Paper craft kits for adult hobbyists")]
+                                    )
+                                    : new CompanyProfileField(key, "Unknown", "unknown", [])
+                            )
+                            .ToArray(),
+                    }
+                );
+            else if (!call.Instructions.Contains("You are HireZero", StringComparison.Ordinal))
+                text =
+                    "DRAFT FOR INTERNAL REVIEW\nA one-week plan for paper craft kits: show one folding demo a day and ask three customers what they'd make next.";
+            else if (
+                call.Context.Notes.Contains("brief is approved", StringComparison.Ordinal)
+                && call.Context.Input.StartsWith("Looks right", StringComparison.Ordinal)
+            )
+                text =
+                    "Wonderful, your brief is saved and every teammate will work from it. One more question: what do you need help with most right now?";
+            else if (call.Context.Notes.Contains("brief is approved", StringComparison.Ordinal))
+                text =
+                    "More workshop sign-ups, got it. A Marketing partner is the right first teammate: they'll turn your kits into posts and emails people act on. Say yes below and I'll bring them in.";
+            else
+                // History holds the earlier turns; this reply answers the owner's current message too.
+                text = (call.Context.History.Count(m => m.Author == "owner") + 1) switch
+                {
+                    <= 1 =>
+                        "Lovely to meet you, Fictional Paper Studio! Do you have a website? Paste the address and I'll read it, or tell me about the business in your own words, as much as you like.",
+                    2 => "Paper kits sound fun. What do you most want to happen in the next month or two?",
+                    _ =>
+                        "More workshop sign-ups this month. Your details are below to check; press Look us up and I'll read your site and draft your company brief.",
+                };
+            return Task.FromResult(
+                new ModelReply(text, 120, "fictional-onboarding-receipt", new(80, 40, BilledUsd: 0.0002m))
             );
         }
     }

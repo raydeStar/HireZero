@@ -173,8 +173,13 @@ try {
         ),
       text,
     );
-  await send("Page.navigate", { url: url + "/?view=departments&section=business" });
-  await until(() => evaluate("!!document.querySelector('.co-business')"), "Business brief editor");
+  await send("Page.navigate", {
+    url: url + "/?view=departments&section=business",
+  });
+  await until(
+    () => evaluate("!!document.querySelector('.co-business')"),
+    "Business brief editor",
+  );
   await field("Business name", "Fictional Paper Studio");
   await field("Website (optional)", "https://paper.example.invalid/");
   await field(
@@ -239,16 +244,57 @@ try {
   assert.equal((await snapshot()).data.businessProfiles.length, 0);
   await click("Save brief draft");
   await waitText("Brief draft saved.");
-  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), true, "Saving opens a readable review instead of leaving the form expanded");
-  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').getClientRects().length"), 0, "Shared grid styles must not reveal the hidden editor");
-  assert.equal(await evaluate("document.querySelector('.co-business-readonly').innerText.includes('Paper craft kits for adult hobbyists')"), true);
-  assert.equal(await evaluate("document.querySelector('.co-business-readonly details').open"), false, "Evidence is available without dominating the brief");
-  await evaluate("document.querySelector('.co-business-readonly summary').click()");
-  assert.equal(await evaluate("document.querySelector('.co-business-readonly details').innerText.includes('Retrieved')"), true);
-  assert.equal(await evaluate("document.querySelector('.co-business-readonly blockquote').textContent"), '“Paper craft kits for adult hobbyists”');
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-profile fieldset').hidden",
+    ),
+    true,
+    "Saving opens a readable review instead of leaving the form expanded",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-profile fieldset').getClientRects().length",
+    ),
+    0,
+    "Shared grid styles must not reveal the hidden editor",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-readonly').innerText.includes('Paper craft kits for adult hobbyists')",
+    ),
+    true,
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-readonly details').open",
+    ),
+    false,
+    "Evidence is available without dominating the brief",
+  );
+  await evaluate(
+    "document.querySelector('.co-business-readonly summary').click()",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-readonly details').innerText.includes('Retrieved')",
+    ),
+    true,
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-readonly blockquote').textContent",
+    ),
+    "“Paper craft kits for adult hobbyists”",
+  );
   await send("Page.reload");
   await waitText("This saved draft is not available to employees yet.");
-  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), true, "Saved draft stays in review mode after reload");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-profile fieldset').hidden",
+    ),
+    true,
+    "Saved draft stays in review mode after reload",
+  );
   assert.equal(
     (await snapshot()).data.knowledge.length,
     0,
@@ -258,9 +304,27 @@ try {
   await field("Exact supporting quote", "Invented claim");
   await send("Page.reload");
   await waitText("Use your own facts");
-  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').hidden"), false, "Unfinished changes reopen the editor");
-  assert.equal(await evaluate("document.querySelector('.co-business-profile fieldset').getClientRects().length>0"), true, "Unfinished edits are visibly editable");
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-business-profile button')].find(b=>b.textContent==='Approve brief for my team').disabled"), true, "Unsaved edits cannot be approved");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-profile fieldset').hidden",
+    ),
+    false,
+    "Unfinished changes reopen the editor",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-business-profile fieldset').getClientRects().length>0",
+    ),
+    true,
+    "Unfinished edits are visibly editable",
+  );
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-business-profile button')].find(b=>b.textContent==='Approve brief for my team').disabled",
+    ),
+    true,
+    "Unsaved edits cannot be approved",
+  );
   await click("Save brief draft");
   await waitText("services citation must exactly quote a source");
   await field("Exact supporting quote", "Paper craft kits for adult hobbyists");
@@ -284,7 +348,9 @@ try {
   await send("Page.reload");
   await waitText("Your team still uses the previously approved brief.");
   assert.equal(
-    await evaluate("[...document.querySelectorAll('.co-business-profile button')].find(b=>b.textContent==='Approve brief for my team').disabled"),
+    await evaluate(
+      "[...document.querySelectorAll('.co-business-profile button')].find(b=>b.textContent==='Approve brief for my team').disabled",
+    ),
     true,
     "A replacement points to the active brief before an approval can fail",
   );
@@ -301,7 +367,10 @@ try {
     "Replace or withdraw the approved brief",
     "The review shortcut opens and focuses the existing approval",
   );
-  assert.equal(await evaluate("document.activeElement.parentElement.open"), true);
+  assert.equal(
+    await evaluate("document.activeElement.parentElement.open"),
+    true,
+  );
   await click("Revoke this approved brief");
   await waitText("The selected brief was revoked.");
   await click("Approve brief for my team");

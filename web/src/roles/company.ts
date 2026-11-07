@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
-import type { BusinessProfile, Role, Snapshot, Work } from "../company/api";
+import type { BusinessProfile, Event, Role, Snapshot, Work } from "../company/api";
+import type { ConversationDraft } from "../company/CompanyConversation";
 
 // What an employee module contributes to the company workspace. Each web/src/roles/<id>/company.tsx exports one,
 // and it renders only in the UI slots that module's manifest declares (docs/adr/0002-employee-module-contract.md).
@@ -25,7 +26,25 @@ export type HomeCardProps = {
   // In the desk: the conversation on screen, so a card can tell what that thread already shows.
   threadId?: string;
 };
+// A new company's first screen (docs/adr/0186): a guide that sets the company up in chat and hires its first teammate.
+export type OnboardingProps = {
+  snapshot: Snapshot;
+  events: Event[];
+  busy: boolean;
+  memberRole?: string;
+  drafts: Map<string, ConversationDraft>;
+  updateDraft: (scope: string, update: (current: ConversationDraft | undefined) => ConversationDraft) => void;
+  run: (action: string, fields: Record<string, unknown>) => Promise<unknown>;
+  refresh: () => Promise<void>;
+  onOpenWork: (task: Work) => void;
+  // The first teammate has started: Home becomes their conversation.
+  onDone: () => void;
+  // The owner prefers the form.
+  onUseForm: () => void;
+};
 export type CompanyRoleUi = {
+  // Shown with the "concierge" UI slot: onboarding for a company with no team yet.
+  onboarding?: ComponentType<OnboardingProps>;
   skillInputs?: Record<string, SkillInput>;
   panels?: Record<string, ComponentType>;
   homeCard?: ComponentType<HomeCardProps>;
@@ -67,6 +86,9 @@ export function skillInput(role: Role | undefined, skill: string): SkillInput | 
   if (!role?.uiSlots?.includes("skill-input:" + skill)) return undefined;
   return byRole[role.id]?.skillInputs?.[skill];
 }
+
+// The onboarding host (docs/adr/0186) is never hired from a list: it arrives with a new company and steps aside.
+export const hireable = (role: Role) => !role.uiSlots?.includes("concierge");
 
 export function approvedBusinessProfile(snapshot: Snapshot): BusinessProfile | undefined {
   if (snapshot.data.business?.state !== "confirmed") return undefined;
@@ -147,6 +169,11 @@ export function homeActions(roles: Role[]): { roleId: string; Action: ComponentT
 // Each role's note lines, for roles that lead Home ("home-lead" slot).
 export function approvedSay(role: Role | undefined, skill: string) {
   return role?.uiSlots?.includes("home-lead") ? byRole[role.id]?.approvedSay?.[skill] : undefined;
+}
+
+export function onboardingFlow(roles: Role[]) {
+  const role = roles.find((r) => r.uiSlots?.includes("concierge"));
+  return role ? byRole[role.id]?.onboarding : undefined;
 }
 
 export function noteLines(

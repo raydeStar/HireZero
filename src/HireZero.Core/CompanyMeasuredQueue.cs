@@ -257,7 +257,8 @@ public sealed partial class CompanyStore
             );
         if (subject is null || Find<CompanyMember>(db, subject) is not { State: "active" } member)
             return "";
-        var name = member.Name is { Length: > 0 } n && n != member.Email ? n : null;
+        // The first owner is created as "Owner" until they sign in with a name; that is a role, not what to call them.
+        var name = member.Name is { Length: > 0 } n && n != member.Email && n != "Owner" ? n : null;
         if (name is null && member.About is null)
             return "";
         return string.Format(PersonPreamble, name ?? "the owner")

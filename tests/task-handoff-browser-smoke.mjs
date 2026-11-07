@@ -1,130 +1,678 @@
 // Runs an installed headless Chrome against a disposable company-local host. No user browser profile or live provider.
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import os from 'node:os';
-import {spawn} from 'node:child_process';
-import assert from 'node:assert/strict';
-import {clicker,delay,fetchTracker,freeLocalUrl,pageDiagnosis,pageIdle,waiter} from './browser-smoke-wait.mjs';
-const repo=path.resolve(import.meta.dirname,'..');
-const temporary=await fs.mkdtemp(path.join(os.tmpdir(),'hirezero-manual-ui-'));
-const chrome=process.env.HIREZERO_TEST_CHROME||path.join(process.env.ProgramFiles||'C:/Program Files','Google/Chrome/Application/chrome.exe');
-const hostDir=path.join(repo,'src/HireZero.Host');
-const url=process.env.HIREZERO_TEST_URL||await freeLocalUrl();
-const webRoot=process.env.HIREZERO_TEST_WEB_ROOT||path.join(hostDir,'wwwroot');
-const host=spawn('dotnet',[path.join(repo,'tests/HireZero.Company.Tests/bin/Debug/net10.0/HireZero.Company.Tests.dll'),'--measured-browser-fixture',temporary,url,webRoot],{cwd:hostDir,windowsHide:true,env:{...process.env,HIREZERO_LOCAL_OWNER:'1',HIREZERO_OWNER_LOGIN:'owner@example.invalid',HIREZERO_DATA_ROOT:path.join(temporary,'data'),HIREZERO_EXECUTION_HOLD:'0'},stdio:['ignore','pipe','pipe']});
-let hostLog='';host.stdout.on('data',b=>hostLog+=b);host.stderr.on('data',b=>hostLog+=b);let browser,ws;
-const until=waiter();
-try{
-  await until(()=>hostLog.includes('Now listening on: '+url),'this test host owns the listener');
-  await until(async()=>{const r=await fetch(url+'/health');return r.ok;},'fresh host health');
-  const health=await fetch(url+'/health').then(r=>r.json());assert.equal(health.modelExecution,false);
-  browser=spawn(chrome,['--headless=new','--disable-gpu','--disable-background-networking','--disable-sync','--disable-default-apps','--no-first-run','--no-default-browser-check','--no-proxy-server','--remote-debugging-port=0','--remote-debugging-address=127.0.0.1','--user-data-dir='+path.join(temporary,'browser'),'about:blank'],{windowsHide:true,stdio:'ignore'});
-  const port=await until(async()=>{const text=await fs.readFile(path.join(temporary,'browser','DevToolsActivePort'),'utf8');return Number(text.split('\n')[0]);},'isolated browser debugger');
-  const targets=await fetch(`http://127.0.0.1:${port}/json/list`).then(r=>r.json());const target=targets.find(t=>t.type==='page');assert.ok(target);
-  ws=new WebSocket(target.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
-  let sequence=0;const pending=new Map();const errors=[];
-  ws.addEventListener('message',e=>{const m=JSON.parse(e.data);if(m.id){const p=pending.get(m.id);if(!p)return;clearTimeout(p.timer);pending.delete(m.id);if(m.error)p.reject(new Error(m.error.message));else p.resolve(m.result);}if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.text);});
-  const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;const timer=setTimeout(()=>{pending.delete(id);reject(new Error('Debugger command timed out: '+method));},10000);pending.set(id,{resolve,reject,timer});ws.send(JSON.stringify({id,method,params}));});
-  const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};until.diagnose=pageDiagnosis(evaluate);
-  await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});await send('Page.addScriptToEvaluateOnNewDocument',{source:fetchTracker});await send('Page.navigate',{url:url+'/'});
-  await until(()=>evaluate("document.body.innerText.includes('Company conversation')"),'company UI');
-  const click=clicker(evaluate,until),idle=pageIdle(evaluate,until);
-  const field=async(label,value)=>{await evaluate(`(()=>{const label=[...document.querySelectorAll('.co-main label')].find(l=>l.childNodes[0]?.textContent.trim()===${JSON.stringify(label)});if(!label)throw Error('Field missing: '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);await delay(70);};
-  assert.match(hostLog,/BROWSER FIXTURE: fake provider only/);
-  const dashboard=()=>fetch(url+'/api/company').then(r=>r.json());
-  const starts=async()=>{const files=await fs.readdir(temporary,{recursive:true});let count=0;for(const file of files.filter(p=>p.endsWith('fixture-native-starts')))count+=(await fs.readFile(path.join(temporary,file),'utf8')).trim().split('\n').filter(Boolean).length;return count;};
-  await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Browser draft fixture')).click()");await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'manual jobs employee');
-  await until(()=>evaluate("document.querySelector('.fe-send')?.textContent.trim()==='Send'"),'composer visibly names one-sign-off Send');await field('Message action','reply');assert.equal(await evaluate("document.querySelector('.fe-send').textContent.trim()"),'Prepare reply','Review-first preparation is still named');
-  await field('Message action','save');assert.equal(await evaluate("document.querySelector('.fe-send').textContent.trim()"),'Save message','Saving a message is visible without hovering');
-  await field('Message action','reply');
-  await field('Work type','marketing-draft');
-  assert.equal(await evaluate("document.querySelector('.fe-send').textContent.trim()"),'Assign work','Assigning work is visibly distinct from asking for a reply');
-  const brief=JSON.parse(await fs.readFile(path.join(repo,'tests/fixtures/one-job-marketing-brief.json'),'utf8'));
-  for(const [key,value] of Object.entries(brief))await field(key,value);
-  await evaluate("document.querySelector('button[aria-label=\"Assign work\"]').click()");await until(async()=>(await dashboard()).data.tasks.length===1,'brief saved');
-  await until(()=>evaluate("document.body.innerText.includes('Waiting for your one-job authorization.')"),'manual queue waiting state');
-  assert.equal(await starts(),0,'Assigning a brief makes no provider request');
-  await click('Prepare job for review');
-  await until(async()=>(await dashboard()).data.measured[0]?.job.state==='proposed','sealed proposal');assert.equal(await starts(),0,'Preparing a job makes no provider request');
-  const authorizeDisabled=()=>evaluate("[...document.querySelectorAll('.co-measured button')].find(b=>b.textContent==='Authorize and run one job').disabled");
-  await until(()=>evaluate("[...document.querySelectorAll('.co-measured button')].some(b=>b.textContent==='Authorize and run one job')"),'sealed proposal shown');
-  assert.equal(await authorizeDisabled(),true,'Unread work cannot authorize');
-  await click('Review task and context');await until(()=>evaluate("!!document.querySelector('.co-packet .co-packet-fields')"),'readable task and facts');
-  assert.equal(await evaluate("document.querySelector('.co-packet').innerText.includes('Adult paper craft hobbyists')"),true);
-  assert.equal(await authorizeDisabled(),true,'Reading the packet does not grant authority');
-  await evaluate("document.querySelector('.co-measured input[type=checkbox]').click()");await until(async()=>!(await authorizeDisabled()),'explicit acknowledgement');
-  await click('Authorize and run one job');await until(async()=>(await dashboard()).data.tasks[0].state==='awaiting_review','fake draft saved for owner review');
-  let state=await dashboard();assert.equal(state.data.artifacts[0].state,'needs_review');assert.equal(await starts(),1,'Exactly one fake-native request');
-  await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'reload conversation route');
-  await until(()=>evaluate("!!document.querySelector('.co-job-receipt summary')"),'saved execution receipt available');
+import fs from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import { spawn } from "node:child_process";
+import assert from "node:assert/strict";
+import {
+  clicker,
+  delay,
+  fetchTracker,
+  freeLocalUrl,
+  pageDiagnosis,
+  pageIdle,
+  waiter,
+} from "./browser-smoke-wait.mjs";
+const repo = path.resolve(import.meta.dirname, "..");
+const temporary = await fs.mkdtemp(
+  path.join(os.tmpdir(), "hirezero-manual-ui-"),
+);
+const chrome =
+  process.env.HIREZERO_TEST_CHROME ||
+  path.join(
+    process.env.ProgramFiles || "C:/Program Files",
+    "Google/Chrome/Application/chrome.exe",
+  );
+const hostDir = path.join(repo, "src/HireZero.Host");
+const url = process.env.HIREZERO_TEST_URL || (await freeLocalUrl());
+const webRoot =
+  process.env.HIREZERO_TEST_WEB_ROOT || path.join(hostDir, "wwwroot");
+const host = spawn(
+  "dotnet",
+  [
+    path.join(
+      repo,
+      "tests/HireZero.Company.Tests/bin/Debug/net10.0/HireZero.Company.Tests.dll",
+    ),
+    "--measured-browser-fixture",
+    temporary,
+    url,
+    webRoot,
+  ],
+  {
+    cwd: hostDir,
+    windowsHide: true,
+    env: {
+      ...process.env,
+      HIREZERO_LOCAL_OWNER: "1",
+      HIREZERO_OWNER_LOGIN: "owner@example.invalid",
+      HIREZERO_DATA_ROOT: path.join(temporary, "data"),
+      HIREZERO_EXECUTION_HOLD: "0",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  },
+);
+let hostLog = "";
+host.stdout.on("data", (b) => (hostLog += b));
+host.stderr.on("data", (b) => (hostLog += b));
+let browser, ws;
+const until = waiter();
+try {
+  await until(
+    () => hostLog.includes("Now listening on: " + url),
+    "this test host owns the listener",
+  );
+  await until(async () => {
+    const r = await fetch(url + "/health");
+    return r.ok;
+  }, "fresh host health");
+  const health = await fetch(url + "/health").then((r) => r.json());
+  assert.equal(health.modelExecution, false);
+  browser = spawn(
+    chrome,
+    [
+      "--headless=new",
+      "--disable-gpu",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--disable-default-apps",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--no-proxy-server",
+      "--remote-debugging-port=0",
+      "--remote-debugging-address=127.0.0.1",
+      "--user-data-dir=" + path.join(temporary, "browser"),
+      "about:blank",
+    ],
+    { windowsHide: true, stdio: "ignore" },
+  );
+  const port = await until(async () => {
+    const text = await fs.readFile(
+      path.join(temporary, "browser", "DevToolsActivePort"),
+      "utf8",
+    );
+    return Number(text.split("\n")[0]);
+  }, "isolated browser debugger");
+  const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) =>
+    r.json(),
+  );
+  const target = targets.find((t) => t.type === "page");
+  assert.ok(target);
+  ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => {
+    ws.addEventListener("open", resolve, { once: true });
+    ws.addEventListener("error", reject, { once: true });
+  });
+  let sequence = 0;
+  const pending = new Map();
+  const errors = [];
+  ws.addEventListener("message", (e) => {
+    const m = JSON.parse(e.data);
+    if (m.id) {
+      const p = pending.get(m.id);
+      if (!p) return;
+      clearTimeout(p.timer);
+      pending.delete(m.id);
+      if (m.error) p.reject(new Error(m.error.message));
+      else p.resolve(m.result);
+    }
+    if (m.method === "Runtime.exceptionThrown")
+      errors.push(m.params.exceptionDetails.text);
+  });
+  const send = (method, params = {}) =>
+    new Promise((resolve, reject) => {
+      const id = ++sequence;
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error("Debugger command timed out: " + method));
+      }, 10000);
+      pending.set(id, { resolve, reject, timer });
+      ws.send(JSON.stringify({ id, method, params }));
+    });
+  const evaluate = async (expression) => {
+    const r = await send("Runtime.evaluate", {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (r.exceptionDetails)
+      throw new Error(
+        r.exceptionDetails.exception?.description || r.exceptionDetails.text,
+      );
+    return r.result.value;
+  };
+  until.diagnose = pageDiagnosis(evaluate);
+  await send("Runtime.enable");
+  await send("Page.enable");
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1100,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  await send("Page.navigate", { url: url + "/" });
+  await until(
+    () => evaluate("document.body.innerText.includes('Company conversation')"),
+    "company UI",
+  );
+  const click = clicker(evaluate, until),
+    idle = pageIdle(evaluate, until);
+  const field = async (label, value) => {
+    await evaluate(
+      `(()=>{const label=[...document.querySelectorAll('.co-main label')].find(l=>l.childNodes[0]?.textContent.trim()===${JSON.stringify(label)});if(!label)throw Error('Field missing: '+${JSON.stringify(label)});const el=label.querySelector('input,textarea,select');const proto=el.tagName==='SELECT'?HTMLSelectElement.prototype:el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(proto,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`,
+    );
+    await delay(70);
+  };
+  assert.match(hostLog, /BROWSER FIXTURE: fake provider only/);
+  const dashboard = () => fetch(url + "/api/company").then((r) => r.json());
+  const starts = async () => {
+    const files = await fs.readdir(temporary, { recursive: true });
+    let count = 0;
+    for (const file of files.filter((p) => p.endsWith("fixture-native-starts")))
+      count += (await fs.readFile(path.join(temporary, file), "utf8"))
+        .trim()
+        .split("\n")
+        .filter(Boolean).length;
+    return count;
+  };
+  await evaluate(
+    "[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Browser draft fixture')).click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('[aria-label=\"Private employee conversation\"]')",
+      ),
+    "manual jobs employee",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.fe-send')?.textContent.trim()==='Send'",
+      ),
+    "composer visibly names one-sign-off Send",
+  );
+  await field("Message action", "reply");
+  assert.equal(
+    await evaluate("document.querySelector('.fe-send').textContent.trim()"),
+    "Prepare reply",
+    "Review-first preparation is still named",
+  );
+  await field("Message action", "save");
+  assert.equal(
+    await evaluate("document.querySelector('.fe-send').textContent.trim()"),
+    "Save message",
+    "Saving a message is visible without hovering",
+  );
+  await field("Message action", "reply");
+  await field("Work type", "marketing-draft");
+  assert.equal(
+    await evaluate("document.querySelector('.fe-send').textContent.trim()"),
+    "Assign work",
+    "Assigning work is visibly distinct from asking for a reply",
+  );
+  const brief = JSON.parse(
+    await fs.readFile(
+      path.join(repo, "tests/fixtures/one-job-marketing-brief.json"),
+      "utf8",
+    ),
+  );
+  for (const [key, value] of Object.entries(brief)) await field(key, value);
+  await evaluate(
+    "document.querySelector('button[aria-label=\"Assign work\"]').click()",
+  );
+  await until(
+    async () => (await dashboard()).data.tasks.length === 1,
+    "brief saved",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Waiting for your one-job authorization.')",
+      ),
+    "manual queue waiting state",
+  );
+  assert.equal(
+    await starts(),
+    0,
+    "Assigning a brief makes no provider request",
+  );
+  await click("Prepare job for review");
+  await until(
+    async () => (await dashboard()).data.measured[0]?.job.state === "proposed",
+    "sealed proposal",
+  );
+  assert.equal(await starts(), 0, "Preparing a job makes no provider request");
+  const authorizeDisabled = () =>
+    evaluate(
+      "[...document.querySelectorAll('.co-measured button')].find(b=>b.textContent==='Authorize and run one job').disabled",
+    );
+  await until(
+    () =>
+      evaluate(
+        "[...document.querySelectorAll('.co-measured button')].some(b=>b.textContent==='Authorize and run one job')",
+      ),
+    "sealed proposal shown",
+  );
+  assert.equal(await authorizeDisabled(), true, "Unread work cannot authorize");
+  await click("Review task and context");
+  await until(
+    () => evaluate("!!document.querySelector('.co-packet .co-packet-fields')"),
+    "readable task and facts",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-packet').innerText.includes('Adult paper craft hobbyists')",
+    ),
+    true,
+  );
+  assert.equal(
+    await authorizeDisabled(),
+    true,
+    "Reading the packet does not grant authority",
+  );
+  await evaluate(
+    "document.querySelector('.co-measured input[type=checkbox]').click()",
+  );
+  await until(
+    async () => !(await authorizeDisabled()),
+    "explicit acknowledgement",
+  );
+  await click("Authorize and run one job");
+  await until(
+    async () => (await dashboard()).data.tasks[0].state === "awaiting_review",
+    "fake draft saved for owner review",
+  );
+  let state = await dashboard();
+  assert.equal(state.data.artifacts[0].state, "needs_review");
+  assert.equal(await starts(), 1, "Exactly one fake-native request");
+  await send("Page.reload");
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('[aria-label=\"Private employee conversation\"]')",
+      ),
+    "reload conversation route",
+  );
+  await until(
+    () => evaluate("!!document.querySelector('.co-job-receipt summary')"),
+    "saved execution receipt available",
+  );
   await evaluate("document.querySelector('.co-job-receipt summary').click()");
-  await until(()=>evaluate("document.body.innerText.includes('Draft saved for review')"),'saved receipt survives reload');assert.equal(await starts(),1,'Reload never resumes or replays');
-  assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent==='Authorize and run one job')"),false,'Consumed grant has no run button');
-  await click('Approve result');await until(async()=>(await dashboard()).data.artifacts[0].state==='approved','exact content approval');await click('Complete after review');
-  await until(async()=>(await dashboard()).data.tasks[0].state==='completed','reviewed task completed');assert.equal(await starts(),1,'Content review never calls the provider');
-  await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/manual-queue-browser.json'),JSON.stringify({provider:'compiled fake only',liveModelCalls:0,fakeNativeStarts:1,assignStarts:0,prepareStarts:0,readablePacket:true,explicitAcknowledgement:true,reloadReplay:false,ownerReview:'approved',taskState:'completed'},null,2));
-  state=await dashboard();const recipient=state.data.employees.find(e=>e.name==='Browser Developer fixture'),recipientThread=state.data.threads.find(t=>t.employeeId===recipient.id);
-  assert.equal(state.data.handoffs.length,0);await field('Handoff recipient',recipient.id);await field('Recipient conversation',recipientThread.id);
-  assert.equal(await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='Share this artifact and assign work').disabled"),true,'Recipient selection alone cannot share work');
-  await field('Task instructions and acceptance criteria','Prepare an unpublished implementation proposal from the approved paper-crane copy. Acceptance: preserve the approved facts; no publishing.');
-  await evaluate("window.__handoffFetch=window.fetch.bind(window);window.fetch=async(...args)=>{const result=await window.__handoffFetch(...args);if(typeof args[1]?.body==='string'&&JSON.parse(args[1].body).action==='handoff.assign')await new Promise(resolve=>window.__releaseHandoff=resolve);return result;};");
-  await click('Share this artifact and assign work');await until(async()=>(await dashboard()).data.handoffs.length===1,'explicit assigned handoff');
-  await until(()=>evaluate("typeof window.__releaseHandoff==='function'"),'delayed handoff HTTP response');await evaluate("[...document.querySelectorAll('.co-conversations button')].find(b=>b.textContent.includes('Company conversation')).click()");await evaluate('window.__releaseHandoff()');await delay(300);
-  assert.equal(await evaluate("new URLSearchParams(location.search).get('view')"),'company','A late handoff does not override owner navigation');
-  await evaluate("[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Browser Developer fixture')).click()");
-  state=await dashboard();const handoff=state.data.handoffs[0],assigned=state.data.tasks.find(t=>t.id===handoff.targetTaskId);
-  assert.equal(assigned.employeeId,recipient.id);assert.equal(assigned.skill,'developer-work');assert.equal(assigned.state,'blocked');assert.equal(assigned.resource,null);assert.equal(state.data.executions.length,0);
-  await until(()=>evaluate("document.body.innerText.includes('Owner-approved handoff')"),'recipient task and shared artifact visible');
-  await until(()=>evaluate("document.querySelector('.co-execution')?.innerText.includes('Coding is not available for this company')"),'unavailable coding explains how the saved task can proceed');
-  assert.equal(await evaluate("!!document.querySelector('.co-execution form')"),false,'No unusable local-checkout form is offered without a coding runtime');
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-execution button')].some(b=>/Prepare execution|Run once/.test(b.textContent))"),false,'Unavailable coding has no dead-end execution action');
-  assert.equal(await starts(),1,'Sharing creates no additional fake model or coding request');
-  assert.equal(await evaluate("[...document.querySelectorAll('button')].some(b=>b.textContent==='Request fresh attempt')"),false,'A task-scoped handoff cannot escape its sharing approval via retry');
-  await click('Revoke this handoff');await until(async()=>(await dashboard()).data.handoffs[0].state==='revoked','revoked sharing');
-  state=await dashboard();assert.equal(state.data.tasks.find(t=>t.id===assigned.id).state,'canceled');assert.equal(state.data.tasks[0].state,'completed');assert.equal(await starts(),1);
-  await fs.writeFile(path.join(repo,'test-results/task-handoff-browser.json'),JSON.stringify({liveModelCalls:0,priorFakeMarketingStarts:1,handoffDispatches:0,crossDepartment:true,sourceArtifactApproved:true,recipientExplicit:true,taskType:'developer-work',executionAuthority:false,revokeState:'canceled',unrelatedSourceTaskPreserved:true},null,2));
-  assert.equal(errors.length,0,'No uncaught UI exceptions');await fs.mkdir(path.join(repo,'test-results'),{recursive:true});
-  const desktop=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/task-handoff-desktop.png'),Buffer.from(desktop.data,'base64'));
-  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(250);assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Mobile layout does not overflow');
-  assert.equal(await evaluate("document.querySelector('.fe-topbar').getBoundingClientRect().bottom<=document.querySelector('.co-conversation-context').getBoundingClientRect().top"),true,'Mobile header and conversation context do not overlap');
-  const mobileControls=await evaluate("(()=>{const bounds=s=>{const r=document.querySelector(s).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};};return {mode:bounds('.co-mode'),cockpit:bounds('.co-cockpit-toggle'),send:bounds('.fe-send'),navigation:bounds('.co-navigation'),width:innerWidth,height:innerHeight};})()");
-  assert.ok(mobileControls.mode.top>=mobileControls.cockpit.bottom,'Mobile Chat/Work controls sit below the cockpit toggle: '+JSON.stringify(mobileControls));
-  assert.ok(mobileControls.send.left>=0&&mobileControls.send.right<=mobileControls.width&&mobileControls.send.top>=0&&mobileControls.send.bottom<=mobileControls.height,'Mobile composer action fits inside the viewport: '+JSON.stringify(mobileControls));
-  assert.ok(mobileControls.send.bottom<=mobileControls.navigation.top,'Mobile composer action is above the bottom navigation: '+JSON.stringify(mobileControls));
-  const mobile=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await fs.writeFile(path.join(repo,'test-results/task-handoff-mobile.png'),Buffer.from(mobile.data,'base64'));
+  await until(
+    () =>
+      evaluate("document.body.innerText.includes('Draft saved for review')"),
+    "saved receipt survives reload",
+  );
+  assert.equal(await starts(), 1, "Reload never resumes or replays");
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('button')].some(b=>b.textContent==='Authorize and run one job')",
+    ),
+    false,
+    "Consumed grant has no run button",
+  );
+  await click("Approve result");
+  await until(
+    async () => (await dashboard()).data.artifacts[0].state === "approved",
+    "exact content approval",
+  );
+  await click("Complete after review");
+  await until(
+    async () => (await dashboard()).data.tasks[0].state === "completed",
+    "reviewed task completed",
+  );
+  assert.equal(await starts(), 1, "Content review never calls the provider");
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, "test-results/manual-queue-browser.json"),
+    JSON.stringify(
+      {
+        provider: "compiled fake only",
+        liveModelCalls: 0,
+        fakeNativeStarts: 1,
+        assignStarts: 0,
+        prepareStarts: 0,
+        readablePacket: true,
+        explicitAcknowledgement: true,
+        reloadReplay: false,
+        ownerReview: "approved",
+        taskState: "completed",
+      },
+      null,
+      2,
+    ),
+  );
+  state = await dashboard();
+  const recipient = state.data.employees.find(
+      (e) => e.name === "Browser Developer fixture",
+    ),
+    recipientThread = state.data.threads.find(
+      (t) => t.employeeId === recipient.id,
+    );
+  assert.equal(state.data.handoffs.length, 0);
+  await field("Handoff recipient", recipient.id);
+  await field("Recipient conversation", recipientThread.id);
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('button')].find(b=>b.textContent==='Share this artifact and assign work').disabled",
+    ),
+    true,
+    "Recipient selection alone cannot share work",
+  );
+  await field(
+    "Task instructions and acceptance criteria",
+    "Prepare an unpublished implementation proposal from the approved paper-crane copy. Acceptance: preserve the approved facts; no publishing.",
+  );
+  await evaluate(
+    "window.__handoffFetch=window.fetch.bind(window);window.fetch=async(...args)=>{const result=await window.__handoffFetch(...args);if(typeof args[1]?.body==='string'&&JSON.parse(args[1].body).action==='handoff.assign')await new Promise(resolve=>window.__releaseHandoff=resolve);return result;};",
+  );
+  await click("Share this artifact and assign work");
+  await until(
+    async () => (await dashboard()).data.handoffs.length === 1,
+    "explicit assigned handoff",
+  );
+  await until(
+    () => evaluate("typeof window.__releaseHandoff==='function'"),
+    "delayed handoff HTTP response",
+  );
+  await evaluate(
+    "[...document.querySelectorAll('.co-conversations button')].find(b=>b.textContent.includes('Company conversation')).click()",
+  );
+  await evaluate("window.__releaseHandoff()");
+  await delay(300);
+  assert.equal(
+    await evaluate("new URLSearchParams(location.search).get('view')"),
+    "company",
+    "A late handoff does not override owner navigation",
+  );
+  await evaluate(
+    "[...document.querySelectorAll('.co-conversations .co-list')].find(b=>b.textContent.includes('Browser Developer fixture')).click()",
+  );
+  state = await dashboard();
+  const handoff = state.data.handoffs[0],
+    assigned = state.data.tasks.find((t) => t.id === handoff.targetTaskId);
+  assert.equal(assigned.employeeId, recipient.id);
+  assert.equal(assigned.skill, "developer-work");
+  assert.equal(assigned.state, "blocked");
+  assert.equal(assigned.resource, null);
+  assert.equal(state.data.executions.length, 0);
+  await until(
+    () =>
+      evaluate("document.body.innerText.includes('Owner-approved handoff')"),
+    "recipient task and shared artifact visible",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.querySelector('.co-execution')?.innerText.includes('Coding is not available for this company')",
+      ),
+    "unavailable coding explains how the saved task can proceed",
+  );
+  assert.equal(
+    await evaluate("!!document.querySelector('.co-execution form')"),
+    false,
+    "No unusable local-checkout form is offered without a coding runtime",
+  );
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-execution button')].some(b=>/Prepare execution|Run once/.test(b.textContent))",
+    ),
+    false,
+    "Unavailable coding has no dead-end execution action",
+  );
+  assert.equal(
+    await starts(),
+    1,
+    "Sharing creates no additional fake model or coding request",
+  );
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('button')].some(b=>b.textContent==='Request fresh attempt')",
+    ),
+    false,
+    "A task-scoped handoff cannot escape its sharing approval via retry",
+  );
+  await click("Revoke this handoff");
+  await until(
+    async () => (await dashboard()).data.handoffs[0].state === "revoked",
+    "revoked sharing",
+  );
+  state = await dashboard();
+  assert.equal(
+    state.data.tasks.find((t) => t.id === assigned.id).state,
+    "canceled",
+  );
+  assert.equal(state.data.tasks[0].state, "completed");
+  assert.equal(await starts(), 1);
+  await fs.writeFile(
+    path.join(repo, "test-results/task-handoff-browser.json"),
+    JSON.stringify(
+      {
+        liveModelCalls: 0,
+        priorFakeMarketingStarts: 1,
+        handoffDispatches: 0,
+        crossDepartment: true,
+        sourceArtifactApproved: true,
+        recipientExplicit: true,
+        taskType: "developer-work",
+        executionAuthority: false,
+        revokeState: "canceled",
+        unrelatedSourceTaskPreserved: true,
+      },
+      null,
+      2,
+    ),
+  );
+  assert.equal(errors.length, 0, "No uncaught UI exceptions");
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  const desktop = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.writeFile(
+    path.join(repo, "test-results/task-handoff-desktop.png"),
+    Buffer.from(desktop.data, "base64"),
+  );
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await delay(250);
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth<=innerWidth"),
+    true,
+    "Mobile layout does not overflow",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.fe-topbar').getBoundingClientRect().bottom<=document.querySelector('.co-conversation-context').getBoundingClientRect().top",
+    ),
+    true,
+    "Mobile header and conversation context do not overlap",
+  );
+  const mobileControls = await evaluate(
+    "(()=>{const bounds=s=>{const r=document.querySelector(s).getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};};return {mode:bounds('.co-mode'),cockpit:bounds('.co-cockpit-toggle'),send:bounds('.fe-send'),navigation:bounds('.co-navigation'),width:innerWidth,height:innerHeight};})()",
+  );
+  assert.ok(
+    mobileControls.mode.top >= mobileControls.cockpit.bottom,
+    "Mobile Chat/Work controls sit below the cockpit toggle: " +
+      JSON.stringify(mobileControls),
+  );
+  assert.ok(
+    mobileControls.send.left >= 0 &&
+      mobileControls.send.right <= mobileControls.width &&
+      mobileControls.send.top >= 0 &&
+      mobileControls.send.bottom <= mobileControls.height,
+    "Mobile composer action fits inside the viewport: " +
+      JSON.stringify(mobileControls),
+  );
+  assert.ok(
+    mobileControls.send.bottom <= mobileControls.navigation.top,
+    "Mobile composer action is above the bottom navigation: " +
+      JSON.stringify(mobileControls),
+  );
+  const mobile = await send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: false,
+  });
+  await fs.writeFile(
+    path.join(repo, "test-results/task-handoff-mobile.png"),
+    Buffer.from(mobile.data, "base64"),
+  );
   // A full history must remain reachable: twelve neat rows are no excuse for losing the thirteenth.
-  const history=await evaluate(`(async()=>{const command=async(action,fields)=>{const r=await fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action,...fields})});if(!r.ok)throw Error(action+' '+r.status+' '+await r.text());return r.json();};const ids=[];
+  const history =
+    await evaluate(`(async()=>{const command=async(action,fields)=>{const r=await fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action,...fields})});if(!r.ok)throw Error(action+' '+r.status+' '+await r.text());return r.json();};const ids=[];
     for(let i=1;i<=13;i++){const saved=await command('message.send',{employeeId:${JSON.stringify(recipient.id)},threadId:${JSON.stringify(recipientThread.id)},skill:'developer-work',body:'Fictional history item '+i});const state=await(await fetch('/api/company')).json();const task=state.data.tasks.find(t=>t.id===saved.task.id);await command('task.cancel',{id:task.id,expectedVersion:task.version});ids.push(task.id);}return ids;})()`);
-  assert.equal(await starts(),1,'Saving and canceling history fixtures never dispatches a provider');
-  await send('Page.reload');await until(()=>evaluate("!!document.querySelector('[aria-label=\"Private employee conversation\"]')"),'history conversation reloaded');
-  await evaluate("[...document.querySelectorAll('.co-mode button')].find(b=>b.textContent.startsWith('Work')).click()");
-  await until(()=>evaluate("document.querySelectorAll('.co-work-board [aria-label=\"Done\"] .co-work-item').length===12"),'Done initially shows the most recent twelve items');
-  assert.equal(await evaluate("document.querySelector('.co-work-board [aria-label=\"Done\"] .fe-count').textContent"),'14','Done count includes the revoked handoff and all saved history');
-  assert.equal(await evaluate("[...document.querySelectorAll('.co-work-item q')].some(q=>q.textContent==='Fictional history item 1')"),false,'The oldest seeded item starts outside the recent page');
-  await click('Show earlier work (2 more)');
-  await until(()=>evaluate("document.querySelectorAll('.co-work-board [aria-label=\"Done\"] .co-work-item').length===14"),'earlier work revealed');
-  assert.equal(await evaluate("!!document.querySelector('.co-work-older')"),false,'The history button disappears when all items are shown');
-  await evaluate("[...document.querySelectorAll('.co-work-item')].find(b=>b.querySelector('q')?.textContent==='Fictional history item 1').click()");
-  await until(()=>evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(history[0])}&&!!document.querySelector('.co-work-window')`),'oldest seeded task opens its exact work window');
-  assert.equal(await starts(),1,'Opening earlier work never replays it');
+  assert.equal(
+    await starts(),
+    1,
+    "Saving and canceling history fixtures never dispatches a provider",
+  );
+  await send("Page.reload");
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('[aria-label=\"Private employee conversation\"]')",
+      ),
+    "history conversation reloaded",
+  );
+  await evaluate(
+    "[...document.querySelectorAll('.co-mode button')].find(b=>b.textContent.startsWith('Work')).click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "document.querySelectorAll('.co-work-board [aria-label=\"Done\"] .co-work-item').length===12",
+      ),
+    "Done initially shows the most recent twelve items",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-work-board [aria-label=\"Done\"] .fe-count').textContent",
+    ),
+    "14",
+    "Done count includes the revoked handoff and all saved history",
+  );
+  assert.equal(
+    await evaluate(
+      "[...document.querySelectorAll('.co-work-item q')].some(q=>q.textContent==='Fictional history item 1')",
+    ),
+    false,
+    "The oldest seeded item starts outside the recent page",
+  );
+  await click("Show earlier work (2 more)");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelectorAll('.co-work-board [aria-label=\"Done\"] .co-work-item').length===14",
+      ),
+    "earlier work revealed",
+  );
+  assert.equal(
+    await evaluate("!!document.querySelector('.co-work-older')"),
+    false,
+    "The history button disappears when all items are shown",
+  );
+  await evaluate(
+    "[...document.querySelectorAll('.co-work-item')].find(b=>b.querySelector('q')?.textContent==='Fictional history item 1').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        `new URLSearchParams(location.search).get('work')===${JSON.stringify(history[0])}&&!!document.querySelector('.co-work-window')`,
+      ),
+    "oldest seeded task opens its exact work window",
+  );
+  assert.equal(await starts(), 1, "Opening earlier work never replays it");
   // Reassignment keeps an old record; the board must not lose the trail while polishing the silver.
-  const replaced=await evaluate(`(async()=>{const command=async(action,fields)=>{const r=await fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action,...fields})});if(!r.ok)throw Error(action+' '+r.status+' '+await r.text());return r.json();};const saved=await command('task.create',{employeeId:${JSON.stringify(recipient.id)},threadId:${JSON.stringify(recipientThread.id)},skill:'developer-work',body:'Fictional replaced website review'});const state=await(await fetch('/api/company')).json();const original=state.data.tasks.find(t=>t.id===saved.id);const fresh=await command('task.reassign',{id:original.id,expectedVersion:original.version,employeeId:${JSON.stringify(recipient.id)},threadId:${JSON.stringify(recipientThread.id)}});return {original:original.id,fresh:fresh.id};})()`);
-  await send('Page.reload');await until(()=>evaluate("!!document.querySelector('.co-work-window')"),'history detail survives reload');
-  await evaluate("document.querySelector('button[aria-label=\"Close work\"]').click()");
-  await until(()=>evaluate("!!document.querySelector('.co-work-board [aria-label=\"Replaced\"] .co-work-item')"),'replaced assignment remains visible in durable history');
-  assert.match(await evaluate("document.querySelector('.co-work-board [aria-label=\"Replaced\"]').textContent"),/Fictional replaced website review.*Replaced by a fresh assignment/s,'History explains the actual terminal state');
-  await evaluate("document.querySelector('.co-work-board [aria-label=\"Replaced\"] .co-work-item').click()");
-  await until(()=>evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(replaced.original)}`),'replaced row opens the original record, not its replacement');
-  assert.equal((await dashboard()).data.tasks.find(t=>t.id===replaced.fresh).state,'blocked','Browsing the original does not alter the new assignment');
-  assert.equal(await starts(),1,'Browsing replaced work never dispatches or retries it');
-  assert.equal(errors.length,0,'No uncaught UI exceptions after browsing earlier work');
-  console.log('PASS real Chrome: visible composer actions, approved Marketing artifact to explicit cross-department Developer task, no execution authority or extra dispatch, scoped revocation, earlier Work history and desktop/mobile rendering');
-  await send('Browser.close').catch(()=>{});
-}catch(e){await fs.mkdir(path.join(repo,'test-results'),{recursive:true});await fs.writeFile(path.join(repo,'test-results/task-handoff-browser-host.log'),hostLog);throw e;}
-finally{
+  const replaced = await evaluate(
+    `(async()=>{const command=async(action,fields)=>{const r=await fetch('/api/company/commands',{method:'POST',headers:{'Content-Type':'application/json','X-Dev-Request':'1'},body:JSON.stringify({requestId:crypto.randomUUID(),action,...fields})});if(!r.ok)throw Error(action+' '+r.status+' '+await r.text());return r.json();};const saved=await command('task.create',{employeeId:${JSON.stringify(recipient.id)},threadId:${JSON.stringify(recipientThread.id)},skill:'developer-work',body:'Fictional replaced website review'});const state=await(await fetch('/api/company')).json();const original=state.data.tasks.find(t=>t.id===saved.id);const fresh=await command('task.reassign',{id:original.id,expectedVersion:original.version,employeeId:${JSON.stringify(recipient.id)},threadId:${JSON.stringify(recipientThread.id)}});return {original:original.id,fresh:fresh.id};})()`,
+  );
+  await send("Page.reload");
+  await until(
+    () => evaluate("!!document.querySelector('.co-work-window')"),
+    "history detail survives reload",
+  );
+  await evaluate(
+    "document.querySelector('button[aria-label=\"Close work\"]').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('.co-work-board [aria-label=\"Replaced\"] .co-work-item')",
+      ),
+    "replaced assignment remains visible in durable history",
+  );
+  assert.match(
+    await evaluate(
+      "document.querySelector('.co-work-board [aria-label=\"Replaced\"]').textContent",
+    ),
+    /Fictional replaced website review.*Replaced by a fresh assignment/s,
+    "History explains the actual terminal state",
+  );
+  await evaluate(
+    "document.querySelector('.co-work-board [aria-label=\"Replaced\"] .co-work-item').click()",
+  );
+  await until(
+    () =>
+      evaluate(
+        `new URLSearchParams(location.search).get('work')===${JSON.stringify(replaced.original)}`,
+      ),
+    "replaced row opens the original record, not its replacement",
+  );
+  assert.equal(
+    (await dashboard()).data.tasks.find((t) => t.id === replaced.fresh).state,
+    "blocked",
+    "Browsing the original does not alter the new assignment",
+  );
+  assert.equal(
+    await starts(),
+    1,
+    "Browsing replaced work never dispatches or retries it",
+  );
+  assert.equal(
+    errors.length,
+    0,
+    "No uncaught UI exceptions after browsing earlier work",
+  );
+  console.log(
+    "PASS real Chrome: visible composer actions, approved Marketing artifact to explicit cross-department Developer task, no execution authority or extra dispatch, scoped revocation, earlier Work history and desktop/mobile rendering",
+  );
+  await send("Browser.close").catch(() => {});
+} catch (e) {
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, "test-results/task-handoff-browser-host.log"),
+    hostLog,
+  );
+  throw e;
+} finally {
   ws?.close();
-  const exit=async p=>{if(!p||p.exitCode!==null||p.signalCode!==null)return;const done=new Promise(r=>p.once('exit',r));p.kill();await Promise.race([done,delay(5000)]);if(p.exitCode===null&&p.signalCode===null)throw Error('Owned browser fixture process has not exited; temporary files retained.');};
-  await exit(browser);await exit(host);
+  const exit = async (p) => {
+    if (!p || p.exitCode !== null || p.signalCode !== null) return;
+    const done = new Promise((r) => p.once("exit", r));
+    p.kill();
+    await Promise.race([done, delay(5000)]);
+    if (p.exitCode === null && p.signalCode === null)
+      throw Error(
+        "Owned browser fixture process has not exited; temporary files retained.",
+      );
+  };
+  await exit(browser);
+  await exit(host);
   // Delete only this script's verified mkdtemp root after its own processes have exited.
-  if(path.dirname(temporary)===path.resolve(os.tmpdir())&&path.basename(temporary).startsWith('hirezero-manual-ui-'))await fs.rm(temporary,{recursive:true,force:true,maxRetries:5,retryDelay:200});
+  if (
+    path.dirname(temporary) === path.resolve(os.tmpdir()) &&
+    path.basename(temporary).startsWith("hirezero-manual-ui-")
+  )
+    await fs.rm(temporary, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 200,
+    });
 }

@@ -335,6 +335,7 @@
           "HireZero.Integrations.Wiki": "[1.0.0, )",
           "HireZero.Roles.Ceo": "[1.0.0, )",
           "HireZero.Roles.Developer": "[1.0.0, )",
+          "HireZero.Roles.Host": "[1.0.0, )",
           "HireZero.Roles.Marketing": "[1.0.0, )",
           "HireZero.Roles.Support": "[1.0.0, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.3, )",
@@ -517,6 +518,12 @@
           "HireZero.Tools.OpenRouter": "[1.0.0, )",
           "HireZero.Tools.SemaForge": "[1.0.0, )",
           "HireZero.Tools.Wiki": "[1.0.0, )"
+        }
+      },
+      "hirezero.roles.host": {
+        "type": "Project",
+        "dependencies": {
+          "HireZero.Core": "[1.0.0, )"
         }
       },
       "hirezero.roles.marketing": {

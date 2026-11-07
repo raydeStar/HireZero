@@ -177,11 +177,21 @@ try {
         ),
       text,
     );
-  const dashboard = () => fetch(url + '/api/company').then(r => r.json());
+  const dashboard = () => fetch(url + "/api/company").then((r) => r.json());
   const command = async (action, fields = {}) => {
-    const response = await fetch(url + '/api/company/commands', { method: 'POST',
-      headers: { Origin: url, 'X-Dev-Request': '1', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requestId: crypto.randomUUID(), action, ...fields }) });
+    const response = await fetch(url + "/api/company/commands", {
+      method: "POST",
+      headers: {
+        Origin: url,
+        "X-Dev-Request": "1",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requestId: crypto.randomUUID(),
+        action,
+        ...fields,
+      }),
+    });
     const value = await response.json();
     assert.equal(response.ok, true, JSON.stringify(value));
     return value;
@@ -189,121 +199,323 @@ try {
   const before = await dashboard();
   const seed = before.data.tasks[0];
   async function hire(roleId, name) {
-    const department = await command('department.create', { name: 'Fictional ' + name });
-    const role = before.data.roles.find(r => r.id === roleId);
-    const context = await command('knowledge.save', { departmentId: department.id,
-      body: JSON.stringify(Object.fromEntries(role.onboardingFields.map(field => [field, 'Private ' + roleId + ' note']))) });
-    await command('knowledge.review', { id: context.id, expectedVersion: context.version, digest: context.digest, decision: 'approve' });
-    return command('employee.hire', { departmentId: department.id, roleId, name, responsibility: 'Review fictional work' });
+    const department = await command("department.create", {
+      name: "Fictional " + name,
+    });
+    const role = before.data.roles.find((r) => r.id === roleId);
+    const context = await command("knowledge.save", {
+      departmentId: department.id,
+      body: JSON.stringify(
+        Object.fromEntries(
+          role.onboardingFields.map((field) => [
+            field,
+            "Private " + roleId + " note",
+          ]),
+        ),
+      ),
+    });
+    await command("knowledge.review", {
+      id: context.id,
+      expectedVersion: context.version,
+      digest: context.digest,
+      decision: "approve",
+    });
+    return command("employee.hire", {
+      departmentId: department.id,
+      roleId,
+      name,
+      responsibility: "Review fictional work",
+    });
   }
-  const ceo = await hire('ceo', 'Coordinator'), developer = await hire('developer', 'Technical reviewer');
+  const ceo = await hire("ceo", "Coordinator"),
+    developer = await hire("developer", "Technical reviewer");
   const afterHire = await dashboard();
-  const devThread = afterHire.data.threads.find(t => t.employeeId === developer.id && t.scope === 'employee');
-  let plan = await command('plan.create', { employeeId: ceo.id, body: 'Summarize approved campaign rows', budget: 44000,
+  const devThread = afterHire.data.threads.find(
+    (t) => t.employeeId === developer.id && t.scope === "employee",
+  );
+  let plan = await command("plan.create", {
+    employeeId: ceo.id,
+    body: "Summarize approved campaign rows",
+    budget: 44000,
     tasks: [
-      { employeeId: seed.employeeId, threadId: seed.threadId, skill: 'chat', input: 'Prepare campaign rows', evidence: [], dependsOn: [] },
-      { employeeId: developer.id, threadId: devThread.id, skill: 'chat', input: 'Count approved campaign rows', evidence: [], dependsOn: [0] },
-    ] });
-  plan = await command('plan.approve', { id: plan.id, expectedVersion: plan.version, digest: plan.digest });
+      {
+        employeeId: seed.employeeId,
+        threadId: seed.threadId,
+        skill: "chat",
+        input: "Prepare campaign rows",
+        evidence: [],
+        dependsOn: [],
+      },
+      {
+        employeeId: developer.id,
+        threadId: devThread.id,
+        skill: "chat",
+        input: "Count approved campaign rows",
+        evidence: [],
+        dependsOn: [0],
+      },
+    ],
+  });
+  plan = await command("plan.approve", {
+    id: plan.id,
+    expectedVersion: plan.version,
+    digest: plan.digest,
+  });
   let data = (await dashboard()).data;
-  const first = data.tasks.find(t => t.id === plan.taskIds[0]);
-  let prior = await command('artifact.create', { id: first.id, expectedVersion: first.version, body: 'category,count\nPaper,3\nWorkshop,2' });
-  prior = await command('artifact.review', { id: prior.id, expectedVersion: prior.version, digest: prior.digest, decision: 'approve' });
+  const first = data.tasks.find((t) => t.id === plan.taskIds[0]);
+  let prior = await command("artifact.create", {
+    id: first.id,
+    expectedVersion: first.version,
+    body: "category,count\nPaper,3\nWorkshop,2",
+  });
+  prior = await command("artifact.review", {
+    id: prior.id,
+    expectedVersion: prior.version,
+    digest: prior.digest,
+    decision: "approve",
+  });
   data = (await dashboard()).data;
-  await command('task.complete', { id: first.id, expectedVersion: data.tasks.find(t => t.id === first.id).version });
-  await command('compute.configure', { expectedVersion: (await compute()).usage.policy.version,
-    body: JSON.stringify({ jobs: 2, seconds: 60, paused: false }) });
-  const task = (await dashboard()).data.tasks.find(t => t.id === plan.taskIds[1]);
-  const workUrl = url + `/?view=employee&employee=${task.employeeId}&thread=${task.threadId}&work=${task.id}&mode=work`;
-  await send('Page.navigate', { url: workUrl });
-  await until(() => evaluate("!!document.querySelector('.co-work-window .co-sandbox .co-sandbox-allowance')"), 'plan script tools');
-  await evaluate("document.querySelector('.co-work-window .co-sandbox').open=true; [...document.querySelectorAll('.co-sandbox > details')].find(d=>d.querySelector('summary')?.textContent==='Prepare a script').open=true");
-  await waitText('Part of an approved plan');
-  assert.equal(await evaluate("document.querySelector('.co-work-window-head strong').textContent"), 'Count approved campaign rows');
-  assert.equal(await evaluate("document.querySelectorAll('.co-work-window .co-measured').length"), 1);
-  await check('Prepare campaign rows');
-  await click('Use row-count example');
-  await field('.co-work-window .co-sandbox', 'Maximum script seconds', '5');
-  await click('Prepare exact review');
-  await until(async () => (await detail(task.id)).sandboxes.length === 1 || await evaluate("document.querySelector('.co-sandbox [role=alert]')?.textContent.includes('task status has been refreshed')"), 'prepared or refreshed task conflict');
+  await command("task.complete", {
+    id: first.id,
+    expectedVersion: data.tasks.find((t) => t.id === first.id).version,
+  });
+  await command("compute.configure", {
+    expectedVersion: (await compute()).usage.policy.version,
+    body: JSON.stringify({ jobs: 2, seconds: 60, paused: false }),
+  });
+  const task = (await dashboard()).data.tasks.find(
+    (t) => t.id === plan.taskIds[1],
+  );
+  const workUrl =
+    url +
+    `/?view=employee&employee=${task.employeeId}&thread=${task.threadId}&work=${task.id}&mode=work`;
+  await send("Page.navigate", { url: workUrl });
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('.co-work-window .co-sandbox .co-sandbox-allowance')",
+      ),
+    "plan script tools",
+  );
+  await evaluate(
+    "document.querySelector('.co-work-window .co-sandbox').open=true; [...document.querySelectorAll('.co-sandbox > details')].find(d=>d.querySelector('summary')?.textContent==='Prepare a script').open=true",
+  );
+  await waitText("Part of an approved plan");
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.co-work-window-head strong').textContent",
+    ),
+    "Count approved campaign rows",
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelectorAll('.co-work-window .co-measured').length",
+    ),
+    1,
+  );
+  await check("Prepare campaign rows");
+  await click("Use row-count example");
+  await field(".co-work-window .co-sandbox", "Maximum script seconds", "5");
+  await click("Prepare exact review");
+  await until(
+    async () =>
+      (await detail(task.id)).sandboxes.length === 1 ||
+      (await evaluate(
+        "document.querySelector('.co-sandbox [role=alert]')?.textContent.includes('task status has been refreshed')",
+      )),
+    "prepared or refreshed task conflict",
+  );
   if ((await detail(task.id)).sandboxes.length === 0) {
-    assert.equal(await evaluate("document.querySelector('.co-sandbox textarea').value.includes('result-1.txt')"), true);
-    await click('Prepare exact review');
+    assert.equal(
+      await evaluate(
+        "document.querySelector('.co-sandbox textarea').value.includes('result-1.txt')",
+      ),
+      true,
+    );
+    await click("Prepare exact review");
   }
-  await until(async () => (await detail(task.id)).sandboxes.length === 1, 'saved plan script');
+  await until(
+    async () => (await detail(task.id)).sandboxes.length === 1,
+    "saved plan script",
+  );
   let job = (await detail(task.id)).sandboxes[0];
   assert.equal(job.plan.id, plan.id);
   assert.equal(job.request.inputs.length, 1);
   assert.equal(job.request.inputs[0].text, prior.body);
-  assert.equal(job.request.inputs[0].name, 'result-1.txt');
-  assert.equal(JSON.stringify(job.request).includes('Private developer'), false);
+  assert.equal(job.request.inputs[0].name, "result-1.txt");
+  assert.equal(
+    JSON.stringify(job.request).includes("Private developer"),
+    false,
+  );
   assert.equal((await state()).executions, 0);
-  await check('I reviewed this script, its files and limits.');
-  await click('Approve and run once');
-  await until(async () => (await detail(task.id)).sandboxes[0].state === 'completed', 'saved script output');
-  await click('Refresh script status');
-  await until(() => evaluate("!!document.querySelector('.co-sandbox-output-review')"), 'output review rendered');
-  await evaluate("document.querySelector('.co-sandbox-output-review').open=true");
-  await click('Prepare task result for review');
-  await click('Approve result');
-  await click('Complete after review');
-  await until(async () => (await dashboard()).data.plans.find(p => p.id === plan.id).state === 'completed', 'completed parent plan');
+  await check("I reviewed this script, its files and limits.");
+  await click("Approve and run once");
+  await until(
+    async () => (await detail(task.id)).sandboxes[0].state === "completed",
+    "saved script output",
+  );
+  await click("Refresh script status");
+  await until(
+    () => evaluate("!!document.querySelector('.co-sandbox-output-review')"),
+    "output review rendered",
+  );
+  await evaluate(
+    "document.querySelector('.co-sandbox-output-review').open=true",
+  );
+  await click("Prepare task result for review");
+  await click("Approve result");
+  await click("Complete after review");
+  await until(
+    async () =>
+      (await dashboard()).data.plans.find((p) => p.id === plan.id).state ===
+      "completed",
+    "completed parent plan",
+  );
   assert.equal((await state()).executions, 1);
   if (!(await detail(task.id)).sandboxes[0].settledAt) {
     assert.equal((await compute()).usage.heldSeconds, 5);
-    await click('Check resource and recover');
-    await until(async () => !!(await detail(task.id)).sandboxes[0].settledAt, 'confirmed resource release');
+    await click("Check resource and recover");
+    await until(
+      async () => !!(await detail(task.id)).sandboxes[0].settledAt,
+      "confirmed resource release",
+    );
   }
   assert.equal((await compute()).usage.allocatedSeconds, 5);
   data = (await dashboard()).data;
-  assert.equal(data.budgets.find(b => b.id === plan.rootId).limit, 44000);
-  const result = data.artifacts.find(a => a.taskId === task.id && a.sandboxOrigin);
-  assert.equal(result.state, 'approved');
-  await until(() => evaluate("document.querySelectorAll('.co-work-window .co-measured').length === 0 && window.__smokeIdle()"), 'completed work has no stale execution cards');
-  await waitText('This plan assignment is complete.');
-  const saveImage = async name => {
-    await fs.mkdir(path.join(repo, 'test-results'), { recursive: true });
-    await fs.writeFile(path.join(repo, 'test-results', name), Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+  assert.equal(data.budgets.find((b) => b.id === plan.rootId).limit, 44000);
+  const result = data.artifacts.find(
+    (a) => a.taskId === task.id && a.sandboxOrigin,
+  );
+  assert.equal(result.state, "approved");
+  await until(
+    () =>
+      evaluate(
+        "document.querySelectorAll('.co-work-window .co-measured').length === 0 && window.__smokeIdle()",
+      ),
+    "completed work has no stale execution cards",
+  );
+  await waitText("This plan assignment is complete.");
+  const saveImage = async (name) => {
+    await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+    await fs.writeFile(
+      path.join(repo, "test-results", name),
+      Buffer.from(
+        (await send("Page.captureScreenshot", { format: "png" })).data,
+        "base64",
+      ),
+    );
   };
-  await saveImage('plan-script-desktop.png');
-  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  await send('Page.navigate', { url: workUrl });
-  await until(() => evaluate("!!document.querySelector('.co-work-window .co-sandbox .co-sandbox-job')"), 'mobile plan script history');
-  await evaluate("document.querySelector('.co-work-window .co-sandbox').open=true; document.querySelector('.co-sandbox-job').scrollIntoView({block:'start'})");
-  assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), true);
-  await saveImage('plan-script-mobile.png');
+  await saveImage("plan-script-desktop.png");
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await send("Page.navigate", { url: workUrl });
+  await until(
+    () =>
+      evaluate(
+        "!!document.querySelector('.co-work-window .co-sandbox .co-sandbox-job')",
+      ),
+    "mobile plan script history",
+  );
+  await evaluate(
+    "document.querySelector('.co-work-window .co-sandbox').open=true; document.querySelector('.co-sandbox-job').scrollIntoView({block:'start'})",
+  );
+  assert.equal(
+    await evaluate("document.documentElement.scrollWidth <= innerWidth + 1"),
+    true,
+  );
+  await saveImage("plan-script-mobile.png");
   // Revoking the exact input invalidates reuse even after the parent has completed.
-  await command('artifact.review', { id: prior.id, expectedVersion: prior.version, digest: prior.digest, decision: 'revoke' });
+  await command("artifact.review", {
+    id: prior.id,
+    expectedVersion: prior.version,
+    digest: prior.digest,
+    decision: "revoke",
+  });
   job = (await detail(task.id)).sandboxes[0];
-  const refused = await fetch(url + '/api/company/sandboxes/outputs/prepare', { method: 'POST',
-    headers: { Origin: url, 'X-Dev-Request': '1', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requestId: crypto.randomUUID(), action: 'sandbox.output.prepare', id: job.id,
-      expectedVersion: job.version, digest: job.resultDigest, decision: 'prepare-review',
-      body: JSON.stringify({ outputName: 'report.txt', quote: job.result.outputs[0].text }) }) });
+  const refused = await fetch(url + "/api/company/sandboxes/outputs/prepare", {
+    method: "POST",
+    headers: {
+      Origin: url,
+      "X-Dev-Request": "1",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requestId: crypto.randomUUID(),
+      action: "sandbox.output.prepare",
+      id: job.id,
+      expectedVersion: job.version,
+      digest: job.resultDigest,
+      decision: "prepare-review",
+      body: JSON.stringify({
+        outputName: "report.txt",
+        quote: job.result.outputs[0].text,
+      }),
+    }),
+  });
   assert.equal(refused.status, 409);
   assert.equal((await state()).executions, 1);
   assert.deepEqual(errors, []);
-  await fs.writeFile(path.join(repo, 'test-results/plan-script-browser.json'), JSON.stringify({ selectedApprovedInput: true,
-    privateNotesExcluded: true, exactScriptApproval: true, executions: 1, allocatedSeconds: 5,
-    parentCompletedAfterReview: true, tokenCeilingUnchanged: true, completedHistorySurvivesReload: true,
-    inputRevocationPreventsReuse: true, assignmentTitleVisible: true, staleExecutionCards: 0,
-    mobileOverflow: false, realContainerExecutions: 0 }, null, 2));
-  console.log('PASS planned script: approved evidence in, reviewed results out; the butler kept the departments separate.');
-  await send('Browser.close').catch(() => {});
+  await fs.writeFile(
+    path.join(repo, "test-results/plan-script-browser.json"),
+    JSON.stringify(
+      {
+        selectedApprovedInput: true,
+        privateNotesExcluded: true,
+        exactScriptApproval: true,
+        executions: 1,
+        allocatedSeconds: 5,
+        parentCompletedAfterReview: true,
+        tokenCeilingUnchanged: true,
+        completedHistorySurvivesReload: true,
+        inputRevocationPreventsReuse: true,
+        assignmentTitleVisible: true,
+        staleExecutionCards: 0,
+        mobileOverflow: false,
+        realContainerExecutions: 0,
+      },
+      null,
+      2,
+    ),
+  );
+  console.log(
+    "PASS planned script: approved evidence in, reviewed results out; the butler kept the departments separate.",
+  );
+  await send("Browser.close").catch(() => {});
 } catch (error) {
-  await fs.mkdir(path.join(repo, 'test-results'), { recursive: true });
-  await fs.writeFile(path.join(repo, 'test-results/plan-script-browser-host.log'), hostLog);
+  await fs.mkdir(path.join(repo, "test-results"), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, "test-results/plan-script-browser-host.log"),
+    hostLog,
+  );
   throw error;
 } finally {
   ws?.close();
-  const stop = async child => {
+  const stop = async (child) => {
     if (!child || child.exitCode !== null) return;
     child.kill();
-    await Promise.race([new Promise(resolve => child.once('exit', resolve)), delay(6000)]);
-    if (child.exitCode === null && child.signalCode === null) throw new Error('Owned fixture did not exit; preserve its temporary files.');
+    await Promise.race([
+      new Promise((resolve) => child.once("exit", resolve)),
+      delay(6000),
+    ]);
+    if (child.exitCode === null && child.signalCode === null)
+      throw new Error(
+        "Owned fixture did not exit; preserve its temporary files.",
+      );
   };
   await stop(browser);
   await stop(host);
-  if (path.dirname(temporary) === path.resolve(os.tmpdir()) && path.basename(temporary).startsWith('hirezero-manual-ui-'))
-    await fs.rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  if (
+    path.dirname(temporary) === path.resolve(os.tmpdir()) &&
+    path.basename(temporary).startsWith("hirezero-manual-ui-")
+  )
+    await fs.rm(temporary, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 200,
+    });
 }

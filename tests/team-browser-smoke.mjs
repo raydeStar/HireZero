@@ -237,6 +237,10 @@ try {
     mobile: false,
   });
   await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  // The classic start: this check covers the form, which an owner can choose over onboarding (ADR 0186).
+  await send("Page.addScriptToEvaluateOnNewDocument", {
+    source: "localStorage.setItem('dev-ui:onboarding', '\"form\"')",
+  });
   await send("Page.navigate", { url: url + "/" });
   await until(
     () => evaluate("!!document.querySelector('.co-home')"),
@@ -375,10 +379,14 @@ try {
     );
     await click("Authorize and run one job");
     await text(expected);
-    const result = (await dashboard()).data.artifacts.find((a) => a.body.includes(expected));
+    const result = (await dashboard()).data.artifacts.find((a) =>
+      a.body.includes(expected),
+    );
     assert.ok(result, "The shown result is saved");
     assert.equal(
-      await evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(result.taskId)} && new URLSearchParams(location.search).get('mode')==='work' && document.querySelector('[data-artifact-id="${result.id}"]')?.open===true`),
+      await evaluate(
+        `new URLSearchParams(location.search).get('work')===${JSON.stringify(result.taskId)} && new URLSearchParams(location.search).get('mode')==='work' && document.querySelector('[data-artifact-id="${result.id}"]')?.open===true`,
+      ),
       true,
       "The first assignment opens its exact saved result for review",
     );
@@ -417,19 +425,34 @@ try {
   const developer = (await dashboard()).data.employees.find(
     (e) => e.roleId === "developer",
   );
-  const newerThread = await command("thread.create", { employeeId: developer.id, name: "Newer technical work" });
-  const newerTask = await command("task.create", {
-    employeeId: developer.id, threadId: newerThread.id, skill: "technical-starter-plan", body: "Review the fictional form improvement.",
+  const newerThread = await command("thread.create", {
+    employeeId: developer.id,
+    name: "Newer technical work",
   });
-  await command("artifact.create", { id: newerTask.id, expectedVersion: newerTask.version, body: "Fictional newer form result ready for review." });
+  const newerTask = await command("task.create", {
+    employeeId: developer.id,
+    threadId: newerThread.id,
+    skill: "technical-starter-plan",
+    body: "Review the fictional form improvement.",
+  });
+  await command("artifact.create", {
+    id: newerTask.id,
+    expectedVersion: newerTask.version,
+    body: "Fictional newer form result ready for review.",
+  });
   await command("task.create", {
-    employeeId: developer.id, threadId: newerThread.id, skill: "technical-starter-plan", body: "A later request without a result yet.",
+    employeeId: developer.id,
+    threadId: newerThread.id,
+    skill: "technical-starter-plan",
+    body: "A later request without a result yet.",
   });
   await reload();
   await click("Open latest result");
   await text("Fictional newer form result ready for review.");
   assert.equal(
-    await evaluate(`new URLSearchParams(location.search).get('work')===${JSON.stringify(newerTask.id)} && new URLSearchParams(location.search).get('thread')===${JSON.stringify(newerThread.id)} && new URLSearchParams(location.search).get('mode')==='work'`),
+    await evaluate(
+      `new URLSearchParams(location.search).get('work')===${JSON.stringify(newerTask.id)} && new URLSearchParams(location.search).get('thread')===${JSON.stringify(newerThread.id)} && new URLSearchParams(location.search).get('mode')==='work'`,
+    ),
     true,
     "The latest-result shortcut skips the oldest conversation and later unfinished requests",
   );
@@ -476,7 +499,10 @@ try {
     450,
   );
   const goalCases = [
-    ["Create a useful weekly content plan grounded in our website and measure completed workflow use.", "marketing"],
+    [
+      "Create a useful weekly content plan grounded in our website and measure completed workflow use.",
+      "marketing",
+    ],
     ["Fix website accessibility for our marketing team.", "developer"],
     ["Coordinate website and content teams.", "ceo"],
     ["Write website copy for our launch.", "marketing"],
@@ -490,12 +516,19 @@ try {
   for (const [goalText, expectedRole] of goalCases) {
     profile = await reviewProfile("revoke");
     profile = await command("business.profile.save", {
-      body: JSON.stringify({ businessVersion: identity.version, fields: fields(goalText) }),
+      body: JSON.stringify({
+        businessVersion: identity.version,
+        fields: fields(goalText),
+      }),
     });
     profile = await reviewProfile("approve");
     await openBrief();
     await reload();
-    assert.deepEqual(await recommendations(), [expectedRole], "Requested work wins: " + goalText);
+    assert.deepEqual(
+      await recommendations(),
+      [expectedRole],
+      "Requested work wins: " + goalText,
+    );
   }
   profile = await reviewProfile("revoke");
   profile = await command("business.profile.save", {
