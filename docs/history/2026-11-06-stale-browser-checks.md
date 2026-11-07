@@ -16,6 +16,9 @@ intentional UI changes; three found real product problems, which are fixed here.
 - **The hiring guide repeated itself on phones.** On People, the live strip showed "1 item needs you · finish
   onboarding" above the open guide for that same item, pushing the form below the first screen. The strip leaves out
   onboarding and context items on People, and the guide's context help is tighter on phones.
+- **Show in chat lost the work right after a resize.** Widening past 1600 px and pressing Show in chat could close the
+  work instead of opening chat beside it, because the media listener had not reported the new width yet. The button
+  now reads the width when it is pressed.
 
 ## Checks brought up to date
 
@@ -24,9 +27,6 @@ Departments, Activity and Integrations moved under Settings; the Chat rail butto
 folded; Approve brief is disabled while an approved brief exists; Send is one sign-off by default; job costs sit inside
 "Task costs and reconciliation"; the goal form gives way to progress while saving; a conversation with one request is
 labelled by its title alone.
-- **Show in chat lost the work right after a resize.** Widening past 1600 px and pressing Show in chat could close the
-  work instead of opening chat beside it, because the media listener had not reported the new width yet. The button
-  now reads the width when it is pressed.
 
 ## Full run
 
