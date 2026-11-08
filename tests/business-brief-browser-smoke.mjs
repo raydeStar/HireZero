@@ -145,6 +145,10 @@ try {
   await send("Runtime.enable");
   await send("Page.enable");
   await send("Page.addScriptToEvaluateOnNewDocument", { source: fetchTracker });
+  // The classic start, chosen as an owner can (docs/adr/0186).
+  await send("Page.addScriptToEvaluateOnNewDocument", {
+    source: "localStorage.setItem('dev-ui:onboarding','\"form\"')",
+  });
   until.diagnose = pageDiagnosis(evaluate);
   await send("Emulation.setDeviceMetricsOverride", {
     width: 1440,

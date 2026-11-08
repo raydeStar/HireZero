@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { useState } from "react";
 import type { Event, Snapshot, Work } from "./api";
 import { workGroups, workState } from "./Cockpit";
@@ -62,7 +63,11 @@ export function WorkTrail({ snapshot, task, events }: { snapshot: Snapshot; task
       ) : (
         <p className="co-muted">Earlier steps are kept in Settings → Audit log.</p>
       )}
-      <p className="co-trail-foot">Receipts, model usage and costs for this work are below.</p>
+      <p className="co-trail-foot">
+        {customerView()
+          ? "Receipts and model usage for this work are below."
+          : "Receipts, model usage and costs for this work are below."}
+      </p>
     </details>
   );
 }

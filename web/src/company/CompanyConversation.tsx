@@ -23,6 +23,7 @@ import { useMemberAccess } from "./MemberAccess";
 import { ModelChoice } from "./ModelChoice";
 import { readableReply, replyFields, stoppedReply } from "./replyText";
 import { defaultAllowance, spendText, SpendLimit } from "./allowance";
+import { customerView } from "./audience";
 import { Fold, isLong } from "./Fold";
 import { Personality } from "./Personality";
 
@@ -491,9 +492,11 @@ export function CompanyConversation({
                 : "Live replies unavailable. Messages remain saved locally; eligible draft jobs retain separate approval."}
             </p>
             <p>
-              {cents
-                ? "Preparing sends no model request. The final Send authorizes one reply, refused before sending if the most it could cost is over your spend limit."
-                : "Preparing sends no model request. The final Send authorizes one reply from your plan’s included usage, which has no per-job limit. Nothing is bought, and no API key is used instead."}
+              {customerView()
+                ? "Preparing sends no model request. The final Send authorizes one reply, included in your plan."
+                : cents
+                  ? "Preparing sends no model request. The final Send authorizes one reply, refused before sending if the most it could cost is over your spend limit."
+                  : "Preparing sends no model request. The final Send authorizes one reply from your plan’s included usage, which has no per-job limit. Nothing is bought, and no API key is used instead."}
             </p>
             <p>Replies are informational. Work and decisions still need your approval.</p>
             {company && <p>Private employee notes, department facts and private conversations are excluded.</p>}
@@ -922,7 +925,7 @@ export function CompanyConversation({
                         : "Review first"}
                   </button>
                 )}
-                {sendNow && (
+                {sendNow && !customerView() && (
                   <span className="co-composer-chip co-composer-limit" title="The most this reply can cost">
                     {spendText(cents, Number(allowanceValue))}
                   </span>
@@ -1055,7 +1058,9 @@ function ReplyTurn({
               {writing
                 ? "Reply details"
                 : task.state === "completed"
-                  ? "What this reply cost"
+                  ? customerView()
+                    ? "What this reply used"
+                    : "What this reply cost"
                   : "Reply status · " + taskState(task.state)}
             </summary>
             {contents}

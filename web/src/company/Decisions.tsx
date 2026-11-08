@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { useEffect, useRef, useState } from "react";
 import { api, company, memberStorage } from "../lib/api";
 import { command, reconcileCompanyOperation, UnconfirmedCompanyOperation } from "./api";
@@ -410,8 +411,9 @@ export function Decisions({
           )}
           {d.state !== "prepared" && d.state !== "canceled" && (
             <p>
-              Reported usage: {d.reportedUsage == null ? "unknown" : `${d.reportedUsage.toLocaleString()} tokens`} ·
-              Reported charge: {d.reportedCostUsd == null ? "unknown" : `$${d.reportedCostUsd.toFixed(6)}`}
+              Reported usage: {d.reportedUsage == null ? "unknown" : `${d.reportedUsage.toLocaleString()} tokens`}
+              {!customerView() &&
+                ` · Reported charge: ${d.reportedCostUsd == null ? "unknown" : `$${d.reportedCostUsd.toFixed(6)}`}`}
               {d.providerReceipt && ` · Receipt: ${d.providerReceipt}`}
             </p>
           )}

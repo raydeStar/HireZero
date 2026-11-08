@@ -1,4 +1,5 @@
 import { FreeAllowance } from "./allowance";
+import { setCustomerView } from "./audience";
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { api, ApiError, applyTheme, company, preference, savePreference, type ThemeChoice } from "../lib/api";
 import { ShortcutHelp, useShortcuts } from "./Shortcuts";
@@ -72,6 +73,8 @@ const hubSections = [
 ] as const;
 type HubSection = (typeof hubSections)[number][0];
 const knowledgeSections: HubSection[] = ["business", "documents", "memory"];
+// A free sign-up company has no shared connections, and no AI spend to read (docs/adr/0187).
+const customerHidden: string[] = ["integrations", "billing", "budgets", "usage"];
 const settingsSections: HubSection[] = [
   "integrations",
   "members",
@@ -228,7 +231,7 @@ function CompanyWorkspaceContent({
   }
   // One address, one visible section: Back should retrace our steps, not rearrange the furniture.
   function openHub(section: HubSection) {
-    if (snapshot?.capabilities.signupCompany && ["integrations", "billing"].includes(section)) section = "members";
+    if (snapshot?.capabilities.signupCompany && customerHidden.includes(section)) section = "members";
     navigate({
       ...routeRef.current,
       tab: "departments",
@@ -605,6 +608,8 @@ function CompanyWorkspaceContent({
         <button onClick={() => void refresh().catch(() => {})}>Retry</button>
       </main>
     );
+  // A free sign-up company is a customer of this install: no AI spend in dollars anywhere below (docs/adr/0187).
+  setCustomerView(!!snapshot.capabilities.signupCompany);
   const d = snapshot.data,
     employee = d.employees.find((e) => e.id === selected),
     dept = d.departments.find((x) => x.id === department),
@@ -1205,7 +1210,7 @@ function CompanyWorkspaceContent({
                   ? hubSections.filter(
                       ([key]) =>
                         basicSettings.includes(key) &&
-                        !(snapshot.capabilities.signupCompany && ["integrations", "billing"].includes(key)),
+                        !(snapshot.capabilities.signupCompany && customerHidden.includes(key)),
                     )
                   : ([
                       ["business", "Company knowledge"],
@@ -1246,7 +1251,12 @@ function CompanyWorkspaceContent({
                   <summary>Advanced settings</summary>
                   <nav ref={advancedNavigation} className="co-hub-tabs" aria-label="Advanced settings">
                     {hubSections
-                      .filter(([key]) => settingsSections.includes(key) && !basicSettings.includes(key))
+                      .filter(
+                        ([key]) =>
+                          settingsSections.includes(key) &&
+                          !basicSettings.includes(key) &&
+                          !(snapshot.capabilities.signupCompany && customerHidden.includes(key)),
+                      )
                       .map(([key, label]) => (
                         <button
                           key={key}
@@ -1309,7 +1319,7 @@ function CompanyWorkspaceContent({
               }}
             />
           )}
-          {tab === "departments" && section === "budgets" && (
+          {tab === "departments" && section === "budgets" && !snapshot.capabilities.signupCompany && (
             <Budgets
               open
               budgets={d.budgets}
@@ -1321,7 +1331,7 @@ function CompanyWorkspaceContent({
               run={run}
             />
           )}
-          {tab === "departments" && section === "usage" && (
+          {tab === "departments" && section === "usage" && !snapshot.capabilities.signupCompany && (
             <Usage
               role={memberRole}
               onBilling={() => openHub("billing")}

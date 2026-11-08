@@ -2,8 +2,9 @@
 
 Record on <https://app.hirezero.app>. Caption hosted shots **Vultr VM · Vultr Serverless Inference**.
 
-Use a fresh Google account in a private window for the sign-up chapters, so the "Create my company" screen and the
-$0.50 allowance appear. A new company opens on HireZero's chat. Free sign-up allows one company per Google account, so a
+Use a fresh Google account in a private window for the sign-up chapters, so the "Create my company" screen appears.
+A new company opens on HireZero's chat. A customer never sees what the AI costs, only tokens used; the caps are shown
+from the operator's side at 2:25. Free sign-up allows one company per Google account, so a
 rehearsal uses up that account: record with a second fresh account, or keep a clean rehearsal as the take. Every
 reply and draft is a real, paid Vultr request; the whole onboarding is about a cent. Record a run from start to finish
 rather than replaying an approval. Crop email addresses, account pictures and browser bookmarks.
@@ -21,10 +22,11 @@ post, send and spend. How much damage can this one do? With HireZero, the answer
 ### 0:20–0:40 · A stranger signs up (20 s)
 
 **Picture.** Sign in with Google in the private window. The screen reads "Welcome to HireZero". Click **Create my
-company**. HireZero says "Hi, I'm HireZero!" under the "Free allowance remaining: $0.50" line; hold on both.
+company**. Hold on HireZero's "Hi, I'm HireZero!".
 
-**Narration.** "Anyone can sign in with Google and create one company. It comes with a hard allowance of fifty cents,
-and the whole install has a daily cap. The money limit is enforced on the server, before any model is called."
+**Narration.** "Anyone can sign in with Google and create one company. They never see a bill. Behind the scenes, each
+company has a hard model allowance and the whole install has a daily cap, enforced on the server before any model is
+called."
 
 ### 0:40–1:25 · HireZero learns the business (45 s)
 
@@ -34,18 +36,18 @@ each line names the page it came from. Press **This is wrong** on one line, type
 now reads as yours. Press **Looks right**.
 
 **Narration.** "HireZero is the first hire: a Vultr model following a short script, in its own words. Every message I
-send authorizes one reply, and I can see what each one cost. It reads only the website I confirmed, and every line of
+send authorizes one reply, and I can see the tokens each one used. It reads only the website I confirmed, and every line of
 the company brief cites its page. If something's wrong, I fix it in my own words."
 
 ### 1:25–1:55 · The first teammate, and what Yes will do (30 s)
 
 **Picture.** HireZero asks what you need help with most; answer it. It recommends a Marketing partner. On the offer, hold
-on "Yes writes one private draft using Vultr, up to $0.05. Nothing is posted, sent or bought, and nothing is retried on
-its own." Open **Run details** and hold on "Vultr · vultr/deepseek-v4.1-flash-1017" and "One private draft · up to
-$0.05". Press **Yes, bring them in**.
+on "Yes writes one private draft using Vultr, included in your plan. Nothing is posted, sent or bought, and nothing is
+retried on its own." Open **Run details** and hold on "Vultr · vultr/deepseek-v4.1-flash-1017". Press **Yes, bring them
+in**.
 
-**Narration.** "Before anything runs, HireZero shows exactly what will happen: which model, and the most it can cost.
-Nothing is posted, sent or bought, and nothing retries on its own. One click authorizes this one job, once."
+**Narration.** "Before anything runs, HireZero shows exactly what will happen and which model will do it. Nothing is
+posted, sent or bought, and nothing retries on its own. One click authorizes this one job, once."
 
 ### 1:55–2:25 · The draft (30 s)
 
@@ -62,12 +64,13 @@ approval, bound to this exact version."
 
 ### 2:25–3:20 · What it cannot do (55 s)
 
-**Picture.** Back on the workspace, show the remaining allowance after the run. Then show the
+**Picture.** On the workspace, show the cockpit's "Model use" in tokens. Then show the
 [sign-up decision](../adr/0181-open-signup-and-durable-spend-caps.md) and
 [Vultr-only decision](../adr/0179-hosted-hirezero-on-vultr.md), with one highlighted line each.
 
-**Narration.** "Here's the blast radius. Money: every request reserves its worst case first, and real usage settles
-it. If a reply is lost, the money stays reserved and the request is never resent automatically. Tenants: a free
+**Narration.** "Here's the blast radius. Money: the customer sees tokens, never a bill, and my spend per company is
+capped. Every request reserves its worst case first against that allowance and the install's daily cap, and real usage
+settles it. If a reply is lost, the money stays reserved and the request is never resent automatically. Tenants: a free
 company sees only its own data, gets no shared credentials, and can't invite anyone. Our own review caught that an
 invite could have claimed a stranger's sign-in. Providers: this install sends every model call to Vultr, and starting
 it with any other provider is refused."

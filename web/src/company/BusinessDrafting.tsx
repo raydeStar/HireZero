@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { providerName } from "./ModelChoice";
@@ -128,9 +129,11 @@ export function BusinessDrafting({
           ))}
           <SpendLimit cents={cents} value={sentAllowance} onChange={setAllowance} />
           <p className="co-muted">
-            {cents
-              ? "Nothing is sent if the most this could cost is over your spend limit."
-              : "Uses your plan's included usage, which has no per-job limit. Nothing is bought or recharged."}
+            {customerView()
+              ? "Included in your plan."
+              : cents
+                ? "Nothing is sent if the most this could cost is over your spend limit."
+                : "Uses your plan's included usage, which has no per-job limit. Nothing is bought or recharged."}
           </p>
           <button
             disabled={selected.length === 0 || !Number.isFinite(Number(sentAllowance)) || Number(sentAllowance) <= 0}
@@ -229,8 +232,10 @@ export function BusinessDrafting({
                     </p>
                     <p>
                       One model request. No automatic retry. The local deadline and output target are soft limits.
-                      {packet.job.terms?.allowanceUnit !== "usd-cents" &&
-                        " It uses your plan's included usage, which has no per-job limit; nothing is bought."}
+                      {customerView()
+                        ? " It's included in your plan."
+                        : packet.job.terms?.allowanceUnit !== "usd-cents" &&
+                          " It uses your plan's included usage, which has no per-job limit; nothing is bought."}
                     </p>
                   </div>
                   <details className="co-business-excerpt">
@@ -245,7 +250,7 @@ export function BusinessDrafting({
                     <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
                     <span>
                       I authorize one draft from this context
-                      {cents ? " within the shown spend limit." : ", acknowledging the soft limits."}
+                      {cents && !customerView() ? " within the shown spend limit." : ", acknowledging the soft limits."}
                     </span>
                   </label>
                   <button

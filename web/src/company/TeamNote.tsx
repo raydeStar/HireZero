@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import type { ReactNode } from "react";
 import type { Employee, Snapshot, Work } from "./api";
 import { workGroups, workState, workTitle, type Need } from "./Cockpit";
@@ -215,7 +216,11 @@ export function OutcomeBox({ onSubmit, disabled }: { onSubmit: (text: string) =>
           </button>
         ))}
       </div>
-      <small>You’ll see exactly what runs and the most it can cost before anything starts.</small>
+      <small>
+        {customerView()
+          ? "You’ll see exactly what runs before anything starts."
+          : "You’ll see exactly what runs and the most it can cost before anything starts."}
+      </small>
     </form>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { customerView } from "./audience";
 
 // What a job may spend, in the owner's terms (docs/adr/0177-plain-spend-limits.md). Included usage, such as a ChatGPT
 // sign-in, has no per-job limit anyone can enforce, so its planning default is sent as it always was and never asked
@@ -8,8 +9,10 @@ export const defaultAllowance = (cents: boolean) => (cents ? "5" : "1");
 
 export const dollars = (cents: number) => "$" + (cents / 100).toFixed(2);
 
-// The limit as a phrase: "up to $0.05", or "included usage".
-export const spendText = (cents: boolean, amount: number) => (cents ? "up to " + dollars(amount) : "included usage");
+// The limit as a phrase: "up to $0.05", or "included usage". A customer of a hosted install sees no dollars: their
+// jobs keep the default limit, checked on the server, and read as included in their plan (docs/adr/0187).
+export const spendText = (cents: boolean, amount: number) =>
+  customerView() ? "included in your plan" : cents ? "up to " + dollars(amount) : "included usage";
 
 const toDollars = (cents: string) =>
   cents.trim() === "" || isNaN(Number(cents)) ? "" : (Number(cents) / 100).toFixed(2);
@@ -35,7 +38,7 @@ export function SpendLimit({
   useEffect(() => {
     setText((current) => (fromDollars(current) === value ? current : toDollars(value)));
   }, [value]);
-  if (!cents) return null;
+  if (!cents || customerView()) return null;
   return (
     <label className="co-spend-limit">
       {label}
@@ -62,7 +65,9 @@ export function SpendLimit({
   );
 }
 
-// Spend already held for unfinished work is excluded from the available purse.
+// A free company's plan, in words: it is only a customer of this install, so it never sees what the install spends in
+// dollars (docs/adr/0187). It speaks up when the plan can't run more work; spend already held for unfinished work is
+// excluded.
 export function FreeAllowance({
   remainingCents,
   companyRemainingCents,
@@ -70,11 +75,12 @@ export function FreeAllowance({
   remainingCents: number;
   companyRemainingCents: number;
 }) {
+  if (remainingCents > 0) return null;
   return (
     <p className="co-muted" role="status">
-      Free allowance remaining: <strong>{dollars(remainingCents)}</strong>
-      {remainingCents < companyRemainingCents && ". Limited by today's shared allowance, which resets at midnight UTC."}
-      {remainingCents === 0 && " Your free allowance is used up or reserved for earlier work."}
+      {companyRemainingCents > 0
+        ? "Today's free usage is used up for everyone. It resets at midnight UTC."
+        : "Your free plan is used up, or held for work that's still finishing."}
     </p>
   );
 }

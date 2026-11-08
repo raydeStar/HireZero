@@ -1,3 +1,4 @@
+import { customerView } from "./audience";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { dollars } from "./money";
@@ -109,14 +110,21 @@ export function Progress({
   }, []);
   function download() {
     if (!data) return;
-    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    // A customer's file leaves out what the install pays for AI (docs/adr/0187).
+    const customer = customerView();
+    const shown = customer
+      ? { ...data, taskCosts: undefined, modelCosts: undefined, averageRecordedModelUsdPerCompletion: undefined }
+      : data;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(shown, null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = "hirezero-progress.json";
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     setNotice(
-      "Metrics downloaded. The file contains counts, dates, costs and record IDs, without business or result text.",
+      customer
+        ? "Metrics downloaded. The file contains counts, dates and record IDs, without business or result text."
+        : "Metrics downloaded. The file contains counts, dates, costs and record IDs, without business or result text.",
     );
   }
   async function openResult(id: string) {
@@ -217,7 +225,8 @@ export function Progress({
               {data.onboarding.approvedBriefs === 1 ? "brief has" : "briefs have"} an approval recorded.
             </p>
           </article>
-          {costs && (
+          {/* What the install pays for AI is not a customer's measure (docs/adr/0187). */}
+          {costs && !customerView() && (
             <article className="co-progress-section co-progress-task-costs">
               <h3>Completed task costs</h3>
               <p>
@@ -302,48 +311,50 @@ export function Progress({
               )}
             </article>
           )}
-          <article className="co-progress-section">
-            <h3>Recorded model costs</h3>
-            <dl>
-              <div>
-                <dt>Provider-reported</dt>
-                <dd>{dollars(data.modelCosts.reportedUsd)}</dd>
-              </div>
-              <div>
-                <dt>Estimated from saved prices</dt>
-                <dd>{dollars(data.modelCosts.estimatedUsd)}</dd>
-              </div>
-              <div>
-                <dt>Jobs without a price</dt>
-                <dd>{data.modelCosts.unpricedJobs}</dd>
-              </div>
-              <div>
-                <dt>Jobs awaiting settlement</dt>
-                <dd>{data.modelCosts.heldJobs}</dd>
-              </div>
-            </dl>
-            <p>
-              {data.modelCosts.settledJobs} of {data.modelCosts.jobs} model jobs settled, including brief preparation
-              and chat.
-            </p>
-            <p>
-              Average recorded model cost per completed task:{" "}
-              <b>
-                {data.averageRecordedModelUsdPerCompletion === null
-                  ? "Not available"
-                  : dollars(data.averageRecordedModelUsdPerCompletion)}
-              </b>
-              .
-            </p>
-            {data.completedTasksWithoutModelReceipt > 0 && (
-              <p>{data.completedTasksWithoutModelReceipt} completed tasks have no model receipt.</p>
-            )}
-            <p className="co-muted">
-              The average includes only jobs attached to completed tasks and appears when all of those costs are known.
-              Estimates may be included. Compute, tools, storage and subscription fees are not included.
-            </p>
-            <button onClick={onUsage}>Open usage receipts</button>
-          </article>
+          {!customerView() && (
+            <article className="co-progress-section">
+              <h3>Recorded model costs</h3>
+              <dl>
+                <div>
+                  <dt>Provider-reported</dt>
+                  <dd>{dollars(data.modelCosts.reportedUsd)}</dd>
+                </div>
+                <div>
+                  <dt>Estimated from saved prices</dt>
+                  <dd>{dollars(data.modelCosts.estimatedUsd)}</dd>
+                </div>
+                <div>
+                  <dt>Jobs without a price</dt>
+                  <dd>{data.modelCosts.unpricedJobs}</dd>
+                </div>
+                <div>
+                  <dt>Jobs awaiting settlement</dt>
+                  <dd>{data.modelCosts.heldJobs}</dd>
+                </div>
+              </dl>
+              <p>
+                {data.modelCosts.settledJobs} of {data.modelCosts.jobs} model jobs settled, including brief preparation
+                and chat.
+              </p>
+              <p>
+                Average recorded model cost per completed task:{" "}
+                <b>
+                  {data.averageRecordedModelUsdPerCompletion === null
+                    ? "Not available"
+                    : dollars(data.averageRecordedModelUsdPerCompletion)}
+                </b>
+                .
+              </p>
+              {data.completedTasksWithoutModelReceipt > 0 && (
+                <p>{data.completedTasksWithoutModelReceipt} completed tasks have no model receipt.</p>
+              )}
+              <p className="co-muted">
+                The average includes only jobs attached to completed tasks and appears when all of those costs are
+                known. Estimates may be included. Compute, tools, storage and subscription fees are not included.
+              </p>
+              <button onClick={onUsage}>Open usage receipts</button>
+            </article>
+          )}
           <details className="co-progress-section">
             <summary>What these measures can tell you</summary>
             <p>
