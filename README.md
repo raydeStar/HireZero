@@ -1,5 +1,15 @@
 # HireZero
 
+## At a glance
+
+- **What it does:** runs a company of AI employees (Developer, Marketing, Support, CEO) where every push, send, publish or spend waits for the owner's approval of the exact version reviewed.
+- **Try it:** [app.hirezero.app](https://app.hirezero.app), hosted on Vultr. Sign in with Google and get a $0.50 allowance; nothing is posted, sent or bought.
+- **Measured:** one real marketing job ran end to end on Vultr Serverless Inference for **$0.0043**, with its token budget reserved before the model call.
+- **Run it locally (Windows + PowerShell 7 only for now):** build with the four commands under [Build and run](#build-and-run); `pwsh tools/Invoke-Checks.ps1 -Browser` runs every check in one command.
+- **Design:** core, employees and integrations are separate layers, and each decision is an [ADR](docs/adr/).
+
+## Overview
+
 Scaffold a company out of AI employees. Each employee is a module you hire, onboard with approved company
 knowledge, talk to privately, assign work and review. Departments can hold several employees of the same kind
 without sharing private history. A CEO employee proposes plans and chairs board meetings; you stay the owner.
